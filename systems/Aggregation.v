@@ -13,43 +13,47 @@ Require Import Util.
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
-Require Import OrderedTypeEx.
-Require Import FMapList.
-Module IMap <: FMapInterface.S := FMapList.Make Nat_as_OT.
-
-(*
-Require Import Orders.
-Require Import NPeano.
-Require Import MSetList.
-Module ISet <: MSetInterface.S := MSetList.Make Nat.
-*)
-
 Require Import ssreflect.
 
 Set Implicit Arguments.
 
 Open Scope Z_scope.
 
-Section Aggregation.
+Module Aggregation (N : NatValue) <: NatValue.
 
-  Variable num_sources : nat.
+  Definition num_sources := N.n.
 
-  Definition Mass := Z.
+  Require Import OrderedTypeEx.
+  Require Import FMapList.
+  Module fin_n_compat_OT := fin_OT_compat N.
+  Module FinNMap <: FMapInterface.S := FMapList.Make fin_n_compat_OT.
+  
+  Require Import Orders.
+  Require Import MSetList.
+  Module fin_n_OT := fin_OT N.
+  Module FinNSet <: MSetInterface.S := MSetList.Make fin_n_OT.
 
-  Definition source_index := (fin num_sources).
+  Require Import MSetFacts.
+  Module FinNSetFacts := Facts FinNSet.
 
-  Inductive Name :=
-  | Source : source_index -> Name.
+  Require Import MSetProperties.
+  Module FinNSetProps := Properties FinNSet.
+  Module FinNSetOrdProps := OrdProperties FinNSet.
+  Require Import FMapFacts.
+  Module FinNMapFacts := Facts FinNMap.
+  
+  Definition m := Z.
 
-  Definition list_sources := map Source (all_fin num_sources).
+  Definition Name := (fin num_sources).
+
+  Definition list_sources := (all_fin num_sources).
 
   Definition Name_eq_dec : forall x y : Name, {x = y} + {x <> y}.
-    decide equality.
-    by apply fin_eq_dec.
+  exact: fin_eq_dec.
   Defined.
 
   Inductive Msg := 
-   | Aggregate : Mass -> Msg.
+   | Aggregate : m -> Msg.
 
   Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
     decide equality.
@@ -57,7 +61,7 @@ Section Aggregation.
   Defined.
 
   Inductive Input :=
-   | Local : Mass -> Input
+   | Local : m -> Input
    | Send : Name -> Input
    | Query : Input.
 
@@ -68,16 +72,16 @@ Section Aggregation.
   Defined.
 
   Inductive Output :=
-    | Response : Mass -> Output.
+    | Response : m -> Output.
 
   Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
     decide equality.
     by apply Z_eq_dec.
   Defined.
- 
-  Record Data := mkData { local : Z ; aggregate : Z }.
 
-  Definition init_Data (n : Name) := mkData 0 0.
+  Record Data := mkData { local : m ; aggregate : m ; adjacent : FinNSet.t ; sent : FinNMap.t m ; received : FinNMap.t m }.
+
+  Definition init_Data (n : Name) := mkData 0 0 FinNSet.empty (FinNMap.empty m) (FinNMap.empty m).
 
   Definition Handler (S : Type) := GenHandler (Name * Msg) S Output unit.
 
@@ -86,7 +90,7 @@ Section Aggregation.
     | Aggregate m => 
       st <- get ;;
       let new_aggregate := st.(aggregate) + m in
-      put (mkData st.(local) new_aggregate) 
+      put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) st.(received))
     end.
 
   Definition IOHandler (me : Name) (i : Input) : Handler Data :=
@@ -95,12 +99,12 @@ Section Aggregation.
     st <- get ;;
     let new_local := m in
     let new_aggregate := (st.(aggregate) + m - st.(local)) in
-    put (mkData new_local new_aggregate)
+    put (mkData new_local new_aggregate st.(adjacent) st.(sent) st.(received))
   | Send n => 
     st <- get ;;
     when 
     (Zneq_bool st.(aggregate) 0)
-    (put (mkData st.(local) 0) >> (send (n, (Aggregate st.(aggregate)))))
+    (put (mkData st.(local) 0 st.(adjacent) st.(sent) st.(received)) >> (send (n, (Aggregate st.(aggregate)))))
   | Query =>
     st <- get ;;
     write_output (Response st.(aggregate))
@@ -111,21 +115,36 @@ Section Aggregation.
   Theorem In_n_Nodes :
     forall n : Name, In n Nodes.
   Proof.
+    rewrite /Name /num_sources.
     intros.
-    unfold Nodes, list_sources.
-    simpl.
-    destruct n.
-    apply in_map.
-    by apply all_fin_all.
+    unfold Nodes, list_sources, num_sources.
+    case (O_or_S N.n).
+    - case => m H_eq.
+      move: n.
+      rewrite -H_eq.
+      exact: all_fin_all.
+    - move => H_eq.
+      move: n.
+      by rewrite -H_eq.
   Qed.
 
   Theorem nodup :
     NoDup Nodes.
   Proof.
-    unfold Nodes, list_sources.
-    apply NoDup_map_injective.
-      + intros. congruence.
-      + apply all_fin_NoDup.
+    unfold Nodes, list_sources, num_sources.
+    case (O_or_S N.n).
+    - case => m H_eq.
+      rewrite -H_eq.
+      apply NoDup_cons.
+      * in_crush. 
+        by discriminate.
+      * apply NoDup_map_injective.
+        + move => x y.
+          by congruence.
+        + exact: all_fin_NoDup.
+    - move => H_eq.
+      rewrite -H_eq.
+      exact: NoDup_nil.
   Qed.
 
   Instance Aggregation_BaseParams : BaseParams :=
@@ -150,8 +169,6 @@ Section Aggregation.
       input_handlers := fun nm msg s =>
                           runGenHandler_ignore s (IOHandler nm msg)
     }.
-
-  Check net_handlers.
 
   Lemma net_handlers_NetHandler :
     forall dst src m d os d' ms,
@@ -222,3 +239,26 @@ Admitted.
 
 
 End Aggregation.
+
+(* 
+
+Module NatValue10 <: NatValue.
+ Definition n := 10.
+End NatValue10.
+
+Module fin_10_compat_OT := fin_OT_compat NatValue10.
+
+Require Import FMapList.
+Module Map <: FMapInterface.S := FMapList.Make fin_10_compat_OT.
+
+Definition b : fin 10 := Some (Some (Some (Some (Some (Some (Some (Some (Some None)))))))).
+
+Eval compute in Map.find b (Map.add b 3 (Map.empty nat)).
+
+Module fin_10_OT := fin_OT NatValue10.
+
+Require Import MSetList.
+Module FinSet <: MSetInterface.S := MSetList.Make fin_10_OT.
+Eval compute in FinSet.choose (FinSet.singleton b).
+
+*)
