@@ -115,36 +115,13 @@ Module Aggregation (N : NatValue) <: NatValue.
   Theorem In_n_Nodes :
     forall n : Name, In n Nodes.
   Proof.
-    rewrite /Name /num_sources.
-    intros.
-    unfold Nodes, list_sources, num_sources.
-    case (O_or_S N.n).
-    - case => m H_eq.
-      move: n.
-      rewrite -H_eq.
-      exact: all_fin_all.
-    - move => H_eq.
-      move: n.
-      by rewrite -H_eq.
+    exact: all_fin_all.
   Qed.
 
   Theorem nodup :
     NoDup Nodes.
   Proof.
-    unfold Nodes, list_sources, num_sources.
-    case (O_or_S N.n).
-    - case => m H_eq.
-      rewrite -H_eq.
-      apply NoDup_cons.
-      * in_crush. 
-        by discriminate.
-      * apply NoDup_map_injective.
-        + move => x y.
-          by congruence.
-        + exact: all_fin_NoDup.
-    - move => H_eq.
-      rewrite -H_eq.
-      exact: NoDup_nil.
+    exact: all_fin_NoDup.
   Qed.
 
   Instance Aggregation_BaseParams : BaseParams :=
