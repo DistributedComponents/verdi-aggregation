@@ -21,7 +21,9 @@ Open Scope Z_scope.
 
 Module Aggregation (N : NatValue) <: NatValue.
 
-  Definition num_sources := N.n.
+  Definition n := N.n.
+ 
+  Definition num_sources := N.n.  
 
   Require Import OrderedTypeEx.
   Require Import FMapList.
@@ -44,6 +46,8 @@ Module Aggregation (N : NatValue) <: NatValue.
   
   Definition m := Z.
 
+  Definition m_neq_bool := Zneq_bool.
+
   Definition Name := (fin num_sources).
 
   Definition list_sources := (all_fin num_sources).
@@ -51,6 +55,28 @@ Module Aggregation (N : NatValue) <: NatValue.
   Definition Name_eq_dec : forall x y : Name, {x = y} + {x <> y}.
   exact: fin_eq_dec.
   Defined.
+
+  Definition Name_neq_bool (x y : Name) : bool :=
+  match Name_eq_dec x y with
+  | left _ => false
+  | right _ => true
+  end.
+
+  Lemma Name_neq_bool_true_neq : forall (x y : Name),
+    Name_neq_bool x y = true -> x <> y.
+  Proof.
+  move => x y.
+  rewrite /Name_neq_bool.
+  by case (Name_eq_dec _ _).
+  Qed.
+
+  Lemma Name_neq_bool_neq_true : forall (x y : Name),
+    x <> y -> Name_neq_bool x y = true.
+  Proof.
+  move => x y.
+  rewrite /Name_neq_bool.
+  by case (Name_eq_dec _ _).
+  Qed.
 
   Inductive Msg := 
    | Aggregate : m -> Msg.
@@ -87,24 +113,35 @@ Module Aggregation (N : NatValue) <: NatValue.
 
   Definition NetHandler (me src: Name) (msg : Msg) : Handler Data :=
     match msg with
-    | Aggregate m => 
+    | Aggregate m_msg => 
       st <- get ;;
-      let new_aggregate := st.(aggregate) + m in
-      put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) st.(received))
+      let new_aggregate := st.(aggregate) + m_msg in
+      let new_received := 
+        match FinNMap.find src st.(received) with
+        | Some m_src => FinNMap.add src (m_src + m_msg) st.(received)
+        | None => FinNMap.add src m_msg st.(received)
+        end in
+      put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
     end.
 
   Definition IOHandler (me : Name) (i : Input) : Handler Data :=
   match i with
-  | Local m => 
+  | Local m_msg => 
     st <- get ;;
-    let new_local := m in
-    let new_aggregate := (st.(aggregate) + m - st.(local)) in
+    let new_local := m_msg in
+    let new_aggregate := st.(aggregate) + m_msg - st.(local) in
     put (mkData new_local new_aggregate st.(adjacent) st.(sent) st.(received))
-  | Send n => 
+  | Send dst => 
     st <- get ;;
     when 
-    (Zneq_bool st.(aggregate) 0)
-    (put (mkData st.(local) 0 st.(adjacent) st.(sent) st.(received)) >> (send (n, (Aggregate st.(aggregate)))))
+    (m_neq_bool st.(aggregate) 0 && Name_neq_bool me dst)
+    (let new_aggregate := 0 in
+     let new_sent := 
+       match FinNMap.find dst st.(sent) with
+       | Some m_dst => FinNMap.add dst (m_dst + st.(aggregate)) st.(sent)
+       | None => FinNMap.add dst st.(aggregate) st.(sent)
+       end in
+     put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate)))))
   | Query =>
     st <- get ;;
     write_output (Response st.(aggregate))
@@ -147,6 +184,12 @@ Module Aggregation (N : NatValue) <: NatValue.
                           runGenHandler_ignore s (IOHandler nm msg)
     }.
 
+
+  Definition fold_sum := fun (key : Name) val sum => sum + val.
+  
+  Definition sum_mass (map : FinNMap.t m) : m := 
+  FinNMap.fold fold_sum map 0.
+
   Lemma net_handlers_NetHandler :
     forall dst src m d os d' ms,
       net_handlers dst src m d = (os, d', ms) ->
@@ -160,8 +203,113 @@ Module Aggregation (N : NatValue) <: NatValue.
     destruct u. auto.
   Qed.
 
-  (* Definition conserves_node_mass (nodes : list node) : Prop := forall (n : node), In n nodes -> 
-    n.(local) = n.(aggregate) + (sum_mass n.(adjacent) n.(sent)) - (sum_mass n.(adjacent) n.(received)) *)
+  Lemma input_handlers_IOHandler :
+    forall h i d os d' ms,
+      input_handlers h i d = (os, d', ms) ->
+      IOHandler h i d = (tt, os, d', ms).
+  Proof.
+    intros.
+    simpl in *.
+    monad_unfold.
+    repeat break_let.
+    find_inversion.
+    destruct u. auto.
+  Qed.
+
+Lemma sum_mass_add_Some : forall (n : Name) (map : FinNMap.t m) (m5 m' : m),
+  FinNMap.find n map = Some m5 ->
+  sum_mass (FinNMap.add n (m5 + m') map) = sum_mass map + m'.
+Proof.
+move => n map m5 m'.
+rewrite /sum_mass.
+rewrite (FinNMap.fold_1 map _ fold_sum).
+rewrite (FinNMap.fold_1 _ _ fold_sum).
+move => H_find.
+apply FinNMap.find_2 in H_find.
+have H_el := FinNMap.elements_1 H_find.
+have H_add := FinNMap.add_3.
+elim (FinNMap.elements map) => [|e map' IH].
+Admitted.
+
+Lemma sum_mass_add_None : forall (n : Name) (map : FinNMap.t m) (m' : m),
+  FinNMap.find n map = None ->
+  sum_mass (FinNMap.add n m' map) = sum_mass map + m'.
+Proof.
+Admitted.
+
+Lemma conserves_node_mass : 
+forall net tr n, 
+ step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
+ (nwState net n).(local) = (nwState net n).(aggregate) + 
+   (sum_mass (nwState net n).(sent)) - (sum_mass (nwState net n).(received)).
+Proof.
+move => net tr n H.
+remember step_m_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_m _ _ _ |- _ ] => invc H
+end; simpl.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  destruct (pBody p).
+  rewrite /= in H3.
+  monad_unfold.
+  rewrite /= in H3.
+  injection H3.
+  move => H_l H_st H_out.
+  rewrite -H_st /=.
+  rewrite /update.
+  case (name_eq_dec _ _) => H_eq //.
+  rewrite /= -H_eq {H_eq}.
+  case H_find: (FinNMap.find _ _) => [m'|].
+    rewrite IHrefl_trans_1n_trace1 /=.
+    rewrite (sum_mass_add_Some _ _ _ H_find).
+    by ring_simplify.
+  rewrite IHrefl_trans_1n_trace1 /=.
+  rewrite (sum_mass_add_None _ _ _ H_find).
+  by ring_simplify.
+apply input_handlers_IOHandler in H2.
+destruct inp.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq //.
+  rewrite /= -H_eq {H_eq}.
+  rewrite IHrefl_trans_1n_trace1 /=.
+  symmetry.
+  by ring_simplify.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  move: H2.
+  case H_m_neq: (m_neq_bool _); case H_n_neq: (Name_neq_bool _ _) => //= H2; injection H2 => H_l H_st H_o.
+  * rewrite -H_st /update /= {H_st H2}.
+    case (Name_eq_dec _) => H_eq //=.
+    rewrite -H_eq {H_eq}.
+    case H_find: (FinNMap.find _ _) => [m'|].
+      rewrite IHrefl_trans_1n_trace1 /=.
+      rewrite (sum_mass_add_Some _ _ _ H_find).
+      by ring_simplify.
+    rewrite IHrefl_trans_1n_trace1 /=.
+    rewrite (sum_mass_add_None _ _ _ H_find).
+    by ring_simplify.          
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq //.
+  by rewrite -H_eq.
+Qed.
 
   (* Definition conserves_mass_globally (nodes : list node) : Prop :=
      sum_local nodes = (sum_aggregate nodes) + (sum_sent nodes) - (sum_received nodes). *)
@@ -169,51 +317,6 @@ Module Aggregation (N : NatValue) <: NatValue.
   (* Definition conserves_network_mass (nodes : list node) : Prop :=
      sum_local nodes = (sum_aggregate nodes) + (sum_aggregate_queues nodes) + (sum_sent_fail_queues nodes) - 
      (sum_received_fail_queues nodes). *)
-
-  Definition trprop (trace : list (name * (input + list output))) : Prop :=
-    True.
-
-  Lemma cross_relation :
-    forall (P : network -> list (name * (input + list output)) -> Prop),
-      P step_m_init [] ->
-      (forall st st' tr ev,
-         step_m_star step_m_init st tr ->
-         P st tr ->
-         step_m st st' ev ->
-         P st' (tr ++ ev)) ->
-      forall st tr,
-        step_m_star step_m_init st tr ->
-        P st tr.
-Proof.
-    intros.
-    find_apply_lem_hyp refl_trans_1n_n1_trace.
-    prep_induction H1.
-    induction H1; intros; subst; eauto.
-    eapply H3; eauto.
-    - apply refl_trans_n1_1n_trace. auto.
-    - apply IHrefl_trans_n1_trace; auto.
-  Qed.
-
-  Lemma Aggregation_mutual_exclusion_trace :
-    forall st tr,
-      step_m_star step_m_init st tr ->
-      trprop tr.
-  Proof.
-  apply cross_relation; intros.
-  - by [].
-  - case: H1.
-    intros.
-    rewrite /= /NetHandler in e0.
-    move: e0 e1 e.
-    case: p => pDst pSrc.
-    case => m.
-    rewrite /=.
-    monad_unfold.
-    rewrite /=.
-    move => H_eq.
-    injection H_eq.
-Admitted.
-
 
 End Aggregation.
 
