@@ -684,6 +684,150 @@ find_inversion.
 destruct u. auto.
 Qed.
 
+Lemma Aggregation_node_not_adjacent_self : 
+forall net tr n, 
+ step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
+ ~ FinNSet.In n (nwState net n).(adjacent).
+Proof.
+move => net tr n H.
+remember step_m_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init.
+  rewrite H_init /step_m_init /=.
+  exact: not_adjacent_self.
+concludes.
+match goal with
+| [ H : step_m _ _ _ |- _ ] => invc H
+end; simpl.
+find_apply_lem_hyp net_handlers_NetHandler.
+  destruct (pBody p).
+  rewrite /= in H3.
+  monad_unfold.
+  rewrite /= in H3.
+  injection H3.
+  move => H_l H_st H_out.
+  rewrite -H_st /=.
+  rewrite /update.
+  case (name_eq_dec _ _) => H_eq //.
+  by rewrite /= -H_eq {H_eq}.
+apply input_handlers_IOHandler in H2.
+destruct inp.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq //.
+  by rewrite /= -H_eq {H_eq}.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  move: H2.
+  case H_mem: (FinNSet.mem _ _); case H_m_neq: (m_neq_bool _ _) => //= H2; injection H2 => H_l H_st H_o.
+  * rewrite -H_st /update /= {H_st H2}.
+    case (Name_eq_dec _) => H_eq //=.
+    by rewrite -H_eq {H_eq}.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq //.
+    by rewrite -H_eq.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq //.
+  by rewrite -H_eq.
+Qed.
+
+Lemma Aggregation_nodes_mutually_adjacent : 
+forall net tr n n', 
+ step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
+ FinNSet.In n (nwState net n').(adjacent) -> FinNSet.In n' (nwState net n).(adjacent).
+Proof.
+move => net tr n n' H.
+remember step_m_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init.
+  rewrite H_init /step_m_init /=.
+  exact: adjacency_mutual.
+rewrite H_init -/step_m_star in H H1.
+have H_self := Aggregation_node_not_adjacent_self H.
+concludes.
+match goal with
+| [ H : step_m _ _ _ |- _ ] => invc H
+end; simpl.
+find_apply_lem_hyp net_handlers_NetHandler.
+  destruct (pBody p).
+  rewrite /= in H3.
+  monad_unfold.
+  rewrite /= in H3.
+  injection H3.
+  move => H_l H_st H_out.
+  rewrite -H_st /=.
+  rewrite /update.
+  case (Name_eq_dec _ _) => H_eq; case (Name_eq_dec _ _) => H_eq' //=.
+  - rewrite -H_eq.
+    rewrite -H_eq in H_eq'.
+    rewrite H_eq'.
+    move => H_ins.
+    by contradict H_ins.
+  - by rewrite -H_eq.
+  - by rewrite -H_eq'.
+apply input_handlers_IOHandler in H2.
+destruct inp.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+  * rewrite /= H_eq H_eq' {H_eq H_eq'}.
+    move => H_ins.
+    by contradict H_ins.
+  * by rewrite -H_eq.
+  * by rewrite -H_eq'.
+- move: H2.
+  rewrite /IOHandler /=.
+  monad_unfold.
+  case H_mem: (FinNSet.mem _ _); case H_m_neq: (m_neq_bool _ _) => //= H2; injection H2 => H_l H_st H_o.
+  * rewrite -H_st /update /= {H_st H2}.
+    case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+    + by rewrite H_eq H_eq'.
+    + by rewrite -H_eq.
+    + by rewrite -H_eq'.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+    + by rewrite H_eq H_eq'.
+    + by rewrite -H_eq.
+    + by rewrite -H_eq'.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+    + by rewrite H_eq H_eq'.
+    + by rewrite -H_eq.
+    + by rewrite -H_eq'.
+  * rewrite -H_st /update /=.
+    case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+    + by rewrite H_eq H_eq'.
+    + by rewrite -H_eq.
+    + by rewrite -H_eq'.
+- rewrite /IOHandler /= in H2.
+  monad_unfold.
+  injection H2 => H_l H_st H_o.
+  rewrite -H_st /update /=.
+  case (Name_eq_dec _) => H_eq; case (Name_eq_dec _) => H_eq' //=.
+  * by rewrite H_eq H_eq'.
+  * by rewrite -H_eq.
+  * by rewrite -H_eq'.
+Qed.
+
+Definition in_set_exists_find_sent (d : Data) : Prop :=
+  forall (n : Name), FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(sent) = Some m5.
+
+Definition in_set_exists_find_received (d : Data) : Prop :=
+  forall (n : Name), FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(received) = Some m5.
+
 Definition conserves_node_mass (d : Data) : Prop := 
 d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
 
@@ -692,11 +836,11 @@ forall net tr n,
  step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
  conserves_node_mass (nwState net n).
 Proof.
-fail.
 move => net tr n H.
 remember step_m_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
+induction H using refl_trans_1n_trace_n1_ind => H_init.
+  
 concludes.
 match goal with
 | [ H : step_m _ _ _ |- _ ] => invc H
@@ -762,7 +906,7 @@ destruct inp.
 Qed.
 
   (* Definition conserves_mass_globally (nodes : list node) : Prop :=
-     sum_local nodes = (sum_aggregate nodes) + (sum_sent nodes) - (sum_received nodes). *)
+     sum_local nodes = (sum_aggregate nodes) * (sum_sent nodes) * (sum_received nodes)^-1. *)
 
   (* Definition conserves_network_mass (nodes : list node) : Prop :=
      sum_local nodes = (sum_aggregate nodes) + (sum_aggregate_queues nodes) + (sum_sent_fail_queues nodes) - 
