@@ -14,235 +14,685 @@ Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import ssreflect.
+Require Import ssrbool.
+Require Import eqtype.
+Require Import fintype.
+Require Import finset.
+Require Import fingroup.
+
+Require Import AAC.
 
 Set Implicit Arguments.
 
-Open Scope Z_scope.
+Module Type CommutativeMassGroup.
+Parameter gT : finGroupType.
+Parameter commutes : forall x y : gT, commute x y.
+End CommutativeMassGroup.
 
-Module Aggregation (N : NatValue) <: NatValue.
+Module Aggregation (N : NatValue) (CMG : CommutativeMassGroup) <:
+       CommutativeMassGroup 
+       with Definition gT := CMG.gT
+       with Definition commutes := CMG.commutes.
 
-  Definition n := N.n.
+Definition gT := CMG.gT.
+Definition commutes := CMG.commutes.
+
+Import GroupScope.
+
+Instance aac_mulg_Assoc : Associative eq (mulg (T:=gT)) := mulgA (T:=gT).
+
+Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)).
+move => x y.
+rewrite commute_sym //.
+exact: commutes.
+Defined.
+
+Instance aac_mulg_unit : Unit eq (mulg (T:=gT)) 1.
+apply: (Build_Unit eq (mulg (T:=gT)) 1 _ _) => x; first by rewrite mul1g.
+by rewrite mulg1.
+Defined.
  
-  Definition num_sources := N.n.  
+Definition num_sources := N.n.
 
-  Require Import OrderedTypeEx.
-  Require Import FMapList.
-  Module fin_n_compat_OT := fin_OT_compat N.
-  Module FinNMap <: FMapInterface.S := FMapList.Make fin_n_compat_OT.
+Require Import OrderedTypeEx.
+Require Import FMapList.
+Module fin_n_compat_OT := fin_OT_compat N.
+Module FinNMap <: FMapInterface.S := FMapList.Make fin_n_compat_OT.
+
+Require Import Orders.
+Require Import MSetList.
+Module fin_n_OT := fin_OT N.
+Module FinNSet <: MSetInterface.S := MSetList.Make fin_n_OT.
+
+Require Import MSetFacts.
+Module FinNSetFacts := Facts FinNSet.
+
+Require Import MSetProperties.
+Module FinNSetProps := Properties FinNSet.
+Module FinNSetOrdProps := OrdProperties FinNSet.
+Require Import FMapFacts.
+Module FinNMapFacts := Facts FinNMap.
   
-  Require Import Orders.
-  Require Import MSetList.
-  Module fin_n_OT := fin_OT N.
-  Module FinNSet <: MSetInterface.S := MSetList.Make fin_n_OT.
+Definition m := gT.
 
-  Require Import MSetFacts.
-  Module FinNSetFacts := Facts FinNSet.
+Definition FinNM := FinNMap.t m.
 
-  Require Import MSetProperties.
-  Module FinNSetProps := Properties FinNSet.
-  Module FinNSetOrdProps := OrdProperties FinNSet.
-  Require Import FMapFacts.
-  Module FinNMapFacts := Facts FinNMap.
-  
-  Definition m := Z.
+Definition FinNS := FinNSet.t.
 
-  Definition m_neq_bool := Zneq_bool.
+Definition m_eq_dec : forall (a b : m), { a = b }+{ a <> b }.
+move => a b.
+case H_dec: (a == b); move: H_dec; first by case/eqP; left.
+move => H_eq; right.
+case/eqP => H_neq.
+by rewrite H_eq in H_neq.
+Defined.
 
-  Definition Name := (fin num_sources).
+Definition m_neq_bool (a b : m) : bool :=
+match m_eq_dec a b with
+| left _ => false
+| right _ => true
+end.
 
-  Definition list_sources := (all_fin num_sources).
+Definition Name := (fin num_sources).
 
-  Definition Name_eq_dec : forall x y : Name, {x = y} + {x <> y}.
-  exact: fin_eq_dec.
-  Defined.
+Definition list_sources := (all_fin num_sources).
 
-  Definition Name_neq_bool (x y : Name) : bool :=
-  match Name_eq_dec x y with
-  | left _ => false
-  | right _ => true
-  end.
+Definition Name_eq_dec : forall x y : Name, {x = y} + {x <> y}.
+exact: fin_eq_dec.
+Defined.
 
-  Lemma Name_neq_bool_true_neq : forall (x y : Name),
-    Name_neq_bool x y = true -> x <> y.
-  Proof.
-  move => x y.
-  rewrite /Name_neq_bool.
-  by case (Name_eq_dec _ _).
-  Qed.
+Definition Name_neq_bool (x y : Name) : bool :=
+match Name_eq_dec x y with
+| left _ => false
+| right _ => true
+end.
 
-  Lemma Name_neq_bool_neq_true : forall (x y : Name),
-    x <> y -> Name_neq_bool x y = true.
-  Proof.
-  move => x y.
-  rewrite /Name_neq_bool.
-  by case (Name_eq_dec _ _).
-  Qed.
-
-  Inductive Msg := 
-   | Aggregate : m -> Msg.
-
-  Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
-    decide equality.
-    by apply Z_eq_dec.
-  Defined.
-
-  Inductive Input :=
-   | Local : m -> Input
-   | Send : Name -> Input
-   | Query : Input.
-
-  Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-    decide equality.
-    - by apply Z_eq_dec.
-    - by apply Name_eq_dec.
-  Defined.
-
-  Inductive Output :=
-    | Response : m -> Output.
-
-  Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-    decide equality.
-    by apply Z_eq_dec.
-  Defined.
-
-  Record Data := mkData { local : m ; aggregate : m ; adjacent : FinNSet.t ; sent : FinNMap.t m ; received : FinNMap.t m }.
-
-  Definition init_Data (n : Name) := mkData 0 0 FinNSet.empty (FinNMap.empty m) (FinNMap.empty m).
-
-  Definition Handler (S : Type) := GenHandler (Name * Msg) S Output unit.
-
-  Definition NetHandler (me src: Name) (msg : Msg) : Handler Data :=
-    match msg with
-    | Aggregate m_msg => 
-      st <- get ;;
-      let new_aggregate := st.(aggregate) + m_msg in
-      let new_received := 
-        match FinNMap.find src st.(received) with
-        | Some m_src => FinNMap.add src (m_src + m_msg) st.(received)
-        | None => FinNMap.add src m_msg st.(received)
-        end in
-      put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
-    end.
-
-  Definition IOHandler (me : Name) (i : Input) : Handler Data :=
-  match i with
-  | Local m_msg => 
-    st <- get ;;
-    let new_local := m_msg in
-    let new_aggregate := st.(aggregate) + m_msg - st.(local) in
-    put (mkData new_local new_aggregate st.(adjacent) st.(sent) st.(received))
-  | Send dst => 
-    st <- get ;;
-    when 
-    (m_neq_bool st.(aggregate) 0 && Name_neq_bool me dst)
-    (let new_aggregate := 0 in
-     let new_sent := 
-       match FinNMap.find dst st.(sent) with
-       | Some m_dst => FinNMap.add dst (m_dst + st.(aggregate)) st.(sent)
-       | None => FinNMap.add dst st.(aggregate) st.(sent)
-       end in
-     put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate)))))
-  | Query =>
-    st <- get ;;
-    write_output (Response st.(aggregate))
-  end.
-
-  Definition Nodes := list_sources.
-
-  Theorem In_n_Nodes :
-    forall n : Name, In n Nodes.
-  Proof.
-    exact: all_fin_all.
-  Qed.
-
-  Theorem nodup :
-    NoDup Nodes.
-  Proof.
-    exact: all_fin_NoDup.
-  Qed.
-
-  Instance Aggregation_BaseParams : BaseParams :=
-    {
-      data := Data;
-      input := Input;
-      output := Output
-    }.
-
-  Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams :=
-    {
-      name := Name ;
-      msg  := Msg ;
-      msg_eq_dec := Msg_eq_dec ;
-      name_eq_dec := Name_eq_dec ;
-      nodes := Nodes ;
-      all_names_nodes := In_n_Nodes ;
-      no_dup_nodes := nodup ;
-      init_handlers := init_Data ;
-      net_handlers := fun dst src msg s =>
-                        runGenHandler_ignore s (NetHandler dst src msg) ;
-      input_handlers := fun nm msg s =>
-                          runGenHandler_ignore s (IOHandler nm msg)
-    }.
-
-
-  Definition fold_sum := fun (key : Name) val sum => sum + val.
-  
-  Definition sum_mass (map : FinNMap.t m) : m := 
-  FinNMap.fold fold_sum map 0.
-
-  Lemma net_handlers_NetHandler :
-    forall dst src m d os d' ms,
-      net_handlers dst src m d = (os, d', ms) ->
-      NetHandler dst src m d = (tt, os, d', ms).
-  Proof.
-    intros.
-    simpl in *.
-    monad_unfold.
-    repeat break_let.
-    find_inversion.
-    destruct u. auto.
-  Qed.
-
-  Lemma input_handlers_IOHandler :
-    forall h i d os d' ms,
-      input_handlers h i d = (os, d', ms) ->
-      IOHandler h i d = (tt, os, d', ms).
-  Proof.
-    intros.
-    simpl in *.
-    monad_unfold.
-    repeat break_let.
-    find_inversion.
-    destruct u. auto.
-  Qed.
-
-Lemma sum_mass_add_Some : forall (n : Name) (map : FinNMap.t m) (m5 m' : m),
-  FinNMap.find n map = Some m5 ->
-  sum_mass (FinNMap.add n (m5 + m') map) = sum_mass map + m'.
+Lemma Name_neq_bool_true_neq : forall (x y : Name),
+  Name_neq_bool x y = true -> x <> y.
 Proof.
-move => n map m5 m'.
-rewrite /sum_mass.
-rewrite (FinNMap.fold_1 map _ fold_sum).
-rewrite (FinNMap.fold_1 _ _ fold_sum).
-move => H_find.
-apply FinNMap.find_2 in H_find.
-have H_el := FinNMap.elements_1 H_find.
-have H_add := FinNMap.add_3.
-elim (FinNMap.elements map) => [|e map' IH].
-Admitted.
+move => x y.
+rewrite /Name_neq_bool.
+by case (Name_eq_dec _ _).
+Qed.
 
-Lemma sum_mass_add_None : forall (n : Name) (map : FinNMap.t m) (m' : m),
-  FinNMap.find n map = None ->
-  sum_mass (FinNMap.add n m' map) = sum_mass map + m'.
+Lemma Name_neq_bool_neq_true : forall (x y : Name),
+  x <> y -> Name_neq_bool x y = true.
 Proof.
-Admitted.
+move => x y.
+rewrite /Name_neq_bool.
+by case (Name_eq_dec _ _).
+Qed.
 
-Lemma conserves_node_mass : 
+Inductive Msg := 
+| Aggregate : m -> Msg.
+
+Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
+decide equality.
+exact: m_eq_dec.
+Defined.
+
+Inductive Input :=
+| Local : m -> Input
+| Send : Name -> Input
+| Query : Input.
+
+Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
+decide equality.
+- exact: m_eq_dec.
+- exact: Name_eq_dec.
+Defined.
+
+Inductive Output :=
+| Response : m -> Output.
+
+Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
+decide equality.
+exact: m_eq_dec.
+Defined.
+
+Record Data := mkData { local : m ; aggregate : m ; adjacent : FinNS ; sent : FinNM ; received : FinNM }.
+
+Parameter adjacency : Name -> FinNS.
+
+Parameter not_adjacent_self : forall (n : Name), ~ FinNSet.In n (adjacency n).
+
+Parameter adjacency_mutual : forall (n n' : Name), FinNSet.In n (adjacency n') -> FinNSet.In n' (adjacency n).
+
+Definition fins_lt (fins fins' : FinNS) : Prop :=
+FinNSet.cardinal fins < FinNSet.cardinal fins'.
+
+Lemma fins_lt_well_founded : well_founded fins_lt.
+Proof.
+apply (well_founded_lt_compat _ (fun fins => FinNSet.cardinal fins)).
+by move => x y; rewrite /fins_lt => H.
+Qed.
+
+Definition init_map_t (fins : FinNS) : Type := 
+{ map : FinNM | forall (n : Name), FinNSet.In n fins <-> FinNMap.find n map = Some 1 }.
+
+Definition init_map_F : forall fins : FinNS, 
+  (forall fins' : FinNS, fins_lt fins' fins -> init_map_t fins') ->
+  init_map_t fins.
+rewrite /init_map_t.
+refine
+  (fun (fins : FinNS) init_map_rec =>
+   match FinNSet.choose fins as finsopt return (_ = finsopt -> _) with
+   | Some n => fun (H_eq : _) => 
+     match init_map_rec (FinNSet.remove n fins) _ with 
+     | exist fins' H_fins' => exist _ (FinNMap.add n 1 fins') _
+     end
+   | None => fun (H_eq : _) => exist _ (FinNMap.empty m) _
+   end (refl_equal _)).
+- rewrite /fins_lt /=.
+  apply FinNSet.choose_spec1 in H_eq.
+  set fn := FinNSet.remove _ _.
+  have H_notin: ~ FinNSet.In n fn by move => H_in; apply FinNSetFacts.remove_1 in H_in.
+  have H_add: FinNSetProps.Add n fn fins.
+    rewrite /FinNSetProps.Add.
+    move => k.
+    split => H_in.
+      case (Name_eq_dec n k) => H_eq'; first by left.
+      by right; apply FinNSetFacts.remove_2.
+    case: H_in => H_in; first by rewrite -H_in.
+    by apply FinNSetFacts.remove_3 in H_in.
+  have H_card := FinNSetProps.cardinal_2 H_notin H_add.
+  rewrite H_card {H_notin H_add H_card}.
+  by auto with arith.
+- move => n'.
+  apply FinNSet.choose_spec1 in H_eq.
+  case (Name_eq_dec n n') => H_eq_n.
+    rewrite -H_eq_n.
+    split => //.
+    move => H_ins.
+    apply FinNMapFacts.find_mapsto_iff.
+    exact: FinNMap.add_1.
+  split => H_fins.
+    apply FinNMapFacts.find_mapsto_iff.
+    apply FinNMapFacts.add_neq_mapsto_iff => //.
+    apply FinNMapFacts.find_mapsto_iff.    
+    apply H_fins'.
+    exact: FinNSetFacts.remove_2.
+  apply FinNMapFacts.find_mapsto_iff in H_fins.
+  apply FinNMapFacts.add_neq_mapsto_iff in H_fins => //.
+  apply FinNMapFacts.find_mapsto_iff in H_fins.
+  apply H_fins' in H_fins.
+  by apply FinNSetFacts.remove_3 in H_fins.    
+- move => n.
+  apply FinNSet.choose_spec2 in H_eq.
+  split => H_fin; first by contradict H_fin; auto with set.
+  apply FinNMap.find_2 in H_fin.
+  contradict H_fin.
+  exact: FinNMap.empty_1.
+Defined.
+
+Definition init_map_str : forall (fins : FinNS), init_map_t fins :=
+  @well_founded_induction_type
+  FinNSet.t
+  fins_lt
+  fins_lt_well_founded
+  init_map_t
+  init_map_F.
+
+Definition init_map (fins : FinNS) : FinNM := 
+match init_map_str fins with
+| exist map _ => map
+end.
+    
+Definition init_Data (n : Name) := mkData 1 1 (adjacency n) (init_map (adjacency n)) (init_map (adjacency n)).
+
+Definition Handler (S : Type) := GenHandler (Name * Msg) S Output unit.
+
+Definition NetHandler (me src: Name) (msg : Msg) : Handler Data :=
+match msg with
+| Aggregate m_msg => 
+  st <- get ;;
+  let new_aggregate := st.(aggregate) * m_msg in
+  let new_received := 
+    match FinNMap.find src st.(received) with
+    | Some m_src => FinNMap.add src (m_src * m_msg) st.(received)
+    | None => st.(received)
+    end in
+  put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
+end.
+
+Definition IOHandler (me : Name) (i : Input) : Handler Data :=
+match i with
+| Local m_msg => 
+  st <- get ;;
+  let new_local := m_msg in
+  let new_aggregate := st.(aggregate) * m_msg * st.(local)^-1 in
+  put (mkData new_local new_aggregate st.(adjacent) st.(sent) st.(received))
+| Send dst => 
+  st <- get ;;
+  when 
+  (FinNSet.mem dst st.(adjacent) && m_neq_bool st.(aggregate) 1)
+  (let new_aggregate := 1 in
+   let new_sent := 
+     match FinNMap.find dst st.(sent) with
+     | Some m_dst => FinNMap.add dst (m_dst * st.(aggregate)) st.(sent)
+     | None => st.(sent)
+     end in
+   put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate)))))
+| Query =>
+  st <- get ;;
+  write_output (Response st.(aggregate))
+end.
+
+Definition Nodes := list_sources.
+
+Theorem In_n_Nodes : forall n : Name, In n Nodes.
+Proof. exact: all_fin_all. Qed.
+
+Theorem nodup : NoDup Nodes.
+Proof. exact: all_fin_NoDup. Qed.
+
+Instance Aggregation_BaseParams : BaseParams :=
+  {
+    data := Data;
+    input := Input;
+    output := Output
+  }.
+
+Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams :=
+  {
+    name := Name ;
+    msg  := Msg ;
+    msg_eq_dec := Msg_eq_dec ;
+    name_eq_dec := Name_eq_dec ;
+    nodes := Nodes ;
+    all_names_nodes := In_n_Nodes ;
+    no_dup_nodes := nodup ;
+    init_handlers := init_Data ;
+    net_handlers := fun dst src msg s =>
+                      runGenHandler_ignore s (NetHandler dst src msg) ;
+    input_handlers := fun nm msg s =>
+                        runGenHandler_ignore s (IOHandler nm msg)
+  }.
+
+Definition sum_fold (fm : FinNM) (n : Name) (partial : m) : m :=
+match FinNMap.find n fm with
+| Some m' => partial * m'
+| None => partial
+end.
+
+Definition sumM (fs : FinNS) (fm : FinNM) : m := 
+FinNSet.fold (sum_fold fm) fs 1.
+
+Lemma fold_left_right : forall (fm : FinNM) (l : list Name),
+  fold_left (fun partial j => (sum_fold fm) j partial) l 1 = fold_right (sum_fold fm) 1 l.
+Proof.
+move => fm; elim => [|a l IH] //.
+rewrite /= -IH /sum_fold {IH}.
+case (FinNMap.find _ _) => [m6|] // {a}; gsimpl.
+move: m6; elim: l => [m6|a l IH m6] => /=; first by gsimpl.
+case (FinNMap.find _ _) => [m7|] //.
+rewrite commutes IH; gsimpl.
+by rewrite -IH.
+Qed.
+
+Corollary sumM_fold_right : forall (fs : FinNS) (fm : FinNM), 
+  FinNSet.fold (sum_fold fm) fs 1 = fold_right (sum_fold fm) 1 (FinNSet.elements fs).
+Proof. by move => fs fm; rewrite FinNSet.fold_spec fold_left_right. Qed.
+
+Lemma not_in_add_eq : forall (l : list Name) (n : name) (fm : FinNM) (m5 : m),
+  ~ InA eq n l -> 
+  fold_right (sum_fold (FinNMap.add n m5 fm)) 1 l = fold_right (sum_fold fm) 1 l.
+move => l n fm m5; elim: l => //.
+move => a l IH H_in.
+have H_in': ~ InA eq n l by move => H_neg; apply: H_in; apply InA_cons; right.
+apply IH in H_in'.
+rewrite /= H_in' /= /sum_fold.
+have H_neq: n <> a by move => H_eq; apply: H_in; apply InA_cons; left.
+case H_find: (FinNMap.find _ _) => [m6|].
+  apply FinNMapFacts.find_mapsto_iff in H_find.  
+  apply FinNMapFacts.add_neq_mapsto_iff in H_find => //.
+  apply FinNMapFacts.find_mapsto_iff in H_find.
+  case H_find': (FinNMap.find _ _) => [m7|]; last by rewrite H_find' in H_find.
+  rewrite H_find in H_find'.
+  injection H_find' => H_eq.
+  by rewrite H_eq.
+case H_find': (FinNMap.find _ _) => [m6|] => //.
+apply FinNMapFacts.find_mapsto_iff in H_find'.
+apply (FinNMapFacts.add_neq_mapsto_iff _ m5 _ H_neq) in H_find'.
+apply FinNMapFacts.find_mapsto_iff in H_find'.
+by rewrite H_find in H_find'.
+Qed.
+
+Lemma sumM_add_map : forall (n : Name) (fs : FinNS) (fm : FinNM) (m5 m' : m),
+  FinNSet.In n fs ->
+  FinNMap.find n fm = Some m5 ->
+  sumM fs (FinNMap.add n (m5 * m') fm) = sumM fs fm * m'.
+Proof.
+move => n fs fm m5 m' H_in H_find.
+have H_in_el: InA eq n (FinNSet.elements fs) by apply FinNSetFacts.elements_2.
+have H_nodup := FinNSet.elements_spec2w fs.
+move: H_in_el H_nodup {H_in}.
+rewrite 2!/sumM 2!sumM_fold_right.
+elim (FinNSet.elements fs) => [|a l IH] H_in H_nodup; first by apply InA_nil in H_in.
+case (Name_eq_dec n a) => H_dec.
+  rewrite H_dec in H_find.
+  rewrite H_dec /sum_fold /=.
+  have H_find_eq := @FinNMapFacts.add_eq_o m fm a a (m5 * m') (refl_equal a).
+  case H_find': (FinNMap.find _ _) => [m6|]; last by rewrite H_find_eq in H_find'.
+  rewrite H_find_eq in H_find'.
+  injection H_find' => H_eq.
+  rewrite -H_eq.
+  case H_find'': (FinNMap.find _ _) => [m7|]; last by rewrite H_find in H_find''.
+  rewrite H_find'' in H_find.
+  injection H_find => H_eq'.
+  rewrite H_eq'; gsimpl.
+  inversion H_nodup; subst.
+  by rewrite not_in_add_eq.
+apply InA_cons in H_in.
+case: H_in => H_in //.
+have H_nodup': NoDupA eq l by inversion H_nodup.
+rewrite /= (IH H_in H_nodup') /sum_fold.
+case H_find': (FinNMap.find _ _) => [m6|].
+  apply FinNMapFacts.find_mapsto_iff in H_find'.
+  apply FinNMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply FinNMapFacts.find_mapsto_iff in H_find'.
+  case H_find'': (FinNMap.find _ _) => [m7|]; last by rewrite H_find'' in H_find'.
+  rewrite H_find' in H_find''.
+  injection H_find'' => H_eq.
+  rewrite H_eq.
+  by aac_reflexivity.
+case H_find'': (FinNMap.find _ _) => [m7|] //.
+apply FinNMapFacts.find_mapsto_iff in H_find''.
+apply (FinNMapFacts.add_neq_mapsto_iff _ (m5 * m') _ H_dec) in H_find''.
+apply FinNMapFacts.find_mapsto_iff in H_find''.
+by rewrite H_find' in H_find''.
+Qed.
+
+Lemma eqlistA_eq : forall (l l' : list Name), eqlistA eq l l' -> l = l'.
+Proof.
+elim; first by move => l' H_eql; inversion H_eql.
+move => a l IH.
+case => [|a' l'] H; first by inversion H.
+inversion H; subst.
+by rewrite (IH l').
+Qed.
+
+Lemma sumM_remove : forall (fs : FinNS) (n : Name) (fm : FinNM) (m5: m),
+  FinNSet.In n fs ->
+  FinNMap.find n fm = Some m5 ->
+  sumM (FinNSet.remove n fs) fm = sumM fs fm * m5^-1.
+Proof.
+move => I_ind.
+pose P_ind (fs : FinNS) := forall (n : Name) (fm : FinNM) (m5: m),
+  FinNSet.In n fs ->
+  FinNMap.find n fm = Some m5 ->
+  sumM (FinNSet.remove n fs) fm = sumM fs fm * m5^-1.
+rewrite -/(P_ind I_ind).
+apply (FinNSetOrdProps.set_induction_min); rewrite /P_ind {P_ind I_ind}.
+  move => fs H_empty n fm m5 H_in.
+  have H_empty' := FinNSet.empty_spec.
+  by contradict H_in; apply H_empty.
+rewrite /sumM.
+move => fs I' IH a H_below H_add n fm m5 H_in H_map.
+have H_eql := FinNSetOrdProps.elements_Add_Below H_below H_add.
+apply eqlistA_eq in H_eql.
+rewrite 2!sumM_fold_right.
+case (Name_eq_dec a n) => H_eq.
+  move: H_in H_map; rewrite -H_eq H_eql {H_eq} => H_in H_map.
+  rewrite /FinNSetOrdProps.P.Add in H_add.
+  have H_rem := FinNSet.remove_spec I' a.
+  have H_below': FinNSetOrdProps.Below a (FinNSet.remove a I').
+    rewrite /FinNSetOrdProps.Below => a' H_in'.
+    apply FinNSet.remove_spec in H_in'.
+    case: H_in' => H_in' H_neq.
+    apply H_below.
+    apply H_add in H_in'.
+    by case: H_in' => H_in'; first by case H_neq.
+  have H_add' := FinNSetProps.Add_remove H_in.
+  have H_eql' := FinNSetOrdProps.elements_Add_Below H_below' H_add'.
+  apply eqlistA_eq in H_eql'.
+  rewrite H_eql {H_eql} in H_eql'.
+  set el_rm := FinNSet.elements _.
+  have {H_eql'} ->: el_rm = FinNSet.elements fs by injection H_eql'.
+  rewrite {2}/fold_right {2}/sum_fold {el_rm}.
+  case H_find: (FinNMap.find _ _) => [m6|]; last by rewrite H_map in H_find.
+  rewrite H_map in H_find.
+  have ->: m6 = m5 by injection H_find.
+  by gsimpl.
+rewrite H_eql.
+have H_in': FinNSet.In n fs.
+  apply H_add in H_in.
+  by case: H_in.
+have H_below': FinNSetOrdProps.Below a (FinNSet.remove n fs).
+  rewrite /FinNSetOrdProps.Below => a' H_inr.
+  apply H_below.
+  have H_rm := FinNSet.remove_spec fs n a'.
+  apply H_rm in H_inr.
+  by case: H_inr.
+have H_add': FinNSetOrdProps.P.Add a (FinNSet.remove n fs) (FinNSet.remove n I').
+  rewrite /FinNSetOrdProps.P.Add => a'.
+  have H_add_a' := H_add a'.
+  case (Name_eq_dec a a') => H_eq'.
+    split => H_imp; first by left.
+    have H_or: a = a' \/ FinNSet.In a' fs by left.
+    apply H_add_a' in H_or.
+    apply FinNSet.remove_spec; split => //.
+    by rewrite -H_eq'.
+  split => H_imp.    
+    right.
+    apply FinNSet.remove_spec in H_imp.
+    case: H_imp => H_imp H_neq.
+    apply FinNSet.remove_spec; split => //.
+    apply H_add_a' in H_imp.
+    by case: H_imp.
+  case: H_imp => H_imp //.
+  apply FinNSet.remove_spec in H_imp.
+  case: H_imp => H_imp H_neq.
+  have H_or: a = a' \/ FinNSet.In a' fs by right.
+  apply H_add_a' in H_or.
+  by apply FinNSet.remove_spec; split.
+have H_eql' := FinNSetOrdProps.elements_Add_Below H_below' H_add'.
+apply eqlistA_eq in H_eql'.
+rewrite H_eql' /fold_right /sum_fold.      
+case H_find: (FinNMap.find a fm) => [m6|].
+  have H_eq' := IH n fm m5 H_in' H_map.
+  rewrite 2!sumM_fold_right /fold_right in H_eq'.
+  rewrite H_eq' /sum_fold.
+  by aac_reflexivity.
+have H_eq' := IH n fm m5 H_in' H_map.
+rewrite 2!sumM_fold_right in H_eq'.
+rewrite /fold_right in H_eq'.
+by rewrite H_eq' /sum_fold.
+Qed.
+
+Lemma sumM_notins_remove_map : forall (fs : FinNS) (n : Name) (fm : FinNM),
+  ~ FinNSet.In n fs ->
+  sumM fs (FinNMap.remove (elt:=m) n fm) = sumM fs fm.
+Proof.
+move => fs n fm H_ins.
+have H_notin: ~ InA eq n (FinNSet.elements fs).
+  move => H_ina.
+  by apply FinNSetFacts.elements_2 in H_ina.
+rewrite 2!/sumM 2!sumM_fold_right.
+move: H_notin.
+elim (FinNSet.elements fs) => [|a l IH] H_in //.
+have H_in': ~ InA eq n l.
+  move => H_in'.
+  contradict H_in.
+  by right.
+have H_neq: n <> a.
+  move => H_eq.
+  contradict H_in.
+  by left.
+have IH' := IH H_in'.
+move: IH'.
+rewrite /fold_right /sum_fold => IH'.
+case H_find: (FinNMap.find _ _) => [m5|].
+  case H_find': (FinNMap.find _ _) => [m6|]; rewrite FinNMapFacts.remove_neq_o in H_find => //.
+    rewrite H_find in H_find'.
+    injection H_find' => H_eq.
+    rewrite H_eq.
+    by rewrite IH'.
+  by rewrite H_find in H_find'.
+rewrite FinNMapFacts.remove_neq_o in H_find => //.
+case H_find': (FinNMap.find _ _) => [m5|] //.
+by rewrite H_find in H_find'.
+Qed.
+
+Lemma sumM_remove_remove : forall (fs : FinNS) (n : Name) (fm : FinNM) (m5: m),
+  FinNSet.In n fs ->
+  FinNMap.find n fm = Some m5 ->
+  sumM (FinNSet.remove n fs) (FinNMap.remove n fm) = sumM fs fm * m5^-1.
+Proof.
+move => fs n fm m5 H_ins H_find.
+have H_ins': ~ FinNSet.In n (FinNSet.remove n fs) by move => H_ins'; apply FinNSetFacts.remove_1 in H_ins'.
+rewrite sumM_notins_remove_map => //.
+exact: sumM_remove.
+Qed.
+
+Lemma sumM_empty : forall (fs : FinNS) (fm : FinNM), FinNSet.Empty fs -> sumM fs fm = 1.
+Proof.
+move => fs fm.
+rewrite /FinNSet.Empty => H_empty.
+have H_elts: forall (n : Name), ~ InA eq n (FinNSet.elements fs).
+  move => n H_notin.
+  apply FinNSetFacts.elements_2 in H_notin.
+  by apply (H_empty n).
+rewrite /sumM sumM_fold_right.
+case H_elt: (FinNSet.elements fs) => [|a l] //.
+have H_in: InA eq a (FinNSet.elements fs) by rewrite H_elt; apply InA_cons; left.
+by contradict H_in; apply (H_elts a).
+Qed.
+
+Lemma sumM_eq : forall (fs : FinNS) (fm' : FinNS) (fm : FinNM),
+   FinNSet.Equal fs fm' ->
+   sumM fs fm = sumM fm' fm.
+Proof.
+move => I_ind.
+pose P_ind (fs : FinNS) := forall (fm' : FinNS) (fm : FinNM),
+   FinNSet.Equal fs fm' ->
+   sumM fs fm = sumM fm' fm.
+rewrite -/(P_ind I_ind).
+apply (FinNSetOrdProps.set_induction_min); rewrite /P_ind {P_ind I_ind}.
+  move => fs H_empty fm' fm H_eq.
+  have H_empty': FinNSet.Empty fm'.
+    rewrite /FinNSet.Empty => a H_in.
+    apply H_eq in H_in.
+    by apply H_empty in H_in.    
+  rewrite sumM_empty //.
+  by rewrite sumM_empty.
+move => fs fm' IH a H_below H_add fm'' fm H_eq.
+have H_eql := FinNSetOrdProps.elements_Add_Below H_below H_add.
+apply eqlistA_eq in H_eql.
+rewrite /sumM 2!sumM_fold_right H_eql.
+have H_below': FinNSetOrdProps.Below a (FinNSet.remove a fm'').
+  rewrite /FinNSetOrdProps.Below => a' H_in.
+  apply H_below.
+  apply (FinNSet.remove_spec) in H_in.
+  case: H_in => H_in H_neq.    
+  apply H_eq in H_in.
+  apply H_add in H_in.
+  by case: H_in => H_in; first by case H_neq.
+have H_add': FinNSetOrdProps.P.Add a (FinNSet.remove a fm'') fm''.
+  rewrite /FinNSetOrdProps.P.Add => a'.
+  case (Name_eq_dec a a') => H_eq_a.
+    split => H_imp; first by left.
+    apply H_eq.
+    rewrite -H_eq_a.
+    by apply H_add; left.
+  split => H_imp; first by right; apply FinNSet.remove_spec; split; last by contradict H_eq_a.
+  case: H_imp => H_imp; first by case H_eq_a.
+  by apply FinNSet.remove_spec in H_imp; case: H_imp.
+have H_eq': FinNSet.Equal fs (FinNSet.remove a fm'').
+   rewrite /FinNSet.Equal => a'.
+   case (Name_eq_dec a a') => H_eq_a.
+     have H_or: a = a' \/ FinNSet.In a' fs by left.
+     apply H_add in H_or.
+     split => H_imp.
+       apply FinNSet.remove_spec.
+       rewrite -H_eq_a in H_or H_imp.
+       apply H_below in H_imp.
+       by contradict H_imp.
+     rewrite H_eq_a in H_imp.
+     apply FinNSet.remove_spec in H_imp.
+     by case: H_imp.
+   split => H_imp.
+     apply FinNSet.remove_spec; split; last by contradict H_eq_a.
+     apply H_eq.
+     by apply H_add; right.
+   apply FinNSet.remove_spec in H_imp.
+   case: H_imp => H_imp H_neq.
+   apply H_eq in H_imp.
+   apply H_add in H_imp.
+   by case: H_imp.
+have H_eql' := FinNSetOrdProps.elements_Add_Below H_below' H_add'.
+apply eqlistA_eq in H_eql'.
+rewrite H_eql' /sum_fold /fold_right.
+have IH' := IH (FinNSet.remove a fm'') fm.
+rewrite /sumM 2!sumM_fold_right /fold_right in IH'.
+by case H_find: (FinNMap.find _ _) => [m5|]; rewrite IH'.
+Qed.
+
+Corollary sumM_add : forall (fs : FinNS) (fm : FinNM) (m5 : m) (n : Name),
+  ~ FinNSet.In n fs -> 
+  FinNMap.find n fm = Some m5 ->
+  sumM (FinNSet.add n fs) fm = sumM fs fm * m5.
+Proof.
+move => fs fm m5 n H_notin H_map.
+have H_in: FinNSet.In n (FinNSet.add n fs) by apply FinNSet.add_spec; left.
+have H_rm := @sumM_remove (FinNSet.add n fs) _ _ _ H_in H_map.
+set srm := sumM _ _ in H_rm.
+set sadd := sumM _ _ in H_rm *.
+have <-: srm * m5 = sadd by rewrite H_rm; gsimpl.
+suff H_eq: srm = sumM fs fm by rewrite H_eq; aac_reflexivity.
+apply sumM_eq.
+exact: (FinNSetProps.remove_add H_notin).
+Qed.
+
+Lemma sumM_add_add : forall (fs : FinNS) (M5 : FinNM) (m5 : m) (n : Name),
+  ~ FinNSet.In n fs -> 
+  sumM (FinNSet.add n fs) (FinNMap.add n m5 M5) = sumM fs M5 * m5.
+Proof.
+move => fs M5 m5 n H_in.
+have H_find := @FinNMapFacts.add_eq_o _ M5 _ _ m5 (refl_equal n).
+rewrite (@sumM_add _ _ _ _ H_in H_find) {H_find}.
+set sadd := sumM _ _.
+suff H_suff: sadd = sumM fs M5 by rewrite H_suff.
+rewrite /sadd /sumM 2!sumM_fold_right {sadd}.
+have H_in_el: ~ InA eq n (FinNSet.elements fs) by move => H_neg; apply FinNSetFacts.elements_2 in H_neg.
+by move: H_in_el; apply not_in_add_eq.
+Qed.
+
+Lemma net_handlers_NetHandler :
+  forall dst src m d os d' ms,
+    net_handlers dst src m d = (os, d', ms) ->
+    NetHandler dst src m d = (tt, os, d', ms).
+Proof.
+intros.
+simpl in *.
+monad_unfold.
+repeat break_let.
+find_inversion.
+destruct u. auto.
+Qed.
+
+Lemma input_handlers_IOHandler :
+  forall h i d os d' ms,
+    input_handlers h i d = (os, d', ms) ->
+    IOHandler h i d = (tt, os, d', ms).
+Proof.
+intros.
+simpl in *.
+monad_unfold.
+repeat break_let.
+find_inversion.
+destruct u. auto.
+Qed.
+
+Definition conserves_node_mass (d : Data) : Prop := 
+d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
+
+Lemma Aggregation_conserves_node_mass : 
 forall net tr n, 
  step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
- (nwState net n).(local) = (nwState net n).(aggregate) + 
-   (sum_mass (nwState net n).(sent)) - (sum_mass (nwState net n).(received)).
+ conserves_node_mass (nwState net n).
 Proof.
+fail.
 move => net tr n H.
 remember step_m_init as y in *.
 move: Heqy.
