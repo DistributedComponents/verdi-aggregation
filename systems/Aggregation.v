@@ -177,11 +177,11 @@ rewrite /init_map_t.
 refine
   (fun (fins : FinNS) init_map_rec =>
    match FinNSet.choose fins as finsopt return (_ = finsopt -> _) with
+   | None => fun (H_eq : _) => exist _ (FinNMap.empty m) _
    | Some n => fun (H_eq : _) => 
      match init_map_rec (FinNSet.remove n fins) _ with 
      | exist fins' H_fins' => exist _ (FinNMap.add n 1 fins') _
      end
-   | None => fun (H_eq : _) => exist _ (FinNMap.empty m) _
    end (refl_equal _)).
 - rewrite /fins_lt /=.
   apply FinNSet.choose_spec1 in H_eq.
@@ -246,13 +246,13 @@ Definition NetHandler (me src: Name) (msg : Msg) : Handler Data :=
 match msg with
 | Aggregate m_msg => 
   st <- get ;;
-  let new_aggregate := st.(aggregate) * m_msg in
-  let new_received := 
-    match FinNMap.find src st.(received) with
-    | Some m_src => FinNMap.add src (m_src * m_msg) st.(received)
-    | None => st.(received)
-    end in
-  put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
+  match FinNMap.find src st.(received) with
+  | None => nop
+  | Some m_src => 
+    let new_aggregate := st.(aggregate) * m_msg in
+    let new_received := FinNMap.add src (m_src * m_msg) st.(received) in
+    put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
+  end
 end.
 
 Definition IOHandler (me : Name) (i : Input) : Handler Data :=
@@ -266,13 +266,13 @@ match i with
   st <- get ;;
   when 
   (FinNSet.mem dst st.(adjacent) && m_neq_bool st.(aggregate) 1)
-  (let new_aggregate := 1 in
-   let new_sent := 
-     match FinNMap.find dst st.(sent) with
-     | Some m_dst => FinNMap.add dst (m_dst * st.(aggregate)) st.(sent)
-     | None => st.(sent)
-     end in
-   put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate)))))
+  (match FinNMap.find dst st.(sent) with
+   | None => nop
+   | Some m_dst =>        
+     let new_aggregate := 1 in
+     let new_sent := FinNMap.add dst (m_dst * st.(aggregate)) st.(sent) in
+     put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate))))
+   end)
 | Query =>
   st <- get ;;
   write_output (Response st.(aggregate))
@@ -659,9 +659,9 @@ by move: H_in_el; apply not_in_add_eq.
 Qed.
 
 Lemma net_handlers_NetHandler :
-  forall dst src m d os d' ms,
-    net_handlers dst src m d = (os, d', ms) ->
-    NetHandler dst src m d = (tt, os, d', ms).
+  forall dst src m st os st' ms,
+    net_handlers dst src m st = (os, st', ms) ->
+    NetHandler dst src m st = (tt, os, st', ms).
 Proof.
 intros.
 simpl in *.
@@ -684,6 +684,109 @@ find_inversion.
 destruct u. auto.
 Qed.
 
+Lemma IOHandler_cases :
+  forall h i st u out st' ms,
+      IOHandler h i st = (u, out, st', ms) ->
+      (exists m_msg, i = Local m_msg /\ 
+         st'.(local) = m_msg /\ 
+         st'.(aggregate) = st.(aggregate) * m_msg * st.(local)^-1 /\ 
+         st'.(adjacent) = st.(adjacent) /\
+         st'.(sent) = st.(sent) /\
+         st'.(received) = st.(received) /\
+         out = [] /\ ms = []) \/
+      (exists dst m', i = Send dst /\ FinNSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ FinNMap.find dst st.(sent) = Some m' /\
+         st'.(local) = st.(local) /\ 
+         st'.(aggregate) = 1 /\
+         st'.(adjacent) = st.(adjacent) /\
+         st'.(sent) = FinNMap.add dst (m' * st.(aggregate)) st.(sent) /\
+         out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
+      (exists dst, i = Send dst /\ FinNSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ FinNMap.find dst st.(sent) = None /\
+         st' = st /\
+         out = [] /\ ms = []) \/
+      (exists dst, i = Send dst /\ FinNSet.In dst st.(adjacent) /\ st.(aggregate) = 1 /\
+         st' = st /\
+         out = [] /\ ms = []) \/
+      (exists dst, i = Send dst /\ ~ FinNSet.In dst st.(adjacent) /\ 
+         st' = st /\ 
+         out = [] /\ ms = []) \/
+      (i = Query /\ st' = st /\ out = [Response (aggregate st)] /\ ms = []).
+Proof.
+move => h i st u out st' ms.
+rewrite /IOHandler.
+case: i => [m_msg|dst|]; monad_unfold.
+- rewrite /= => H_eq.
+  injection H_eq => H_ms H_st H_out H_tt.
+  rewrite -H_st /=.
+  by left; exists m_msg.
+- case H_mem: (FinNSet.mem _ _); case H_neq: (m_neq_bool _ _); move: H_neq; rewrite /m_neq_bool; case (m_eq_dec _ _) => H_dec H_neq //=.
+  * apply FinNSetFacts.mem_2 in H_mem.
+    case H_find: (FinNMap.find _ _) => [m'|] H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+    + by right; left; exists dst; exists m'.
+    + by right; right; left; exists dst.
+  * apply FinNSetFacts.mem_2 in H_mem.
+    move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+    by right; right; right; left; exists dst.
+  * move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+    right; right; right; right; left.
+    exists dst.
+    split => //.
+    split => //.
+    move => H_ins.
+    apply FinNSetFacts.mem_1 in H_ins.
+    by rewrite H_mem in H_ins.
+  * move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+    right; right; right; right; left.
+    exists dst.
+    split => //.
+    split => //.
+    move => H_ins.
+    apply FinNSetFacts.mem_1 in H_ins.
+    by rewrite H_mem in H_ins.
+- move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+  by right; right; right; right; right.
+Qed.
+
+Lemma NetHandler_cases : 
+  forall dst src msg st out st' ms,
+    NetHandler dst src msg st = (tt, out, st', ms) ->
+    (exists m_msg m_src, msg = Aggregate m_msg /\ FinNMap.find src st.(received) = Some m_src /\
+     st'.(local) = st.(local) /\
+     st'.(aggregate) = st.(aggregate) * m_msg /\
+     st'.(adjacent) = st.(adjacent) /\
+     st'.(sent) = st.(sent) /\     
+     st'.(received) = FinNMap.add src (m_src * m_msg) st.(received) /\
+     out = [] /\ ms = []) \/
+    (exists m_msg, msg = Aggregate m_msg /\ FinNMap.find src st.(received) = None /\ 
+     st' = st /\ out = [] /\ ms = []).
+Proof.
+move => dst src msg st out st' ms.
+rewrite /NetHandler.
+case: msg => m_msg; monad_unfold.
+case H_find: (FinNMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
+- by left; exists m_msg; exists  m_src.
+- by right; exists m_msg.
+Qed.
+
+  Ltac set_up_io_handlers :=
+    intros;
+    find_apply_lem_hyp IOHandler_cases;
+    intuition idtac; try break_exists; intuition idtac; subst;
+    repeat find_rewrite;
+    simpl in *; intuition idtac; repeat find_inversion.
+
+  Ltac set_up_net_handlers :=
+    intros;
+    match goal with
+      | [ H : context [ NetHandler (pDst ?p) _ _ _ ] |- _ ] =>
+        destruct (pDst p) eqn:?
+    end; simpl in *;
+    find_apply_lem_hyp NetHandler_cases;
+    intuition; subst;
+    simpl in *; intuition;
+    repeat find_rewrite;
+    repeat find_inversion;
+    simpl in *.
+
 Lemma Aggregation_node_not_adjacent_self : 
 forall net tr n, 
  step_m_star (params := Aggregation_MultiParams) step_m_init net tr ->
@@ -700,46 +803,37 @@ match goal with
 | [ H : step_m _ _ _ |- _ ] => invc H
 end; simpl.
 find_apply_lem_hyp net_handlers_NetHandler.
-  destruct (pBody p).
-  rewrite /= in H3.
-  monad_unfold.
-  rewrite /= in H3.
-  injection H3.
-  move => H_l H_st H_out.
-  rewrite -H_st /=.
-  rewrite /update.
-  case (name_eq_dec _ _) => H_eq //.
-  by rewrite /= -H_eq {H_eq}.
+  rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec //.
+  rewrite -H_dec in H3.
+  find_apply_lem_hyp NetHandler_cases.
+  case: H3 => [[m_msg [m_src H3]]|[m_msg H3]].
+    move: H3 => [H_msg [H_find [H_l [H_a [H_adj H3]]]]].
+    by rewrite H_adj.
+  move: H3 => [H_msg [H_find [H_st H3]]].
+  by rewrite H_st.
 apply input_handlers_IOHandler in H2.
-destruct inp.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  injection H2 => H_l H_st H_o.
-  rewrite -H_st /update /=.
-  case (Name_eq_dec _) => H_eq //.
-  by rewrite /= -H_eq {H_eq}.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  move: H2.
-  case H_mem: (FinNSet.mem _ _); case H_m_neq: (m_neq_bool _ _) => //= H2; injection H2 => H_l H_st H_o.
-  * rewrite -H_st /update /= {H_st H2}.
-    case (Name_eq_dec _) => H_eq //=.
-    by rewrite -H_eq {H_eq}.
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  injection H2 => H_l H_st H_o.
-  rewrite -H_st /update /=.
-  case (Name_eq_dec _) => H_eq //.
-  by rewrite -H_eq.
+find_apply_lem_hyp IOHandler_cases.
+rewrite /update /=.
+case (Name_eq_dec _ _) => H_dec //.
+rewrite -H_dec in H2.
+case: H2 => [[m_msg H2]|H2].
+  move: H2 => [H_i [H_l [H_ag [H_ad H2]]]].
+  by rewrite H_ad.
+case: H2 => [[dst [m' H2]]|H2].
+  move: H2 => [H_i [H_ins [H_neq [H_find [H_l [H_ag [H_ad H2]]]]]]].
+  by rewrite H_ad.
+case: H2 => [[dst H2]|H2].
+  move: H2 => [H_i [H_ins [H_neq [H_find [H_st H2]]]]].
+  by rewrite H_st.
+case: H2 => [[dst H2]|H2].
+  move: H2 => [H_i [H_ins [H_eq [H_st H2]]]].
+  by rewrite H_st.
+case: H2 => [[dst H2]|H2].
+  move: H2 => [H_i [H_ins [H_st H2]]].
+  by rewrite H_st.
+move: H2 => [H_i [H_st H2]].
+by rewrite H_st.
 Qed.
 
 Lemma Aggregation_nodes_mutually_adjacent : 
