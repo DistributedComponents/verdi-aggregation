@@ -1015,12 +1015,6 @@ rewrite H_dec' H_dec in H.
 by have H_not := Aggregation_node_not_adjacent_self H_step1 H.
 Qed.
 
-(* prove that outgoing Aggregate messages are to adjacent nodes *)
-
-(* prove that incoming Aggregate messages are from adjacent nodes *)
-
-(* more metatheorems *)
-
 Section SingleNodeInvOut.
 
 Variable onet : ordered_network.
@@ -1420,8 +1414,31 @@ rewrite /sumM sumM_fold_right.
 rewrite /init_map /=.
 case (init_map_str _).
 move => fm' H_init.
-elim (FinNSet.elements fm) => //.
-Admitted.
+Search "elements_1".
+have H_el := FinNSet.elements_spec1 fm.
+have H_in: forall n, In n (FinNSet.elements fm) -> FinNMap.find n fm' = Some 1.
+  move => n H_in.
+  apply H_init.
+  have [H_el' H_el''] := H_el n.
+  apply: H_el'.
+  apply InA_alt.
+  by exists n; split.
+move {H_init H_el}.
+elim: (FinNSet.elements fm) H_in => //.
+move => n l IH H_in.
+rewrite /= {1}/sum_fold.
+have H_in': In n (n :: l) by left.
+have H_find' := H_in n H_in'.
+rewrite IH.
+  case H_find: (FinNMap.find _ _) => [n'|] //.
+  rewrite H_find in H_find'.
+  injection H_find' => H_eq'.
+  rewrite H_eq'.
+  by gsimpl.
+move => n' H_in''.
+apply H_in.
+by right.
+Qed.
 
 Definition conserves_node_mass (d : Data) : Prop := 
 d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
@@ -1431,16 +1448,125 @@ forall onet tr,
  step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
  forall n, conserves_node_mass (onet.(onwState) n).
 Proof.
-move => onet tr H_st.
+move => onet tr H_step.
+remember step_o_init as y in H_step.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init.
+  rewrite H_init /step_o_init /conserves_node_mass /init_Data /= => n.
+  by rewrite sumM_init_map_1; gsimpl.
 move => n.
-pose P_curr (d : Data) := conserves_node_mass d.
-rewrite -/(P_curr _).
-apply: (P_inv_n H_st); rewrite /P_curr /conserves_node_mass //= {P_curr onet tr H_st}.
-- by rewrite sumM_init_map_1; gsimpl.
-- by admit.
-- by admit.
-- by admit.
-Admitted.
+concludes.
+match goal with
+| [ H : step_o _ _ _ |- _ ] => invc H
+end; simpl.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //; last by rewrite /update /=; case (Name_eq_dec _ _) => H_dec.
+  rewrite /update /= {H_step2}.    
+  have H_ins: FinNSet.In from (x'.(onwState) to).(adjacent).
+    have H_in: In (Aggregate x) (x'.(onwPackets) from to) by rewrite H0; left.
+    exact: (Aggregation_aggregate_msg_src_adjacent_dst H_step1 _ _ _ H_in).
+  case (Name_eq_dec _ _) => H_dec //.
+  rewrite -H_dec {H_dec to} in H H2 H3 H4 H5 H6 H0 H_ins.
+  rewrite /conserves_node_mass H2 H3 H4 H5 H6 {H2 H3 H4 H5 H6}.      
+  rewrite IHH_step1 sumM_add_map //; gsimpl.      
+  suff H_eq: (x'.(onwState) n).(aggregate) * x * sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent) * x^-1 * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received))^-1 = 
+  (x'.(onwState) n).(aggregate) * sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received))^-1 * (x * x^-1) by rewrite H_eq; gsimpl.
+  by aac_reflexivity.
+find_apply_lem_hyp input_handlers_IOHandler.
+io_handler_cases => //.
+- rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec //.
+  rewrite -H_dec {h H_dec H_step2} in H2 H3 H4 H1.
+  rewrite /conserves_node_mass H1 H2 H3 H4 {H1 H2 H3 H4}.
+  rewrite IHH_step1; gsimpl.
+  suff H_eq: 
+      (x'.(onwState) n).(aggregate) * d.(local) * sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent))^-1 * (x'.(onwState) n).(aggregate)^-1 * sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received))^-1 = 
+      d.(local) * ((x'.(onwState) n).(aggregate) * (x'.(onwState) n).(aggregate)^-1) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(sent))^-1) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received) * (sumM (x'.(onwState) n).(adjacent) (x'.(onwState) n).(received))^-1) by rewrite H_eq; gsimpl.
+  by aac_reflexivity.
+- rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec //.
+  rewrite -H_dec {h H_dec H_step2} in H H2 H3 H1 H5 H6 H7.
+  rewrite /conserves_node_mass /=.
+  rewrite H4 H3 H5 H6 H7.
+  rewrite IHH_step1 sumM_add_map; gsimpl.
+  by aac_reflexivity.
+- have [m' H_ex] := Aggregation_in_set_exists_find_sent H_step1 _ H.
+  by rewrite H2 in H_ex.
+- rewrite /update /=.
+  by case (Name_eq_dec _ _) => H_dec.
+- rewrite /update /=.
+  by case (Name_eq_dec _ _) => H_dec.
+- rewrite /update /=.
+  by case (Name_eq_dec _ _) => H_dec.
+Qed.
+
+Definition sum_local (l : list Data) : m :=
+fold_right (fun (d : Data) (partial : m) => partial * d.(local)) 1 l.
+
+Definition sum_aggregate (l : list Data) : m :=
+fold_right (fun (d : Data) (partial : m) => partial * d.(aggregate)) 1 l.
+
+Definition sum_sent (l : list Data) : m :=
+fold_right (fun (d : Data) (partial : m) => partial * sumM d.(adjacent) d.(sent)) 1 l.
+
+Definition sum_received (l : list Data) : m :=
+fold_right (fun (d : Data) (partial : m) => partial * sumM d.(adjacent) d.(received)) 1 l.
+
+Definition conserves_mass_globally (l : list Data) : Prop :=
+sum_local l = sum_aggregate l * sum_sent l * (sum_received l)^-1.
+
+Definition conserves_node_mass_all (l : list Data) : Prop :=
+forall d, In d l -> conserves_node_mass d.
+
+Lemma global_conservation : 
+  forall (l : list Data), 
+    conserves_node_mass_all l ->
+    conserves_mass_globally l.
+Proof.
+rewrite /conserves_mass_globally /=.
+elim => [|d l IH]; first by gsimpl.
+move => H_cn.
+rewrite /=.
+rewrite /conserves_node_mass_all in H_cn.
+have H_cn' := H_cn d.
+rewrite H_cn'; last by left.
+rewrite IH; first by gsimpl; aac_reflexivity.
+move => d' H_in.
+apply: H_cn.
+by right.
+Qed.
+
+Definition Nodes_data (onet : ordered_network) : list Data :=
+fold_right (fun (n : Name) (l' : list Data) => (onet.(onwState) n) :: l') [] Nodes.
+
+Lemma Aggregation_conserves_node_mass_all : 
+forall onet tr,
+ step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
+ conserves_node_mass_all (Nodes_data onet).
+Proof.
+move => onet tr H_st.
+rewrite /conserves_node_mass_all.
+rewrite /Nodes_data.
+elim: Nodes => //.
+move => n l IH.
+move => d.
+rewrite /=.
+move => H_or.
+case: H_or => H_or.
+  rewrite -H_or.
+  exact: (Aggregation_conserves_node_mass H_st).
+exact: IH.
+Qed.
+
+Corollary Aggregate_conserves_mass_globally :
+forall onet tr,
+ step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
+ conserves_mass_globally (Nodes_data onet).
+Proof.
+move => onet tr H_step.
+apply: global_conservation.
+exact: Aggregation_conserves_node_mass_all H_step.
+Qed.
 
 (*
 Section StepFailureMsg.
@@ -1473,89 +1599,6 @@ Section StepFailureMsg.
   Definition step_fm_init : list name * network := ([], step_m_init).
 End StepFailureMsg.
 *)
-
-(* ------ *)
-
-Lemma Aggregation_conserves_node_mass : 
-forall net failed tr n, 
- step_fm_star step_fm_init (failed, net) tr ->
- conserves_node_mass (nwState net n).
-Proof.
-move => net failed tr n H.
-remember step_m_init as y in *.
-move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init.
-  by admit.
-concludes.
-match goal with
-| [ H : step_fm _ _ _ |- _ ] => invc H
-end; simpl.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  destruct (pBody p).
-  rewrite /= in H3.
-  monad_unfold.
-  rewrite /= in H3.
-  injection H3.
-  move => H_l H_st H_out.
-  rewrite -H_st /=.
-  rewrite /update.
-  case (name_eq_dec _ _) => H_eq //.
-  rewrite /= -H_eq {H_eq}.
-  case H_find: (FinNMap.find _ _) => [m'|].
-    rewrite IHrefl_trans_1n_trace1 /=.
-    rewrite (sum_mass_add_Some _ _ _ H_find).
-    by ring_simplify.
-  rewrite IHrefl_trans_1n_trace1 /=.
-  rewrite (sum_mass_add_None _ _ _ H_find).
-  by ring_simplify.
-apply input_handlers_IOHandler in H2.
-destruct inp.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  injection H2 => H_l H_st H_o.
-  rewrite -H_st /update /=.
-  case (Name_eq_dec _) => H_eq //.
-  rewrite /= -H_eq {H_eq}.
-  rewrite IHrefl_trans_1n_trace1 /=.
-  symmetry.
-  by ring_simplify.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  move: H2.
-  case H_m_neq: (m_neq_bool _); case H_n_neq: (Name_neq_bool _ _) => //= H2; injection H2 => H_l H_st H_o.
-  * rewrite -H_st /update /= {H_st H2}.
-    case (Name_eq_dec _) => H_eq //=.
-    rewrite -H_eq {H_eq}.
-    case H_find: (FinNMap.find _ _) => [m'|].
-      rewrite IHrefl_trans_1n_trace1 /=.
-      rewrite (sum_mass_add_Some _ _ _ H_find).
-      by ring_simplify.
-    rewrite IHrefl_trans_1n_trace1 /=.
-    rewrite (sum_mass_add_None _ _ _ H_find).
-    by ring_simplify.          
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-  * rewrite -H_st /update /=.
-    case (Name_eq_dec _) => H_eq //.
-    by rewrite -H_eq.
-- rewrite /IOHandler /= in H2.
-  monad_unfold.
-  injection H2 => H_l H_st H_o.
-  rewrite -H_st /update /=.
-  case (Name_eq_dec _) => H_eq //.
-  by rewrite -H_eq.
-Qed.
-
-  (* Definition conserves_mass_globally (nodes : list node) : Prop :=
-     sum_local nodes = (sum_aggregate nodes) * (sum_sent nodes) * (sum_received nodes)^-1. *)
-
-  (* Definition conserves_network_mass (nodes : list node) : Prop :=
-     sum_local nodes = (sum_aggregate nodes) + (sum_aggregate_queues nodes) + (sum_sent_fail_queues nodes) - 
-     (sum_received_fail_queues nodes). *)
 
 End Aggregation.
 
