@@ -6,6 +6,8 @@ Require Import Sorting.Permutation.
 Require Import FunctionalExtensionality.
 Require Import Relations.Relation_Operators.
 Require Import Relations.Operators_Properties.
+Require Import Relation_Definitions.
+Require Import RelationClasses.
 Require Import Sumbool.
 Require Import Util.
 Require Import VerdiTactics.
@@ -1069,3 +1071,44 @@ Section StepOrder.
 
   Definition step_o_star := refl_trans_1n_trace step_o.
 End StepOrder.
+
+Class OverlayFailParams `(P : MultiParams) :=
+  {
+    adjacent_to : relation name;
+    adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
+    adjacent_to_symmetric : Symmetric adjacent_to;
+    adjacent_to_irreflexive : Irreflexive adjacent_to;
+    fail : msg
+  }.
+
+Section StepOrderFailure.
+  Context `{params : OverlayFailParams}.
+
+  Definition exclude (excluded : list name) := filter (fun n => if (in_dec name_eq_dec n excluded) then false else true).
+
+  Definition fail_for := map (fun (n : name) => (n, fail)).
+
+  Definition adjacent_to_node (n : name) := filter (fun n' => if adjacent_to_dec n n' then true else false).
+
+  Definition step_o_f_init : list name * ordered_network := ([], step_o_init).  
+
+  Inductive step_o_f : step_relation (list name * ordered_network) (name * (input + list output)) :=
+  | SOF_deliver : forall net net' failed m ms out d l from to,
+                     onwPackets net from to = m :: ms ->
+                     ~ In to failed ->
+                     net_handlers to from m (onwState net to) = (out, d, l) ->
+                     net' = mkONetwork (collate to (update2 (onwPackets net) from to ms) l) (update (onwState net) to d) ->
+                     step_o_f (failed, net) (failed, net') [(to, inr out)]
+  | SOF_input : forall h net net' failed out inp d l,
+                   ~ In h failed ->
+                   input_handlers h inp (onwState net h) = (out, d, l) ->
+                   net' = mkONetwork (collate h (onwPackets net) l) (update (onwState net) h d) ->
+                   step_o_f (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
+  | SOF_fail :  forall h net net' failed l,
+                 ~ In h failed ->
+                 l = fail_for (adjacent_to_node h (exclude failed nodes)) ->
+                 net' = mkONetwork (collate h (onwPackets net) l) (onwState net) ->
+                 step_o_f (failed, net) (h :: failed, net') [].
+
+  Definition step_o_f_star := refl_trans_1n_trace step_o_f.
+End StepOrderFailure.

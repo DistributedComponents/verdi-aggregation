@@ -13,6 +13,8 @@ Require Import Util.
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
+Require Import Sumbool.
+
 Require Import ssreflect.
 Require Import ssrbool.
 Require Import eqtype.
@@ -87,12 +89,6 @@ case/eqP => H_neq.
 by rewrite H_eq in H_neq.
 Defined.
 
-Definition m_neq_bool (a b : m) : bool :=
-match m_eq_dec a b with
-| left _ => false
-| right _ => true
-end.
-
 Definition Name := (fin num_sources).
 
 Definition list_sources := (all_fin num_sources).
@@ -101,30 +97,9 @@ Definition Name_eq_dec : forall x y : Name, {x = y} + {x <> y}.
 exact: fin_eq_dec.
 Defined.
 
-Definition Name_neq_bool (x y : Name) : bool :=
-match Name_eq_dec x y with
-| left _ => false
-| right _ => true
-end.
-
-Lemma Name_neq_bool_true_neq : forall (x y : Name),
-  Name_neq_bool x y = true -> x <> y.
-Proof.
-move => x y.
-rewrite /Name_neq_bool.
-by case (Name_eq_dec _ _).
-Qed.
-
-Lemma Name_neq_bool_neq_true : forall (x y : Name),
-  x <> y -> Name_neq_bool x y = true.
-Proof.
-move => x y.
-rewrite /Name_neq_bool.
-by case (Name_eq_dec _ _).
-Qed.
-
 Inductive Msg := 
-| Aggregate : m -> Msg.
+| Aggregate : m -> Msg
+| Fail : Msg.
 
 Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
 decide equality.
@@ -132,7 +107,7 @@ exact: m_eq_dec.
 Defined.
 
 Inductive Input :=
-| LocalWeight : m -> Input
+| Local : m -> Input
 | SendAggregate : Name -> Input
 | AggregateRequest : Input.
 
@@ -150,13 +125,118 @@ decide equality.
 exact: m_eq_dec.
 Defined.
 
-Record Data := mkData { local : m ; aggregate : m ; adjacent : FinNS ; sent : FinNM ; received : FinNM }.
+Record Data :=  mkData { 
+  local : m ; 
+  aggregate : m ; 
+  adjacent : FinNS ; 
+  sent : FinNM ; 
+  received : FinNM 
+}.
 
-Parameter adjacency : Name -> FinNS.
+Definition Nodes := list_sources.
 
-Parameter not_adjacent_self : forall (n : Name), ~ FinNSet.In n (adjacency n).
+Theorem In_n_Nodes : forall n : Name, In n Nodes.
+Proof. exact: all_fin_all. Qed.
 
-Parameter adjacency_mutual : forall (n n' : Name), FinNSet.In n (adjacency n') -> FinNSet.In n' (adjacency n).
+Theorem nodup : NoDup Nodes.
+Proof. exact: all_fin_NoDup. Qed.
+
+Parameter Adjacent_to : relation Name.
+
+Parameter Adjacent_to_symmetric : Symmetric Adjacent_to.
+
+Parameter Adjacent_to_irreflexive : Irreflexive Adjacent_to.
+
+Parameter Adjacent_to_dec : forall n n', { Adjacent_to n n' } + { ~ Adjacent_to n n' }.
+
+Definition Adjacent_to_node (n : Name) := 
+filter (Adjacent_to_dec n).
+
+Lemma Adjacent_to_node_Adjacent_to : 
+  forall n n' ns,
+  In n' (Adjacent_to_node n ns) -> In n' ns /\ Adjacent_to n n'.
+Proof.
+move => n n' ns H_in.
+rewrite /Adjacent_to_node in H_in.
+apply filter_In in H_in.
+move: H_in => [H_in H_eq].
+split => //.
+move: H_eq.
+by case (Adjacent_to_dec _ _) => H_dec H.
+Qed.
+
+Lemma Adjacent_to_Adjacent_to_node : 
+  forall n n' ns,
+  In n' ns -> 
+  Adjacent_to n n' ->
+  In n' (Adjacent_to_node n ns).
+Proof.
+move => n n' ns H_in H_adj.
+apply filter_In.
+split => //.
+by case (Adjacent_to_dec _ _) => H_dec.
+Qed.
+
+Definition adjacency (n : Name) (ns : list Name) : FinNS :=
+fold_right (fun n' fs => FinNSet.add n' fs) FinNSet.empty (Adjacent_to_node n ns).
+
+Lemma Adjacent_to_node_adjacency : forall n n' ns, In n' (Adjacent_to_node n ns) <-> FinNSet.In n' (adjacency n ns).
+Proof.
+move => n n' ns.
+split.
+  elim: ns => //=.
+  move => n0 ns IH.
+  rewrite /adjacency /= /is_left.
+  case (Adjacent_to_dec _ _) => H_dec /= H_in; last exact: IH.
+  case: H_in => H_in.
+    rewrite H_in.
+    apply FinNSet.add_spec.
+    by left.
+  apply FinNSet.add_spec.
+  right.
+  exact: IH.
+elim: ns => //=; first by rewrite /adjacency /=; exact: FinNSet.empty_spec.
+move => n0 ns IH.
+rewrite /adjacency /=.
+rewrite /is_left.
+case (Adjacent_to_dec _ _) => H_dec /= H_ins; last exact: IH.
+apply FinNSet.add_spec in H_ins.
+case: H_ins => H_ins; first by left.
+right.
+exact: IH.
+Qed.
+
+Lemma not_adjacent_self : forall n ns, ~ FinNSet.In n (adjacency n ns).
+Proof.
+move => n ns H_ins.
+apply Adjacent_to_node_adjacency in H_ins.
+apply Adjacent_to_node_Adjacent_to in H_ins.
+move: H_ins => [H_in H_adj].
+contradict H_adj.
+exact: Adjacent_to_irreflexive.
+Qed.
+
+Lemma adjacency_mutual_in : 
+  forall n n' ns,
+  In n' ns ->
+  FinNSet.In n (adjacency n' ns) -> 
+  FinNSet.In n' (adjacency n ns).
+Proof.
+move => n n' ns H_in H_ins.
+apply Adjacent_to_node_adjacency.
+apply Adjacent_to_node_adjacency in H_ins.
+apply Adjacent_to_node_Adjacent_to in H_ins.
+move: H_ins => [H_in' H_adj].
+apply Adjacent_to_symmetric in H_adj.
+exact: Adjacent_to_Adjacent_to_node.
+Qed.
+
+Lemma adjacency_mutual : forall (n n' : Name), FinNSet.In n (adjacency n' Nodes) -> FinNSet.In n' (adjacency n Nodes).
+Proof.
+move => n n' H_ins.
+have H_in: In n' Nodes by exact: In_n_Nodes.
+exact: adjacency_mutual_in.
+Qed.
 
 Definition fins_lt (fins fins' : FinNS) : Prop :=
 FinNSet.cardinal fins < FinNSet.cardinal fins'.
@@ -238,7 +318,7 @@ match init_map_str fins with
 | exist map _ => map
 end.
     
-Definition init_Data (n : Name) := mkData 1 1 (adjacency n) (init_map (adjacency n)) (init_map (adjacency n)).
+Definition init_Data (n : Name) := mkData 1 1 (adjacency n Nodes) (init_map (adjacency n Nodes)) (init_map (adjacency n Nodes)).
 
 Definition Handler (S : Type) := GenHandler (Name * Msg) S Output unit.
 
@@ -246,26 +326,37 @@ Definition NetHandler (me src: Name) (msg : Msg) : Handler Data :=
 match msg with
 | Aggregate m_msg => 
   st <- get ;;
-  match FinNMap.find src st.(received) with
+  (* when (FinNSet.mem src st.(adjacent)) *)
+  (match FinNMap.find src st.(received) with
   | None => nop
   | Some m_src => 
     let new_aggregate := st.(aggregate) * m_msg in
     let new_received := FinNMap.add src (m_src * m_msg) st.(received) in
     put (mkData st.(local) new_aggregate st.(adjacent) st.(sent) new_received)
+  end)
+| Fail => 
+  st <- get ;;
+  match FinNMap.find src st.(sent), FinNMap.find src st.(received) with
+  | Some m_snt, Some m_rcd =>
+    let new_aggregate := st.(aggregate) * m_snt * (m_rcd)^-1 in
+    let new_adjacent := FinNSet.remove src st.(adjacent) in
+    let new_sent := FinNMap.remove src st.(sent) in
+    let new_received := FinNMap.remove src st.(received) in
+    put (mkData st.(local) new_aggregate new_adjacent new_sent new_received)
+  | _, _ => nop
   end
 end.
 
 Definition IOHandler (me : Name) (i : Input) : Handler Data :=
 match i with
-| LocalWeight m_msg => 
+| Local m_msg => 
   st <- get ;;
   let new_local := m_msg in
   let new_aggregate := st.(aggregate) * m_msg * st.(local)^-1 in
   put (mkData new_local new_aggregate st.(adjacent) st.(sent) st.(received))
 | SendAggregate dst => 
   st <- get ;;
-  when 
-  (FinNSet.mem dst st.(adjacent) && m_neq_bool st.(aggregate) 1)
+  when (FinNSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match FinNMap.find dst st.(sent) with
    | None => nop
    | Some m_dst =>        
@@ -277,14 +368,6 @@ match i with
   st <- get ;;
   write_output (AggregateResponse st.(aggregate))
 end.
-
-Definition Nodes := list_sources.
-
-Theorem In_n_Nodes : forall n : Name, In n Nodes.
-Proof. exact: all_fin_all. Qed.
-
-Theorem nodup : NoDup Nodes.
-Proof. exact: all_fin_NoDup. Qed.
 
 Instance Aggregation_BaseParams : BaseParams :=
   {
@@ -307,6 +390,17 @@ Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams :=
                       runGenHandler_ignore s (NetHandler dst src msg) ;
     input_handlers := fun nm msg s =>
                         runGenHandler_ignore s (IOHandler nm msg)
+  }.
+
+Check Build_OverlayFailParams.
+
+Instance Aggregation_OverlayFailParams : OverlayFailParams Aggregation_MultiParams :=
+  {
+    adjacent_to := Adjacent_to ;
+    adjacent_to_dec := Adjacent_to_dec ;
+    adjacent_to_irreflexive := Adjacent_to_irreflexive ;
+    adjacent_to_symmetric := Adjacent_to_symmetric ;
+    fail := Fail
   }.
 
 Definition sum_fold (fm : FinNM) (n : Name) (partial : m) : m :=
@@ -687,7 +781,7 @@ Qed.
 Lemma IOHandler_cases :
   forall h i st u out st' ms,
       IOHandler h i st = (u, out, st', ms) ->
-      (exists m_msg, i = LocalWeight m_msg /\ 
+      (exists m_msg, i = Local m_msg /\ 
          st'.(local) = m_msg /\ 
          st'.(aggregate) = st.(aggregate) * m_msg * st.(local)^-1 /\ 
          st'.(adjacent) = st.(adjacent) /\
@@ -719,14 +813,14 @@ case: i => [m_msg|dst|]; monad_unfold.
   injection H_eq => H_ms H_st H_out H_tt.
   rewrite -H_st /=.
   by left; exists m_msg.
-- case H_mem: (FinNSet.mem _ _); case H_neq: (m_neq_bool _ _); move: H_neq; rewrite /m_neq_bool; case (m_eq_dec _ _) => H_dec H_neq //=.
+- case H_mem: (FinNSet.mem _ _); case (m_eq_dec _ _) => H_dec; rewrite /sumbool_not //=.
+  * apply FinNSetFacts.mem_2 in H_mem.
+    move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+    by right; right; right; left; exists dst.
   * apply FinNSetFacts.mem_2 in H_mem.
     case H_find: (FinNMap.find _ _) => [m'|] H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
     + by right; left; exists dst; exists m'.
     + by right; right; left; exists dst.
-  * apply FinNSetFacts.mem_2 in H_mem.
-    move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
-    by right; right; right; left; exists dst.
   * move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
     right; right; right; right; left.
     exists dst.
@@ -758,14 +852,37 @@ Lemma NetHandler_cases :
      st'.(received) = FinNMap.add src (m_src * m_msg) st.(received) /\
      out = [] /\ ms = []) \/
     (exists m_msg, msg = Aggregate m_msg /\ FinNMap.find src st.(received) = None /\ 
+     st' = st /\ out = [] /\ ms = []) \/
+    (exists m_snt m_rcd, msg = Fail /\ FinNMap.find src st.(sent) = Some m_snt /\ FinNMap.find src st.(received) = Some m_rcd /\
+     st'.(local) = st.(local) /\ 
+     st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
+     st'.(adjacent) = FinNSet.remove src st.(adjacent) /\
+     st'.(sent) = FinNMap.remove src st.(sent) /\
+     st'.(received) = FinNMap.remove src st.(received) /\
+     out = [] /\ ms = []) \/
+    (msg = Fail /\ (FinNMap.find src st.(sent) = None \/ FinNMap.find src st.(received) = None) /\
      st' = st /\ out = [] /\ ms = []).
 Proof.
 move => dst src msg st out st' ms.
 rewrite /NetHandler.
-case: msg => m_msg; monad_unfold.
-case H_find: (FinNMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-- by left; exists m_msg; exists  m_src.
-- by right; exists m_msg.
+case: msg => [m_msg|]; monad_unfold.
+  case H_find: (FinNMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=; first by left; exists m_msg; exists  m_src.
+  by right; left; exists m_msg.
+case H_find: (FinNMap.find _ _) => [m_snt|]; case H_find': (FinNMap.find _ _) => [m_rcd|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
+- right; right; left.
+  by exists m_snt; exists m_rcd.
+- right; right; right.
+  split => //.
+  split => //.
+  by right.
+- right; right; right.
+  split => //.
+  split => //.
+  by left.
+- right; right; right.
+  split => //.
+  split => //.
+  by left.
 Qed.
 
 Ltac net_handler_cases := 
@@ -781,30 +898,266 @@ Ltac io_handler_cases :=
   repeat find_rewrite.
 
 Lemma Aggregation_node_not_adjacent_self : 
-forall net tr n, 
- step_o_star (params := Aggregation_MultiParams) step_o_init net tr ->
+forall net failed tr n, 
+ step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, net) tr ->
+ ~ In n failed ->
  ~ FinNSet.In n (onwState net n).(adjacent).
 Proof.
-move => net tr n H.
-remember step_o_init as y in *.
+move => net failed tr n H.
+remember step_o_f_init as y in *.
+have ->: failed = fst (failed, net) by [].
+have ->: net = snd (failed, net) by [].
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init.
-  rewrite H_init /step_o_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init /=.
+  rewrite H_init /step_o_f_init /=.
+  move => H_f.
   exact: not_adjacent_self.
+move => H_f.
+concludes.
+match goal with
+| [ H : step_o_f _ _ _ |- _ ] => invc H
+end; rewrite /=.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec /=; last exact: IHrefl_trans_1n_trace1.
+  rewrite -H_dec in H3.
+  net_handler_cases => //.
+  apply FinNSet.remove_spec in H0.
+  by move: H0 => [H0 H_neq].
+- rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
+  rewrite -H_dec in H2.
+  find_apply_lem_hyp input_handlers_IOHandler.
+  by io_handler_cases.
+- exact: IHrefl_trans_1n_trace1.
+Qed.
+
+Section SingleNodeInv.
+
+Variable onet : ordered_network.
+
+Variable failed : list name.
+
+Variable tr : list (name * (input + list output)).
+
+Hypothesis H_step : step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, onet) tr.
+
+Variable n : Name.
+
+Hypothesis not_failed : ~ In n failed.
+
+Variable P : Data -> Prop.
+
+Hypothesis after_init : P (init_Data n).
+
+Hypothesis recv_aggregate : 
+  forall onet failed tr n' m' m0,
+    step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, onet) tr ->
+    ~ In n failed ->
+    FinNMap.find n' (onet.(onwState) n).(received) = Some m0 ->
+    P (onet.(onwState) n) ->
+    P (mkData (onet.(onwState) n).(local) ((onet.(onwState) n).(aggregate) * m') (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (FinNMap.add n' (m0 * m') (onet.(onwState) n).(received))).
+
+Hypothesis recv_fail : 
+  forall onet failed tr n' m_snt m_rcd,
+    step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, onet) tr ->
+    ~ In n failed ->
+    FinNMap.find n' (onet.(onwState) n).(sent) = Some m_snt ->
+    FinNMap.find n' (onet.(onwState) n).(received) = Some m_rcd ->
+    P (onet.(onwState) n) ->
+    P (mkData (onet.(onwState) n).(local) ((onet.(onwState) n).(aggregate) * m_snt * (m_rcd)^-1) (FinNSet.remove n' (onet.(onwState) n).(adjacent)) (FinNMap.remove n' (onet.(onwState) n).(sent)) (FinNMap.remove n' (onet.(onwState) n).(received))).
+
+Hypothesis recv_local_weight : 
+  forall onet failed tr m',
+  step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, onet) tr ->
+  ~ In n failed ->
+  P (onet.(onwState) n) ->
+  P (mkData m' ((onwState onet n).(aggregate) * m' * ((onwState onet n).(local))^-1) (onwState onet n).(adjacent) (onwState onet n).(sent) (onwState onet n).(received)).
+
+Hypothesis recv_send_aggregate : 
+  forall onet failed tr n' m',
+    step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, onet) tr ->
+    ~ In n failed ->
+    FinNSet.In n' (onwState onet n).(adjacent) ->
+    (onwState onet n).(aggregate) <> 1 ->
+    FinNMap.find n' (onwState onet n).(sent) = Some m' ->
+    P (onet.(onwState) n) ->
+    P (mkData (onwState onet n).(local) 1 (onwState onet n).(adjacent) (FinNMap.add n' (m' * (onwState onet n).(aggregate)) (onwState onet n).(sent)) (onwState onet n).(received)).
+
+Theorem P_inv_n : P (onwState onet n).
+Proof.
+move: onet tr H_step.
+clear onet tr H_step.
+move => onet' tr' H'_step.
+have ->: onet' = snd (failed, onet') by [].
+remember step_o_f_init as y in H'_step.
+move: Heqy.
+induction H'_step using refl_trans_1n_trace_n1_ind => H_init.
+  rewrite H_init /step_o_init /=.
+  exact: after_init.
+concludes.
+match goal with
+| [ H : step_o_f _ _ _ |- _ ] => invc H
+end; simpl.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec; last exact: IHH'_step1.
+  rewrite -H_dec {H_dec H'_step2 to} in H0, H1, H2.
+  net_handler_cases => //.
+    case: d H3 H4 H5 H6 H7 => /=.
+    move => local0 aggregate0 adjacent0 sent0 receive0.
+    move => H3 H4 H5 H6 H7.
+    rewrite H3 H4 H5 H6 H7 {local0 aggregate0 adjacent0 sent0 receive0 H3 H4 H5 H6 H7}.
+    exact: (recv_aggregate _ _ H'_step1).
+  case: d H4 H5 H6 H7 H8 => /=.
+  move => local0 aggregate0 adjacent0 sent0 receive0.
+  move => H4 H5 H6 H7 H8.
+  rewrite H4 H5 H6 H7 H8 {local0 aggregate0 adjacent0 sent0 receive0 H4 H5 H6 H7 H8}.
+  exact: (recv_fail _ H'_step1).
+- find_apply_lem_hyp input_handlers_IOHandler.
+  rewrite /update /=.
+  case (Name_eq_dec _ _) => H_dec; last exact: IHH'_step1.
+  rewrite -H_dec {H_dec H'_step2} in H0 H1.
+  io_handler_cases => //.
+  * case: d H2 H3 H4 H5 => /=.
+    move => local0 aggregate0 adjacent0 sent0 receive0.
+    move => H2 H3 H4 H5.
+    rewrite H2 H3 H4 H5 {aggregate0 adjacent0 sent0 receive0 H2 H3 H4 H5}.
+    exact: (recv_local_weight _ H'_step1).
+  * case: d H4 H5 H6 H7 H8 => /=.
+    move => local0 aggregate0 adjacent0 sent0 receive0.
+    move => H4 H5 H6 H7 H8.
+    rewrite H4 H5 H6 H7 H8 {local0 aggregate0 adjacent0 sent0 receive0 H4 H5 H6 H7 H8}.
+    exact: (recv_send_aggregate H'_step1).
+  * by rewrite /= in IHH'_step1.
+Qed.
+
+End SingleNodeInv.
+
+Definition in_set_exists_find_sent (n : Name) (d : Data) : Prop :=
+  FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(sent) = Some m5.
+
+Lemma Aggregation_in_set_exists_find_sent : 
+forall net failed tr, 
+ step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, net) tr ->
+ forall n n', 
+    ~ In n failed ->
+   in_set_exists_find_sent n' (net.(onwState) n).
+Proof.
+move => net failed tr H_st.
+move => n n0 H_f.
+pose P_curr (d : Data) := in_set_exists_find_sent n0 d.
+rewrite -/(P_curr _).
+apply: (P_inv_n H_st); rewrite /P_curr /in_set_exists_find_sent //= {P_curr net tr H_st failed H_f}.
+- move => H_ins.
+  exists 1.
+  rewrite /init_map.
+  case (init_map_str _) => fm H_init.
+  by apply H_init in H_ins.
+- move => onet failed tr n1 m_snt m_rcd H_step H_f H_find H_find' IH H_ins.
+  apply FinNSet.remove_spec in H_ins.
+  move: H_ins => [H_ins H_neq]. 
+  apply IH in H_ins.
+  move: H_ins => [m' H_find''].
+  exists m'.  
+  apply FinNMapFacts.find_mapsto_iff.
+  apply FinNMapFacts.remove_neq_mapsto_iff; first by move => H_neq'; rewrite H_neq' in H_neq.
+  by apply FinNMapFacts.find_mapsto_iff.
+- move => onet failed tr n1 m' H_step H_f H_ins H_neq H_find IH H_ins'.
+  apply IH in H_ins'.
+  move: H_ins' => [m0 H_find'].
+  case (Name_eq_dec n1 n0) => H_dec.
+    rewrite H_dec.
+    exists (m' * (onwState onet n).(aggregate)).
+    exact: FinNMapFacts.add_eq_o.
+  exists m0.
+  apply FinNMapFacts.find_mapsto_iff.
+  apply FinNMapFacts.add_neq_mapsto_iff => //.
+  by apply FinNMapFacts.find_mapsto_iff.
+Qed.
+
+Definition in_set_exists_find_received (n : Name) (d : Data) : Prop :=
+  FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(received) = Some m5.
+
+Lemma Aggregation_in_set_exists_find_received : 
+forall net failed tr, 
+ step_o_f_star (params := Aggregation_OverlayFailParams) step_o_f_init (failed, net) tr -> 
+ forall n n', 
+   ~ In n failed ->
+   in_set_exists_find_received n' (net.(onwState) n).
+Proof.
+move => net failed tr H_st.
+move => n n0 H_f.
+pose P_curr (d : Data) := in_set_exists_find_received n0 d.
+rewrite -/(P_curr _).
+apply: (P_inv_n H_st); rewrite /P_curr /in_set_exists_find_received //= {P_curr net tr H_st failed H_f}.
+- move => H_ins.
+  exists 1.
+  rewrite /init_map.
+  case (init_map_str _) => fm H_init.
+  by apply H_init in H_ins.
+- move => onet failed tr n' m' m0 H_step H_f H_find IH H_ins'.
+  apply IH in H_ins'.
+  move: H_ins' => [m1 H_find'].
+  case (Name_eq_dec n' n0) => H_dec.
+    rewrite H_dec.
+    exists (m0 * m').
+    exact: FinNMapFacts.add_eq_o.
+  exists m1.
+  apply FinNMapFacts.find_mapsto_iff.
+  apply FinNMapFacts.add_neq_mapsto_iff => //.
+  by apply FinNMapFacts.find_mapsto_iff.
+- move => onet failed tr n1 m_snt m_rcd H_step H_f H_find H_find' IH H_ins.
+  apply FinNSet.remove_spec in H_ins.
+  move: H_ins => [H_ins H_neq]. 
+  apply IH in H_ins.
+  move: H_ins => [m' H_find''].
+  exists m'.  
+  apply FinNMapFacts.find_mapsto_iff.
+  apply FinNMapFacts.remove_neq_mapsto_iff; first by move => H_neq'; rewrite H_neq' in H_neq.
+  by apply FinNMapFacts.find_mapsto_iff.
+Qed.
+
+(* ---------------------------------- *)
+
+(* prove that self-channel is empty *)
+
+Definition self_channel_empty (net : ordered_network) : Prop :=
+forall n, net.(onwPackets) n n = [].
+
+Lemma Aggregation_self_channel_empty : 
+forall net tr, 
+ step_o_star (params := Aggregation_MultiParams) step_o_init net tr ->
+ self_channel_empty net.
+Proof.
+move => onet tr H_step.
+remember step_o_init as y in H_step.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init; rewrite /self_channel_empty /=; first by rewrite H_init /step_o_init.
+rewrite /self_channel_empty in IHH_step1.
 concludes.
 match goal with
 | [ H : step_o _ _ _ |- _ ] => invc H
 end; simpl.
-find_apply_lem_hyp net_handlers_NetHandler.
-  rewrite /update /=.
-  case (Name_eq_dec _ _) => H_dec //.
-  rewrite -H_dec in H3.
-  by net_handler_cases.
-rewrite /update /=.
-case (Name_eq_dec _ _) => H_dec //.
-rewrite -H_dec in H2.
-apply input_handlers_IOHandler in H2.
-by io_handler_cases.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //.
+    rewrite /update /= /update2 /=.
+    case (sumbool_and _ _ _ _) => H_dec //.
+    move: H_dec => [H_dec H_dec'].
+    rewrite H_dec H_dec' in H0.
+    by rewrite IHH_step1 in H0.
+  rewrite /collate /= /update2 /=.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  move: H_dec => [H_dec H_dec'].
+  rewrite H_dec H_dec' in H0.
+  by rewrite IHH_step1 in H0.
+find_apply_lem_hyp input_handlers_IOHandler.
+io_handler_cases; rewrite /collate /= //.
+rewrite /update2 /=.
+case (sumbool_and _ _ _ _) => H_dec //.
+move: H_dec => [H_dec H_dec'].
+rewrite H_dec' H_dec in H.
+by have H_not := Aggregation_node_not_adjacent_self H_step1 H.
 Qed.
 
 Lemma Aggregation_nodes_mutually_adjacent : 
@@ -832,187 +1185,6 @@ rewrite /update /=.
 case (Name_eq_dec _ _) => H_eq; case (Name_eq_dec _ _) => H_eq' //=; first by io_handler_cases.
   by io_handler_cases; exact: IHrefl_trans_1n_trace1.
 by io_handler_cases.
-Qed.
-
-Section SingleNodeInv.
-
-Variable onet : ordered_network.
-
-Variable tr : list (name * (input + list output)).
-
-Hypothesis H_step : step_o_star (params := Aggregation_MultiParams) step_o_init onet tr.
-
-Variable n : Name.
-
-Variable P : Data -> Prop.
-
-Hypothesis after_init : P (init_Data n).
-
-Hypothesis recv_aggregate : 
-  forall onet tr n' m' m0,
-    step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
-    FinNMap.find n' (onet.(onwState) n).(received) = Some m0 ->
-    P (onet.(onwState) n) ->
-    P (mkData (onet.(onwState) n).(local) ((onet.(onwState) n).(aggregate) * m') (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (FinNMap.add n' (m0 * m') (onet.(onwState) n).(received))).
-
-Hypothesis recv_local_weight : 
-  forall onet tr m',
-  step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
-  P (onet.(onwState) n) ->
-  P (mkData m' ((onwState onet n).(aggregate) * m' * ((onwState onet n).(local))^-1) (onwState onet n).(adjacent) (onwState onet n).(sent) (onwState onet n).(received)).
-
-Hypothesis recv_send_aggregate : 
-  forall onet tr n' m',
-    step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
-    FinNSet.In n' (onwState onet n).(adjacent) ->
-    (onwState onet n).(aggregate) <> 1 ->
-    FinNMap.find n' (onwState onet n).(sent) = Some m' ->
-    P (onet.(onwState) n) ->
-    P (mkData (onwState onet n).(local) 1 (onwState onet n).(adjacent) (FinNMap.add n' (m' * (onwState onet n).(aggregate)) (onwState onet n).(sent)) (onwState onet n).(received)).
-
-Theorem P_inv_n : P (onwState onet n).
-Proof.
-move: onet tr H_step.
-clear onet tr H_step.
-move => onet' tr' H'_step.
-remember step_o_init as y in H'_step.
-move: Heqy.
-induction H'_step using refl_trans_1n_trace_n1_ind => H_init.
-  rewrite H_init /step_o_init /=.
-  exact: after_init.
-concludes.
-match goal with
-| [ H : step_o _ _ _ |- _ ] => invc H
-end; simpl.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  rewrite /update /=.
-  case (Name_eq_dec _ _) => H_dec; last exact: IHH'_step1.
-  rewrite -H_dec {H_dec H'_step2 to} in H1, H0.
-  net_handler_cases => //.
-  case: d H2 H3 H4 H5 H6 => /=.
-  move => local0 aggregate0 adjacent0 sent0 receive0.
-  move => H2 H3 H4 H5 H6.
-  rewrite H2 H3 H4 H5 H6 {local0 aggregate0 adjacent0 sent0 receive0 H2 H3 H4 H5 H6}.
-  exact: (recv_aggregate _ _ H'_step1).
-find_apply_lem_hyp input_handlers_IOHandler.
-rewrite /update /=.
-case (Name_eq_dec _ _) => H_dec; last exact: IHH'_step1.
-rewrite -H_dec {H_dec H'_step2} in H0.
-io_handler_cases => //.
-  case: d H1 H2 H3 H4 => /=.
-  move => local0 aggregate0 adjacent0 sent0 receive0.
-  move => H1 H2 H3 H4.
-  rewrite H1 H2 H3 H4 {aggregate0 adjacent0 sent0 receive0 H1 H2 H3 H4}.
-  exact: (recv_local_weight _ H'_step1 IHH'_step1).
-case: d H3 H4 H5 H6 H7 => /=.
-move => local0 aggregate0 adjacent0 sent0 receive0.
-move => H3 H4 H5 H6 H7.
-rewrite H3 H4 H5 H6 H7 {local0 aggregate0 adjacent0 sent0 receive0 H3 H4 H5 H6 H7}.
-exact: (recv_send_aggregate H'_step1).
-Qed.
-
-End SingleNodeInv.
-
-Definition in_set_exists_find_sent (n : Name) (d : Data) : Prop :=
-  FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(sent) = Some m5.
-
-Lemma Aggregation_in_set_exists_find_sent : 
-forall net tr, 
- step_o_star (params := Aggregation_MultiParams) step_o_init net tr ->
- forall n n', in_set_exists_find_sent n' (net.(onwState) n).
-Proof.
-move => net tr H_st.
-move => n n0.
-pose P_curr (d : Data) := in_set_exists_find_sent n0 d.
-rewrite -/(P_curr _).
-apply: (P_inv_n H_st); rewrite /P_curr /in_set_exists_find_sent //= {P_curr net tr H_st}.
-  move => H_ins.
-  exists 1.
-  rewrite /init_map.
-  case (init_map_str _) => fm H_init.
-  by apply H_init in H_ins.
-move => onet tr n1 m' H_ins H_neq H_find H_step IH H_ins'.
-apply IH in H_ins'.
-move: H_ins' => [m0 H_find'].
-case (Name_eq_dec n1 n0) => H_dec.
-  rewrite H_dec.
-  exists (m' * (onwState onet n).(aggregate)).
-  exact: FinNMapFacts.add_eq_o.
-exists m0.
-apply FinNMapFacts.find_mapsto_iff.
-apply FinNMapFacts.add_neq_mapsto_iff => //.
-by apply FinNMapFacts.find_mapsto_iff.
-Qed.
-
-Definition in_set_exists_find_received (n : Name) (d : Data) : Prop :=
-  FinNSet.In n d.(adjacent) -> exists m5 : m, FinNMap.find n d.(received) = Some m5.
-
-Lemma Aggregation_in_set_exists_find_received : 
-forall net tr, 
- step_o_star (params := Aggregation_MultiParams) step_o_init net tr ->
- forall n n', in_set_exists_find_received n' (net.(onwState) n).
-Proof.
-move => net tr H_st.
-move => n n0.
-pose P_curr (d : Data) := in_set_exists_find_received n0 d.
-rewrite -/(P_curr _).
-apply: (P_inv_n H_st); rewrite /P_curr /in_set_exists_find_received //= {P_curr net tr H_st}.
-  move => H_ins.
-  exists 1.
-  rewrite /init_map.
-  case (init_map_str _) => fm H_init.
-  by apply H_init in H_ins.
-move => onet tr n' m' m0 H_step H_find IH H_ins'.
-apply IH in H_ins'.
-move: H_ins' => [m1 H_find'].
-case (Name_eq_dec n' n0) => H_dec.
-  rewrite H_dec.
-  exists (m0 * m').
-  exact: FinNMapFacts.add_eq_o.
-exists m1.
-apply FinNMapFacts.find_mapsto_iff.
-apply FinNMapFacts.add_neq_mapsto_iff => //.
-by apply FinNMapFacts.find_mapsto_iff.
-Qed.
-
-(* prove that self-channel is empty *)
-
-Definition self_channel_empty (net : ordered_network) : Prop :=
-forall n, net.(onwPackets) n n = [].
-
-Lemma Aggregation_self_channel_empty : 
-forall net tr, 
- step_o_star (params := Aggregation_MultiParams) step_o_init net tr ->
- self_channel_empty net.
-Proof.
-move => onet tr H_step.
-remember step_o_init as y in H_step.
-move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => H_init; rewrite /self_channel_empty /=; first by rewrite H_init /step_o_init.
-rewrite /self_channel_empty in IHH_step1.
-concludes.
-match goal with
-| [ H : step_o _ _ _ |- _ ] => invc H
-end; simpl.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-    rewrite /update /= /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec //.
-    move: H_dec => [H_dec H_dec'].
-    rewrite H_dec H_dec' in H0.
-    by rewrite IHH_step1 in H0.
-  rewrite /collate /= /update2 /=.
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec //.
-  move: H_dec => [H_dec H_dec'].
-  rewrite H_dec H_dec' in H0.
-  by rewrite IHH_step1 in H0.
-find_apply_lem_hyp input_handlers_IOHandler.
-io_handler_cases; rewrite /collate /= //.
-rewrite /update2 /=.
-case (Sumbool.sumbool_and _ _ _ _) => H_dec //.
-move: H_dec => [H_dec H_dec'].
-rewrite H_dec' H_dec in H.
-by have H_not := Aggregation_node_not_adjacent_self H_step1 H.
 Qed.
 
 Section SingleNodeInvOut.
@@ -1110,7 +1282,7 @@ end; simpl.
     case (Name_eq_dec _ _) => H_dec.
       rewrite -H_dec in H H2 H3 H4 H5 H6 H0.
       rewrite -H_dec /update2 /= {H_dec to H'_step2}.
-      case (Sumbool.sumbool_and _ _ _ _) => H_dec.
+      case (sumbool_and _ _ _ _) => H_dec.
         move: H_dec => [H_eq H_eq'].
         rewrite H_eq {H_eq from} in H H6 H0. 
         by rewrite (Aggregation_self_channel_empty H'_step1) in H0.
@@ -1126,7 +1298,7 @@ end; simpl.
       rewrite H2 H3 H4 H5 H6 {local0 aggregate0 adjacent0 sent0 receive0 H2 H3 H4 H5 H6}.
       exact: (recv_aggregate_neq _ H'_step1 H_dec H H0).
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+    case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
     rewrite H_dec'' in H_dec.
     rewrite H_dec' {from H_dec' H'_step2} in H H6 H0.
@@ -1137,13 +1309,13 @@ end; simpl.
     rewrite -H_dec in H H0.
     rewrite -H_dec.
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+    case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
     rewrite -H_dec'' in IHH'_step1.
     rewrite H_dec' in H H0.
     by rewrite (Aggregation_self_channel_empty H'_step1) in H0.
   rewrite /update2 /=.
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+  case (sumbool_and _ _ _ _) => H_dec' //.
   move: H_dec' => [H_dec' H_dec''].
   rewrite H_dec'' {H'_step2 to H_dec''} in H_dec H H0.
   rewrite H_dec' {H_dec' from} in H H0.
@@ -1162,7 +1334,7 @@ io_handler_cases => //.
   case (Name_eq_dec _ _) => H_dec.
     rewrite -H_dec.
     rewrite -H_dec {h H_dec H'_step2} in H H1 H2 H3 H5 H6 H7.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec'.
+    case (sumbool_and _ _ _ _) => H_dec'.
       move: H_dec' => [H_dec' H_dec''].
       rewrite H_dec''.
       rewrite H_dec'' {x H_dec'' H_dec'} in H H2 H6.
@@ -1177,7 +1349,7 @@ io_handler_cases => //.
     move => H4 H3 H5 H7 H6.
     rewrite H4 H3 H5 H7 H6 {local0 aggregate0 adjacent0 sent0 receive0 H4 H3 H5 H7 H6}.
     exact: (recv_local_neq_some H'_step1 H1 H H2).
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+  case (sumbool_and _ _ _ _) => H_dec' //.
   move: H_dec' => [H_dec' H_dec''].
   by rewrite H_dec' in H_dec.
 - rewrite /update /=.
@@ -1302,7 +1474,7 @@ end; simpl.
     case (Name_eq_dec _ _) => H_dec.
       rewrite -H_dec in H H2 H3 H4 H5 H6 H0.
       rewrite -H_dec /update2 /= {H_dec to H'_step2}.
-      case (Sumbool.sumbool_and _ _ _ _) => H_dec.
+      case (sumbool_and _ _ _ _) => H_dec.
         move: H_dec => [H_eq H_eq'].
         rewrite H_eq {H_eq from} in H H6 H0.
         case: d H2 H3 H4 H5 H6 => /=.
@@ -1317,7 +1489,7 @@ end; simpl.
       rewrite H2 H3 H4 H5 H6 {local0 aggregate0 adjacent0 sent0 receive0 H2 H3 H4 H5 H6}.
       exact: (recv_aggregate_other _ H'_step1).
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+    case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
     by rewrite H_dec'' in H_dec.
   rewrite /update /=.
@@ -1325,7 +1497,7 @@ end; simpl.
     rewrite -H_dec.
     rewrite -H_dec in H H0.
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+    case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_eq].
     rewrite H_dec' in H0 H.
     have H_in: In (Aggregate x) (x'.(onwPackets) n' n) by rewrite H0; left.
@@ -1334,7 +1506,7 @@ end; simpl.
     have [m0 H_find'] := Aggregation_in_set_exists_find_received H'_step1 _ H_mut.
     by rewrite H_find' in H.
   rewrite /update2 /=.
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+  case (sumbool_and _ _ _ _) => H_dec' //.
   move: H_dec' => [H_dec' H_eq].
   by rewrite H_eq in H_dec.
 find_apply_lem_hyp input_handlers_IOHandler.
@@ -1350,7 +1522,7 @@ io_handler_cases => //.
 - rewrite /update /=.
   case (Name_eq_dec _ _) => H_dec.
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec'.
+    case (sumbool_and _ _ _ _) => H_dec'.
       move: H_dec' => [H_dec' H_eq].
       rewrite H_eq -H_dec in H.
       contradict H.
@@ -1370,7 +1542,7 @@ io_handler_cases => //.
     rewrite H3 H4 H5 H6 H7 {H3 H4 H5 H6 H7}.
     exact: (recv_send_aggregate_other H'_step1).
   rewrite /update2 /=.
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec' //.
+  case (sumbool_and _ _ _ _) => H_dec' //.
   move: H_dec' => [H_dec' H_dec''].
   rewrite H_dec' in H_dec H H1 H2 H3 H5 H6 H7.
   rewrite H_dec' {H'_step2 H_dec' h}.
@@ -1710,7 +1882,7 @@ elim => //.
 move => n0 ns IH H_in.
 rewrite /= IH /=; last by move => H_in'; case: H_in; right.
 rewrite /update2 /=.
-case (Sumbool.sumbool_and _ _ _ _) => H_dec //.
+case (sumbool_and _ _ _ _) => H_dec //.
 move: H_dec => [H_dec H_dec'].
 case: H_in.
 by left.
@@ -1730,7 +1902,7 @@ move => from to n onet ms ns H_neq.
 elim: ns => //.
 move => n' l IH.
 rewrite /= IH /update2 /=.
-case (Sumbool.sumbool_and _ _ _ _) => H_dec //.
+case (sumbool_and _ _ _ _) => H_dec //.
 by move: H_dec => [H_dec H_dec'].
 Qed.
 
@@ -1934,7 +2106,7 @@ end; simpl.
     rewrite sum_aggregate_msg_neq_from //.    
     rewrite -/(sum_aggregate_msg_incoming ns3 x' to).
     rewrite /update2 /=.
-    case (Sumbool.sumbool_and _ _ _ _) => H_dec; last by case: H_dec => H_dec.
+    case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec => H_dec.
     rewrite -{1}H_inn in IHH_step1.
     rewrite H_in' in IHH_step1.
     rewrite sum_aggregate_msg_incoming_active_split /= in IHH_step1.
@@ -2045,7 +2217,7 @@ io_handler_cases => // {H_step2}.
   rewrite /=.
   rewrite sum_aggregate_msg_neq_from //.
   rewrite /update2 /=.
-  case (Sumbool.sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
+  case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
   gsimpl.
   rewrite -/(sum_aggregate_msg_incoming ns0 x' x).
   rewrite -/(sum_aggregate_msg_incoming ns1 x' x).
@@ -2093,11 +2265,35 @@ io_handler_cases => // {H_step2}.
   by rewrite IHH_step1.
 Qed.
 
+Inductive step_o_f : step_relation (list name * ordered_network) (name * (input + list output)) :=
+| SOF_deliver : forall net net' failed m ms out d l from to,
+                   onwPackets net from to = m :: ms ->
+                   ~ In to failed ->
+                   net_handlers to from m (onwState net to) = (out, d, l) ->
+                   net' = mkONetwork (collate to (update2 (onwPackets net) from to ms) l) (update (onwState net) to d) ->
+                   step_o_f (failed, net) (failed, net') [(to, inr out)]
+| SOF_input : forall h net net' failed out inp d l,
+                 ~ In h failed ->
+                 input_handlers h inp (onwState net h) = (out, d, l) ->
+                 net' = mkONetwork (collate h (onwPackets net) l) (update (onwState net) h d) ->
+                 step_o_f (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
+| SOF_fail :  forall h net net' failed l,
+               ~ In h failed ->
+               l =  ->
+               net' = mkONetwork (collate h (onwPackets net) l) (onwState net) ->
+               step_o_f (failed, net) (h :: failed, net') [].
+
+Definition step_o_f_star := refl_trans_1n_trace step_o_f.
+
+Definition step_o_f_init : list name * ordered_network := ([], step_o_init).
+
 (* merge sent and received into "balance" map? *)
 
 (* use boolean function, name-to-list function, or decision procedure for adjacency *)
 (* at recovery time, send new to all existing neighbors *)
 (* handle problem with unprocessed fail messages for recovery *)
+
+(* higher-level language like ott/lem for protocols that exports to handlers? *)
 
 (* 
 path to liveness properties:
@@ -2198,4 +2394,32 @@ Require Import MSetList.
 Module FinSet <: MSetInterface.S := MSetList.Make fin_10_OT.
 Eval compute in FinSet.choose (FinSet.singleton b).
 
+*)
+
+(*
+Definition exclude (excluded : list Name) := filter (fun n => sumbool_not _ _ (in_dec Name_eq_dec n excluded)).
+
+Definition fail_for := map (fun (n : Name) => (n, Fail)).
+
+Inductive step_o_f : step_relation (list Name * ordered_network) (Name * (input + list output)) :=
+| SOF_deliver : forall net net' failed m ms out d l from to,
+                   onwPackets net from to = m :: ms ->
+                   ~ In to failed ->
+                   net_handlers to from m (onwState net to) = (out, d, l) ->
+                   net' = mkONetwork (collate to (update2 (onwPackets net) from to ms) l) (update (onwState net) to d) ->
+                   step_o_f (failed, net) (failed, net') [(to, inr out)]
+| SOF_input : forall h net net' failed out inp d l,
+                 ~ In h failed ->
+                 input_handlers h inp (onwState net h) = (out, d, l) ->
+                 net' = mkONetwork (collate h (onwPackets net) l) (update (onwState net) h d) ->
+                 step_o_f (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
+| SOF_fail :  forall h net net' failed l,
+               ~ In h failed ->
+               l = fail_for (adjacent_to_node h (exclude failed nodes)) ->
+               net' = mkONetwork (collate h (onwPackets net) l) (onwState net) ->
+               step_o_f (failed, net) (h :: failed, net') [].
+
+Definition step_o_f_star := refl_trans_1n_trace step_o_f.
+
+Definition step_o_f_init : list Name * ordered_network := ([], step_o_init).
 *)
