@@ -1072,21 +1072,28 @@ Section StepOrder.
   Definition step_o_star := refl_trans_1n_trace step_o.
 End StepOrder.
 
-Class OverlayFailParams `(P : MultiParams) :=
+Class OverlayParams `(P : MultiParams) :=
   {
     adjacent_to : relation name;
     adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
     adjacent_to_symmetric : Symmetric adjacent_to;
-    adjacent_to_irreflexive : Irreflexive adjacent_to;
-    fail : msg
+    adjacent_to_irreflexive : Irreflexive adjacent_to
+  }.
+
+Class FailMsgParams `(P : MultiParams) := 
+  {
+    msg_fail : msg
   }.
 
 Section StepOrderFailure.
-  Context `{params : OverlayFailParams}.
+  Context {base_params : BaseParams}.
+  Context {multi_params : MultiParams base_params}.
+  Context {overlay_params : OverlayParams multi_params}.
+  Context {fail_msg_params : FailMsgParams multi_params}.  
 
   Definition exclude (excluded : list name) := filter (fun n => if (in_dec name_eq_dec n excluded) then false else true).
 
-  Definition fail_for := map (fun (n : name) => (n, fail)).
+  Definition fail_for := map (fun (n : name) => (n, msg_fail)).
 
   Definition adjacent_to_node (n : name) := filter (fun n' => if adjacent_to_dec n n' then true else false).
 
