@@ -229,6 +229,42 @@ split => //.
 by inversion H_eq.
 Qed.
 
+Lemma eq_map_name_injective : 
+forall n n', eq_map_name n = eq_map_name n' -> n = n'.
+Proof.
+move => n n'.
+case (name_eq_dec n n') => H_dec //.
+move => H_eq.
+rewrite -(eq_map_name_inv_inverse n) in H_dec.
+rewrite H_eq in H_dec.
+by rewrite eq_map_name_inv_inverse in H_dec.
+Qed.
+
+Lemma eq_map_trace_occ_in_inv : 
+  forall tr h inp out,
+    map eq_map_trace_occ tr = [(h, inl inp); (h, inr out)] -> 
+    exists h', exists inp', exists out', tr = [(h', inl inp'); (h', inr out')] /\ 
+      eq_map_name h' = h /\ map eq_map_output out' = out /\ eq_map_input inp' = inp.
+Proof.
+case => //=.
+case.
+move => h.
+case => //.
+move => inp.
+case => //.
+case.
+move => h'.
+case => //.
+move => out.
+case => //=.
+move => h0.
+move => inp' out' H_eq.
+inversion H_eq; subst.
+apply eq_map_name_injective in H2.
+rewrite H2.
+by exists h; exists inp; exists out.
+Qed.
+
 Lemma map_eq_inv_eq :
   forall (A B : Type) (f : A -> B),
     (forall a a', f a = f a' -> a = a') ->
@@ -358,9 +394,50 @@ invcs H_step.
       rewrite H_dec' in H_dec.
       by rewrite eq_map_name_inv_inverse in H_dec.
     by rewrite H_eq_sw.
-- rewrite /eq_map_net /=.      
-  by admit.
-Admitted.
+- rewrite /eq_map_net /=.
+  case: mnet H => /= pks sts H_hnd.
+  have [h' [inp' [out' [H_eq_mout [H_eq_n [H_eq_out H_eq_inp]]]]]] := eq_map_trace_occ_in_inv _ (eq_sym H3).
+  have H_q := eq_input_handlers_eq h' inp' (sts h').
+  rewrite /eq_mapped_input_handlers in H_q.
+  repeat break_let.
+  rewrite H_eq_n H_eq_inp in H_q.
+  rewrite -{2}H_eq_n eq_map_name_inv_inverse in H_hnd.
+  rewrite H_hnd in H_q.
+  inversion H_q.
+  rewrite -H_eq_out in H0.
+  rewrite H1 H2.
+  exists ({| nwPackets := send_packets h' l0 ++ pks ; nwState := update sts h' d0 |}).
+  split.
+  * rewrite H_eq_mout.
+    apply (@SM_input _ _ _ _ _ _ _ d0 l0) => //.
+    rewrite /= Heqp.
+    suff H_suff: l1 = out' by rewrite H_suff.
+    move: H0.
+    apply map_eq_inv_eq.
+    exact: eq_map_output_injective.
+  * rewrite /= map_app.
+    set nwP1 := map eq_map_packet _.
+    set nwP2 := map (fun _ => _) l.
+    set nwS1 := fun _ => _.
+    set nwS2 := update _ _ _.
+    have H_eq_nwp: nwP1 = nwP2.
+      rewrite /nwP1 /nwP2 {Heqp H_q nwP1 nwP2}.
+      rewrite -H2 {H2}.
+      elim: l0 => //=.
+      case => /= n m l0 IH.
+      by rewrite H_eq_n IH.
+    have H_eq_nws: nwS1 = nwS2.
+      rewrite /nwS1 /nwS2.
+      rewrite /update /=.
+      apply functional_extensionality => n.
+      rewrite -H_eq_n -H1.
+      case (name_eq_dec _ _) => H_dec.
+        case (name_eq_dec _ _) => H_dec' //.
+        by rewrite -H_dec eq_map_name_inverse_inv in H_dec'.
+      case (name_eq_dec _ _) => H_dec' //.
+      by rewrite H_dec' eq_map_name_inv_inverse in H_dec.
+    by rewrite H_eq_nwp H_eq_nws.
+Qed.
 
 Theorem step_m_eq_mapped_invariant_lift :
   forall P : _ -> Prop,
@@ -569,6 +646,274 @@ apply (@RT1nTStep _ _ _ _ (map eq_map_name failed'', eq_map_net net'')) => //.
 exact: RT1nTBase.
 Qed.
 
+(*
+Theorem step_f_eq_mapped_simulation_2 :
+  forall net net' failed failed' out mnet mfailed,
+      @step_f _ _ fail_snd (failed, net) (failed', net') out ->
+      eq_map_net mnet = net ->
+      map eq_map_name mfailed = failed ->
+      exists mnet', exists mfailed', exists mout,
+        @step_f _ _ fail_fst (mfailed, mnet) (mfailed', mnet') mout /\        
+        map eq_map_name mfailed' = failed' /\
+        eq_map_net mnet' = net' /\
+        map eq_map_trace_occ mout = out.
+Proof.
+Admitted.
+*)
+
+Lemma map_eq_name_eq_eq :
+  forall l l',
+    map eq_map_name l = map eq_map_name l' -> l = l'.
+Proof.
+elim.
+case => //=.
+move => n l IH.
+case => //=.
+move => n' l' H_eq.
+inversion H_eq.
+apply eq_map_name_injective in H0.
+by rewrite H0 (IH l').
+Qed.
+
+Theorem step_f_eq_mapped_simulation_2 :
+  forall net net' failed failed' out mnet mfailed mfailed' mout,
+      @step_f _ _ fail_snd (failed, net) (failed', net') out ->
+      eq_map_net mnet = net ->
+      map eq_map_name mfailed = failed ->
+      map eq_map_name mfailed' = failed' ->
+      map eq_map_trace_occ mout = out ->
+      exists mnet',
+        @step_f _ _ fail_fst (mfailed, mnet) (mfailed', mnet') mout /\
+        eq_map_net mnet' = net'.
+Proof.
+move => net net' failed failed' out mnet mfailed mfailed' mout H_step H_eq_net H_eq_f H_eq_f' H_eq_out.
+invcs H_step.
+- case: p H4 H5 H3 H6 => /= src dst m H4 H5 H3 H6.
+  rewrite /eq_map_net /=.
+  case: mnet H3 H6 => /= pks sts H_eq H_hnd.
+  have [pks1 [pks2 [H_eq_pks [H_eq_pks1 H_eq_pks2]]]] := map_eq_inv _ _ _ _ H_eq.
+  case: pks2 H_eq_pks H_eq_pks2 => //= p pks2 H_eq_pks H_eq_pks2.
+  rewrite H_eq_pks.
+  inversion H_eq_pks2.
+  case H_hnd': (net_handlers (pDst p) (pSrc p) (pBody p) (sts (pDst p))) => [dout l'].
+  case: dout H_hnd' => out' d' H_hnd'.
+  rewrite -H_eq_pks1.
+  exists {| nwPackets := send_packets (pDst p) l' ++ pks1 ++ pks2 ; nwState := update sts (pDst p) d' |}.
+  split.
+  * have [n' [lo [H_eq_mout [H_eq_n H_eq_lo]]]] := eq_map_trace_occ_inv _ (eq_sym H5).
+    rewrite H_eq_mout.
+    have H_eq_dst: n' = pDst p.
+      rewrite -(eq_map_name_inv_inverse n').
+      rewrite H_eq_n.
+      case: p H_eq_pks H_eq_pks2 H0 H_hnd' => src' dst' m' H_eq_pks H_eq_pks2 H0 H_hnd'.
+      rewrite /=.
+      rewrite /= in H0.
+      inversion H0.
+      by rewrite eq_map_name_inv_inverse.
+    rewrite H_eq_dst.
+    apply map_eq_name_eq_eq in H1.
+    rewrite H1.    
+    apply (@SF_deliver _ _ _ _ _ _ _ pks1 pks2 _ d' l') => //=.
+      rewrite -H_eq_dst.
+      rewrite -H_eq_n in H4.
+      move => H_in.
+      by apply in_failed_in in H_in.
+    suff H_suff: lo = out' by rewrite H_suff.
+    have H_eq_hnd := eq_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    rewrite /eq_mapped_net_handlers /= in H_eq_hnd.
+    repeat break_let.
+    inversion H_hnd'.
+    rewrite H3 H6 H7 in H_eq_hnd.
+    rewrite -{1}H_eq_dst H_eq_n in H_eq_hnd.
+    rewrite -H_eq_dst in H_eq_hnd.
+    rewrite -(eq_map_name_inv_inverse n') H_eq_n in H_eq_hnd.
+    move {Heqp1 Heqp0 H_hnd'}.
+    have H_eq_src: eq_map_name (pSrc p) = src.
+      case: p H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_hnd => src' dst' m' H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_hnd.
+      rewrite /=.
+      rewrite /= in H0.
+      by inversion H0.
+    rewrite H_eq_src /= {H_eq_src} in H_eq_hnd.
+    have H_eq_body: eq_map_msg (pBody p) = m.
+      case: p H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_hnd => src' dst' m' H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_hnd.
+      rewrite /=.
+      rewrite /= in H0.
+      by inversion H0.
+    rewrite H_eq_body H_hnd in H_eq_hnd.
+    inversion H_eq_hnd.
+    rewrite -H_eq_lo in H8.
+    symmetry.
+    move: H8.
+    apply map_eq_inv_eq.
+    exact: eq_map_output_injective.
+  * rewrite /=.
+    rewrite /update /=.
+    have H_eq_dst: eq_map_name (pDst p) = dst.
+      case: p H_eq_pks H_eq_pks2 H0 H_hnd' => src' dst' m' H_eq_pks H_eq_pks2 H0 H_hnd'.
+      by inversion H0.
+    have H_eq_src: eq_map_name (pSrc p) = src.
+      case: p H_eq_pks H_eq_pks2 H0 H_hnd' H_eq_dst => src' dst' m' H_eq_pks H_eq_pks2 H0 H_hnd' H_eq_dst.
+      by inversion H0.
+    have H_eq_body: eq_map_msg (pBody p) = m.
+      case: p H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd' => src' dst' m' H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd'.
+      by inversion H0.
+    rewrite 2!map_app.
+    have H_eq_hnd := eq_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    rewrite /eq_mapped_net_handlers /= in H_eq_hnd.
+    repeat break_let.
+    inversion H_hnd'.
+    rewrite H_eq_dst H_eq_src H_eq_body in H_eq_hnd.
+    rewrite -{2}H_eq_dst eq_map_name_inv_inverse in H_hnd.
+    rewrite H_hnd in H_eq_hnd.
+    inversion H_eq_hnd.
+    rewrite H3 in H8.
+    rewrite H6 in H9.
+    rewrite H7 in H10.
+    rewrite H6 H7.
+    set nwP1 := map eq_map_packet _.
+    set nwP2 := map (fun _ => _) (eq_map_name_msgs _).
+    set nwS1 := fun _ => _.
+    set nwS2 := fun _ => _.
+    have H_eq_nw: nwP1 = nwP2.
+      rewrite /nwP1 /nwP2 {H_hnd' H7 H10 nwP1 nwP2}.
+      elim: l' => //=.
+      case => /= n' m' l' IH.
+      rewrite IH.
+      by rewrite H_eq_dst.
+    rewrite -H_eq_nw /nwP1 {H_eq_nw nwP1 nwP2}.
+    have H_eq_sw: nwS1 = nwS2.
+      rewrite /nwS1 /nwS2.
+      apply functional_extensionality => n'.
+      rewrite -H_eq_dst.
+      case (name_eq_dec _ _) => H_dec.
+        rewrite -H_dec.
+        rewrite eq_map_name_inverse_inv.
+        by case (name_eq_dec _ _).
+      case (name_eq_dec _ _) => H_dec' //.
+      rewrite H_dec' in H_dec.
+      by rewrite eq_map_name_inv_inverse in H_dec.
+    by rewrite H_eq_sw.
+- rewrite /eq_map_net /=.
+  case: mnet H5 => /= pks sts H_hnd.
+  have [h' [inp' [out' [H_eq_mout [H_eq_n [H_eq_out H_eq_inp]]]]]] := eq_map_trace_occ_in_inv _ (eq_sym H4).
+  have H_q := eq_input_handlers_eq h' inp' (sts h').
+  rewrite /eq_mapped_input_handlers in H_q.
+  repeat break_let.
+  rewrite H_eq_n H_eq_inp in H_q.
+  rewrite -{2}H_eq_n eq_map_name_inv_inverse in H_hnd.
+  rewrite H_hnd in H_q.
+  inversion H_q.
+  rewrite -H_eq_out in H0.
+  rewrite H2 H5.
+  apply map_eq_name_eq_eq in H1.
+  rewrite -H1.
+  rewrite -H1 in H3.
+  exists ({| nwPackets := send_packets h' l0 ++ pks ; nwState := update sts h' d0 |}).
+  split.
+  * rewrite H_eq_mout.
+    apply (@SF_input _ _ _ _ _ _ _ _ _ d0 l0) => //.      
+      rewrite -H_eq_n in H3.
+      move => H_in.
+      by apply in_failed_in in H_in.
+    rewrite /= Heqp.
+    suff H_suff: l1 = out' by rewrite H_suff.
+    move: H0.
+    apply map_eq_inv_eq.
+    exact: eq_map_output_injective.
+  * rewrite /= map_app.
+    set nwP1 := map eq_map_packet _.
+    set nwP2 := map (fun _ => _) l.
+    set nwS1 := fun _ => _.
+    set nwS2 := update _ _ _.
+    have H_eq_nwp: nwP1 = nwP2.
+      rewrite /nwP1 /nwP2 {Heqp H_q nwP1 nwP2}.
+      rewrite -H5 {H5}.
+      elim: l0 => //=.
+      case => /= n m l0 IH.
+      by rewrite H_eq_n IH.
+    have H_eq_nws: nwS1 = nwS2.
+      rewrite /nwS1 /nwS2.
+      rewrite /update /=.
+      apply functional_extensionality => n.
+      rewrite -H_eq_n -H2.
+      case (name_eq_dec _ _) => H_dec.
+        case (name_eq_dec _ _) => H_dec' //.
+        by rewrite -H_dec eq_map_name_inverse_inv in H_dec'.
+      case (name_eq_dec _ _) => H_dec' //.
+      by rewrite H_dec' eq_map_name_inv_inverse in H_dec.
+    by rewrite H_eq_nwp H_eq_nws.
+- case: mout H2 => // H_eq_mout {H_eq_mout}.
+  apply map_eq_name_eq_eq in H1.
+  rewrite -H1.
+  have [pks1 [pks2 [H_eq_pks [H_eq_pks1 H_eq_pks2]]]] := map_eq_inv _ _ _ _ H4.
+  case: pks2 H_eq_pks H_eq_pks2 => //= p' pks2 H_eq_pks H_eq_pks2.
+  inversion H_eq_pks2.
+  rewrite -H_eq_pks1.
+  exists {| nwPackets := pks1 ++ pks2 ; nwState := nwState mnet |}.
+  split; first exact: (@SF_drop _ _ _ _ _ _ p' pks1 pks2).
+  by rewrite /eq_map_net /= map_app.
+- case: mout H2 => // H_eq_mout {H_eq_mout}.
+  apply map_eq_name_eq_eq in H1.
+  rewrite -H1.
+  have [pks1 [pks2 [H_eq_pks [H_eq_pks1 H_eq_pks2]]]] := map_eq_inv _ _ _ _ H4.
+  case: pks2 H_eq_pks H_eq_pks2 => //= p' pks2 H_eq_pks H_eq_pks2.
+  inversion H_eq_pks2.
+  rewrite -H_eq_pks1.
+  exists {| nwPackets := p' :: pks1 ++ p' :: pks2 ; nwState := nwState mnet |}.
+  split; first exact: (@SF_dup _ _ _ _ _ _ p' pks1 pks2).
+  by rewrite /eq_map_net /= map_app.
+- case: mout H2 => // H_eq_mout {H_eq_mout}.
+  case: mfailed' H => //= h' mfailed' H_eq.
+  inversion H_eq.
+  apply map_eq_name_eq_eq in H1.
+  rewrite -H1.
+  exists mnet.
+  split => //.
+  exact: SF_fail.
+- case: mout H4 => // H_eq_mout {H_eq_mout}.
+  have H_in := H3.
+  apply in_split in H_in.
+  move: H_in => [ns1 [ns2 H_eq]].
+  have [mns1 [mns2 [H_eq_mns [H_eq_mns1 H_eq_mns2]]]] := map_eq_inv _ _ _ _ H_eq.
+  case: mns2 H_eq_mns H_eq_mns2 => //= h' mns2 H_eq_mns H_eq_mns2.
+  exists {| nwPackets := nwPackets mnet ; 
+       nwState := (fun nm => match name_eq_dec nm h' with
+                           | left _ => (reboot (nwState mnet nm)) 
+                           | right _ => (nwState mnet nm) 
+                           end) |}.
+  split.
+  * apply (@SF_reboot _ _ _ h') => //.
+    + rewrite H_eq_mns.
+      apply in_or_app.
+      by right; left.
+    + inversion H_eq_mns2.
+      rewrite -H0 in H5.
+      move {H3 ns1 ns2 H_eq mns1 H_eq_mns1 h mns2 H_eq_mns H_eq_mns2 H0 H1}.
+      have H_eq: remove name_eq_dec (eq_map_name h') (map eq_map_name mfailed) = map eq_map_name (remove name_eq_dec h' mfailed).
+        move {H5 mfailed'}.
+        elim: mfailed => //=.
+        move => n l IH.
+        case (name_eq_dec _ _) => H_dec; case (name_eq_dec _ _) => H_dec' => //.
+        + by apply eq_map_name_injective in H_dec.
+        + by rewrite H_dec' in H_dec.
+        + by rewrite /= IH.               
+      rewrite H_eq in H5.
+      by apply map_eq_name_eq_eq in H5.
+  * rewrite /eq_map_net /=.
+    inversion H_eq_mns2.
+    set nwS1 := fun _ => _.
+    set nwS2 := fun _ => _.
+    have H_eq_sw: nwS1 = nwS2.
+      rewrite /nwS1 /nwS2 {nwS1 nwS2}.
+      apply functional_extensionality => n.
+      case (name_eq_dec _ _) => H_dec; case (name_eq_dec _ _) => H_dec' => //.
+      + rewrite -H_dec in H_dec'.
+        by rewrite eq_map_name_inverse_inv in H_dec'.
+      + rewrite H_dec' in H_dec.
+        by rewrite eq_map_name_inv_inverse in H_dec.
+    by rewrite H_eq_sw.
+Qed.
+
 End SimulOneToOne.
 
 Section GhostVars.
@@ -751,7 +1096,55 @@ have H_eq: fs2 = fs2' by rewrite /fs2 /fs2' {fs2 fs2'}; apply functional_extensi
 by rewrite H_eq {H_eq fs2}.
 Qed.
 
+Lemma hyp_eq_map_output_injective : 
+  forall o o', eq_map_output o = eq_map_output o' -> o = o'.
+Proof. by []. Qed.
 
+Theorem ghost_simulation_2 :
+  forall net net' failed failed' out gnet,
+    @step_f _ _ failure_params (failed, net) (failed', net') out ->
+    deghost gnet = net ->
+    exists gnet',
+      step_f (failed, gnet) (failed', gnet') out /\
+      deghost gnet' = net'.
+Proof.
+have H_sim := step_f_eq_mapped_simulation_2 hyp_eq_net_handlers_eq hyp_eq_input_handlers_eq hyp_eq_map_output_injective hyp_eq_mapped_reboot_eq.
+move => net net' failed failed' out gnet H_step H_eq.
+apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
+- move: H_step => [gnet' [H_step H_eq_net]].
+  exists gnet'.
+  split => //.
+  rewrite -H_eq_net {H_step H_eq_net}.
+  rewrite /deghost /eq_map_net /= /id /= /eq_map_packet /= /id /=.
+  set nwPf1 := fun p : packet => _.
+  set nwPf2 := fun p : packet => _.
+  have H_eq_p: nwPf1 = nwPf2 by rewrite /nwPf1 /nwPf2 {nwPf1 nwPf2}; apply functional_extensionality; case.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2 by rewrite /nwS1 /nwS2 {nwS1 nwS2}; apply functional_extensionality => n; case: gnet'.
+  by rewrite H_eq_p H_eq_s.
+- rewrite /eq_map_net /= /id /= /eq_map_packet /= /id /=.
+  move: H_eq.
+  rewrite /deghost /=.
+  set nwPf1 := fun p : packet => _.
+  set nwPf2 := fun p : packet => _.
+  have H_eq_p: nwPf1 = nwPf2 by rewrite /nwPf1 /nwPf2 {nwPf1 nwPf2}; apply functional_extensionality; case.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2 by rewrite /nwS1 /nwS2 {nwS1 nwS2}; apply functional_extensionality => n; case: gnet.
+  by rewrite H_eq_p H_eq_s.
+- by rewrite /eq_map_name /= map_id.
+- by rewrite /eq_map_name /= map_id.
+- move {H_step}.
+  elim: out => //.
+  case => n t out IH.
+  case: t => /=.
+    move => inp.
+    rewrite /id /=.
+    by rewrite IH.
+  move => out'.
+  by rewrite {1}/id map_id /= IH.
+Qed.
 
 End GhostVars.
 
@@ -936,6 +1329,55 @@ have H_eq: fs1 = fs1' by rewrite /fs1 /fs1' {fs1 fs1'}; apply functional_extensi
 rewrite H_eq {H_eq fs1}.
 have H_eq: fs2 = fs2' by rewrite /fs2 /fs2' {fs2 fs2'}; apply functional_extensionality => n; case: net'.
 by rewrite H_eq {H_eq fs2}.
+Qed.
+
+Lemma mgv_hyp_eq_map_output_injective : 
+  forall o o', eq_map_output o = eq_map_output o' -> o = o'.
+Proof. by []. Qed.
+
+Theorem mgv_ghost_simulation_2 :
+  forall net net' failed failed' out gnet,
+    @step_f _ _ failure_params (failed, net) (failed', net') out ->
+    mgv_deghost gnet = net ->
+    exists gnet',
+      step_f (failed, gnet) (failed', gnet') out /\
+      mgv_deghost gnet' = net'.
+Proof.
+have H_sim := step_f_eq_mapped_simulation_2 mgv_hyp_eq_net_handlers_eq mgv_hyp_eq_input_handlers_eq mgv_hyp_eq_map_output_injective mgv_hyp_eq_mapped_reboot_eq.
+move => net net' failed failed' out gnet H_step H_eq.
+apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
+- move: H_step => [gnet' [H_step H_eq_net]].
+  exists gnet'.
+  split => //.
+  rewrite -H_eq_net {H_step H_eq_net}.
+  rewrite /mgv_deghost /eq_map_net /= /id /= /eq_map_packet /= /id /=.
+  set nwPf1 := fun p : packet => _.
+  set nwPf2 := fun p : packet => _.
+  have H_eq_p: nwPf1 = nwPf2 by rewrite /nwPf1 /nwPf2 {nwPf1 nwPf2}; apply functional_extensionality; case.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2 by rewrite /nwS1 /nwS2 {nwS1 nwS2}; apply functional_extensionality => n; case: gnet'.
+  by rewrite H_eq_p H_eq_s.
+- rewrite -H_eq {H_step H_eq}.
+  rewrite /mgv_deghost /eq_map_net /= /id /= /eq_map_packet /= /id /=.
+  set nwPf1 := fun p : packet => _.
+  set nwPf2 := fun p : packet => _.
+  have H_eq_p: nwPf1 = nwPf2 by rewrite /nwPf1 /nwPf2 {nwPf1 nwPf2}; apply functional_extensionality; case.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2 by rewrite /nwS1 /nwS2 {nwS1 nwS2}; apply functional_extensionality => n; case: gnet.
+  by rewrite H_eq_p H_eq_s.
+- by rewrite /eq_map_name /= map_id.
+- by rewrite /eq_map_name /= map_id.
+- move {H_step}.
+  elim: out => //.
+  case => n t out IH.
+  case: t => /=.
+    move => inp.
+    rewrite /id /=.
+    by rewrite IH.
+  move => out'.
+  by rewrite {1}/id map_id /= IH.
 Qed.
 
 (*
