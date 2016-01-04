@@ -164,9 +164,9 @@ Definition tot_map_net (net : @network _ multi_fst) : @network _ multi_snd :=
 mkNetwork (map tot_map_packet net.(nwPackets)) (fun n => tot_map_data (net.(nwState) (tot_map_name_inv n))).
 
 Lemma tot_map_update_eq :
-  forall net d h,
-    (fun n : name => tot_map_data (update (nwState net) h d (tot_map_name_inv n))) =
-    update (fun n : name => tot_map_data (nwState net (tot_map_name_inv n))) (tot_map_name h) (tot_map_data d).
+  forall f d h,
+    (fun n : name => tot_map_data (update f h d (tot_map_name_inv n))) =
+    update (fun n : name => tot_map_data (f (tot_map_name_inv n))) (tot_map_name h) (tot_map_data d).
 Proof.
 move => net d h.
 apply functional_extensionality => n.
@@ -179,11 +179,11 @@ by rewrite tot_map_name_inv_inverse in H_dec.
 Qed.
 
 Corollary tot_map_update_packet_eq :
-forall net p d,
-  (fun n : name => tot_map_data (update (nwState net) (pDst p) d (tot_map_name_inv n))) =
-  (update (fun n : name => tot_map_data (nwState net (tot_map_name_inv n))) (pDst (tot_map_packet p)) (tot_map_data d)).
+forall f p d,
+  (fun n : name => tot_map_data (update f (pDst p) d (tot_map_name_inv n))) =
+  (update (fun n : name => tot_map_data (f (tot_map_name_inv n))) (pDst (tot_map_packet p)) (tot_map_data d)).
 Proof.
-move => net. 
+move => f. 
 case => src dst m d.
 exact: tot_map_update_eq.
 Qed.
@@ -496,6 +496,122 @@ have H_trans := refl_trans_1n_trace_trans IHH_step1.
 apply: H_trans.
 rewrite (app_nil_end (map _ _)).
 apply: (@RT1nTStep _ _ _ _ (tot_map_net x'')) => //.
+exact: RT1nTBase.
+Qed.
+
+Definition tot_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network _ multi_snd :=
+mkONetwork (fun src dst => map tot_map_msg (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
+           (fun n => tot_map_data (onet.(onwState) (tot_map_name_inv n))).
+
+Lemma map_msg_update2 : 
+  forall f ms to from,
+    (fun src dst => map tot_map_msg (update2 f from to ms (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    update2 (fun src0 dst0 : name => map tot_map_msg (f (tot_map_name_inv src0) (tot_map_name_inv dst0)))
+        (tot_map_name from) (tot_map_name to) (map tot_map_msg ms).
+Proof.
+move => f ms to from.
+apply functional_extensionality => src.
+apply functional_extensionality => dst.
+rewrite /update2 /=.
+case (sumbool_and _ _ _ _) => H_dec; case (sumbool_and _ _ _ _) => H_dec' //.
+  move: H_dec => [H_eq H_eq'].
+  case: H_dec' => H_dec'.
+    rewrite H_eq in H_dec'.
+    by rewrite tot_map_name_inverse_inv in H_dec'.
+  rewrite H_eq' in H_dec'.
+  by rewrite tot_map_name_inverse_inv in H_dec'.
+move: H_dec' => [H_eq H_eq'].
+case: H_dec => H_dec.
+  rewrite -H_eq in H_dec.
+  by rewrite tot_map_name_inv_inverse in H_dec.
+rewrite -H_eq' in H_dec.
+by rewrite tot_map_name_inv_inverse in H_dec.
+Qed.
+
+Lemma collate_tot_map_eq :
+  forall f h l,
+    (fun src dst => map tot_map_msg (collate h f l (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    collate (tot_map_name h) (fun src dst => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name_msgs l).
+Proof.
+move => f h l.
+elim: l h f => //.
+case => n m l IH h f.
+rewrite /= IH /=.
+rewrite 2!tot_map_name_inv_inverse /=.
+set f1 := fun _ _ => _.
+set f2 := update2 _ _ _ _.
+have H_eq_f: f1 = f2.
+  rewrite /f1 /f2 {f1 f2}.
+  have H_eq := map_msg_update2 f (f h n ++ [m]) n h.
+  rewrite map_app in H_eq.
+  by rewrite H_eq.
+by rewrite H_eq_f.
+Qed.
+
+Lemma collate_tot_map_update2_eq :
+  forall f from to ms l,
+    (fun src dst => map tot_map_msg
+            (collate to (update2 f from to ms) l
+               (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    collate (tot_map_name to)
+            (update2
+               (fun src dst : name =>
+                map tot_map_msg
+                  (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name from)
+               (tot_map_name to) (map tot_map_msg ms)) (tot_map_name_msgs l).
+Proof.
+move => f from to ms l.
+rewrite -map_msg_update2.
+by rewrite collate_tot_map_eq.
+Qed.
+
+Theorem step_o_tot_mapped_simulation_1 :
+  forall net net' tr,
+    @step_o _ multi_fst net net' tr ->
+    @step_o _ multi_snd (tot_map_onet net) (tot_map_onet net') (map tot_map_trace_occ tr).
+Proof.
+move => net net' tr.
+case => {net net' tr}.
+- move => net net' m ms out d l from to H_msg H_hnd H_eq'.
+  rewrite /tot_map_trace_occ /=.
+  apply (@SO_deliver _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from)).
+  * by rewrite /tot_map_net /= 2!tot_map_name_inv_inverse /= H_msg.
+  * rewrite /= tot_map_name_inv_inverse -tot_net_handlers_eq /tot_mapped_net_handlers /=.
+    repeat break_let.
+    by inversion H_hnd.
+  * rewrite H_eq' /= /tot_map_onet /= tot_map_update_eq.
+    by rewrite collate_tot_map_update2_eq.
+- move => h net net' out inp d l H_hnd H_eq.
+  rewrite /tot_map_trace_occ /=.
+  apply (@SO_input _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+  * rewrite /= tot_map_name_inv_inverse -tot_input_handlers_eq /tot_mapped_input_handlers.
+    repeat break_let.
+    by inversion H_hnd.
+  * rewrite H_eq /= /tot_map_onet /= tot_map_update_eq.
+    by rewrite collate_tot_map_eq.
+Qed.
+
+Corollary step_o_tot_mapped_simulation_star_1 :
+  forall net tr,
+    @step_o_star _ multi_fst step_o_init net tr ->
+    @step_o_star _ multi_snd step_o_init (tot_map_onet net) (map tot_map_trace_occ tr).
+Proof.
+move => net tr H_step.
+remember step_o_init as y in *.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
+  rewrite H_init.
+  rewrite /step_o_init /= /tot_map_onet /=.
+  rewrite tot_init_handlers_fun_eq.
+  exact: RT1nTBase.
+concludes.
+rewrite H_init in H_step2 H_step1.
+apply step_o_tot_mapped_simulation_1 in H.
+rewrite map_app.
+have H_trans := refl_trans_1n_trace_trans IHH_step1.
+apply: H_trans.
+rewrite (app_nil_end (map _ _)).
+apply: (@RT1nTStep _ _ _ _ (tot_map_onet x'')) => //.
 exact: RT1nTBase.
 Qed.
 
