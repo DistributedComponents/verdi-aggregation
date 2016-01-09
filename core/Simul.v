@@ -15,6 +15,7 @@ Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 Require Import FunctionalExtensionality.
+Require Import Permutation.
 
 Require Import ssreflect.
 
@@ -1037,6 +1038,943 @@ invcs H_step.
       + rewrite H_dec' in H_dec.
         by rewrite tot_map_name_inv_inverse in H_dec.
     by rewrite H_eq_sw.
+Qed.
+
+Context {overlay_fst : OverlayParams multi_fst}.
+Context {overlay_snd : OverlayParams multi_snd}.
+Context {fail_msg_fst : FailMsgParams multi_fst}.
+Context {fail_msg_snd : FailMsgParams multi_snd}.
+
+Hypothesis fail_msg_fst_snd : msg_fail = tot_map_msg msg_fail.
+
+Hypothesis adjacent_to_fst_snd : 
+  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
+
+Lemma collate_neq :
+  forall h n n' ns f,
+    h <> n ->
+    collate h f ns n n' = f n n'.
+Proof.
+move => h n n' ns f H_neq.
+move: f.
+elim: ns => //.
+case.
+move => n0 mg ms IH f.
+rewrite /=.
+rewrite IH.
+rewrite /update2 /=.
+case (sumbool_and _ _) => H_and //.
+by move: H_and => [H_and H_and'].
+Qed.
+
+Lemma collate_not_in_eq :
+  forall h' h f l,
+ ~ In h (map (fun nm : name * msg => fst nm) l) -> 
+  collate h' f l h' h = f h' h.
+Proof.
+move => h' h f l.
+elim: l f => //=.
+case => n m l IH f H_in.
+rewrite IH /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by case: H_in; left; move: H_dec => [H_eq H_eq'].
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma collate_app :
+  forall h' l1 l2 f,
+  collate h' f (l1 ++ l2) = collate h' (collate h' f l1) l2.
+Proof.
+move => h'.
+elim => //.
+case => n m l1 IH l2 f.
+rewrite /=.
+by rewrite IH.
+Qed.
+
+Lemma collate_f_eq :
+  forall  f g h h' l,
+  f h h' = g h h' ->
+  collate h f l h h' = collate h g l h h'.
+Proof.
+move => f g h h' l.
+elim: l f g => //.
+case => n m l IH f g H_eq.
+rewrite /=.
+set f' := update2 _ _ _ _.
+set g' := update2 _ _ _ _.
+rewrite (IH f' g') //.
+rewrite /f' /g' {f' g'}.
+rewrite /update2 /=.
+case (sumbool_and _ _ _ _) => H_dec //.
+move: H_dec => [H_eq_h H_eq_n].
+by rewrite H_eq_n H_eq.
+Qed.
+
+
+Lemma collate_neq_update2 :
+  forall h h' n f l ms,
+  n <> h' ->
+  collate h (update2 f h n ms) l h h' = collate h f l h h'.
+Proof.
+move => h h' n f l ms H_neq.
+have H_eq: update2 f h n ms h h' =  f h h'.
+  rewrite /update2 /=.
+  by case (sumbool_and _ _ _ _) => H_eq; first by move: H_eq => [H_eq H_eq'].
+by rewrite (collate_f_eq _ _ _ _ _ H_eq).
+Qed.
+
+Lemma collate_not_in :
+  forall h h' l1 l2 f,
+  ~ In h' (map (fun nm : name * msg => fst nm) l1) ->
+  collate h f (l1 ++ l2) h h' = collate h f l2 h h'.
+Proof.
+move => h h' l1 l2 f H_in.
+rewrite collate_app.
+elim: l1 f H_in => //.
+case => n m l IH f H_in.
+rewrite /= IH.
+  have H_neq: n <> h' by move => H_eq; case: H_in; left.
+  by rewrite collate_neq_update2.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma collate_not_in_mid :
+ forall h h' l1 l2 f m,
+   ~ In h (map (fun nm : name * msg => fst nm) (l1 ++ l2)) ->
+   collate h' (update2 f h' h (f h' h ++ [m])) (l1 ++ l2) = collate h' f (l1 ++ (h, m) :: l2).
+Proof.
+move => h h' l1 l2 f m H_in.
+apply functional_extensionality => from.
+apply functional_extensionality => to.
+case (name_eq_dec h' from) => H_dec.
+  rewrite -H_dec.
+  case (name_eq_dec h to) => H_dec'.
+    rewrite -H_dec'.
+    rewrite collate_not_in; last first.
+      move => H_in'.
+      case: H_in.
+      rewrite map_app.
+      apply in_or_app.
+      by left.
+    rewrite collate_not_in //.
+    move => H_in'.
+    case: H_in.
+    rewrite map_app.
+    apply in_or_app.
+    by left.
+  rewrite collate_neq_update2 //.
+  rewrite 2!collate_app.
+  rewrite /=.
+  by rewrite collate_neq_update2.
+rewrite collate_neq //.
+rewrite collate_neq //.
+rewrite /update2 /=.
+case (sumbool_and _ _) => H_dec' //.
+by move: H_dec' => [H_eq H_eq'].
+Qed.
+
+Lemma permutation_map_fst :
+  forall l l',
+  Permutation l l' ->
+  Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) l').
+Proof.
+elim.
+  move => l' H_pm.
+  apply Permutation_nil in H_pm.
+  by rewrite H_pm.
+case => /= n m l IH l' H_pm.
+have H_in: In (n, m) ((n, m) :: l) by left.
+have H_in': In (n, m) l'.
+  move: H_pm H_in.
+  exact: Permutation_in.
+apply in_split in H_in'.
+move: H_in' => [l1 [l2 H_eq]].
+rewrite H_eq in H_pm.
+apply Permutation_cons_app_inv in H_pm.
+rewrite H_eq.
+apply IH in H_pm.
+move: H_pm.
+rewrite 2!map_app /=.
+move => H_pm.
+exact: Permutation_cons_app.
+Qed.
+
+Lemma nodup_perm_collate_eq :
+  forall h f l l',
+    NoDup (map (fun nm => fst nm) l) ->
+    Permutation l l' ->
+    collate h f l = collate h f l'.
+Proof.
+move => h f l.
+elim: l h f.
+  move => h f l' H_nd H_pm.
+  apply Permutation_nil in H_pm.
+  by rewrite H_pm.
+case => h m l IH h' f l' H_nd.
+rewrite /= in H_nd.
+inversion H_nd; subst.
+move => H_pm.
+rewrite /=.
+have H_in': In (h, m) ((h, m) :: l) by left.
+have H_pm' := Permutation_in _ H_pm H_in'.
+apply in_split in H_pm'.
+move: H_pm' => [l1 [l2 H_eq]].
+rewrite H_eq.
+rewrite H_eq in H_pm.
+apply Permutation_cons_app_inv in H_pm.
+have IH' := IH h' (update2 f h' h (f h' h ++ [m])) _ H2 H_pm.
+rewrite IH'.
+rewrite collate_not_in_mid //.
+move => H_in.
+case: H1.
+suff H_pm': Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) (l1 ++ l2)).
+  move: H_in.
+  apply Permutation_in.
+  exact: Permutation_sym.
+exact: permutation_map_fst.
+Qed.
+
+Lemma nodup_to_map_name :
+  forall ns, NoDup ns ->
+        NoDup (map tot_map_name ns).
+Proof.
+elim => /=; first by move => H_nd; exact: NoDup_nil.
+move => n ns IH H_nd.
+inversion H_nd.
+apply IH in H2.
+by apply NoDup_cons; first exact: not_in_failed_not_in.  
+Qed.
+
+Lemma permutation_nodes :
+  Permutation nodes (map tot_map_name nodes).
+Proof.
+apply: NoDup_Permutation; last split.
+- exact: no_dup_nodes.
+- apply nodup_to_map_name.
+  exact: no_dup_nodes.
+- move => H_in.
+  set x' := tot_map_name_inv x.
+  have H_in' := all_names_nodes x'. 
+  apply in_split in H_in'.
+  move: H_in' => [ns1 [ns2 H_eq]].
+  rewrite H_eq map_app /= /x'.
+  apply in_or_app.
+  right; left.
+  by rewrite tot_map_name_inverse_inv.
+- move => H_in.
+  exact: all_names_nodes.
+Qed.
+
+Lemma not_in_exclude :
+  forall (n : @name base_fst multi_fst) ns failed,
+    ~ In n ns ->
+    ~ In n (exclude failed ns).
+Proof.
+move => n.
+elim => //.
+move => n' l IH failed H_in.
+rewrite /=.
+case (in_dec _ _) => H_dec.
+  apply IH.
+  move => H_in'.
+  case: H_in.
+  by right.
+move => H_in'.
+case: H_in' => H_in'.
+  case: H_in.
+  by left.
+contradict H_in'.
+apply: IH.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma not_in_exclude_snd :
+  forall n ns failed,
+    ~ In n ns ->
+    ~ In n (exclude failed ns).
+Proof.
+move => n.
+elim => //.
+move => n' l IH failed H_in.
+rewrite /=.
+case (in_dec _ _) => H_dec.
+  apply IH.
+  move => H_in'.
+  case: H_in.
+  by right.
+move => H_in'.
+case: H_in' => H_in'.
+  case: H_in.
+  by left.
+contradict H_in'.
+apply: IH.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma nodup_exclude :
+  forall (ns : list (@name base_fst multi_fst)) failed, NoDup ns ->
+               NoDup (exclude failed ns).
+Proof.
+elim => //.
+move => n ns IH failed H_nd.
+rewrite /=.
+inversion H_nd.
+case (in_dec _ _ _) => H_dec; first exact: IH.
+apply NoDup_cons; last exact: IH.
+exact: not_in_exclude.
+Qed.
+
+Lemma nodup_exclude_snd :
+  forall ns failed, NoDup ns ->
+               NoDup (exclude failed ns).
+Proof.
+elim => //.
+move => n ns IH failed H_nd.
+rewrite /=.
+inversion H_nd.
+case (in_dec _ _ _) => H_dec; first exact: IH.
+apply NoDup_cons; last exact: IH.
+exact: not_in_exclude_snd.
+Qed.
+
+Lemma not_in_fail_for :
+  forall (n : @name base_fst multi_fst) h ns,
+    ~ In n ns ->
+    ~ In (n, msg_fail) (fail_for (adjacent_to_node h ns)).
+Proof.
+move => n h.
+elim => //=.
+move => n' ns IH H_in.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  move => H_in'.
+  case: H_in' => H_in'.
+    inversion H_in'.
+    by case: H_in; left.
+  contradict H_in'.
+  apply: IH.
+  move => H_in'.
+  case: H_in.
+  by right.
+apply: IH.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma not_in_fail_for_snd :
+  forall n h ns,
+    ~ In n ns ->
+    ~ In (n, msg_fail) (fail_for (adjacent_to_node h ns)).
+Proof.
+move => n h.
+elim => //=.
+move => n' ns IH H_in.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  move => H_in'.
+  case: H_in' => H_in'.
+    inversion H_in'.
+    by case: H_in; left.
+  contradict H_in'.
+  apply: IH.
+  move => H_in'.
+  case: H_in.
+  by right.
+apply: IH.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma nodup_fail_for :
+  forall (h : @name base_fst multi_fst) ns,
+    NoDup ns ->
+    NoDup (fail_for (adjacent_to_node h ns)).
+Proof.
+move => h.
+elim => //=.
+  move => H_nd.
+  exact: NoDup_nil.
+move => n ns IH H_in.
+inversion H_in.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  apply NoDup_cons.
+    apply IH in H2.
+    exact: not_in_fail_for.
+  exact: IH.
+exact: IH.
+Qed.
+
+Lemma nodup_fail_for_snd :
+  forall h ns,
+    NoDup ns ->
+    NoDup (fail_for (adjacent_to_node h ns)).
+Proof.
+move => h.
+elim => //=.
+  move => H_nd.
+  exact: NoDup_nil.
+move => n ns IH H_in.
+inversion H_in.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  apply NoDup_cons.
+    apply IH in H2.
+    exact: not_in_fail_for_snd.
+  exact: IH.
+exact: IH.
+Qed.
+
+Lemma snd_eq_not_in :
+  forall l n m,
+  (forall nm, In nm l -> snd nm = m) ->
+  ~ In (n, m) l ->
+  ~ In n (map (fun nm : name * msg => fst nm) l).
+Proof.
+elim => //.
+case => n m l IH n' m' H_in H_in'.
+rewrite /= => H_in_map.
+case: H_in_map => H_in_map.
+  case: H_in'.
+  left.
+  rewrite -H_in_map.
+  have H_in' := H_in (n, m).
+  rewrite -H_in' //.
+  by left.
+contradict H_in_map.
+apply: (IH _ m').
+  move => nm H_inn.
+  apply: H_in.
+  by right.
+move => H_inn.
+case: H_in'.
+by right.
+Qed.
+
+Lemma nodup_snd_fst :
+  forall nms,
+    NoDup nms ->
+    (forall nm nm', In nm nms -> In nm' nms -> snd nm = snd nm') ->
+    NoDup (map (fun nm : name * msg => fst nm) nms).
+Proof.
+elim => //=.
+  move => H_nd H_eq.
+  exact: NoDup_nil.
+case => n m l IH H_nd H_in.
+inversion H_nd.
+rewrite /=.
+apply NoDup_cons.
+  have H_snd: forall nm, In nm l -> snd nm = m.
+    move => nm H_in_nm.
+    have ->: m = snd (n, m) by [].
+    apply H_in; first by right.
+    by left.    
+  exact: (@snd_eq_not_in _ _ m).
+apply IH => //.
+move => nm nm' H_in_nm H_in_nm'.
+apply H_in => //.
+  by right.
+by right.
+Qed.
+
+Lemma tot_map_in_snd_fail :
+forall h ns nm,
+   In nm
+     (map
+        (fun nm0 : name * msg =>
+         (tot_map_name (fst nm0), tot_map_msg (snd nm0)))
+        (fail_for (adjacent_to_node h ns))) ->
+   snd nm = msg_fail.
+Proof.
+move => h.
+elim => //=.
+move => n ns IH.
+case (adjacent_to_dec _ _) => H_dec /=.
+  case => n' m H_in.
+  case: H_in => H_in.
+    inversion H_in.
+    by rewrite /= -fail_msg_fst_snd.
+  exact: IH.
+exact: IH.
+Qed.
+
+Lemma tot_map_in_in :
+  forall n l,
+  (forall nm, In nm l -> snd nm = msg_fail) ->
+  ~ In (n, msg_fail) l ->
+  ~ In (tot_map_name n, msg_fail) (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) l).
+Proof.
+move => n.
+elim => //=.
+case => /= n' m' l IH H_fail H_in.
+move => H_in'.
+case: H_in' => H_in'.
+  inversion H_in'.
+  have H_nm := H_fail (n', m').
+  rewrite /= in H_nm.
+  case: H_in.
+  left.
+  apply tot_map_name_injective in H0.
+  rewrite H0.
+  rewrite H_nm //.
+  by left.
+contradict H_in'.
+apply: IH.
+  move => nm H_in_nm.
+  apply: H_fail.
+  by right.
+move => H_in_nm.
+case: H_in.
+by right.
+Qed.
+
+Lemma msg_fail_in_map :
+  forall l n m,
+(forall nm, In nm l -> snd nm = msg_fail) ->
+In (tot_map_name n, tot_map_msg m) (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) l) ->
+tot_map_msg m = msg_fail.
+Proof.
+elim => //=.
+case => /= n m l IH n' m' H_in H_in_map.
+have H_in_f := H_in (n, m).
+rewrite /= in H_in_f.
+case: H_in_map => H_in_map.
+  inversion H_in_map.
+  rewrite H_in_f //.
+  by left.
+move: H_in_map.
+apply: IH.
+move => nm H_in'.
+apply: H_in.
+by right.
+Qed.
+
+Lemma nodup_tot_map :
+  forall nms,
+  (forall nm, In nm nms -> snd nm = msg_fail) ->
+  NoDup nms ->
+  NoDup (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) nms).
+Proof.
+elim => /=.
+  move => H_fail H_nd.
+  exact: NoDup_nil.
+case => n m l IH H_fail H_nd.
+inversion H_nd.
+rewrite /=.
+apply NoDup_cons.
+  have H_f := H_fail (n, m).
+  rewrite /= in H_f.
+  move => H_in.
+   have H_inf := msg_fail_in_map _ _ _ _ H_in.
+   rewrite H_inf in H_in.
+     contradict H_in.
+     apply tot_map_in_in.
+       move => nm H_in_nm.
+       apply: H_fail.
+       by right.
+     rewrite H_f // in H1.
+     by left.
+   move => nm H_in_f.
+   apply: H_fail.
+   by right.
+apply: IH => //.
+move => nm H_in_nm.
+apply: H_fail.
+by right.
+Qed.
+
+Lemma in_fail_for_msg_fail :
+  forall h ns nm,
+  In nm (fail_for (adjacent_to_node h ns)) ->
+  snd nm = msg_fail.
+Proof.
+move => h.
+elim => //.
+move => n l IH.
+case => /= n' m.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  move => H_in.
+  case: H_in => H_in; first by inversion H_in.
+  have ->: m = snd (n', m) by [].
+  exact: IH.
+move => H_in.
+have ->: m = snd (n', m) by [].
+exact: IH.
+Qed.
+
+Lemma in_fail_for_msg_fail_fst :
+  forall (h : @name base_fst multi_fst) ns nm,
+  In nm (fail_for (adjacent_to_node h ns)) ->
+  snd nm = msg_fail.
+Proof.
+move => h.
+elim => //.
+move => n l IH.
+case => /= n' m.
+case (adjacent_to_dec _ _) => H_dec.
+  rewrite /=.
+  move => H_in.
+  case: H_in => H_in; first by inversion H_in.
+  have ->: m = snd (n', m) by [].
+  exact: IH.
+move => H_in.
+have ->: m = snd (n', m) by [].
+exact: IH.
+Qed.
+
+Lemma in_tot_map_name :
+forall l n,
+(forall nm, In nm l -> snd nm = msg_fail) ->
+In (n, msg_fail) (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) l) ->
+In (tot_map_name_inv n, msg_fail) l.
+Proof.
+elim => //=.
+case => /= n m l IH n' H_in H_in'.
+case: H_in' => H_in'.
+  inversion H_in'.
+  rewrite tot_map_name_inv_inverse.
+  have H_nm := H_in (n, m).
+  rewrite -H_nm /=; first by left.
+  by left.
+right.
+apply: IH => //.
+move => nm H_inn.
+apply: H_in.
+by right.
+Qed.
+
+Lemma in_fail_for_adjacent_to :
+forall ns failed h n,
+In (tot_map_name_inv n, msg_fail) (fail_for (adjacent_to_node h (exclude failed ns))) ->
+In (tot_map_name_inv n) (adjacent_to_node h (exclude failed ns)).
+Proof.
+elim => //=.
+move => n l IH failed h n'. 
+case (in_dec _ _ _) => H_dec; first exact: IH.
+rewrite /=.
+case (adjacent_to_dec _ _) => H_dec' /=.
+  move => H_in.
+  case: H_in => H_in.
+    inversion H_in.
+    by left.
+  right.
+  exact: IH.
+exact: IH.
+Qed.
+
+Lemma in_adjacent_exclude_in_exlude :
+  forall ns failed n h,
+In (tot_map_name_inv n) (adjacent_to_node h (exclude failed ns)) ->
+In (tot_map_name_inv n) (exclude failed ns) /\ adjacent_to h (tot_map_name_inv n).
+Proof.
+elim => //=.
+move => n l IH failed n' h.
+case (in_dec _ _ _) => /= H_dec.
+  move => H_in.
+  exact: IH.
+case (adjacent_to_dec _ _) => /= H_dec'.
+  move => H_in.
+  case: H_in => H_in.
+    rewrite {1}H_in -{4}H_in.
+    split => //.
+    by left.
+  apply IH in H_in.
+  move: H_in => [H_eq H_in].
+  split => //.
+  by right.
+move => H_in.
+apply IH in H_in.
+move: H_in => [H_eq H_in].
+split => //.
+by right.
+Qed.
+
+Lemma in_failed_exclude :
+  forall ns failed n,
+  In (tot_map_name_inv n) (exclude failed ns) ->
+  ~ In (tot_map_name_inv n) failed /\ In (tot_map_name_inv n) ns.
+Proof.
+elim => //=.
+move => n ns IH failed n'.
+case (in_dec _ _ _) => H_dec /=.
+  move => H_in.
+  apply IH in H_in.
+  move: H_in => [H_in H_in'].
+  split => //.
+  by right.
+move => H_in.
+case: H_in => H_in.
+  rewrite -{1}H_in {2}H_in.
+  split => //.
+  by left.
+apply IH in H_in.
+move: H_in => [H_in H_in'].
+split => //.
+by right.
+Qed.
+
+Lemma in_in_adj_fail_for :
+      forall ns failed n h,
+    In n ns ->
+    ~ In n (map tot_map_name failed) ->
+    adjacent_to h n ->
+    In (n, msg_fail)
+     (fail_for
+        (adjacent_to_node h
+           (exclude (map tot_map_name failed) ns))).
+Proof.
+elim => //=.
+move => n ns IH failed n' h H_in H_in' H_adj.
+case (in_dec _ _ _) => H_dec.
+  case: H_in => H_in; first by rewrite -H_in in H_in'.
+  exact: IH.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite /=.
+  case (adjacent_to_dec _ _) => H_dec' //.
+  rewrite /=.
+  by left.
+rewrite /=.
+case (adjacent_to_dec _ _) => H_dec'.
+  rewrite /=.
+  right.
+  exact: IH.
+exact: IH.
+Qed.
+
+Lemma in_fail_for_adjacent_in :
+  forall ns n h,
+  In (n, msg_fail) (fail_for (adjacent_to_node h ns)) ->
+  adjacent_to h n /\ In n ns.
+Proof.
+elim => //=.
+move => n ns IH n' h.
+case (adjacent_to_dec _ _) => /= H_dec.
+  move => H_in.
+  case: H_in => H_in.
+    inversion H_in.
+    rewrite H0 in H_dec.
+    split => //.
+    by left.
+  apply IH in H_in.
+  move: H_in => [H_adj H_in].
+  split => //.
+  by right.
+move => H_in.
+apply IH in H_in.
+move: H_in => [H_adj H_in].
+split => //.
+by right.
+Qed.
+
+Lemma in_exclude_not_in_failed_map :
+  forall ns n failed,
+  In n (exclude (map tot_map_name failed) ns) ->
+  ~ In n (map tot_map_name failed) /\ In n ns.
+Proof.
+elim => //=.
+move => n ns IH n' failed.
+case (in_dec _ _ _) => H_dec.
+  move => H_in.
+  apply IH in H_in.
+  move: H_in => [H_nin H_in].
+  split => //.
+  by right.
+rewrite /=.
+move => H_in.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in in H_dec.
+  split => //.
+  by left.
+apply IH in H_in.
+move: H_in => [H_nin H_in].
+split => //.
+by right.
+Qed.
+
+Lemma not_in_map_not_in_failed :
+    forall failed n,
+    ~ In n (map tot_map_name failed) ->
+    ~ In (tot_map_name_inv n) failed.
+Proof.
+elim => //=.
+move => n ns IH n' H_in H_in'.
+case: H_in' => H_in'.
+  case: H_in.
+  left.
+  by rewrite H_in' tot_map_name_inverse_inv.
+contradict H_in'.
+apply: IH.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma in_tot_map_msg_fail :
+  forall l n,
+(forall nm, In nm l -> snd nm = msg_fail) ->
+In (tot_map_name_inv n, msg_fail) l ->
+In (n, msg_fail) (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) l).
+Proof.
+elim => //=.
+case => n m /= l IH n' H_in H_in'.
+case: H_in' => H_in'.
+  inversion H_in'.
+  left.
+  by rewrite -fail_msg_fst_snd tot_map_name_inverse_inv.
+right.
+apply: IH => //.
+move => nm H_inn.
+apply: H_in.
+by right.
+Qed.
+
+Lemma adjacent_in_in_fail :
+  forall ns n h,
+    adjacent_to h (tot_map_name_inv n) ->
+    In (tot_map_name_inv n) ns ->
+    In (tot_map_name_inv n, msg_fail) (fail_for (adjacent_to_node h ns)).
+Proof.
+elim => //=.
+move => n ns IH n' h H_adj H_in.
+case (adjacent_to_dec _ _) => H_dec; case: H_in => H_in.
+- rewrite /=.
+  left.
+  by rewrite H_in.
+- rewrite /=.
+  right.
+  exact: IH.
+- by rewrite H_in in H_dec.
+- exact: IH.
+Qed.
+
+Lemma not_in_failed_in_exclude :
+  forall ns n failed,
+  ~ In (tot_map_name_inv n) failed ->
+  In (tot_map_name_inv n) ns ->
+  In (tot_map_name_inv n) (exclude failed ns).
+Proof.
+elim => //=.
+move => n ns IH n' failed H_in H_in'.
+case (in_dec _ _ _) => H_dec; case: H_in' => H_in'.
+- by rewrite H_in' in H_dec.
+- exact: IH.
+- rewrite /=.
+  by left.
+- right.
+  exact: IH.
+Qed.
+
+Lemma map_fail_for_eq :
+  forall h failed,
+  Permutation 
+    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (fail_for (adjacent_to_node h (exclude failed nodes)))) 
+    (fail_for (adjacent_to_node (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
+Proof.
+move => h failed.
+apply NoDup_Permutation; last split.
+- apply nodup_tot_map; first exact: in_fail_for_msg_fail_fst.
+  apply nodup_fail_for.
+  apply nodup_exclude.
+  exact: no_dup_nodes.
+- apply nodup_fail_for_snd.
+  apply nodup_exclude_snd.
+  exact: no_dup_nodes.
+- case: x => n m H_in.
+  have H_eq := tot_map_in_snd_fail _ _ _ H_in.
+  rewrite /= in H_eq.
+  rewrite H_eq in H_in.
+  rewrite H_eq {H_eq}.
+  apply in_tot_map_name in H_in.
+    apply in_fail_for_adjacent_to in H_in.
+    apply in_adjacent_exclude_in_exlude in H_in.
+    move: H_in => [H_in H_adj].
+    apply in_failed_exclude in H_in.
+    move: H_in => [H_in H_in'].
+    have H_nin: ~ In n (map tot_map_name failed).
+      rewrite -(tot_map_name_inverse_inv n).
+      exact: not_in_failed_not_in.
+    apply adjacent_to_fst_snd in H_adj.
+    rewrite tot_map_name_inverse_inv in H_adj.
+    have H_inn: In n nodes by exact: all_names_nodes.
+    exact: in_in_adj_fail_for.
+  exact: in_fail_for_msg_fail_fst.
+- case: x => n m H_in.
+  have H_eq := in_fail_for_msg_fail _ _ _ H_in.
+  rewrite /= in H_eq.
+  rewrite H_eq.
+  rewrite H_eq in H_in.
+  apply in_fail_for_adjacent_in in H_in.
+  move: H_in => [H_adj H_in].
+  rewrite -(tot_map_name_inverse_inv n) in H_adj.
+  apply adjacent_to_fst_snd in H_adj.
+  apply in_exclude_not_in_failed_map in H_in.
+  move: H_in => [H_in_f H_in].
+  apply not_in_map_not_in_failed in H_in_f.
+  have H_in_n: In (tot_map_name_inv n) nodes by exact: all_names_nodes.
+  apply in_tot_map_msg_fail; first by move => nm; apply in_fail_for_msg_fail_fst.
+  apply adjacent_in_in_fail => //.
+  exact: not_in_failed_in_exclude.
+Qed.
+
+Theorem step_o_f_tot_mapped_simulation_1 :
+  forall net net' failed failed' tr,
+    @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, tot_map_onet net) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace_occ tr).
+Proof.
+move => net net' failed failed' tr H_step.
+invcs H_step.
+- rewrite /tot_map_onet /=.
+  apply (@SOF_deliver _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from)).
+  * by rewrite /tot_map_net /= 2!tot_map_name_inv_inverse /= H3.
+  * exact: not_in_failed_not_in.
+  * rewrite /= tot_map_name_inv_inverse -tot_net_handlers_eq /tot_mapped_net_handlers /=.
+    repeat break_let.
+    by inversion H6.
+  * by rewrite /= tot_map_update_eq collate_tot_map_update2_eq.
+- rewrite /tot_map_onet /=.
+  apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+  * exact: not_in_failed_not_in.
+  * rewrite /= tot_map_name_inv_inverse -tot_input_handlers_eq /tot_mapped_input_handlers.
+    repeat break_let.
+    by inversion H5.
+  * by rewrite /= /tot_map_onet /= tot_map_update_eq collate_tot_map_eq.
+- rewrite /tot_map_onet /=.  
+  set l := fail_for _.
+  have H_nd: NoDup (map (fun nm => fst nm) (tot_map_name_msgs l)).
+    rewrite /tot_map_name_msgs /=.
+    rewrite /l {l}.
+    apply nodup_snd_fst.
+      apply nodup_tot_map; first exact: in_fail_for_msg_fail_fst.
+      apply nodup_fail_for.
+      apply nodup_exclude.
+      exact: no_dup_nodes.
+    move => nm nm' H_in H_in'.
+    have H_fail := tot_map_in_snd_fail _ _ _ H_in.
+    have H_fail' := tot_map_in_snd_fail _ _ _ H_in'.
+    by rewrite H_fail H_fail'.
+  have H_pm := map_fail_for_eq h failed.
+  have H_eq := @nodup_perm_collate_eq _ _ _ _ H_nd H_pm.
+  rewrite /l /tot_map_name_msgs in H_eq.
+  apply (@SOF_fail _ _ _ _ _ _ _ _ (fail_for (adjacent_to_node (tot_map_name h) (exclude (map tot_map_name failed) nodes)))).
+  * exact: not_in_failed_not_in.
+  * by [].
+  * rewrite /=.
+    rewrite /l collate_tot_map_eq /tot_map_name_msgs.
+    by rewrite H_eq.
 Qed.
 
 End SimulTot.
