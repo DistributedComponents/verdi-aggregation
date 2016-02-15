@@ -676,12 +676,12 @@ Qed.
 
 End SingleNodeInvOut.
 
-Lemma collate_fail_for_not_adjacent :
-  forall n h ns f failed,
+Lemma collate_msg_for_not_adjacent :
+  forall m n h ns f failed,
     ~ Adjacent_to h n ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n.
 Proof.
-move => n h ns f failed H_adj.
+move => m n h ns f failed H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f.
@@ -697,12 +697,12 @@ move: H_and => [H_and H_and'].
 by rewrite -H_and' in H_adj.
 Qed.
 
-Lemma collate_fail_for_notin :
-  forall n h ns f failed,
+Lemma collate_msg_for_notin :
+  forall m n h ns f failed,
     ~ In n ns ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n.
 Proof.
-move => n h ns f failed.
+move => m n h ns f failed.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in.
@@ -729,15 +729,15 @@ case: H_in.
 by right.
 Qed.
 
-Lemma collate_fail_for_live_adjacent :
-  forall n h ns f failed,
+Lemma collate_msg_for_live_adjacent :
+  forall m n h ns f failed,
     ~ In n failed ->
     Adjacent_to h n ->
     In n ns ->
     NoDup ns ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [Fail].
+    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [m].
 Proof.
-move => n h ns f failed H_in H_adj.
+move => m n h ns f failed H_in H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in' H_nd.
@@ -752,7 +752,7 @@ case: H_in' => H_in'.
   rewrite /=.
   case (Adjacent_to_dec _ _) => H_dec' //.
   rewrite /=.
-  rewrite collate_fail_for_notin //.
+  rewrite collate_msg_for_notin //.
   rewrite /update2.
   case (sumbool_and _ _) => H_sumb //.
   by case: H_sumb.
@@ -871,12 +871,12 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (Adjacent_to_dec n' n) => H_dec.
-      rewrite collate_fail_for_live_adjacent //.      
+      rewrite collate_msg_for_live_adjacent //.      
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: In_n_Nodes.
       * exact: nodup.
-    rewrite collate_fail_for_not_adjacent //.
+    rewrite collate_msg_for_not_adjacent //.
     exact: IHH'_step1.
   rewrite collate_neq //.
   exact: IHH'_step1.
@@ -1161,7 +1161,7 @@ end; simpl.
     split; first by left.
     rewrite H_dec in H2.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
-    rewrite collate_fail_for_live_adjacent //.
+    rewrite collate_msg_for_live_adjacent //.
     * apply in_or_app.
       by right; left.
     * exact: In_n_Nodes.
@@ -1527,7 +1527,8 @@ match i with
    | Some m_dst =>        
      let new_aggregate := 1 in
      let new_sent := FinNMap.add dst (m_dst * st.(aggregate)) st.(sent) in
-     put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) >> (send (dst, (Aggregate st.(aggregate))))
+     put (mkData st.(local) new_aggregate st.(adjacent) new_sent st.(received)) ;; 
+     send (dst, (Aggregate st.(aggregate)))
    end)
 | Query =>
   write_output (AggregateResponse st.(aggregate))
@@ -2191,7 +2192,7 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ FNO.Failure_OverlayParams FNO.Failure_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := step_o_f_pt_mapped_simulation_star_1 pt_map_name_inv_inverse pt_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none fail_msg_fst_snd adjacent_to_fst_snd.
+have H_sim := step_o_f_pt_mapped_simulation_star_1 pt_map_name_inv_inverse pt_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none adjacent_to_fst_snd fail_msg_fst_snd.
 rewrite /pt_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -2762,12 +2763,12 @@ Qed.
 
 End SingleNodeInv.
 
-Lemma collate_fail_for_notin :
-  forall n h ns f failed,
+Lemma collate_msg_for_notin :
+  forall m' n h ns f failed,
     ~ In n ns ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n.
 Proof.
-move => n h ns f failed.
+move => m' n h ns f failed.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in.
@@ -2794,12 +2795,12 @@ case: H_in.
 by right.
 Qed.
 
-Lemma collate_fail_for_in_failed :
-  forall n h ns f failed,
+Lemma collate_msg_for_in_failed :
+  forall m' n h ns f failed,
     In n failed ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n.
 Proof.
-move => n h ns f failed.
+move => m' n h ns f failed.
 move: f.
 elim: ns => //.
   move => n' ns IH f H_in.
@@ -2812,14 +2813,14 @@ rewrite /update2.
 case (sumbool_and _ _) => H_and //.
 move: H_and => [H_and H_and'].
 by rewrite -H_and' in H_in.
-Qed.  
+Qed.
 
-Lemma collate_fail_for_not_adjacent :
-  forall n h ns f failed,
+Lemma collate_msg_for_not_adjacent :
+  forall m' n h ns f failed,
     ~ Adjacent_to h n ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n.
 Proof.
-move => n h ns f failed H_adj.
+move => m' n h ns f failed H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f.
@@ -2852,15 +2853,15 @@ case (sumbool_and _ _) => H_and //.
 by move: H_and => [H_and H_and'].
 Qed.
 
-Lemma collate_fail_for_live_adjacent :
-  forall n h ns f failed,
+Lemma collate_msg_for_live_adjacent :
+  forall m' n h ns f failed,
     ~ In n failed ->
     Adjacent_to h n ->
     In n ns ->
     NoDup ns ->
-    collate h f (fail_for (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [Fail].
+    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [m'].
 Proof.
-move => n h ns f failed H_in H_adj.
+move => m' n h ns f failed H_in H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in' H_nd.
@@ -2875,7 +2876,7 @@ case: H_in' => H_in'.
   rewrite /=.
   case (Adjacent_to_dec _ _) => H_dec' //.
   rewrite /=.
-  rewrite collate_fail_for_notin //.
+  rewrite collate_msg_for_notin //.
   rewrite /update2.
   case (sumbool_and _ _) => H_sumb //.
   by case: H_sumb.
@@ -3048,9 +3049,9 @@ end; simpl.
   rewrite H_dec in H_neq H2.
   rewrite H_dec {H_dec h}.
   case (Adjacent_to_dec n' n0) => H_dec; last first.
-    rewrite collate_fail_for_not_adjacent //.
+    rewrite collate_msg_for_not_adjacent //.
     exact: IHrefl_trans_1n_trace1.
-  rewrite collate_fail_for_live_adjacent //.
+  rewrite collate_msg_for_live_adjacent //.
   * apply: append_neq_before_all => //.
     exact: IHrefl_trans_1n_trace1.
   * exact: In_n_Nodes.
@@ -3058,11 +3059,11 @@ end; simpl.
 Qed.
 
 Lemma Aggregation_aggregate_msg_dst_adjacent_src : 
-forall onet failed tr, 
- step_o_f_star step_o_f_init (failed, onet) tr ->
- forall n, ~ In n failed ->
-  forall n' m5, In (Aggregate m5) (onet.(onwPackets) n' n) ->
- FinNSet.In n' (onet.(onwState) n).(adjacent).
+  forall onet failed tr, 
+    step_o_f_star step_o_f_init (failed, onet) tr ->
+    forall n, ~ In n failed ->
+     forall n' m5, In (Aggregate m5) (onet.(onwPackets) n' n) ->
+     FinNSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H.
 have H_eq_f: failed = fst (failed, onet) by [].
@@ -3248,10 +3249,10 @@ end; simpl.
   rewrite H_dec {h H_dec H_in_f} in H_in H_neq H2.
   case (Adjacent_to_dec n' n0) => H_dec; last first.
     move: H_in.
-    rewrite collate_fail_for_not_adjacent //.
+    rewrite collate_msg_for_not_adjacent //.
     exact: IHrefl_trans_1n_trace1.
   move: H_in.
-  rewrite collate_fail_for_live_adjacent //.
+  rewrite collate_msg_for_live_adjacent //.
   * move => H_in.
     apply in_app_or in H_in.
     case: H_in => H_in; last by case: H_in => H_in.
@@ -3828,8 +3829,8 @@ end; simpl.
   case (Name_eq_dec h n') => H_dec; last by rewrite collate_neq.
   rewrite H_dec.
   rewrite H_dec {H_dec h H_in_f} in H0 H_neq.
-  case (Adjacent_to_dec n' n) => H_dec; last by rewrite collate_fail_for_not_adjacent.
-  rewrite collate_fail_for_live_adjacent //.
+  case (Adjacent_to_dec n' n) => H_dec; last by rewrite collate_msg_for_not_adjacent.
+  rewrite collate_msg_for_live_adjacent //.
   * exact: (fail_adjacent H'_step1).
   * exact: In_n_Nodes.
   * exact: nodup.
@@ -3996,29 +3997,28 @@ fold_right (fun (n : Name) (l' : list Data) => (onet.(onwState) n) :: l') [] ns.
 Lemma Aggregation_conserves_node_mass_all : 
 forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
- conserves_node_mass_all (Nodes_data Nodes onet).
+ conserves_node_mass_all (Nodes_data (exclude failed Nodes) onet).
 Proof.
-fail.
 move => onet failed tr H_st.
 rewrite /conserves_node_mass_all.
 rewrite /Nodes_data.
-elim: Nodes => //.
+elim: Nodes => //=.
 move => n l IH.
 move => d.
-rewrite /=.
+case (in_dec _ _ _) => H_dec; first exact: IH.
 move => H_or.
 case: H_or => H_or.
   rewrite -H_or.
-  apply: (Aggregation_conserves_node_mass H_st).
+  exact: (Aggregation_conserves_node_mass H_st).
 exact: IH.
 Qed.
 
 Corollary Aggregate_conserves_mass_globally :
-forall onet tr,
- step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
- conserves_mass_globally (Nodes_data Nodes onet).
+forall onet failed tr,
+ step_o_f_star step_o_f_init (failed, onet) tr ->
+ conserves_mass_globally (Nodes_data (exclude failed Nodes) onet).
 Proof.
-move => onet tr H_step.
+move => onet failed tr H_step.
 apply: global_conservation.
 exact: Aggregation_conserves_node_mass_all H_step.
 Qed.
@@ -4026,16 +4026,17 @@ Qed.
 Definition aggregate_sum_fold (msg : Msg) (partial : m) : m :=
 match msg with
 | Aggregate m' => partial * m'
+| Fail => partial
 end.
 
 Definition sum_aggregate_msg := fold_right aggregate_sum_fold 1.
 
 Lemma Aggregation_sum_aggregate_msg_self :  
-  forall onet tr,
-   step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
-   forall n, sum_aggregate_msg (onet.(onwPackets) n n) = 1.
+  forall onet failed tr,
+   step_o_f_star step_o_f_init (failed, onet) tr ->
+   forall n, ~ In n failed -> sum_aggregate_msg (onet.(onwPackets) n n) = 1.
 Proof.
-move => onet tr H_step n.
+move => onet failed tr H_step n H_in_f.
 by rewrite (Aggregation_self_channel_empty H_step).
 Qed.
 
@@ -4246,12 +4247,11 @@ rewrite IH /=.
 by aac_reflexivity.
 Qed.
 
-
 Lemma sum_aggregate_msg_incoming_active_split :
-forall ns0 ns1 ns2 onet,
-sum_aggregate_msg_incoming_active ns0 (ns1 ++ ns2) onet = 
-sum_aggregate_msg_incoming_active ns0 ns1 onet *
-sum_aggregate_msg_incoming_active ns0 ns2 onet.
+  forall ns0 ns1 ns2 onet,
+    sum_aggregate_msg_incoming_active ns0 (ns1 ++ ns2) onet = 
+    sum_aggregate_msg_incoming_active ns0 ns1 onet *
+    sum_aggregate_msg_incoming_active ns0 ns2 onet.
 Proof.
 move => ns0 ns1 ns2 onet.
 elim: ns1 => //=; first by gsimpl.
@@ -4261,10 +4261,10 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_split :
-forall ns0 ns1 onet n,
-sum_aggregate_msg_incoming (ns0 ++ ns1) onet n = 
-sum_aggregate_msg_incoming ns0 onet n *
-sum_aggregate_msg_incoming ns1 onet n.
+  forall ns0 ns1 onet n,
+    sum_aggregate_msg_incoming (ns0 ++ ns1) onet n = 
+    sum_aggregate_msg_incoming ns0 onet n *
+    sum_aggregate_msg_incoming ns1 onet n.
 Proof.
 move => ns0 ns1 onet n.
 elim: ns0 => //=; first by gsimpl.
@@ -4274,14 +4274,13 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_split : 
-forall l1 l2,
-sum_aggregate_msg (l1 ++ l2) = sum_aggregate_msg l1 * sum_aggregate_msg l2.
+  forall l1 l2,
+    sum_aggregate_msg (l1 ++ l2) = sum_aggregate_msg l1 * sum_aggregate_msg l2.
 Proof.
 elim => //= [|msg l' IH] l2; first by gsimpl.
 rewrite IH.
 rewrite /aggregate_sum_fold /=.
-case: msg => m'.
-by aac_reflexivity.
+by case: msg => [m'|]; aac_reflexivity.
 Qed.
 
 Lemma fold_right_update_id :
@@ -4301,12 +4300,15 @@ case (Name_eq_dec _ _) => H_dec //.
 by rewrite H_dec.
 Qed.
 
+(* take Fail messages into account when summing up Aggregate messages *)
+
 Lemma Aggregation_conserves_network_mass : 
-  forall onet tr,
-  step_o_star (params := Aggregation_MultiParams) step_o_init onet tr ->
-  conserves_network_mass Nodes Nodes onet.
+  forall onet failed tr,
+  step_o_f_star step_o_f_init (failed, onet) tr ->
+  conserves_network_mass (exclude failed Nodes) Nodes onet.
 Proof.
-move => onet tr H_step.
+fail.
+move => onet failed tr H_step.
 remember step_o_init as y in H_step.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init.
@@ -4549,31 +4551,6 @@ io_handler_cases => // {H_step2}.
   by rewrite IHH_step1.
 Qed.
 
-(*
-Inductive step_o_f : step_relation (list name * ordered_network) (name * (input + list output)) :=
-| SOF_deliver : forall net net' failed m ms out d l from to,
-                   onwPackets net from to = m :: ms ->
-                   ~ In to failed ->
-                   net_handlers to from m (onwState net to) = (out, d, l) ->
-                   net' = mkONetwork (collate to (update2 (onwPackets net) from to ms) l) (update (onwState net) to d) ->
-                   step_o_f (failed, net) (failed, net') [(to, inr out)]
-| SOF_input : forall h net net' failed out inp d l,
-                 ~ In h failed ->
-                 input_handlers h inp (onwState net h) = (out, d, l) ->
-                 net' = mkONetwork (collate h (onwPackets net) l) (update (onwState net) h d) ->
-                 step_o_f (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
-| SOF_fail :  forall h net net' failed l,
-               ~ In h failed ->
-               l =  ->
-               net' = mkONetwork (collate h (onwPackets net) l) (onwState net) ->
-               step_o_f (failed, net) (h :: failed, net') [].
-
-Definition step_o_f_star := refl_trans_1n_trace step_o_f.
-
-Definition step_o_f_init : list name * ordered_network := ([], step_o_init).
-*)
-
-
 (* hook up tree-building protocol to SendAggregate input for aggregation protocol *)
 
 (* merge sent and received into "balance" map? *)
@@ -4596,8 +4573,6 @@ path to liveness properties:
 - is strong local liveness warranted in practice? how can extraction guarantee it?
 
 *)
-
-(*Parameter adjacentP : Name -> Name -> Prop.*)
 
 (*
 firstin q5 (msg_new j) ->
@@ -4628,38 +4603,6 @@ snd (sum_aggregate_queue_aux (I5, m') q5) * m5.
 
 (* ---------------------------------- *)
 
-(*
-Section StepFailureMsg.
-
-  (* this step relation transforms a list of failed hosts (list name * network), but does not transform handlers (H : hosts) *)
-  Inductive step_fm : step_relation (list name * network) (name * (input + list output)) :=
-  (* like step_m, but only delivers to hosts that haven't failed yet *)
-  | SFM_deliver : forall net net' failed p xs ys out d l,
-                nwPackets net = xs ++ p :: ys ->
-                ~ In (pDst p) failed ->
-                net_handlers (pDst p) (pSrc p) (pBody p) (nwState net (pDst p)) = (out, d, l) ->
-                net' = mkNetwork (send_packets (pDst p) l ++ xs ++ ys)
-                                 (update (nwState net) (pDst p) d) ->
-                step_fm (failed, net) (failed, net') [(pDst p, inr out)]
-  | SFM_input : forall h net net' failed out inp d l,
-                 ~ In h failed ->
-                  input_handlers h inp (nwState net h) = (out, d, l) ->
-                  net' = mkNetwork (send_packets h l ++ nwPackets net)
-                                   (update (nwState net) h d) ->
-                  step_fm (failed, net) (failed, net') [(h, inl inp) ;  (h, inr out)]
-  (* a host fails and a Fail message is delivered to all adjacent hosts *)
-  (* add same node to failed several times? *)
-  (* use adjacency function *)
-  | SFM_fail :  forall h net failed,
-                 step_fm (failed, net) (h :: failed, net) [].
-
-  Definition step_fm_star : step_relation (list name * network) (name * (input + list output)) :=
-    refl_trans_1n_trace step_fm.
-
-  Definition step_fm_init : list name * network := ([], step_m_init).
-End StepFailureMsg.
-*)
-
 End Aggregation.
 
 (* 
@@ -4683,32 +4626,4 @@ Require Import MSetList.
 Module FinSet <: MSetInterface.S := MSetList.Make fin_10_OT.
 Eval compute in FinSet.choose (FinSet.singleton b).
 
-*)
-
-(*
-Definition exclude (excluded : list Name) := filter (fun n => sumbool_not _ _ (in_dec Name_eq_dec n excluded)).
-
-Definition fail_for := map (fun (n : Name) => (n, Fail)).
-
-Inductive step_o_f : step_relation (list Name * ordered_network) (Name * (input + list output)) :=
-| SOF_deliver : forall net net' failed m ms out d l from to,
-                   onwPackets net from to = m :: ms ->
-                   ~ In to failed ->
-                   net_handlers to from m (onwState net to) = (out, d, l) ->
-                   net' = mkONetwork (collate to (update2 (onwPackets net) from to ms) l) (update (onwState net) to d) ->
-                   step_o_f (failed, net) (failed, net') [(to, inr out)]
-| SOF_input : forall h net net' failed out inp d l,
-                 ~ In h failed ->
-                 input_handlers h inp (onwState net h) = (out, d, l) ->
-                 net' = mkONetwork (collate h (onwPackets net) l) (update (onwState net) h d) ->
-                 step_o_f (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
-| SOF_fail :  forall h net net' failed l,
-               ~ In h failed ->
-               l = fail_for (adjacent_to_node h (exclude failed nodes)) ->
-               net' = mkONetwork (collate h (onwPackets net) l) (onwState net) ->
-               step_o_f (failed, net) (h :: failed, net') [].
-
-Definition step_o_f_star := refl_trans_1n_trace step_o_f.
-
-Definition step_o_f_init : list Name * ordered_network := ([], step_o_init).
 *)

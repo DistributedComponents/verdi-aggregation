@@ -315,68 +315,68 @@ Definition add_ghost_msg (me : name) (st : data) (ps : list (name * msg)) :
                                                     list (name * (ghost_msg * msg)) :=
   map (fun m => (fst m, (write_ghost_msg me st, snd m))) ps.
 
-  Definition mgv_refined_net_handlers me src (m : ghost_msg * msg) st :=
-    let '(out, st', ps) :=
-        net_handlers me src (snd m) st in
-    (out, st', add_ghost_msg me st' ps).
+Definition mgv_refined_net_handlers me src (m : ghost_msg * msg) st :=
+  let '(out, st', ps) :=
+      net_handlers me src (snd m) st in
+  (out, st', add_ghost_msg me st' ps).
 
-  Definition mgv_refined_input_handlers me inp st :=
-    let '(out, st', ps) :=
-        input_handlers me inp st in
-    (out, st', add_ghost_msg me st' ps).
+Definition mgv_refined_input_handlers me inp st :=
+  let '(out, st', ps) :=
+      input_handlers me inp st in
+  (out, st', add_ghost_msg me st' ps).
 
-  Definition mgv_msg_eq_dec :
-    forall x y : ghost_msg * msg, {x = y} + {x <> y}.
-  Proof.
-    intros.
-    decide equality; auto using msg_eq_dec, ghost_msg_eq_dec.
-  Qed.
+Definition mgv_msg_eq_dec :
+  forall x y : ghost_msg * msg, {x = y} + {x <> y}.
+Proof.
+  intros.
+  decide equality; auto using msg_eq_dec, ghost_msg_eq_dec.
+Qed.
 
-  Instance mgv_refined_base_params : BaseParams :=
-    {
-      data := data ;
-      input := input ;
-      output := output
-    }.
+Instance mgv_refined_base_params : BaseParams :=
+  {
+    data := data ;
+    input := input ;
+    output := output
+  }.
 
-  Instance mgv_refined_multi_params : MultiParams _ :=
-    {
-      name := name ;
-      msg := (ghost_msg * msg) ;
-      msg_eq_dec := mgv_msg_eq_dec ;
-      name_eq_dec := name_eq_dec ;
-      nodes := nodes ;
-      all_names_nodes := all_names_nodes ;
-      no_dup_nodes := no_dup_nodes ;
-      init_handlers := init_handlers;
-      net_handlers := mgv_refined_net_handlers ;
-      input_handlers := mgv_refined_input_handlers
-    }.
+Instance mgv_refined_multi_params : MultiParams _ :=
+  {
+    name := name ;
+    msg := (ghost_msg * msg) ;
+    msg_eq_dec := mgv_msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
+    init_handlers := init_handlers;
+    net_handlers := mgv_refined_net_handlers ;
+    input_handlers := mgv_refined_input_handlers
+  }.
 
-  Instance mgv_refined_failure_params : FailureParams _ :=
-    {
-      reboot := (@reboot base_params multi_params failure_params)
-    }.
+Instance mgv_refined_failure_params : FailureParams _ :=
+  {
+    reboot := (@reboot base_params multi_params failure_params)
+  }.
 
-  Definition mgv_deghost_packet p :=
-    @mkPacket _ multi_params
-              (@pSrc _ mgv_refined_multi_params p)
-              (pDst p)
-              (snd (pBody p)).
+Definition mgv_deghost_packet p :=
+  @mkPacket _ multi_params
+            (@pSrc _ mgv_refined_multi_params p)
+            (pDst p)
+            (snd (pBody p)).
 
-  Definition mgv_deghost (net : @network _ mgv_refined_multi_params) : (@network _ multi_params).
-    refine (@mkNetwork _ multi_params
-                       (map mgv_deghost_packet
-                          (nwPackets net))
-                       _
-           ).
-    intros.
-    destruct net.
-    concludes.
-    auto.
-  Defined.
+Definition mgv_deghost (net : @network _ mgv_refined_multi_params) : (@network _ multi_params).
+  refine (@mkNetwork _ multi_params
+                     (map mgv_deghost_packet
+                        (nwPackets net))
+                     _
+         ).
+  intros.
+  destruct net.
+  concludes.
+  auto.
+Defined.
 
-  Arguments mgv_deghost_packet /_.
+Arguments mgv_deghost_packet /_.
 
 Instance mgv_refined_base_params_tot_map : BaseParamsTotMap mgv_refined_base_params base_params :=
   {
