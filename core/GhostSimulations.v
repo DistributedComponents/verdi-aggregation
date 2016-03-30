@@ -14,7 +14,7 @@ Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import FunctionalExtensionality.
-Require Import Simulations.
+Require Import TotalMapSimulations.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
@@ -103,14 +103,14 @@ Arguments deghost_packet /_.
 Definition deghost_prop I (failed_net : list name * network) : Prop :=
   I ((fst failed_net), deghost (snd failed_net)).
 
-Instance refined_base_params_tot_map : BaseParamsTotMap refined_base_params base_params :=
+Instance refined_base_params_tot_map : BaseParamsTotalMap refined_base_params base_params :=
   {
     tot_map_data := snd ;
     tot_map_input := id ;
     tot_map_output := id
   }.
 
-Instance refined_multi_params_tot_map : MultiParamsTotMap refined_base_params_tot_map refined_multi_params multi_params :=
+Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_base_params_tot_map refined_multi_params multi_params :=
   {
     tot_map_msg := id ;
     tot_map_name := id ;
@@ -400,14 +400,14 @@ Defined.
 
 Arguments mgv_deghost_packet /_.
 
-Instance mgv_refined_base_params_tot_map : BaseParamsTotMap mgv_refined_base_params base_params :=
+Instance mgv_refined_base_params_tot_map : BaseParamsTotalMap mgv_refined_base_params base_params :=
   {
     tot_map_data := id ;
     tot_map_input := id ;
     tot_map_output := id
   }.
 
-Instance mgv_refined_multi_params_tot_map : MultiParamsTotMap mgv_refined_base_params_tot_map mgv_refined_multi_params multi_params :=
+Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_base_params_tot_map mgv_refined_multi_params multi_params :=
   {
     tot_map_msg := snd ;
     tot_map_name := id ;
