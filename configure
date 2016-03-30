@@ -3,8 +3,8 @@
 ## Configures and calls coqproject.sh (https://github.com/dwoos/coqproject)
 
 ## Configuration options for coqproject.sh
-DEPS=(StructTact)
+DEPS=(StructTact AAC_tactics)
 DIRS=(core lib systems raft raft-proofs)
-CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi")
+CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi" "AAC_tactics.AAC" "Verdi requires AAC Tactics to be installed")
 EXTRA=(raft/RaftState.v)
 source script/coqproject.sh
