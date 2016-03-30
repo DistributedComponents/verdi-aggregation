@@ -5,6 +5,7 @@ Require Import Omega.
 
 Require Import StructTact.StructTactics.
 Require Import StructTact.Util.
+Require Import StructTact.Fin.
 Require Import Net.
 
 Require Import Raft.

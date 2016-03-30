@@ -5,6 +5,7 @@ Require Import PeanoNat.
 Require Import Arith.
 
 Require Import StructTact.Util.
+Require Import StructTact.Fin.
 Require Import Net.
 Require Import Raft.
 

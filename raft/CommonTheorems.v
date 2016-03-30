@@ -9,6 +9,7 @@ Import ListNotations.
 Require Import Sorting.Permutation.
 
 Require Import StructTact.Util.
+Require Import StructTact.Fin.
 Require Import Net.
 Require Import RaftState.
 Require Import Raft.

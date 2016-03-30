@@ -7,6 +7,7 @@ Require Import Omega.
 Require Import Net.
 Require Import GhostSimulations.
 Require Import StructTact.Util.
+Require Import StructTact.Fin.
 Require Import StructTact.StructTactics.
 Require Import InverseTraceRelations.
 Require Import UpdateLemmas.
