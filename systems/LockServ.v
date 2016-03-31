@@ -1,9 +1,5 @@
-Require Import List.
-Import ListNotations.
-
-Require Import StructTact.StructTactics.
+Require Import Verdi.
 Require Import HandlerMonad.
-Require Import Net.
 Require Import StructTact.Fin.
 
 Require Import UpdateLemmas.
