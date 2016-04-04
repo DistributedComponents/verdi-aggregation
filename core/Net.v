@@ -494,7 +494,7 @@ Section StepOrderDynamic.
   Context {overlay_params : OverlayParams multi_params}.
   Context {new_msg_params : NewMsgParams multi_params}.
 
-  Definition update_opt {A : Type} st h (v : A) := (fun nm => if name_eq_dec nm h then Some v else st nm).
+  Definition update_opt {A : Type} st h (v : A) := fun nm => if name_eq_dec nm h then Some v else st nm.
 
   Notation src := name (only parsing).
   Notation dst := name (only parsing).
