@@ -103,18 +103,14 @@ have H_in': ~ In a0 l.
 by left.
 Qed.
 
-Module FailureRecorder (N : NatValue).
+Module FailureRecorder (Import NT : NameType) (Import ANT : AdjacentNameType NT) (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT).
 
-Module AN := Adjacency N.
+Module AN := Adjacency NT ANT NOT NSet.
 Import AN.
 
-Module FinNSetFacts := Facts FinNSet.
-Module FinNSetProps := Properties FinNSet.
-Module FinNSetOrdProps := OrdProperties FinNSet.
-
-Section Adjacent.
-
-Context {fin_nop : NameOverlayParams Fin_n_NameParams}.
+Module NSetFacts := Facts NSet.
+Module NSetProps := Properties NSet.
+Module NSetOrdProps := OrdProperties NSet.
 
 Inductive Msg := 
 | Fail : Msg.
@@ -135,7 +131,7 @@ Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
 decide equality.
 Defined.
 
-Record Data :=  mkData { adjacent : FinNS }.
+Record Data :=  mkData { adjacent : NS }.
 
 Definition InitData (n : name) := mkData (adjacency n nodes).
 
@@ -145,7 +141,7 @@ Definition NetHandler (me src: name) (msg : Msg) : Handler Data :=
 st <- get ;;
 match msg with
 | Fail => 
-  put {| adjacent := FinNSet.remove src st.(adjacent) |}
+  put {| adjacent := NSet.remove src st.(adjacent) |}
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data := nop.
@@ -157,7 +153,24 @@ Instance FailureRecorder_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance FailureRecorder_MultiParams : MultiParams _ _ :=
+Instance FailureRecorder_NameParams : NameParams :=
+  {
+    name := name ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes
+  }.
+
+Instance FailureRecorder_NameOverlayParams : NameOverlayParams FailureRecorder_NameParams :=
+  {
+    adjacent_to := adjacent_to ;
+    adjacent_to_dec := adjacent_to_dec ;
+    adjacent_to_symmetric := adjacent_to_symmetric ;
+    adjacent_to_irreflexive := adjacent_to_irreflexive
+  }.
+
+Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams FailureRecorder_NameParams :=
   {
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
@@ -208,7 +221,7 @@ Lemma NetHandler_cases :
   forall dst src msg st out st' ms,
     NetHandler dst src msg st = (tt, out, st', ms) ->
     msg = Fail /\ out = [] /\ ms = [] /\
-    st'.(adjacent) = FinNSet.remove src st.(adjacent).
+    st'.(adjacent) = NSet.remove src st.(adjacent).
 Proof.
 move => dst src msg st out st' ms.
 rewrite /NetHandler.
@@ -230,7 +243,7 @@ Lemma Failure_node_not_adjacent_self :
 forall net failed tr n, 
  step_o_f_star step_o_f_init (failed, net) tr ->
  ~ In n failed ->
- ~ FinNSet.In n (onwState net n).(adjacent).
+ ~ NSet.In n (onwState net n).(adjacent).
 Proof.
 move => net failed tr n H.
 remember step_o_f_init as y in *.
@@ -247,10 +260,10 @@ match goal with
 end; rewrite /=.
 - find_apply_lem_hyp net_handlers_NetHandler.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec /=; last exact: IHrefl_trans_1n_trace1.
+  case name_eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
   rewrite -H_dec in H3.
   net_handler_cases.
-  apply FinNSet.remove_spec in H0.
+  apply NSet.remove_spec in H0.
   by move: H0 => [H0 H_neq].
 - by find_apply_lem_hyp input_handlers_IOHandler.
 - exact: IHrefl_trans_1n_trace1.
@@ -361,7 +374,7 @@ Hypothesis recv_fail :
     step_o_f_star step_o_f_init (failed, onet) tr ->
     ~ In n failed ->
     P (onet.(onwState) n) ->
-    P (mkData (FinNSet.remove n' (onet.(onwState) n).(adjacent))).
+    P (mkData (NSet.remove n' (onet.(onwState) n).(adjacent))).
 
 Theorem P_inv_n : P (onwState onet n).
 Proof.
@@ -385,7 +398,7 @@ end; simpl.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec //.
+  case name_eq_dec => H_dec //.
   rewrite -H_dec {H_dec H'_step2 to} in H0 H1 H5.
   case: d H5 => /=.
   move => adjacent0 H_eq.
@@ -427,7 +440,7 @@ Hypothesis recv_fail_neq_from :
   from <> n ->
   onet.(onwPackets) from n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n n') ->
-  P (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
+  P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
 
 Hypothesis recv_fail_neq :
   forall onet failed tr from ms,
@@ -438,7 +451,7 @@ Hypothesis recv_fail_neq :
   from <> n ->
   onet.(onwPackets) from n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n n') ->
-  P (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
+  P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
 
 Theorem P_inv_n_out : P (onet.(onwState) n) (onet.(onwPackets) n n').
 Proof.
@@ -462,7 +475,7 @@ end; simpl.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec.
+  case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     rewrite -H_dec /update2 /= {H_dec to H'_step2}.
     case (sumbool_and _ _ _ _) => H_dec.
@@ -473,12 +486,12 @@ end; simpl.
     move => adjacent0 H_eq.
     rewrite H_eq {adjacent0 H_eq}.
     case: H_dec => H_dec.
-      case (In_dec (fin_eq_dec N.n) from failed) => H_in; first exact: (recv_fail_neq_from H'_step1 H_in_f H_in H_dec H0).
+      case (In_dec name_eq_dec from failed) => H_in; first exact: (recv_fail_neq_from H'_step1 H_in_f H_in H_dec H0).
       have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
       rewrite H0 in H_inl.
       by case: H_inl; left.
-    case (fin_eq_dec N.n from n) => H_neq; first by rewrite H_neq (Failure_self_channel_empty H'_step1) in H0.
-    case (In_dec (fin_eq_dec N.n) from failed) => H_in; first exact: recv_fail_neq H'_step1 _ _ H_dec _ H0 H4.
+    case (name_eq_dec from n) => H_neq; first by rewrite H_neq (Failure_self_channel_empty H'_step1) in H0.
+    case (In_dec name_eq_dec from failed) => H_in; first exact: recv_fail_neq H'_step1 _ _ H_dec _ H0 H4.
     have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
     rewrite H0 in H_inl.
     by case: H_inl; left.
@@ -614,7 +627,7 @@ Hypothesis recv_fail_neq :
   n <> n' ->
   onet.(onwPackets) n' n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n' n) ->
-  P (mkData (FinNSet.remove n' (onet.(onwState) n).(adjacent))) ms.
+  P (mkData (NSet.remove n' (onet.(onwState) n).(adjacent))) ms.
 
 Hypothesis recv_fail_other_neq :
   forall onet failed tr from ms,
@@ -624,7 +637,7 @@ Hypothesis recv_fail_other_neq :
   n' <> from ->
   onet.(onwPackets) from n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n' n) ->
-  P (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n' n).
+  P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n' n).
 
 Hypothesis fail_adjacent :
   forall onet failed tr,
@@ -658,7 +671,7 @@ end; simpl.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec.
+  case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     have H_neq: n <> from.
       move => H_eq.
@@ -670,7 +683,7 @@ end; simpl.
       rewrite H_eq {H_eq from} in H0 H5 H_neq.
       case: d H5 => /= adjacent0 H_eq.
       rewrite H_eq {H_eq adjacent0}.
-      case (In_dec (fin_eq_dec N.n) n' failed) => H_in; first exact: (recv_fail_neq H'_step1).
+      case (In_dec name_eq_dec n' failed) => H_in; first exact: (recv_fail_neq H'_step1).
       have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
       rewrite H0 in H_inl.
       by case: H_inl; left.
@@ -688,7 +701,7 @@ end; simpl.
 - move => H_in.
   have H_neq: h <> n by move => H_eq; case: H_in; left.
   have H_f: ~ In n failed by move => H_in'; case: H_in; right.
-  case (fin_eq_dec N.n h n') => H_dec.
+  case (name_eq_dec h n') => H_dec.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
@@ -733,8 +746,8 @@ Hypothesis recv_fail_self :
     onet.(onwPackets) from n = Fail :: ms ->
     n <> from ->
     P (onet.(onwState) n) (onet.(onwState) n) (onet.(onwPackets) n n) (onet.(onwPackets) n n) ->
-    P (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent)))
-      (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent)))
+    P (mkData (NSet.remove from (onet.(onwState) n).(adjacent)))
+      (mkData (NSet.remove from (onet.(onwState) n).(adjacent)))
       (onet.(onwPackets) n n) (onet.(onwPackets) n n).
 
 Hypothesis recv_fail_other :
@@ -747,7 +760,7 @@ Hypothesis recv_fail_other :
     from <> n ->
     from <> n' ->
     P (onet.(onwState) n) (onet.(onwState) n') (onet.(onwPackets) n n') (onet.(onwPackets) n' n) ->
-    P (mkData (FinNSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwState) n')
+    P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwState) n')
       (onet.(onwPackets) n n') (onet.(onwPackets) n' n).
 
 Hypothesis recv_other_fail :
@@ -760,7 +773,7 @@ Hypothesis recv_other_fail :
     from <> n ->
     from <> n' ->
     P (onet.(onwState) n) (onet.(onwState) n') (onet.(onwPackets) n n') (onet.(onwPackets) n' n) ->
-    P (onet.(onwState) n) (mkData (FinNSet.remove from (onet.(onwState) n').(adjacent))) 
+    P (onet.(onwState) n) (mkData (NSet.remove from (onet.(onwState) n').(adjacent))) 
       (onet.(onwPackets) n n') (onet.(onwPackets) n' n).
 
 Theorem P_dual_inv : P (onet.(onwState) n) (onet.(onwState) n') (onet.(onwPackets) n n') (onet.(onwPackets) n' n).
@@ -787,10 +800,10 @@ end; simpl.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec_n.
+  case name_eq_dec => H_dec_n.
     rewrite -H_dec_n.
     rewrite -H_dec_n {H_dec_n to} in H5 H6 H1 H0.
-    case (fin_eq_dec _ _) => H_dec_n'.
+    case name_eq_dec => H_dec_n'.
       rewrite H_dec_n'.
       rewrite H_dec_n' in H_in_f' H6.
       rewrite /update2.
@@ -826,7 +839,7 @@ end; simpl.
       apply (recv_fail_other H'_step1 H_in_f H_in_f' H0) => //.
       move => H_neq'.
       by rewrite H_neq' in H_dec_n'.
-    case (fin_eq_dec _ _) => H_dec_n'.
+    case name_eq_dec => H_dec_n'.
       rewrite -H_dec_n'.
       rewrite -H_dec_n' {to H_dec_n'} in H0 H_dec_n H1 H5.
       case: d H5 => /= adjacent0 H_eq.
@@ -895,12 +908,12 @@ forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr -> 
   forall (n n' : name),
     ~ In n failed ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent) ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
     adjacent_to n' n.
 Proof.
 move => net failed tr H_st.
 move => n n' H_f.
-pose P_curr (d : Data) := FinNSet.In n' d.(adjacent) -> @adjacent_to _ fin_nop n' n.
+pose P_curr (d : Data) := NSet.In n' d.(adjacent) -> adjacent_to n' n.
 rewrite -/(P_curr _).
 apply: (P_inv_n H_st); rewrite /P_curr //= {P_curr net tr H_st failed H_f}.
 - move => H_ins.
@@ -910,7 +923,7 @@ apply: (P_inv_n H_st); rewrite /P_curr //= {P_curr net tr H_st failed H_f}.
   by apply adjacent_to_symmetric in H_adj.
 - move => net failed tr n0 H_st H_in_f IH H_adj.
   apply: IH.
-  by apply FinNSetFacts.remove_3 in H_adj.
+  by apply NSetFacts.remove_3 in H_adj.
 Qed.
 
 Lemma Failure_in_adj_or_incoming_fail :
@@ -918,7 +931,7 @@ forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent) ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
     ~ In n' failed \/ (In n' failed /\ In Fail (onet.(onwPackets) n' n)).
 Proof.
 move => onet failed tr H.
@@ -946,20 +959,20 @@ end; simpl.
     rewrite /= in IHrefl_trans_1n_trace1.
     move: H_ins.
     rewrite /update /=.
-    case (fin_eq_dec _ _) => H_dec //.
+    case name_eq_dec => H_dec //.
     move => H_ins.
     case: d H7 H_ins => /= adjacent0 H_eq H_adj.
     rewrite H_eq in H_adj.
-    by apply FinNSetFacts.remove_1 in H_adj.
+    by apply NSetFacts.remove_1 in H_adj.
   move: H_ins.
   rewrite /update /=.
-  case (fin_eq_dec _ _) => H_dec'.
+  case name_eq_dec => H_dec'.
     case: H_dec => H_dec; last by rewrite H_dec' in H_dec.
     case: d H7 => /= adjacent0 H_eq.
     move => H_ins.
     rewrite H_eq {adjacent0 H_eq} in H_ins.
     rewrite -H_dec' {to H_dec'} in H2 H3 H_ins.
-    apply FinNSetFacts.remove_3 in H_ins.
+    apply NSetFacts.remove_3 in H_ins.
     exact: IHrefl_trans_1n_trace1.
   move => H_ins.
   exact: IHrefl_trans_1n_trace1.
@@ -976,7 +989,7 @@ end; simpl.
     case: H_in_f.
     by right.  
   have IH := IHrefl_trans_1n_trace1 _ _ H_in_f' H_ins.
-  case (fin_eq_dec N.n h n') => H_dec.
+  case (name_eq_dec h n') => H_dec.
     rewrite H_dec.
     right.
     split; first by left.
@@ -1033,13 +1046,13 @@ forall onet failed tr,
     ~ In n failed ->
     ~ In n' failed ->
     adjacent_to n' n ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent).
+    NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st.
 move => n n' H_f H_f'.
 pose P_curr (d d' : Data) (l l' : list Msg) := 
-  @adjacent_to _ fin_nop n' n -> 
-  FinNSet.In n' d.(adjacent).
+  adjacent_to n' n -> 
+  NSet.In n' d.(adjacent).
 rewrite -/(P_curr _ (onet.(onwState) n') (onet.(onwPackets) n n')
  (onet.(onwPackets) n' n)).
 apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_f H_f'}.
@@ -1053,7 +1066,7 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_f H_
   exact: adjacent_to_irreflexive.
 - move => onet failed tr from ms H_st H_in_f H_in_f' H_eq H_neq H_neq_f H_neq_f' IH H_adj.
   concludes.
-  by apply FinNSetFacts.remove_2.
+  by apply NSetFacts.remove_2.
 Qed.
 
 Lemma Failure_in_queue_fail_then_adjacent : 
@@ -1062,13 +1075,13 @@ Lemma Failure_in_queue_fail_then_adjacent :
   forall n n',
     ~ In n failed ->
     In Fail (onet.(onwPackets) n' n) ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent).
+    NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st.
 move => n n' H_in_f.
 pose P_curr (d : Data) (l : list Msg) := 
   In Fail l ->
-  FinNSet.In n' d.(adjacent).
+  NSet.In n' d.(adjacent).
 rewrite -/(P_curr _ _).
 apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f}.
 - move => onet failed tr ms H_st H_in_f H_in_f' H_neq H_eq IH H_in.
@@ -1078,10 +1091,10 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f
   by omega.
 - move => onet failed tr from ms H_st H_in_f H_neq H_neq'.
   move => H_eq IH H_in.
-  apply FinNSetFacts.remove_2; first by move => H_eq'; rewrite H_eq' in H_neq'.
+  apply NSetFacts.remove_2; first by move => H_eq'; rewrite H_eq' in H_neq'.
   exact: IH.
 - move => onet failed tr H_st H_neq H_in_f H_in_f' H_adj IH H_in.
-  exact (Failure_adjacent_to_in_adj H_st _ _ H_in_f H_in_f' H_adj).
+  exact (Failure_adjacent_to_in_adj H_st H_in_f H_in_f' H_adj).
 Qed.
 
 Lemma Failure_first_fail_in_adj : 
@@ -1090,13 +1103,13 @@ Lemma Failure_first_fail_in_adj :
   forall n n',
     ~ In n failed ->
     head (onet.(onwPackets) n' n) = Some Fail ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent).
+    NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st.
 move => n n' H_in_f.
 pose P_curr (d : Data) (l : list Msg) := 
   hd_error l = Some Fail ->
-  FinNSet.In n' d.(adjacent).
+  NSet.In n' d.(adjacent).
 rewrite -/(P_curr _ _).
 apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f}.
 - move => onet failed tr ms H_st H_in_f H_in_f' H_neq H_eq IH H_hd.
@@ -1108,11 +1121,11 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f
   by omega.
 - move => onet failed tr from ms H_st H_in_f H_neq H_neq' H_eq IH H_hd.
   concludes.
-  apply FinNSetFacts.remove_2 => //.
+  apply NSetFacts.remove_2 => //.
   move => H_eq'.
   by rewrite H_eq' in H_neq'.
 - move => onet failed tr H_st H_neq H_in_f H_in_f' H_adj IH H_hd.
-  by have H_a := Failure_adjacent_to_in_adj H_st _ _ H_in_f H_in_f' H_adj.
+  by have H_a := Failure_adjacent_to_in_adj H_st H_in_f H_in_f' H_adj.
 Qed.
 
 Lemma Failure_adjacent_failed_incoming_fail : 
@@ -1120,7 +1133,7 @@ Lemma Failure_adjacent_failed_incoming_fail :
   step_o_f_star step_o_f_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
-    FinNSet.In n' (onet.(onwState) n).(adjacent) ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
     In n' failed ->
     In Fail (onet.(onwPackets) n' n).
 Proof.
@@ -1129,7 +1142,5 @@ have H_or := Failure_in_adj_or_incoming_fail H_st _ H_in_f H_adj.
 case: H_or => H_or //.
 by move: H_or => [H_in H_in'].
 Qed.
-
-End Adjacent.
 
 End FailureRecorder.
