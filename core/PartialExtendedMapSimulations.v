@@ -129,7 +129,7 @@ Qed.
 Definition pt_ext_map_net (net : @network _  _ multi_fst) : @network _ _ multi_snd :=
 mkNetwork (pt_ext_map_packets net.(nwPackets)) (fun n => pt_ext_map_data (net.(nwState) (tot_map_name_inv n)) (tot_map_name_inv n)).
 
-Lemma pt_map_name_msgs_app_distr : 
+Lemma pt_ext_map_name_msgs_app_distr : 
   forall l l',
   pt_ext_map_name_msgs (l ++ l') = pt_ext_map_name_msgs l ++ pt_ext_map_name_msgs l'.
 Proof.
