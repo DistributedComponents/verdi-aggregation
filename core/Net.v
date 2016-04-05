@@ -21,15 +21,19 @@ Class OneNodeParams (P : BaseParams) :=
     handler : input -> data -> (output * data)
   }.
 
-Class MultiParams (P : BaseParams) :=
+Class NameParams :=
+ {
+   name : Type ;
+   name_eq_dec : forall x y : name, {x = y} + {x <> y} ;
+   nodes : list name ;
+   all_names_nodes : forall n, In n nodes ;
+   no_dup_nodes : NoDup nodes
+ }.
+
+Class MultiParams (P0 : BaseParams) (P1 : NameParams) :=
   {
-    name : Type ;
     msg : Type ;
     msg_eq_dec : forall x y : msg, {x = y} + {x <> y} ;
-    name_eq_dec : forall x y : name, {x = y} + {x <> y} ;
-    nodes : list name ;
-    all_names_nodes : forall n, In n nodes ;
-    no_dup_nodes : NoDup nodes ;
     init_handlers : name -> data;
     net_handlers : name -> name -> msg -> data -> (list output) * data * list (name * msg) ;
     input_handlers : name -> input -> data -> (list output) * data * list (name * msg)
@@ -38,6 +42,24 @@ Class MultiParams (P : BaseParams) :=
 Class FailureParams `(P : MultiParams) :=
   {
     reboot : data -> data
+  }.
+
+Class NameOverlayParams (P : NameParams) :=
+  {
+    adjacent_to : relation name;
+    adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
+    adjacent_to_symmetric : Symmetric adjacent_to;
+    adjacent_to_irreflexive : Irreflexive adjacent_to
+  }.
+
+Class FailMsgParams `(P : MultiParams) :=
+  {
+    msg_fail : msg
+  }.
+
+Class NewMsgParams `(P : MultiParams) :=
+  {
+    msg_new : msg
   }.
 
 Section StepRelations.
@@ -274,15 +296,18 @@ Section StepAsync.
   Definition step_m_star := refl_trans_1n_trace step_m.
 End StepAsync.
 
-Arguments update _ _ _ _ _ _ / _.
-Arguments send_packets _ _ _ _ /.
+Check update.
+
+Arguments update _ _ _ _ _ / _.
+Arguments send_packets _ _ _ _ _ /.
 
 Section packet_eta.
   Context {P : BaseParams}.
-  Context {M : @MultiParams P}.
+  Context {N : NameParams}.
+  Context {M : @MultiParams P N}.
 
   Lemma packet_eta :
-    forall p : @packet P M,
+    forall p : @packet P N M,
       {| pSrc := pSrc p; pDst := pDst p; pBody := pBody p |} = p.
   Proof.
     destruct p; auto.
@@ -433,28 +458,11 @@ Section StepOrder.
   Definition step_o_init : ordered_network := mkONetwork (fun _ _ => []) init_handlers.
 End StepOrder.
 
-Class OverlayParams `(P : MultiParams) :=
-  {
-    adjacent_to : relation name;
-    adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
-    adjacent_to_symmetric : Symmetric adjacent_to;
-    adjacent_to_irreflexive : Irreflexive adjacent_to
-  }.
-
-Class FailMsgParams `(P : MultiParams) :=
-  {
-    msg_fail : msg
-  }.
-
-Class NewMsgParams `(P : MultiParams) :=
-  {
-    msg_new : msg
-  }.
-
 Section StepOrderFailure.
   Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : OverlayParams multi_params}.
+  Context {name_params : NameParams}.
+  Context {multi_params : MultiParams base_params name_params}.
+  Context {overlay_params : NameOverlayParams name_params}.
   Context {fail_msg_params : FailMsgParams multi_params}.
 
   Definition msg_for (m : msg) := map (fun (n : name) => (n, m)).
@@ -490,8 +498,9 @@ End StepOrderFailure.
 
 Section StepOrderDynamic.
   Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : OverlayParams multi_params}.
+  Context {name_params : NameParams}.
+  Context {multi_params : MultiParams base_params name_params}.
+  Context {overlay_params : NameOverlayParams name_params}.
   Context {new_msg_params : NewMsgParams multi_params}.
 
   Definition update_opt {A : Type} st h (v : A) := fun nm => if name_eq_dec nm h then Some v else st nm.
@@ -548,8 +557,9 @@ End StepOrderDynamic.
 
 Section StepOrderDynamicFailure.
   Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : OverlayParams multi_params}.
+  Context {name_params : NameParams}.
+  Context {multi_params : MultiParams base_params name_params}.
+  Context {overlay_params : NameOverlayParams name_params}.
   Context {new_msg_params : NewMsgParams multi_params}.
   Context {fail_msg_params : FailMsgParams multi_params}.
 

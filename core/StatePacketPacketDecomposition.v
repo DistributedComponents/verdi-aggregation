@@ -1,7 +1,7 @@
 Require Import Verdi.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ : simpl never.
 
 Fixpoint distinct_pairs_and {A} (R : A -> A -> Prop) (l : list A) : Prop :=
   match l with
@@ -9,7 +9,7 @@ Fixpoint distinct_pairs_and {A} (R : A -> A -> Prop) (l : list A) : Prop :=
     | x :: xs => (forall y, In y xs -> R x y) /\ distinct_pairs_and R xs
   end.
 
-Class Decomposition (B : BaseParams) (M : MultiParams B) :=
+Class Decomposition (B : BaseParams) (N : NameParams) (M : MultiParams B N) :=
   {
     state_invariant : (name -> data) -> Prop;
     network_invariant : (name -> data) -> packet -> Prop;

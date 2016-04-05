@@ -2,7 +2,7 @@ Require Import Verdi.
 Require Import HandlerMonad.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ : simpl never.
 
 Class PrimaryBackupParams (base_params : BaseParams) :=
   {
@@ -203,13 +203,17 @@ Section PrimaryBackup.
       PB_input
       PB_output.
 
-  Instance PB_multi_params : MultiParams PB_base_params :=
-    Build_MultiParams
-      PB_base_params
-      msg_eq_dec
+  Instance PB_name_params : NameParams :=
+    Build_NameParams
       name_eq_dec
       all_nodes_all
-      NoDup_all_nodes
+      NoDup_all_nodes.
+
+  Instance PB_multi_params : MultiParams PB_base_params PB_name_params :=
+    Build_MultiParams
+      PB_base_params
+      PB_name_params
+      msg_eq_dec      
       PB_init
       PB_net
       PB_input_handler.
@@ -825,7 +829,7 @@ Section PrimaryBackup.
       rewrite update_diff by auto. auto.
   Qed.
 
-  Definition network_invariant (net : @network _ PB_multi_params) : Prop :=
+  Definition network_invariant (net : @network _ _ PB_multi_params) : Prop :=
     (nwPackets net = [] /\ state (nwState net Primary) = state (nwState net Backup)) \/
     (exists i is, nwPackets net = [mkPacket Primary Backup (BackItUp i)] /\
                queue (nwState net Primary) = i :: is /\

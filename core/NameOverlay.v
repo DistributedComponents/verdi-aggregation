@@ -2,31 +2,11 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import StructTact.Fin.
 
-Require Import Relation_Definitions.
-Require Import RelationClasses.
-
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
 
 Require Import MSetList.
 Require Import FMapList.
-
-Class NameParams :=
- {
-   name : Type ;
-   name_eq_dec : forall x y : name, {x = y} + {x <> y} ;
-   nodes : list name ;
-   all_names_nodes : forall n, In n nodes ;
-   no_dup_nodes : NoDup nodes
- }.
-
-Class NameOverlayParams (P : NameParams) :=
-  {
-    adjacent_to : relation name;
-    adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
-    adjacent_to_symmetric : Symmetric adjacent_to;
-    adjacent_to_irreflexive : Irreflexive adjacent_to
-  }.
 
 Module Adjacency (N : NatValue).
 

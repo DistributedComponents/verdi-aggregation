@@ -13,7 +13,7 @@ Require Import MSetProperties.
 Require Import mathcomp.ssreflect.ssreflect.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -157,28 +157,15 @@ Instance FailureRecorder_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams :=
+Instance FailureRecorder_MultiParams : MultiParams _ _ :=
   {
-    name := name ;
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes ;
     init_handlers := InitData ;
     net_handlers := fun dst src msg s =>
                       runGenHandler_ignore s (NetHandler dst src msg) ;
     input_handlers := fun nm msg s =>
                         runGenHandler_ignore s (IOHandler nm msg)
-  }.
-
-Instance FailureRecorder_OverlayParams : OverlayParams FailureRecorder_MultiParams :=
-  {
-    adjacent_to := adjacent_to ;
-    adjacent_to_dec := adjacent_to_dec ;
-    adjacent_to_irreflexive := adjacent_to_irreflexive ;
-    adjacent_to_symmetric := adjacent_to_symmetric
   }.
 
 Instance FailureRecorder_FailMsgParams : FailMsgParams FailureRecorder_MultiParams :=
