@@ -1,7 +1,6 @@
 (* must use rev 6b77fae28fb5f669861a7b2782e35fcd0fe1fbfa of https://scm.gforge.inria.fr/anonscm/git/coq-contribs/aac-tactics.git *)
 Require Import Verdi.
 Require Import HandlerMonad.
-Require Import StructTact.Fin.
 Require Import NameOverlay.
 
 Require Import TotalMapSimulations.
@@ -267,24 +266,7 @@ Instance Aggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance Aggregation_NameParams : NameParams :=
-  {
-    name := name ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes
-  }.
-
-Instance Aggregation_NameOverlayParams : NameOverlayParams Aggregation_NameParams :=
-  {
-    adjacent_to := adjacent_to ;
-    adjacent_to_dec := adjacent_to_dec ;
-    adjacent_to_symmetric := adjacent_to_symmetric ;
-    adjacent_to_irreflexive := adjacent_to_irreflexive
-  }.
-
-Instance Aggregation_MultiParams : MultiParams _ _  :=
+Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams NT_NameParams :=
   {
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
@@ -842,7 +824,7 @@ Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap A
     pt_map_output := fun _ => None
   }.
 
-Instance Aggregation_FailureRecorder_name_params_tot_map : NameParamsTotalMap Aggregation_NameParams FRN.FailureRecorder_NameParams :=
+Instance Aggregation_FailureRecorder_name_params_tot_map : NameParamsTotalMap NT_NameParams FRN.AN.NT_NameParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
@@ -926,11 +908,11 @@ Proof. by []. Qed.
 
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ Aggregation_NameOverlayParams Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ FRN.FailureRecorder_NameOverlayParams FRN.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
+    @step_o_f_star _ _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ _ _ FRN.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Aggregation_NameOverlayParams Aggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none ANT_NameOverlayParams FRN.AN.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.

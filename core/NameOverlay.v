@@ -1,6 +1,5 @@
 Require Import Verdi.
 Require Import HandlerMonad.
-Require Import StructTact.Fin.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -53,7 +52,22 @@ Module Adjacency (Import NT : NameType) (Import ANT : AdjacentNameType NT) (NOT 
 
 Definition NS := NSet.t.
 
-Definition adjacent_to_node (n : name) := filter (adjacent_to_dec n).
+Instance NT_NameParams : NameParams :=
+  {
+    name := name ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes
+  }.
+
+Instance ANT_NameOverlayParams : NameOverlayParams NT_NameParams :=
+  {
+    adjacent_to := adjacent_to ;
+    adjacent_to_dec := adjacent_to_dec ;
+    adjacent_to_symmetric := adjacent_to_symmetric ;
+    adjacent_to_irreflexive := adjacent_to_irreflexive
+  }.
 
 Lemma adjacent_to_node_adjacent_to : 
   forall n n' ns,

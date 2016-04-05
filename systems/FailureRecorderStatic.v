@@ -1,6 +1,5 @@
 Require Import Verdi.
 Require Import HandlerMonad.
-Require Import StructTact.Fin.
 Require Import NameOverlay.
 
 Require Import Sumbool.
@@ -153,24 +152,7 @@ Instance FailureRecorder_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance FailureRecorder_NameParams : NameParams :=
-  {
-    name := name ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes
-  }.
-
-Instance FailureRecorder_NameOverlayParams : NameOverlayParams FailureRecorder_NameParams :=
-  {
-    adjacent_to := adjacent_to ;
-    adjacent_to_dec := adjacent_to_dec ;
-    adjacent_to_symmetric := adjacent_to_symmetric ;
-    adjacent_to_irreflexive := adjacent_to_irreflexive
-  }.
-
-Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams FailureRecorder_NameParams :=
+Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams NT_NameParams :=
   {
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;

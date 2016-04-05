@@ -1,6 +1,5 @@
 Require Import Verdi.
 Require Import HandlerMonad.
-Require Import StructTact.Fin.
 Require Import NameOverlay.
 
 Require Import TotalMapSimulations.
@@ -550,24 +549,7 @@ Instance TreeAggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance TreeAggregation_NameParams : NameParams :=
-  {
-    name := name ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes
-  }.
-
-Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_NameParams :=
-  {
-    adjacent_to := adjacent_to ;
-    adjacent_to_dec := adjacent_to_dec ;
-    adjacent_to_symmetric := adjacent_to_symmetric ;
-    adjacent_to_irreflexive := adjacent_to_irreflexive
-  }.
-
-Instance TreeAggregation_MultiParams : MultiParams _ _ :=
+Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams NT_NameParams :=
   {
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
@@ -1069,7 +1051,7 @@ Ltac io_handler_cases :=
   intuition idtac; subst; 
   repeat find_rewrite.
 
-Instance TreeAggregation_Aggregation_name_params_tot_map : NameParamsTotalMap TreeAggregation_NameParams AGN.Aggregation_NameParams :=
+Instance TreeAggregation_Aggregation_name_params_tot_map : NameParamsTotalMap NT_NameParams AGN.AN.NT_NameParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
@@ -1472,10 +1454,10 @@ Proof. by []. Qed.
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ AGN.Aggregation_NameOverlayParams AGN.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
+    @step_o_f_star _ _ _ _ TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ _ _ AGN.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _  _ _ _ _ _ tot_map_name_inverse_inv tot_map_name_inv_inverse pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none TreeAggregation_NameOverlayParams TreeAggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _  _ _ _ _ _ tot_map_name_inverse_inv tot_map_name_inv_inverse pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none ANT_NameOverlayParams AGN.AN.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -1485,4 +1467,3 @@ by exists tr'.
 Qed.
 
 End TreeAggregation.
-
