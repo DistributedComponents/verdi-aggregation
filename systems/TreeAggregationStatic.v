@@ -26,7 +26,10 @@ Require Import Sorting.Permutation.
 
 Require Import AAC_tactics.AAC.
 
+Require Import AggregationAux.
 Require Import AggregationStatic.
+
+Require Import TreeAux.
 Require Import TreeStatic.
 
 Set Implicit Arguments.
@@ -40,21 +43,16 @@ Module A := Adjacency NT NOT NSet ANT.
 Import A.
 
 Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
+Import AG.AX.
 
 Module TR := Tree NT NOT NSet NOTC NMap RNT ANT.
+Import TR.AX.
 
 Import GroupScope.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
-
-Definition m := gT.
-
-Definition lv := TR.lv.
-Definition lv_eq_dec := TR.lv_eq_dec.
-
-Definition m_eq_dec := AG.m_eq_dec.
 
 Inductive Msg : Type := 
 | Aggregate : m -> Msg
@@ -105,9 +103,6 @@ case: o; case: o0.
 - by left.
 Defined.
 
-Definition NM := NMap.t m.
-Definition NL := NMap.t lv.
-
 Record Data :=  mkData { 
   local : m ; 
   aggregate : m ; 
@@ -117,8 +112,6 @@ Record Data :=  mkData {
   broadcast : bool ; 
   levels : NL
 }.
-
-Definition init_map := AG.init_map.
 
 Definition InitData (n : name) := 
 if root_dec n then
@@ -137,11 +130,6 @@ else
      received := init_map (adjacency n nodes) ;
      broadcast := false ;
      levels := NMap.empty lv |}.
-
-Definition olv_eq_dec : forall (lvo lvo' : option lv), { lvo = lvo' }+{ lvo <> lvo' }.
-decide equality.
-exact: lv_eq_dec.
-Defined.
 
 Definition Handler (S : Type) := GenHandler (name * Msg) S Output unit.
 
@@ -181,8 +169,6 @@ match msg with
            levels := st.(levels) |}
   end
 end.
-
-Definition level := TR.level.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
 st <- get ;;
@@ -306,8 +292,6 @@ match i with
 | LevelRequest => 
   write_output (LevelResponse (Some 0))
 end.
-
-Definition parent := TR.parent.
 
 Definition NonRootIOHandler (i : Input) : Handler Data :=
 st <- get ;;
@@ -913,7 +897,7 @@ Lemma pt_ext_init_handlers_eq : forall n,
 Proof.
 move => n.
 rewrite /= /InitData /=.
-by case root_dec => /= H_dec.
+by case root_dec.
 Qed.
 
 Lemma pt_ext_net_handlers_some : forall me src m st m',
@@ -1133,8 +1117,8 @@ case => //.
     apply input_handlers_IOHandler in Heqp.
     have H_p' := H_p.
     move: H_p'.
-    rewrite /parent /TR.parent.
-    case TR.par => H_p' H_eq //=.
+    rewrite /parent.
+    case par => H_p' H_eq //=.
     move: H_p' H_eq => /= [nlv' H_min].
     inversion H_min.
     inversion H.
