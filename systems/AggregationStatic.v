@@ -1,3 +1,21 @@
+(* merge sent and received into "balance" map? *)
+
+(* at recovery time, send new to all existing neighbors *)
+(* handle problem with unprocessed fail messages for recovery *)
+
+(* higher-level language like ott/lem for protocols that exports to handlers? *)
+
+(* path to liveness properties:
+
+- handler monad must be able to output labels, e.g., return broadcast_level
+
+- all labels must be decorated with the involved node names by the semantics
+
+- labels must be removed at extraction time
+
+- is strong local liveness warranted in practice? how can extraction guarantee it?
+*)
+
 (* must use rev 6b77fae28fb5f669861a7b2782e35fcd0fe1fbfa of https://scm.gforge.inria.fr/anonscm/git/coq-contribs/aac-tactics.git *)
 Require Import Verdi.
 Require Import HandlerMonad.
@@ -36,14 +54,15 @@ Parameter gT : finGroupType.
 Parameter commutes : forall x y : gT, commute x y.
 End CommutativeFinGroup.
 
-Module Aggregation (Import NT : NameType) (Import ANT : AdjacentNameType NT) 
+Module Aggregation (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
- (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) (Import CFG : CommutativeFinGroup).
+ (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
+ (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module AN := Adjacency NT ANT NOT NSet.
-Import AN.
+Module A := Adjacency NT NOT NSet ANT.
+Import A.
 
-Module FRN := FailureRecorder NT ANT NOT NSet.
+Module FR := FailureRecorder NT NOT NSet ANT.
 
 Import GroupScope.
 
@@ -79,7 +98,7 @@ Defined.
 
 Definition NM := NMap.t m.
 
-Inductive Msg := 
+Inductive Msg : Type := 
 | Aggregate : m -> Msg
 | Fail : Msg.
 
@@ -88,7 +107,7 @@ decide equality.
 exact: m_eq_dec.
 Defined.
 
-Inductive Input :=
+Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : name -> Input
 | AggregateRequest : Input.
@@ -99,7 +118,7 @@ decide equality.
 - exact: name_eq_dec.
 Defined.
 
-Inductive Output :=
+Inductive Output : Type :=
 | AggregateResponse : m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
@@ -107,7 +126,7 @@ decide equality.
 exact: m_eq_dec.
 Defined.
 
-Record Data :=  mkData { 
+Record Data := mkData { 
   local : m ; 
   aggregate : m ; 
   adjacent : NS ; 
@@ -817,22 +836,22 @@ Ltac io_handler_cases :=
   intuition idtac; subst; 
   repeat find_rewrite.
 
-Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FRN.FailureRecorder_BaseParams :=
+Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
   {
-    pt_map_data := fun d => FRN.mkData d.(adjacent) ;
+    pt_map_data := fun d => FR.mkData d.(adjacent) ;
     pt_map_input := fun _ => None ;
     pt_map_output := fun _ => None
   }.
 
-Instance Aggregation_FailureRecorder_name_params_tot_map : NameParamsTotalMap NT_NameParams FRN.AN.NT_NameParams :=
+Instance Aggregation_FailureRecorder_name_params_tot_map : NameParamsTotalMap NT_NameParams FR.A.NT_NameParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map Aggregation_MultiParams FRN.FailureRecorder_MultiParams :=
+Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
-    pt_map_msg := fun m => match m with Fail => Some FRN.Fail | _ => None end ;
+    pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.
 
 Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name_inv n) = n.
@@ -909,10 +928,10 @@ Proof. by []. Qed.
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_f_star _ _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ _ FRN.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
+    exists tr', @step_o_f_star _ _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none ANT_NameOverlayParams FRN.AN.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none ANT_NameOverlayParams FR.A.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -962,7 +981,7 @@ forall net failed tr n,
 Proof.
 move => onet failed tr n H_st H_in_f.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-exact: FRN.Failure_node_not_adjacent_self H_st' H_in_f.
+exact: FR.Failure_node_not_adjacent_self H_st' H_in_f.
 Qed.
 
 Lemma Aggregation_not_failed_no_fail :
@@ -974,7 +993,7 @@ forall onet failed tr,
 Proof.
 move => onet failed tr H_st n n' H_in_f.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-have H_inv' := FRN.Failure_not_failed_no_fail H_st' n n' H_in_f.
+have H_inv' := FR.Failure_not_failed_no_fail H_st' n n' H_in_f.
 move => H_in.
 case: H_inv'.
 rewrite /= /id /=.
@@ -992,7 +1011,7 @@ forall onet failed tr,
 Proof.
 move => net failed tr H_st n n' H_in_f H_ins.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-exact (FRN.Failure_in_adj_adjacent_to H_st' n H_in_f H_ins).
+exact (FR.Failure_in_adj_adjacent_to H_st' n H_in_f H_ins).
 Qed.
 
 Lemma Aggregation_in_adj_or_incoming_fail :
@@ -1005,7 +1024,7 @@ forall onet failed tr,
 Proof.
 move => net failed tr H_st n n' H_in_f H_ins.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-have H_inv' := FRN.Failure_in_adj_or_incoming_fail H_st' _ H_in_f H_ins.
+have H_inv' := FR.Failure_in_adj_or_incoming_fail H_st' _ H_in_f H_ins.
 case: H_inv' => H_inv'; first by left.
 right.
 move: H_inv' => [H_in_f' H_inv'].
@@ -1038,7 +1057,7 @@ Lemma Aggregation_le_one_fail :
 Proof.
 move => onet failed tr H_st n n' H_in_f.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-have H_inv' := FRN.Failure_le_one_fail H_st' _ n' H_in_f.
+have H_inv' := FR.Failure_le_one_fail H_st' _ n' H_in_f.
 rewrite /= /id /= in H_inv'.
 by rewrite (count_occ_pt_map_msgs_eq _ Fail) in H_inv'.
 Qed.
@@ -1054,7 +1073,7 @@ forall onet failed tr,
 Proof.
 move => onet failed tr H_st n n' H_in_f H_in_f' H_adj.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-exact: (FRN.Failure_adjacent_to_in_adj H_st' H_in_f H_in_f' H_adj).
+exact: (FR.Failure_adjacent_to_in_adj H_st' H_in_f H_in_f' H_adj).
 Qed.
 
 Lemma Aggregation_in_queue_fail_then_adjacent : 
@@ -1067,7 +1086,7 @@ Lemma Aggregation_in_queue_fail_then_adjacent :
 Proof.
 move => onet failed tr H_st n n' H_in_f H_ins.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-have H_inv' := FRN.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
+have H_inv' := FR.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
@@ -1094,7 +1113,7 @@ Lemma Aggregation_first_fail_in_adj :
 Proof.
 move => onet failed tr H_st n n' H_in_f H_eq.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
-have H_inv' := FRN.Failure_first_fail_in_adj H_st' _ n' H_in_f.
+have H_inv' := FR.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_eq.
@@ -6515,79 +6534,21 @@ end; simpl.
   by aac_reflexivity.
 Qed.
 
-(* hook up tree-building protocol to SendAggregate input for aggregation protocol *)
-
-(* merge sent and received into "balance" map? *)
-
-(* use boolean function, name-to-list function, or decision procedure for adjacency *)
-(* at recovery time, send new to all existing neighbors *)
-(* handle problem with unprocessed fail messages for recovery *)
-
-(* higher-level language like ott/lem for protocols that exports to handlers? *)
-
-(* 
-path to liveness properties:
-
-- handler monad must be able to output labels, e.g., return broadcast_level
-
-- all labels must be decorated with the involved node names by the semantics
-
-- labels must be removed at extraction time
-
-- is strong local liveness warranted in practice? how can extraction guarantee it?
-
-*)
-
-(*
-firstin q5 (msg_new j) ->
-dequeued q5 q' ->
-sum_aggregate_queue_ident q' i5 = sum_aggregate_queue_ident q5 i5.
-*)
-
-(*
-firstin q5 (msg_aggregate j m5) ->
-  dequeued q5 q' ->
-  sum_aggregate_queue_ident q' j = sum_aggregate_queue_ident q5 j * m5^-1.
-*)
-
-(* 
-sum_aggregate_queue (queue_enqueue q5 (msg_aggregate j m5)) = sum_aggregate_queue q5 * m5.
-*)
-
-(* 
-~ ISet.in j ->
-snd (sum_aggregate_queue_aux (I5, m') (queue_enqueue q5 (msg_aggregate j m5))) = 
-snd (sum_aggregate_queue_aux (I5, m') q5) * m5.
-*)
-
-(* 
-  ~ In_queue (msg_fail j) q5 ->
-  sum_aggregate_queue (queue_enqueue q5 (msg_fail j)) = sum_aggregate_queue q5 * (sum_aggregate_queue_ident q5 j)^-1.
-*)
-
-(* ---------------------------------- *)
-
 End Aggregation.
 
-(* 
-
-Module NatValue10 <: NatValue.
- Definition n := 10.
-End NatValue10.
-
-Module fin_10_compat_OT := fin_OT_compat NatValue10.
-
-Require Import FMapList.
-Module Map <: FMapInterface.S := FMapList.Make fin_10_compat_OT.
-
-Definition b : fin 10 := Some (Some (Some (Some (Some (Some (Some (Some (Some None)))))))).
-
-Eval compute in Map.find b (Map.add b 3 (Map.empty nat)).
-
-Module fin_10_OT := fin_OT NatValue10.
-
+(*
+Require Import StructTact.Fin.
+Module FinGroup (CFG : CommutativeFinGroup).
+Module N3 : NatValue. Definition n := 3. End N3.
+Module FN_N3 : FinNameType N3 := FinName N3.
+Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
+Module NOTC_N3 : NameOrderedTypeCompat FN_N3 := FinNameOrderedTypeCompat N3 FN_N3.
+Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
 Require Import MSetList.
-Module FinSet <: MSetInterface.S := MSetList.Make fin_10_OT.
-Eval compute in FinSet.choose (FinSet.singleton b).
-
+Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
+Require Import FMapList.
+Module N3Map <: FMapInterface.S := FMapList.Make NOTC_N3.
+Module AG := Aggregation FN_N3 NOT_N3 N3Set NOTC_N3 N3Map CFG ANC_N3.
+Print AG.Msg.
+End FinGroup.
 *)

@@ -102,16 +102,18 @@ have H_in': ~ In a0 l.
 by left.
 Qed.
 
-Module FailureRecorder (Import NT : NameType) (Import ANT : AdjacentNameType NT) (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT).
+Module FailureRecorder (Import NT : NameType) 
+ (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
+ (Import ANT : AdjacentNameType NT).
 
-Module AN := Adjacency NT ANT NOT NSet.
-Import AN.
+Module A := Adjacency NT NOT NSet ANT.
+Import A.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
-Inductive Msg := 
+Inductive Msg : Set := 
 | Fail : Msg.
 
 Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
@@ -130,7 +132,7 @@ Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
 decide equality.
 Defined.
 
-Record Data :=  mkData { adjacent : NS }.
+Record Data := mkData { adjacent : NS }.
 
 Definition InitData (n : name) := mkData (adjacency n nodes).
 
@@ -1126,3 +1128,15 @@ by move: H_or => [H_in H_in'].
 Qed.
 
 End FailureRecorder.
+
+(*
+Require Import StructTact.Fin.
+Module N3 : NatValue. Definition n := 3. End N3.
+Module FN_N3 : FinNameType N3 := FinName N3.
+Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
+Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
+Require Import MSetList.
+Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
+Module FR := FailureRecorder FN_N3 NOT_N3 N3Set ANC_N3.
+Print FR.Msg.
+*)

@@ -1,5 +1,6 @@
 Require Import Verdi.
 Require Import HandlerMonad.
+Require Import StructTact.Fin.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -10,16 +11,25 @@ Module Type NameType.
 Parameter name : Type.
 Parameter name_eq_dec : forall x y : name, {x = y} + {x <> y}.
 Parameter nodes : list name.
-Parameter all_names_nodes : forall n, In n nodes.
+Parameter all_names_nodes : forall x, In x nodes.
 Parameter no_dup_nodes : NoDup nodes.
 End NameType.
 
-Module Type AdjacentNameType (Import NT : NameType).
-Parameter adjacent_to : relation name.
-Parameter adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y}.
-Parameter adjacent_to_symmetric : Symmetric adjacent_to.
-Parameter adjacent_to_irreflexive : Irreflexive adjacent_to.
-End AdjacentNameType.
+Module Type FinNameType (Import N : NatValue) <: NameType.
+Definition name := fin n.
+Definition name_eq_dec := fin_eq_dec n.
+Parameter nodes : list (fin n).
+Parameter all_names_nodes : forall x, In x nodes.
+Parameter no_dup_nodes : NoDup nodes.
+End FinNameType.
+
+Module FinName (Import N : NatValue) <: FinNameType N.
+Definition name := fin n.
+Definition name_eq_dec := fin_eq_dec n.
+Definition nodes := all_fin n.
+Definition all_names_nodes := all_fin_all n.
+Definition no_dup_nodes := all_fin_NoDup n.
+End FinName.
 
 Module Type NameOrderedTypeCompat (Import NT : NameType) <: OrderedType.
 Definition t := name.
@@ -33,6 +43,8 @@ Parameter lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
 Parameter compare : forall x y : t, Compare lt eq x y.
 Definition eq_dec := name_eq_dec.
 End NameOrderedTypeCompat.
+
+Module FinNameOrderedTypeCompat (N : NatValue) (FN : FinNameType N) <: NameOrderedTypeCompat FN := fin_OT_compat N.
 
 Require Import MSetInterface.
 
@@ -48,7 +60,82 @@ Parameter compare_spec : forall x y, CompSpec eq lt x y (compare x y).
 Definition eq_dec := name_eq_dec.
 End NameOrderedType.
 
-Module Adjacency (Import NT : NameType) (Import ANT : AdjacentNameType NT) (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT).
+Module FinNameOrderedType (N : NatValue) (FN : FinNameType N) <: NameOrderedType FN := fin_OT N.
+
+Module Type RootNameType (Import NT : NameType).
+Parameter root : name -> Prop.
+Parameter root_dec : forall n, {root n} + {~ root n}.
+Parameter root_unique : forall n n', root n -> root n' -> n = n'.
+End RootNameType.
+
+Module FinRootNameType (Import N : NatValue) (FN : FinNameType N) <: RootNameType FN.
+Definition root (x : fin n) := fin_to_nat x = 1.
+Definition root_dec (x : fin n) := Nat.eq_dec (fin_to_nat x) 1.
+Lemma root_unique : forall x y, root x -> root y -> x = y.
+Proof.
+move => x y.
+rewrite /root.
+move => H_x H_y.
+case (fin_compare n x y) => H_lt //.
+- rewrite /fin_lt in H_lt.
+  rewrite H_x H_y in H_lt.
+  contradict H_lt.
+  by auto with arith.
+- rewrite /fin_lt in H_lt.
+  rewrite H_x H_y in H_lt.
+  contradict H_lt.
+  by auto with arith.
+Qed.
+End FinRootNameType.
+
+Module Type AdjacentNameType (Import NT : NameType).
+Parameter adjacent_to : relation name.
+Parameter adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y}.
+Parameter adjacent_to_symmetric : Symmetric adjacent_to.
+Parameter adjacent_to_irreflexive : Irreflexive adjacent_to.
+End AdjacentNameType.
+
+Inductive fin_complete (n : nat) : fin n -> fin n -> Prop :=
+| fin_complete_neq : forall x y, x <> y -> fin_complete n x y.
+
+Definition fin_complete_dec : forall n (x y : fin n), {fin_complete n x y} + {~ fin_complete n x y }.
+move => n x y.
+case (fin_eq_dec n x y) => H_eq.
+  rewrite H_eq.
+  right.
+  move => H_r.
+  by inversion H_r.
+left.
+exact: fin_complete_neq.
+Defined.
+
+Lemma fin_complete_Symmetric : forall n, Symmetric (fin_complete n).
+Proof.
+rewrite /Symmetric.
+move => n x y H_r.
+inversion H_r; subst.
+apply: fin_complete_neq.
+move => H_eq.
+by rewrite H_eq in H.
+Qed.
+
+Lemma fin_complete_Irreflexive : forall n, Irreflexive (fin_complete n).
+Proof.
+rewrite /Irreflexive /Reflexive /complement.
+move => n x H_x.
+by inversion H_x.
+Qed.
+
+Module FinCompleteAdjacentNameType (Import N : NatValue) (FN : FinNameType N) <: AdjacentNameType FN.
+Definition adjacent_to := fin_complete n.
+Definition adjacent_to_dec := fin_complete_dec n.
+Definition adjacent_to_symmetric := fin_complete_Symmetric n.
+Definition adjacent_to_irreflexive := fin_complete_Irreflexive n.
+End FinCompleteAdjacentNameType.
+
+Module Adjacency (Import NT : NameType) 
+ (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
+ (Import ANT : AdjacentNameType NT).
 
 Definition NS := NSet.t.
 
@@ -159,3 +246,14 @@ exact: adjacency_mutual_in.
 Qed.
 
 End Adjacency.
+
+(*
+Module N3 : NatValue. Definition n := 3. End N3.
+Module FN_N3 : FinNameType N3 := FinName N3.
+Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
+Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
+Require Import MSetList.
+Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
+Module A := Adjacency FN_N3 NOT_N3 N3Set ANC_N3.
+*)
+

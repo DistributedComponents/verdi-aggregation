@@ -27,25 +27,21 @@ Require Import Sorting.Permutation.
 Require Import AAC_tactics.AAC.
 
 Require Import AggregationStatic.
+Require Import TreeStatic.
 
 Set Implicit Arguments.
 
-Module Type RootNameType (Import NT : NameType).
-Parameter root : name -> Prop.
-Parameter root_dec : forall n, {root n} + {~ root n}.
-Parameter root_unique : forall n n', root n -> root n' -> n = n'.
-End RootNameType.
-
-Module TreeAggregation (Import NT : NameType) 
- (Import ANT : AdjacentNameType NT) (Import RNT : RootNameType NT)
+Module TreeAggregation (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import CFG : CommutativeFinGroup).
+ (Import RNT : RootNameType NT) (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module AN := Adjacency NT ANT NOT NSet.
-Import AN.
+Module A := Adjacency NT NOT NSet ANT.
+Import A.
 
-Module AGN := Aggregation NT ANT NOT NSet NOTC NMap CFG.
+Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
+
+Module TR := Tree NT NOT NSet NOTC NMap RNT ANT.
 
 Import GroupScope.
 
@@ -55,12 +51,12 @@ Module NSetOrdProps := OrdProperties NSet.
 
 Definition m := gT.
 
-Definition lv := nat.
-Definition lv_eq_dec := Nat.eq_dec.
+Definition lv := TR.lv.
+Definition lv_eq_dec := TR.lv_eq_dec.
 
-Definition m_eq_dec := AGN.m_eq_dec.
+Definition m_eq_dec := AG.m_eq_dec.
 
-Inductive Msg := 
+Inductive Msg : Type := 
 | Aggregate : m -> Msg
 | Fail : Msg
 | Level : option lv -> Msg.
@@ -79,7 +75,7 @@ case: o; case: o0.
 - by left.
 Defined.
 
-Inductive Input :=
+Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : Input
 | AggregateRequest : Input
@@ -91,7 +87,7 @@ decide equality.
 exact: m_eq_dec.
 Defined.
 
-Inductive Output :=
+Inductive Output : Type :=
 | AggregateResponse : m -> Output
 | LevelResponse : option lv -> Output.
 
@@ -110,7 +106,7 @@ case: o; case: o0.
 Defined.
 
 Definition NM := NMap.t m.
-Definition NL := NMap.t nat.
+Definition NL := NMap.t lv.
 
 Record Data :=  mkData { 
   local : m ; 
@@ -122,7 +118,7 @@ Record Data :=  mkData {
   levels : NL
 }.
 
-Definition init_map := AGN.init_map.
+Definition init_map := AG.init_map.
 
 Definition InitData (n : name) := 
 if root_dec n then
@@ -141,190 +137,6 @@ else
      received := init_map (adjacency n nodes) ;
      broadcast := false ;
      levels := NMap.empty lv |}.
-
-Inductive level_in (fs : NS) (fl : NL) (n : name) (lv' : lv) : Prop :=
-| in_level_in : NSet.In n fs -> NMap.find n fl = Some lv' -> level_in fs fl n lv'.
-
-Inductive min_level (fs : NS) (fl : NL) (n : name) (lv' : lv) : Prop :=
-| min_lv_min : level_in fs fl n lv' -> 
-  (forall (lv'' : lv) (n' : name), level_in fs fl n' lv'' -> ~ lv'' < lv') ->
-  min_level fs fl n lv'.
-
-Record st_par := mk_st_par { st_par_set : NS ; st_par_map : NL }.
-
-Record nlv := mk_nlv { nlv_n : name ; nlv_lv : lv }.
-
-Definition st_par_lt (s s' : st_par) : Prop :=
-NSet.cardinal s.(st_par_set) < NSet.cardinal s'.(st_par_set).
-
-Lemma st_par_lt_well_founded : well_founded st_par_lt.
-Proof.
-apply (well_founded_lt_compat _ (fun s => NSet.cardinal s.(st_par_set))).
-by move => x y; rewrite /st_par_lt => H.
-Qed.
-
-Definition par_t (s : st_par) := 
-{ nlv' | min_level s.(st_par_set) s.(st_par_map) nlv'.(nlv_n) nlv'.(nlv_lv) }+
-{ ~ exists nlv', level_in s.(st_par_set) s.(st_par_map) nlv'.(nlv_n) nlv'.(nlv_lv) }.
-
-Definition par_F : forall s : st_par, 
-  (forall s' : st_par, st_par_lt s' s -> par_t s') ->
-  par_t s.
-rewrite /par_t.
-refine 
-  (fun (s : st_par) par_rec => 
-   match NSet.choose s.(st_par_set) as sopt return (_ = sopt -> _) with
-   | Some n => fun (H_eq : _) => 
-     match par_rec (mk_st_par (NSet.remove n s.(st_par_set)) s.(st_par_map)) _ with
-     | inleft (exist nlv' H_min) =>
-       match NMap.find n s.(st_par_map) as n' return (_ = n' -> _) with
-       | Some lv' => fun (H_find : _) => 
-         match lt_dec lv' nlv'.(nlv_lv)  with
-         | left H_dec => inleft _ (exist _ (mk_nlv n lv') _)
-         | right H_dec => inleft _ (exist _ nlv' _)
-         end
-       | None => fun (H_find : _) => inleft _ (exist _ nlv' _)
-       end (refl_equal _)
-     | inright H_min =>
-       match NMap.find n s.(st_par_map) as n' return (_ = n' -> _) with
-       | Some lv' => fun (H_find : _) => inleft _ (exist _ (mk_nlv n lv') _)
-       | None => fun (H_find : _) => inright _ _
-       end (refl_equal _)
-     end
-   | None => fun (H_eq : _) => inright _ _
-   end (refl_equal _)) => /=.
-- rewrite /st_par_lt /=.
-  apply NSet.choose_spec1 in H_eq.
-  set sr := NSet.remove _ _.
-  have H_notin: ~ NSet.In n sr by move => H_in; apply NSetFacts.remove_1 in H_in.
-  have H_add: NSetProps.Add n sr s.(st_par_set).
-    rewrite /NSetProps.Add.
-    move => n'.
-    split => H_in.
-      case (name_eq_dec n n') => H_eq'; first by left.
-      by right; apply NSetFacts.remove_2.
-    case: H_in => H_in; first by rewrite -H_in.
-    by apply NSetFacts.remove_3 in H_in.
-  have H_card := NSetProps.cardinal_2 H_notin H_add.
-  rewrite H_card {H_notin H_add H_card}.
-  by auto with arith.
-- apply NSet.choose_spec1 in H_eq.
-  rewrite /= {s0} in H_min.
-  apply min_lv_min; first exact: in_level_in.
-  move => lv'' n' H_lv.
-  inversion H_lv => {H_lv}.
-  inversion H_min => {H_min}.
-  case (name_eq_dec n n') => H_eq'.
-    rewrite -H_eq' in H0.
-    rewrite H_find in H0.
-    injection H0 => H_eq_lt.
-    rewrite H_eq_lt.
-    by auto with arith.
-  suff H_suff: ~ lv'' < nlv'.(nlv_lv) by omega.
-  apply: (H2 _ n').
-  apply: in_level_in => //.
-  by apply NSetFacts.remove_2.
-- apply NSet.choose_spec1 in H_eq.
-  rewrite /= {s0} in H_min.
-  inversion H_min => {H_min}.
-  inversion H => {H}.
-  apply min_lv_min.
-    apply: in_level_in => //.
-    by apply NSetFacts.remove_3 in H1.
-  move => lv'' n' H_lv.
-  inversion H_lv => {H_lv}.
-  case (name_eq_dec n n') => H_eq'.
-    rewrite -H_eq' in H3.
-    rewrite H_find in H3.
-    injection H3 => H_eq_lv.
-    by rewrite -H_eq_lv.
-  apply: (H0 _ n').
-  apply: in_level_in => //.
-  exact: NSetFacts.remove_2.
-- apply NSet.choose_spec1 in H_eq.
-  rewrite /= {s0} in H_min.
-  inversion H_min => {H_min}.
-  inversion H => {H}.
-  apply min_lv_min.
-    apply: in_level_in => //.
-    by apply NSetFacts.remove_3 in H1.
-  move => lv' n' H_lv.
-  inversion H_lv => {H_lv}.
-  case (name_eq_dec n n') => H_eq'.
-    rewrite -H_eq' in H3.
-    by rewrite H_find in H3.
-  apply: (H0 _ n').
-  apply: in_level_in => //.
-  exact: NSetFacts.remove_2.
-- apply NSet.choose_spec1 in H_eq.
-  rewrite /= in H_min.
-  apply min_lv_min; first exact: in_level_in.
-  move => lv'' n' H_lv.
-  inversion H_lv.
-  case (name_eq_dec n n') => H_eq'.
-    rewrite -H_eq' in H0.
-    rewrite H_find in H0.
-    injection H0 => H_eq_lv.
-    rewrite H_eq_lv.  
-    by auto with arith.
-  move => H_lt.
-  case: H_min.
-  exists (mk_nlv n' lv'') => /=.
-  apply: in_level_in => //.
-  exact: NSetFacts.remove_2.
-- apply NSet.choose_spec1 in H_eq.
-  rewrite /= in H_min.
-  move => [nlv' H_lv].
-  inversion H_lv => {H_lv}.
-  case: H_min.
-  exists nlv'.
-  case (name_eq_dec n nlv'.(nlv_n)) => H_eq'.
-    rewrite -H_eq' in H0.
-    by rewrite H_find in H0.
-  apply: in_level_in => //.
-  exact: NSetFacts.remove_2.
-- apply NSet.choose_spec2 in H_eq.
-  move => [nlv' H_lv].
-  inversion H_lv => {H_lv}.
-  by case (H_eq nlv'.(nlv_n)).
-Defined.
-
-Definition par : forall (s : st_par), par_t s :=
-  @well_founded_induction_type
-  st_par
-  st_par_lt
-  st_par_lt_well_founded
-  par_t
-  par_F.
-
-Definition lev : forall (s : st_par),
-{ lv' | exists n, exists lv'', min_level s.(st_par_set) s.(st_par_map) n lv'' /\ lv' = lv'' + 1%nat }+
-{ ~ exists n, exists lv', level_in s.(st_par_set) s.(st_par_map) n lv' }.
-refine
-  (fun (s : st_par) =>
-   match par s with
-   | inleft (exist nlv' H_min) => inleft _ (exist _ (1 + nlv'.(nlv_lv)) _)
-   | inright H_ex => inright _ _
-   end).
-- rewrite /= in H_min.
-  exists nlv'.(nlv_n); exists nlv'.(nlv_lv); split => //.
-  by omega.
-- move => [n [lv' H_lv] ].
-  case: H_ex => /=.
-  by exists (mk_nlv n lv').
-Defined.
-
-Definition parent (fs : NS) (fl : NL) : option name :=
-match par (mk_st_par fs fl) with
-| inleft (exist nlv' _) => Some nlv'.(nlv_n)
-| inright _ => None
-end.
-
-Definition level (fs : NS) (fl : NL) : option lv :=
-match lev (mk_st_par fs fl) with
-| inleft (exist lv' _) => Some lv'
-| inright _ => None
-end.
 
 Definition olv_eq_dec : forall (lvo lvo' : option lv), { lvo = lvo' }+{ lvo <> lvo' }.
 decide equality.
@@ -369,6 +181,8 @@ match msg with
            levels := st.(levels) |}
   end
 end.
+
+Definition level := TR.level.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
 st <- get ;;
@@ -492,6 +306,8 @@ match i with
 | LevelRequest => 
   write_output (LevelResponse (Some 0))
 end.
+
+Definition parent := TR.parent.
 
 Definition NonRootIOHandler (i : Input) : Handler Data :=
 st <- get ;;
@@ -1051,37 +867,37 @@ Ltac io_handler_cases :=
   intuition idtac; subst; 
   repeat find_rewrite.
 
-Instance TreeAggregation_Aggregation_name_params_tot_map : NameParamsTotalMap NT_NameParams AGN.AN.NT_NameParams :=
+Instance TreeAggregation_Aggregation_name_params_tot_map : NameParamsTotalMap NT_NameParams AG.A.NT_NameParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map TreeAggregation_MultiParams AGN.Aggregation_MultiParams :=
+Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     pt_ext_map_data := fun d _ => 
-      AGN.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+      AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
     pt_ext_map_input := fun i n d =>
       match i with 
-      | Local m => Some (AGN.Local m)
+      | Local m => Some (AG.Local m)
       | SendAggregate => 
         if root_dec n then None else
           match parent d.(adjacent) d.(levels) with
-          | Some p => Some (AGN.SendAggregate p)
+          | Some p => Some (AG.SendAggregate p)
           | None => None
           end
-      | AggregateRequest => (Some AGN.AggregateRequest)
+      | AggregateRequest => (Some AG.AggregateRequest)
       | _ => None
       end ;
     pt_ext_map_output := fun o => 
       match o with 
-      | AggregateResponse m => Some (AGN.AggregateResponse m) 
+      | AggregateResponse m => Some (AG.AggregateResponse m) 
       | _ => None 
       end ;
     pt_ext_map_msg := fun m => 
       match m with 
-      | Aggregate m' => Some (AGN.Aggregate m')
-      | Fail => Some AGN.Fail      
+      | Aggregate m' => Some (AG.Aggregate m')
+      | Fail => Some AG.Fail      
       | Level _ => None 
       end   
   }.
@@ -1121,7 +937,7 @@ case => //.
     repeat break_let.
     rewrite /=.
     move: Heqp.
-    rewrite /AGN.NetHandler /=.
+    rewrite /AG.NetHandler /=.
     monad_unfold.
     break_let.
     move: Heqp2.
@@ -1137,7 +953,7 @@ case => //.
   monad_unfold.
   repeat break_let.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1160,7 +976,7 @@ net_handler_cases => //.
   repeat break_let.
   rewrite /=.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1180,7 +996,7 @@ net_handler_cases => //.
   repeat break_let.
   rewrite /=.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1200,7 +1016,7 @@ net_handler_cases => //.
   repeat break_let.
   rewrite /=.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1220,7 +1036,7 @@ net_handler_cases => //.
   monad_unfold.
   repeat break_let.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1233,7 +1049,7 @@ net_handler_cases => //.
   monad_unfold.
   repeat break_let.
   move: Heqp.
-  rewrite /AGN.NetHandler /=.
+  rewrite /AG.NetHandler /=.
   monad_unfold.
   break_let.
   move: Heqp2.
@@ -1299,7 +1115,7 @@ case => //.
   move: Heqp.
   injection H0 => H_eq_m.
   rewrite -H_eq_m {H_eq_m H0}.
-  rewrite /AGN.IOHandler.
+  rewrite /AG.IOHandler.
   monad_unfold.
   rewrite /=.
   move => Heqp.
@@ -1317,8 +1133,8 @@ case => //.
     apply input_handlers_IOHandler in Heqp.
     have H_p' := H_p.
     move: H_p'.
-    rewrite /parent.
-    case par => H_p' H_eq //=.
+    rewrite /parent /TR.parent.
+    case TR.par => H_p' H_eq //=.
     move: H_p' H_eq => /= [nlv' H_min].
     inversion H_min.
     inversion H.
@@ -1335,7 +1151,7 @@ case => //.
       monad_unfold.
       repeat break_let.
       move: Heqp.      
-      rewrite /AGN.IOHandler.
+      rewrite /AG.IOHandler.
       monad_unfold.
       rewrite /=.
       repeat break_let.
@@ -1357,7 +1173,7 @@ case => //.
     * monad_unfold.
       repeat break_let.
       move: Heqp.      
-      rewrite /AGN.IOHandler.
+      rewrite /AG.IOHandler.
       monad_unfold.
       repeat break_let.
       move: Heqp2.
@@ -1371,7 +1187,7 @@ case => //.
       monad_unfold.
       repeat break_let.
       move: Heqp.
-      rewrite /AGN.IOHandler.
+      rewrite /AG.IOHandler.
       monad_unfold.
       repeat break_let.
       move: Heqp2.
@@ -1455,9 +1271,9 @@ Proof. by []. Qed.
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_f_star _ _ _ _ TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ _ AGN.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
+    exists tr', @step_o_f_star _ _ _ _ AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _  _ _ _ _ _ tot_map_name_inverse_inv tot_map_name_inv_inverse pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none ANT_NameOverlayParams AGN.AN.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _  _ _ _ _ _ tot_map_name_inverse_inv tot_map_name_inv_inverse pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none ANT_NameOverlayParams AG.A.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -1467,3 +1283,21 @@ by exists tr'.
 Qed.
 
 End TreeAggregation.
+
+(*
+Require Import StructTact.Fin.
+Module FinGroup (CFG : CommutativeFinGroup).
+Module N3 : NatValue. Definition n := 3. End N3.
+Module FN_N3 : FinNameType N3 := FinName N3.
+Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
+Module NOTC_N3 : NameOrderedTypeCompat FN_N3 := FinNameOrderedTypeCompat N3 FN_N3.
+Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
+Require Import MSetList.
+Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
+Require Import FMapList.
+Module N3Map <: FMapInterface.S := FMapList.Make NOTC_N3.
+Module RNT_N3 := FinRootNameType N3 FN_N3.
+Module TA := TreeAggregation FN_N3 NOT_N3 N3Set NOTC_N3 N3Map RNT_N3 CFG ANC_N3.
+Print TA.Msg.
+End FinGroup.
+*)
