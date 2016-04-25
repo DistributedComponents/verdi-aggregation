@@ -7,7 +7,7 @@ Require Import PartialMapSimulations.
 Require Import PartialExtendedMapSimulations.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 
@@ -358,15 +358,28 @@ Instance TreeAggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams NT_NameParams :=
+Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams :=
   {
+    name := name ;
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
     init_handlers := InitData ;
     net_handlers := fun dst src msg s =>
                       runGenHandler_ignore s (NetHandler dst src msg) ;
     input_handlers := fun nm msg s =>
                         runGenHandler_ignore s (IOHandler nm msg)
+  }.
+
+Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_MultiParams :=
+  {
+    adjacent_to := adjacent_to ;
+    adjacent_to_dec := adjacent_to_dec ;
+    adjacent_to_symmetric := adjacent_to_symmetric ;
+    adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
 
 Instance TreeAggregation_FailMsgParams : FailMsgParams TreeAggregation_MultiParams :=
@@ -895,13 +908,13 @@ Ltac io_handler_cases :=
   intuition idtac; subst; 
   repeat find_rewrite.
 
-Instance TreeAggregation_Aggregation_name_params_tot_map : NameParamsTotalMap NT_NameParams AG.A.NT_NameParams :=
+Instance TreeAggregation_Aggregation_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
+Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map :=
   {
     pt_ext_map_data := fun d _ => 
       AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
@@ -1364,10 +1377,10 @@ Proof. by []. Qed.
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ _ TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ _ AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
+    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _  _ _ _ _ _ tot_map_name_inverse_inv tot_map_name_inv_inverse pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none ANT_NameOverlayParams AG.A.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _ _ _ TreeAggregation_Aggregation_params_pt_ext_map tot_map_name_inv_inverse tot_map_name_inverse_inv pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -1392,13 +1405,13 @@ Instance TreeAggregation_Tree_base_params_pt_map : BaseParamsPartialMap TreeAggr
                     end
   }.
 
-Instance TreeAggregation_Tree_name_params_tot_map : NameParamsTotalMap NT_NameParams TR.A.NT_NameParams :=
+Instance TreeAggregation_Tree_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_params_tot_map TreeAggregation_MultiParams TR.Tree_MultiParams :=
+Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_params_tot_map :=
   {
     pt_map_msg := fun m => match m with 
                         | Fail => Some TR.Fail 
@@ -1733,11 +1746,11 @@ Proof. by []. Qed.
 
 Theorem TreeAggregation_Tree_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ _ TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ _ TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
+    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none ANT_NameOverlayParams TR.A.ANT_NameOverlayParams adjacent_to_fst_snd _ _ pt_fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ TreeAggregation_Tree_multi_params_pt_map tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams adjacent_to_fst_snd _ _ pt_fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.

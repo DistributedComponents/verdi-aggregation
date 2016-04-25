@@ -1,10 +1,10 @@
 Require Import List.
 Import ListNotations.
 Require Import StructTact.StructTactics.
+Require Export VerdiHints.
 Require Import Sumbool.
 Require Import Relation_Definitions.
 Require Import RelationClasses.
-Require Export VerdiHints.
 
 Set Implicit Arguments.
 
@@ -21,35 +21,31 @@ Class OneNodeParams (P : BaseParams) :=
     handler : input -> data -> (output * data)
   }.
 
-Class NameParams :=
- {
-   name : Type ;
-   name_eq_dec : forall x y : name, {x = y} + {x <> y} ;
-   nodes : list name ;
-   all_names_nodes : forall n, In n nodes ;
-   no_dup_nodes : NoDup nodes
- }.
-
-Class MultiParams (P0 : BaseParams) (P1 : NameParams) :=
+Class MultiParams (P : BaseParams) :=
   {
+    name : Type ;
     msg : Type ;
     msg_eq_dec : forall x y : msg, {x = y} + {x <> y} ;
+    name_eq_dec : forall x y : name, {x = y} + {x <> y} ;
+    nodes : list name ;
+    all_names_nodes : forall n, In n nodes ;
+    no_dup_nodes : NoDup nodes ;
     init_handlers : name -> data;
     net_handlers : name -> name -> msg -> data -> (list output) * data * list (name * msg) ;
     input_handlers : name -> input -> data -> (list output) * data * list (name * msg)
   }.
 
-Class FailureParams `(P : MultiParams) :=
-  {
-    reboot : data -> data
-  }.
-
-Class NameOverlayParams (P : NameParams) :=
+Class NameOverlayParams `(P : MultiParams) :=
   {
     adjacent_to : relation name;
     adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
     adjacent_to_symmetric : Symmetric adjacent_to;
     adjacent_to_irreflexive : Irreflexive adjacent_to
+  }.
+
+Class FailureParams `(P : MultiParams) :=
+  {
+    reboot : data -> data
   }.
 
 Class FailMsgParams `(P : MultiParams) :=
@@ -296,18 +292,15 @@ Section StepAsync.
   Definition step_m_star := refl_trans_1n_trace step_m.
 End StepAsync.
 
-Check update.
-
-Arguments update _ _ _ _ _ / _.
-Arguments send_packets _ _ _ _ _ /.
+Arguments update _ _ _ _ _ _ / _.
+Arguments send_packets _ _ _ _ /.
 
 Section packet_eta.
   Context {P : BaseParams}.
-  Context {N : NameParams}.
-  Context {M : @MultiParams P N}.
+  Context {M : @MultiParams P}.
 
   Lemma packet_eta :
-    forall p : @packet P N M,
+    forall p : @packet P M,
       {| pSrc := pSrc p; pDst := pDst p; pBody := pBody p |} = p.
   Proof.
     destruct p; auto.
@@ -460,9 +453,8 @@ End StepOrder.
 
 Section StepOrderFailure.
   Context {base_params : BaseParams}.
-  Context {name_params : NameParams}.
-  Context {multi_params : MultiParams base_params name_params}.
-  Context {overlay_params : NameOverlayParams name_params}.
+  Context {multi_params : MultiParams base_params}.
+  Context {overlay_params : NameOverlayParams multi_params}.
   Context {fail_msg_params : FailMsgParams multi_params}.
 
   Definition msg_for (m : msg) := map (fun (n : name) => (n, m)).
@@ -498,9 +490,8 @@ End StepOrderFailure.
 
 Section StepOrderDynamic.
   Context {base_params : BaseParams}.
-  Context {name_params : NameParams}.
-  Context {multi_params : MultiParams base_params name_params}.
-  Context {overlay_params : NameOverlayParams name_params}.
+  Context {multi_params : MultiParams base_params}.
+  Context {overlay_params : NameOverlayParams multi_params}.
   Context {new_msg_params : NewMsgParams multi_params}.
 
   Definition update_opt {A : Type} st h (v : A) := fun nm => if name_eq_dec nm h then Some v else st nm.
@@ -557,9 +548,8 @@ End StepOrderDynamic.
 
 Section StepOrderDynamicFailure.
   Context {base_params : BaseParams}.
-  Context {name_params : NameParams}.
-  Context {multi_params : MultiParams base_params name_params}.
-  Context {overlay_params : NameOverlayParams name_params}.
+  Context {multi_params : MultiParams base_params}.
+  Context {overlay_params : NameOverlayParams multi_params}.
   Context {new_msg_params : NewMsgParams multi_params}.
   Context {fail_msg_params : FailMsgParams multi_params}.
 

@@ -11,7 +11,7 @@ Instance vard_pbj_params : PrimaryBackupParams vard_base_params :=
   }.
 
 Theorem lifting_applied :
-  forall (net : @network _ _ PB_multi_params) tr,
+  forall (net : @network _ PB_multi_params) tr,
     step_m_star step_m_init net tr ->
     trace_correct (revert_trace (base_params := vard_base_params) tr).
 Proof.
@@ -50,7 +50,7 @@ Proof.
 Qed.
 
 Example get_set_eg1 :
-  forall tr (net : @network _ _ PB_multi_params) a b,
+  forall tr (net : @network _ PB_multi_params) a b,
     step_m_star step_m_init net tr ->
     inputs_m tr = [Put "james" "awesome"; Get "james"] ->
     outputs_m tr = [a; b] ->

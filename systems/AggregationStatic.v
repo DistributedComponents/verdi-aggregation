@@ -26,7 +26,7 @@ Require Import PartialMapSimulations.
 Require Import PartialExtendedMapSimulations.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 
@@ -179,15 +179,28 @@ Instance Aggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams NT_NameParams :=
+Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams :=
   {
+    name := name ;
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
     init_handlers := InitData ;
     net_handlers := fun dst src msg s =>
                       runGenHandler_ignore s (NetHandler dst src msg) ;
     input_handlers := fun nm msg s =>
                         runGenHandler_ignore s (IOHandler nm msg)
+  }.
+
+Instance Aggregation_NameOverlayParams : NameOverlayParams Aggregation_MultiParams :=
+  {
+    adjacent_to := adjacent_to ;
+    adjacent_to_dec := adjacent_to_dec ;
+    adjacent_to_symmetric := adjacent_to_symmetric ;
+    adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
 
 Instance Aggregation_FailMsgParams : FailMsgParams Aggregation_MultiParams :=
@@ -352,18 +365,18 @@ Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap A
     pt_map_output := fun _ => None
   }.
 
-Instance Aggregation_FailureRecorder_name_params_tot_map : NameParamsTotalMap NT_NameParams FR.A.NT_NameParams :=
+Instance Aggregation_FailureRecorder_name_params_tot_map : MultiParamsNameTotalMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
+Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map :=
   {
     pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.
 
-Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name_inv n) = n.
+Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
 Proof. by []. Qed.
 
 Lemma tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
@@ -436,11 +449,11 @@ Proof. by []. Qed.
 
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
+    @step_o_f_star _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none ANT_NameOverlayParams FR.A.ANT_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.

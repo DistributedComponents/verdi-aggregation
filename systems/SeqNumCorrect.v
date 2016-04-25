@@ -6,8 +6,7 @@ Require Import SeqNum.
 
 Section SeqNumCorrect.
   Context {orig_base_params : BaseParams}.
-  Context {orig_name_params : NameParams}.
-  Context {orig_multi_params : MultiParams orig_base_params orig_name_params}.
+  Context {orig_multi_params : MultiParams orig_base_params}.
 
   Lemma processPackets_correct :
     forall n l n' l',

@@ -5,7 +5,7 @@ Require Import StructTact.StructTactics.
 Require Import Net.
 Require Import StructTact.Util.
 
-Local Arguments update {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import FunctionalExtensionality.
 Require Import Sumbool.
@@ -22,31 +22,30 @@ Class BaseParamsTotalMap (P0 : BaseParams) (P1 : BaseParams) :=
     tot_map_output : @output P0 -> @output P1
   }.
 
-Class NameParamsTotalMap (P0 : NameParams) (P1 : NameParams) :=
+Class MultiParamsNameTotalMap
+ (B0 : BaseParams) (B1 : BaseParams)
+ (P0 : MultiParams B0) (P1 : MultiParams B1)  :=
   {
-    tot_map_name : @name P0 -> @name P1 ;
-    tot_map_name_inv : @name P1 -> @name P0
+    tot_map_name : @name B0 P0 -> @name B1 P1 ;
+    tot_map_name_inv : @name B1 P1 -> @name B0 P0
   }.
 
 Class MultiParamsTotalMap
  (B0 : BaseParams) (B1 : BaseParams) (B : BaseParamsTotalMap B0 B1) 
- (N0 : NameParams) (N1 : NameParams) (N : NameParamsTotalMap N0 N1)
- (P0 : MultiParams B0 N0) (P1 : MultiParams B1 N1)  :=
-{
-   tot_map_msg : @msg B0 N0 P0 -> @msg B1 N1 P1 ;
-}.
+ (P0 : MultiParams B0) (P1 : MultiParams B1) (P : MultiParamsNameTotalMap P0 P1) :=
+  {
+    tot_map_msg : @msg B0 P0 -> @msg B1 P1
+  }.
 
 Section TotalMapSimulations.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
-Context {name_fst : NameParams}.
-Context {name_snd : NameParams}.
-Context {multi_fst : MultiParams base_fst name_fst}.
-Context {multi_snd : MultiParams base_snd name_snd}.
+Context {multi_fst : MultiParams base_fst}.
+Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsTotalMap base_fst base_snd}.
-Context {name_map : NameParamsTotalMap name_fst name_snd}.
-Context {multi_map : MultiParamsTotalMap base_map name_map multi_fst multi_snd}.
+Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {multi_map : MultiParamsTotalMap base_map name_map}.
 
 Hypothesis tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
 
@@ -86,19 +85,19 @@ rewrite H_eq in H_dec.
 by rewrite tot_map_name_inv_inverse in H_dec.
 Qed.
 
-Definition tot_map_trace_occ (e : @name name_fst * (@input base_fst + list (@output base_fst))) :=
+Definition tot_map_trace_occ (e : @name _ multi_fst * (@input base_fst + list (@output base_fst))) :=
 match e with
 | (n, inl io) => (tot_map_name n, inl (tot_map_input io))
 | (n, inr lo) => (tot_map_name n, inr (map tot_map_output lo))
 end.
 
-Definition tot_map_packet (p : @packet base_fst name_fst multi_fst)  :=
+Definition tot_map_packet (p : @packet base_fst multi_fst)  :=
 match p with
 | mkPacket src dst m =>
   mkPacket (tot_map_name src) (tot_map_name dst) (tot_map_msg m)
 end.
 
-Definition tot_map_net (net : @network _ name_fst multi_fst) : @network _ name_snd multi_snd :=
+Definition tot_map_net (net : @network _ multi_fst) : @network _ multi_snd :=
 mkNetwork (map tot_map_packet net.(nwPackets)) (fun n => tot_map_data (net.(nwState) (tot_map_name_inv n))).
 
 Lemma tot_map_update_eq :
@@ -199,15 +198,15 @@ Qed.
 
 Theorem step_m_tot_mapped_simulation_1 :
   forall net net' tr,
-    @step_m _ _ multi_fst net net' tr ->
-    @step_m _ _ multi_snd (tot_map_net net) (tot_map_net net') (map tot_map_trace_occ tr).
+    @step_m _ multi_fst net net' tr ->
+    @step_m _ multi_snd (tot_map_net net) (tot_map_net net') (map tot_map_trace_occ tr).
 Proof.
 move => net net' tr.
 case => {net net' tr}.
 - move => net net' p ms ms' out d l H_eq H_hnd H_eq'.
   rewrite /tot_map_trace_occ /=.
   have ->: tot_map_name (pDst p) = pDst (tot_map_packet p) by case: p H_eq H_hnd H_eq' => src dst m H_eq H_hnd H_eq'.
-  apply (@SM_deliver _ _ _ _ _ _ (map tot_map_packet ms) (map tot_map_packet ms') (map tot_map_output out) (tot_map_data d) (tot_map_name_msgs l)).
+  apply (@SM_deliver _ _ _ _ _ (map tot_map_packet ms) (map tot_map_packet ms') (map tot_map_output out) (tot_map_data d) (tot_map_name_msgs l)).
   * by rewrite /tot_map_net /= H_eq /= map_app.
   * rewrite /=.
     case: p H_eq H_hnd H_eq' => /= src dst m H_eq H_hnd H_eq'.
@@ -220,7 +219,7 @@ case => {net net' tr}.
     rewrite -tot_map_update_packet_eq.
     by rewrite tot_map_packet_app_eq.
 - move => h net net' out inp d l H_hnd H_eq.
-  apply (@SM_input _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+  apply (@SM_input _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
     rewrite /=.
     have H_q := tot_input_handlers_eq h inp (nwState net h).
     rewrite /tot_mapped_input_handlers /= in H_q.
@@ -234,8 +233,8 @@ Qed.
 
 Corollary step_m_tot_mapped_simulation_star_1 :
   forall net tr,
-    @step_m_star _ _ multi_fst step_m_init net tr ->
-    @step_m_star _ _ multi_snd step_m_init (tot_map_net net) (map tot_map_trace_occ tr).
+    @step_m_star _ multi_fst step_m_init net tr ->
+    @step_m_star _ multi_snd step_m_init (tot_map_net net) (map tot_map_trace_occ tr).
 Proof.
 move => net tr H_step.
 remember step_m_init as y in *.
@@ -258,11 +257,11 @@ Qed.
 
 Theorem step_m_tot_mapped_simulation_2 :
   forall net net' out mnet mout,
-      @step_m _ _ multi_snd net net' out ->
+      @step_m _ multi_snd net net' out ->
       tot_map_net mnet = net ->
       map tot_map_trace_occ mout = out ->
       exists mnet',
-        @step_m _ _ multi_fst mnet mnet' mout /\
+        @step_m _ multi_fst mnet mnet' mout /\
         tot_map_net mnet' = net'.
 Proof.
 move => net net' out mnet mout H_step H_eq H_eq'.
@@ -290,7 +289,7 @@ invcs H_step.
       inversion H0.
       by rewrite tot_map_name_inv_inverse.
     rewrite H_eq_dst.
-    apply (@SM_deliver _ _ _ _ _ _ pks1 pks2 _ d' l') => //=.
+    apply (@SM_deliver _ _ _ _ _ pks1 pks2 _ d' l') => //=.
     suff H_suff: lo = out' by rewrite H_suff.
     have H_eq_hnd := tot_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
     rewrite /tot_mapped_net_handlers /= in H_eq_hnd.
@@ -381,7 +380,7 @@ invcs H_step.
   exists ({| nwPackets := send_packets h' l0 ++ pks ; nwState := update sts h' d0 |}).
   split.
   * rewrite H_eq_mout.
-    apply (@SM_input _ _ _ _ _ _ _ _ d0 l0) => //.
+    apply (@SM_input _ _ _ _ _ _ _ d0 l0) => //.
     rewrite /= Heqp.
     suff H_suff: l1 = out' by rewrite H_suff.
     move: H0.
@@ -493,13 +492,13 @@ Qed.
 
 Theorem step_f_tot_mapped_simulation_1 :
   forall net net' failed failed' tr,
-    @step_f _ _ _ fail_fst (failed, net) (failed', net') tr ->
-    @step_f _ _ _ fail_snd (map tot_map_name failed, tot_map_net net) (map tot_map_name failed', tot_map_net net') (map tot_map_trace_occ tr).
+    @step_f _ _ fail_fst (failed, net) (failed', net') tr ->
+    @step_f _ _ fail_snd (map tot_map_name failed, tot_map_net net) (map tot_map_name failed', tot_map_net net') (map tot_map_trace_occ tr).
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
 - have ->: tot_map_name (pDst p) = pDst (tot_map_packet p) by case: p H3 H4 H6 => src dst m.
-  apply (@SF_deliver _ _ _ _ _ _ _ _ (map tot_map_packet xs) (map tot_map_packet ys) _ (tot_map_data d) (tot_map_name_msgs l)).
+  apply (@SF_deliver _ _ _ _ _ _ _ (map tot_map_packet xs) (map tot_map_packet ys) _ (tot_map_data d) (tot_map_name_msgs l)).
   * by rewrite /tot_map_net /= H3 /= map_app.
   * case: p H3 H4 H6 => /= src dst m H3 H4 H6.
     exact: not_in_failed_not_in.
@@ -512,7 +511,7 @@ invcs H_step.
   * rewrite /= -tot_map_update_packet_eq /=.
     rewrite /tot_map_net /=.
     by rewrite tot_map_packet_app_eq.
-- apply (@SF_input _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+- apply (@SF_input _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
   * exact: not_in_failed_not_in.
   * rewrite /=.
     have H_q := tot_input_handlers_eq h inp (nwState net h).
@@ -523,10 +522,10 @@ invcs H_step.
   * rewrite /= /tot_map_net /=.
     rewrite -tot_map_update_eq.
     by rewrite tot_map_packet_eq.
-- apply (@SF_drop _ _ _ _ _ _ _ (tot_map_packet p) (map tot_map_packet xs) (map tot_map_packet ys)).
+- apply (@SF_drop _ _ _ _ _ _ (tot_map_packet p) (map tot_map_packet xs) (map tot_map_packet ys)).
   * by rewrite /tot_map_net /= H4 map_app.
   * by rewrite /tot_map_net /= map_app.
-- apply (@SF_dup _ _ _ _ _ _ _ (tot_map_packet p) (map tot_map_packet xs) (map tot_map_packet ys)).
+- apply (@SF_dup _ _ _ _ _ _ (tot_map_packet p) (map tot_map_packet xs) (map tot_map_packet ys)).
   * by rewrite /tot_map_net /= H4 map_app.
   * by rewrite /tot_map_net /= map_app.
 - exact: SF_fail.
@@ -539,8 +538,8 @@ Qed.
 
 Corollary step_f_tot_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_f_star _ _ _ fail_fst step_f_init (failed, net) tr ->
-    @step_f_star _ _ _ fail_snd step_f_init (map tot_map_name failed, tot_map_net net) (map tot_map_trace_occ tr).
+    @step_f_star _ _ fail_fst step_f_init (failed, net) tr ->
+    @step_f_star _ _ fail_snd step_f_init (map tot_map_name failed, tot_map_net net) (map tot_map_trace_occ tr).
 Proof.
 move => net failed tr H_step.
 remember step_f_init as y in *.
@@ -584,13 +583,13 @@ Qed.
 
 Theorem step_f_tot_mapped_simulation_2 :
   forall net net' failed failed' out mnet mfailed mfailed' mout,
-      @step_f _ _ _ fail_snd (failed, net) (failed', net') out ->
+      @step_f _ _ fail_snd (failed, net) (failed', net') out ->
       tot_map_net mnet = net ->
       map tot_map_name mfailed = failed ->
       map tot_map_name mfailed' = failed' ->
       map tot_map_trace_occ mout = out ->
       exists mnet',
-        @step_f _ _ _ fail_fst (mfailed, mnet) (mfailed', mnet') mout /\
+        @step_f _ _ fail_fst (mfailed, mnet) (mfailed', mnet') mout /\
         tot_map_net mnet' = net'.
 Proof.
 move => net net' failed failed' out mnet mfailed mfailed' mout H_step H_eq_net H_eq_f H_eq_f' H_eq_out.
@@ -620,7 +619,7 @@ invcs H_step.
     rewrite H_eq_dst.
     apply map_eq_name_eq_eq in H1.
     rewrite H1.    
-    apply (@SF_deliver _ _ _ _ _ _ _ _ pks1 pks2 _ d' l') => //=.
+    apply (@SF_deliver _ _ _ _ _ _ _ pks1 pks2 _ d' l') => //=.
       rewrite -H_eq_dst.
       rewrite -H_eq_n in H4.
       move => H_in.
@@ -718,7 +717,7 @@ invcs H_step.
   exists ({| nwPackets := send_packets h' l0 ++ pks ; nwState := update sts h' d0 |}).
   split.
   * rewrite H_eq_mout.
-    apply (@SF_input _ _ _ _ _ _ _ _ _ _ d0 l0) => //.      
+    apply (@SF_input _ _ _ _ _ _ _ _ _ d0 l0) => //.      
       rewrite -H_eq_n in H3.
       move => H_in.
       by apply in_failed_in in H_in.
@@ -757,7 +756,7 @@ invcs H_step.
   inversion H_eq_pks2.
   rewrite -H_eq_pks1.
   exists {| nwPackets := pks1 ++ pks2 ; nwState := nwState mnet |}.
-  split; first exact: (@SF_drop _ _ _ _ _ _ _ p' pks1 pks2).
+  split; first exact: (@SF_drop _ _ _ _ _ _ p' pks1 pks2).
   by rewrite /tot_map_net /= map_app.
 - case: mout H2 => // H_eq_mout {H_eq_mout}.
   apply map_eq_name_eq_eq in H1.
@@ -767,7 +766,7 @@ invcs H_step.
   inversion H_eq_pks2.
   rewrite -H_eq_pks1.
   exists {| nwPackets := p' :: pks1 ++ p' :: pks2 ; nwState := nwState mnet |}.
-  split; first exact: (@SF_dup _ _ _ _ _ _ _ p' pks1 pks2).
+  split; first exact: (@SF_dup _ _ _ _ _ _ p' pks1 pks2).
   by rewrite /tot_map_net /= map_app.
 - case: mout H2 => // H_eq_mout {H_eq_mout}.
   case: mfailed' H => //= h' mfailed' H_eq.
@@ -789,7 +788,7 @@ invcs H_step.
                            | right _ => (nwState mnet nm) 
                            end) |}.
   split.
-  * apply (@SF_reboot _ _ _ _ h') => //.
+  * apply (@SF_reboot _ _ _ h') => //.
     + rewrite H_eq_mns.
       apply in_or_app.
       by right; left.
@@ -1041,7 +1040,7 @@ apply: NoDup_Permutation; last split.
 Qed.
 
 Lemma not_in_exclude :
-  forall (n : @name name_fst) ns failed,
+  forall (n : @name _ multi_fst) ns failed,
     ~ In n ns ->
     ~ In n (exclude failed ns).
 Proof.
@@ -1091,7 +1090,7 @@ by right.
 Qed.
 
 Lemma nodup_exclude :
-  forall (ns : list (@name name_fst)) failed, NoDup ns ->
+  forall (ns : list (@name _ multi_fst)) failed, NoDup ns ->
                NoDup (exclude failed ns).
 Proof.
 elim => //.
@@ -1116,11 +1115,11 @@ apply NoDup_cons; last exact: IH.
 exact: not_in_exclude_snd.
 Qed.
 
-Context {overlay_fst : NameOverlayParams name_fst}.
-Context {overlay_snd : NameOverlayParams name_snd}.
+Context {overlay_fst : NameOverlayParams multi_fst}.
+Context {overlay_snd : NameOverlayParams multi_snd}.
 
 Lemma not_in_msg_for :
-  forall (n : @name name_fst) h m ns,
+  forall (n : @name _ multi_fst) h m ns,
     ~ In n ns ->
     ~ In (n, m) (msg_for m (adjacent_to_node h ns)).
 Proof.
@@ -1170,7 +1169,7 @@ by right.
 Qed.
 
 Lemma nodup_msg_for :
-  forall (h : @name name_fst) m ns,
+  forall (h : @name _ multi_fst) m ns,
     NoDup ns ->
     NoDup (msg_for m (adjacent_to_node h ns)).
 Proof.
@@ -1389,7 +1388,7 @@ exact: IH.
 Qed.
 
 Lemma in_msg_for_msg_fst :
-  forall (h : @name name_fst) m ns nm,
+  forall (h : @name _ multi_fst) m ns nm,
   In nm (msg_for m (adjacent_to_node h ns)) ->
   snd nm = m.
 Proof.
@@ -1729,7 +1728,7 @@ rewrite fail_msg_fst_snd.
 exact: map_msg_for_eq.
 Qed.
 
-Definition tot_map_onet (onet : @ordered_network _ _ multi_fst) : @ordered_network _ _ multi_snd :=
+Definition tot_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network _ multi_snd :=
 mkONetwork (fun src dst => map tot_map_msg (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
            (fun n => tot_map_data (onet.(onwState) (tot_map_name_inv n))).
 
@@ -1797,13 +1796,13 @@ Qed.
 
 Theorem step_o_f_tot_mapped_simulation_1 :
   forall net net' failed failed' tr,
-    @step_o_f _ _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    @step_o_f _ _ _ overlay_snd fail_msg_snd (map tot_map_name failed, tot_map_onet net) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace_occ tr).
+    @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, tot_map_onet net) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace_occ tr).
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
 - rewrite /tot_map_onet /=.
-  apply (@SOF_deliver _ _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from)).
+  apply (@SOF_deliver _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from)).
   * by rewrite /tot_map_net /= 2!tot_map_name_inv_inverse /= H3.
   * exact: not_in_failed_not_in.
   * rewrite /= tot_map_name_inv_inverse -tot_net_handlers_eq /tot_mapped_net_handlers /=.
@@ -1811,7 +1810,7 @@ invcs H_step.
     by inversion H6.
   * by rewrite /= tot_map_update_eq collate_tot_map_update2_eq.
 - rewrite /tot_map_onet /=.
-  apply (@SOF_input _ _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+  apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
   * exact: not_in_failed_not_in.
   * rewrite /= tot_map_name_inv_inverse -tot_input_handlers_eq /tot_mapped_input_handlers.
     repeat break_let.

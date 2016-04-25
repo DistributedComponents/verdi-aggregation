@@ -12,7 +12,7 @@ Require Import StructTact.Util.
 Require Import TotalMapSimulations.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Require Import FunctionalExtensionality.
 Require Import Sumbool.
@@ -31,23 +31,20 @@ Class BaseParamsPartialMap (P0 : BaseParams) (P1 : BaseParams) :=
 
 Class MultiParamsPartialMap
  (B0 : BaseParams) (B1 : BaseParams) (B : BaseParamsPartialMap B0 B1)
- (N0 : NameParams) (N1 : NameParams) (N : NameParamsTotalMap N0 N1)
- (P0 : MultiParams B0 N0) (P1 : MultiParams B1 N1)  :=
-{
-   pt_map_msg : @msg B0 N0 P0 -> option (@msg B1 N1 P1)
-}.
+ (P0 : MultiParams B0) (P1 : MultiParams B1) (P : MultiParamsNameTotalMap P0 P1) :=
+  {
+    pt_map_msg : @msg B0 P0 -> option (@msg B1 P1)
+  }.
 
 Section PartialMapSimulations.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
-Context {name_fst : NameParams}.
-Context {name_snd : NameParams}.
-Context {multi_fst : MultiParams base_fst name_fst}.
-Context {multi_snd : MultiParams base_snd name_snd}.
+Context {multi_fst : MultiParams base_fst}.
+Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsPartialMap base_fst base_snd}.
-Context {name_map : NameParamsTotalMap name_fst name_snd}.
-Context {multi_map : MultiParamsPartialMap base_map name_map multi_fst multi_snd}.
+Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {multi_map : MultiParamsPartialMap base_map name_map}.
 
 Hypothesis tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
 
@@ -96,8 +93,8 @@ Hypothesis pt_input_handlers_none : forall me inp st out st' ps,
   input_handlers me inp st = (out, st', ps) ->
   pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
 
-Definition pt_map_trace_occ (e : @name name_fst * (@input base_fst + list (@output base_fst))) :
- option (@name name_snd * (@input base_snd + list (@output base_snd))) :=
+Definition pt_map_trace_occ (e : @name _ multi_fst * (@input base_fst + list (@output base_fst))) :
+ option (@name _ multi_snd * (@input base_snd + list (@output base_snd))) :=
 match e with
 | (n, inl io) => 
   match pt_map_input io with
@@ -114,7 +111,7 @@ fold_right (fun e l =>
               | None => l
               end) [].
 
-Definition pt_map_packet (p : @packet _ _ multi_fst)  :=
+Definition pt_map_packet (p : @packet _ multi_fst)  :=
 match p with
 | mkPacket src dst m =>
   match pt_map_msg m with
@@ -130,7 +127,7 @@ fold_right (fun p l =>
             | None => l
             end) [].
 
-Definition pt_map_net (net : @network _ _ multi_fst) : @network _ _ multi_snd :=
+Definition pt_map_net (net : @network _ multi_fst) : @network _ multi_snd :=
 mkNetwork (pt_map_packets net.(nwPackets)) (fun n => pt_map_data (net.(nwState) (tot_map_name_inv n))).
 
 Lemma pt_init_handlers_fun_eq : 
@@ -231,7 +228,7 @@ exact: pt_map_update_eq.
 Qed.
 
 Definition pt_trace_remove_empty_out :=
-  fold_right (fun (e : @name name_snd * (@input base_snd + list (@output base_snd))) l => 
+  fold_right (fun (e : @name _ multi_snd * (@input base_snd + list (@output base_snd))) l => 
                 match e with
                 | (n, inr []) => l
                 | _ => e :: l
@@ -239,8 +236,8 @@ Definition pt_trace_remove_empty_out :=
 
 Theorem step_m_pt_mapped_simulation_1 :
   forall net net' tr,
-    @step_m _ _ multi_fst net net' tr ->
-    @step_m _ _ multi_snd (pt_map_net net) (pt_map_net net') (pt_map_trace tr) \/ 
+    @step_m _ multi_fst net net' tr ->
+    @step_m _ multi_snd (pt_map_net net) (pt_map_net net') (pt_map_trace tr) \/ 
     (pt_map_net net' = pt_map_net net /\ pt_trace_remove_empty_out (pt_map_trace tr) = []).
 Proof.
 move => net net' tr.
@@ -254,7 +251,7 @@ case => {net net' tr}.
       by inversion H_m.
     left.
     rewrite H_eq' /=.
-    apply (@SM_deliver _ _ _ _ _ _ (pt_map_packets ms) (pt_map_packets ms') (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@SM_deliver _ _ _ _ _ (pt_map_packets ms) (pt_map_packets ms') (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)).
     * rewrite /= H_eq pt_map_packets_app_distr /=.
       case H_p: (pt_map_packet _) => [p0|].
         rewrite H_p in H_m.
@@ -302,7 +299,7 @@ case => {net net' tr}.
   rewrite /pt_map_trace /=.  
   case H_i: (pt_map_input inp) => [inp'|].
     left.
-    apply (@SM_input _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@SM_input _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
       rewrite /=.
       have H_q := pt_input_handlers_some h inp (nwState net h) H_i.
       rewrite /pt_mapped_input_handlers /= in H_q.
@@ -364,8 +361,8 @@ Qed.
 
 Corollary step_m_pt_mapped_simulation_star_1 :
   forall net tr,
-    @step_m_star _ _ multi_fst step_m_init net tr ->
-    exists tr', @step_m_star _ _ multi_snd step_m_init (pt_map_net net) tr' /\ 
+    @step_m_star _ multi_fst step_m_init net tr ->
+    exists tr', @step_m_star _ multi_snd step_m_init (pt_map_net net) tr' /\ 
      pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => net tr H_step.
@@ -408,7 +405,7 @@ fold_right (fun m l =>
             | None => l
             end) [].
 
-Definition pt_map_onet (onet : @ordered_network _ _ multi_fst) : @ordered_network _ _ multi_snd :=
+Definition pt_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network _ multi_snd :=
 mkONetwork (fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
            (fun n => pt_map_data (onet.(onwState) (tot_map_name_inv n))).
 
@@ -505,8 +502,8 @@ Qed.
 
 Theorem step_o_pt_mapped_simulation_1 :
   forall net net' tr,
-    @step_o _ _ multi_fst net net' tr ->
-    @step_o _ _ multi_snd (pt_map_onet net) (pt_map_onet net') (pt_map_trace tr) \/ 
+    @step_o _ multi_fst net net' tr ->
+    @step_o _ multi_snd (pt_map_onet net) (pt_map_onet net') (pt_map_trace tr) \/ 
     (pt_map_onet net' = pt_map_onet net /\ pt_trace_remove_empty_out (pt_map_trace tr) = []).
 Proof.
 move => net net' tr.
@@ -515,7 +512,7 @@ case => {net net' tr}.
   case H_m: (pt_map_msg m) => [m'|].
     left.
     rewrite H_eq' /= /pt_map_onet /=.
-    apply (@SO_deliver _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_map_data d) (pt_map_name_msgs l) (tot_map_name from)).
+    apply (@SO_deliver _ _ _ _ m' (pt_map_msgs ms) _ (pt_map_data d) (pt_map_name_msgs l) (tot_map_name from)).
     * rewrite /= 2!tot_map_name_inv_inverse H_eq /=.
       case H_m0: (pt_map_msg _) => [m0|]; last by rewrite H_m0 in H_m.
       rewrite H_m0 in H_m.
@@ -559,7 +556,7 @@ case => {net net' tr}.
   rewrite /pt_map_trace /=.
   case H_i: (pt_map_input inp) => [inp'|].
     left.
-    apply (@SO_input _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@SO_input _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
     * rewrite /=.
       have H_q := pt_input_handlers_some h inp (onwState net h) H_i.
       rewrite /pt_mapped_input_handlers /= in H_q.
@@ -588,8 +585,8 @@ Qed.
 
 Corollary step_o_pt_mapped_simulation_star_1 :
   forall net tr,
-    @step_o_star _ _ multi_fst step_o_init net tr ->
-    exists tr', @step_o_star _ _ multi_snd step_o_init (pt_map_onet net) tr' /\
+    @step_o_star _ multi_fst step_o_init net tr ->
+    exists tr', @step_o_star _ multi_snd step_o_init (pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => net tr H_step.
@@ -768,8 +765,8 @@ move => nm H_in.
 by apply: H_m; right.
 Qed.
 
-Context {overlay_fst : NameOverlayParams name_fst}.
-Context {overlay_snd : NameOverlayParams name_snd}.
+Context {overlay_fst : NameOverlayParams multi_fst}.
+Context {overlay_snd : NameOverlayParams multi_snd}.
 
 Lemma pt_map_in_snd :
    forall m m' h ns nm,
@@ -1125,8 +1122,8 @@ Hypothesis fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail).
 
 Theorem step_o_f_pt_mapped_simulation_1 :
   forall net net' failed failed' tr,
-    @step_o_f _ _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    @step_o_f _ _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_map_onet net) (map tot_map_name failed', pt_map_onet net') (pt_map_trace tr) \/ 
+    @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_map_onet net) (map tot_map_name failed', pt_map_onet net') (pt_map_trace tr) \/ 
     (pt_map_onet net' = pt_map_onet net /\ failed = failed' /\
      pt_trace_remove_empty_out (pt_map_trace tr) = []).
 Proof.
@@ -1135,7 +1132,7 @@ invcs H_step.
 - case H_m: (pt_map_msg m) => [m'|].
     left.
     rewrite /pt_map_onet /=.
-    apply (@SOF_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_map_data d) (pt_map_name_msgs l) (tot_map_name from)).
+    apply (@SOF_deliver _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_map_data d) (pt_map_name_msgs l) (tot_map_name from)).
     * rewrite /= 2!tot_map_name_inv_inverse /= H3.
       rewrite /=.
       case H_m0: (pt_map_msg _) => [m0|]; last by rewrite H_m in H_m0.
@@ -1174,7 +1171,7 @@ invcs H_step.
   by rewrite H_eq_s H_eq_p.
 - case H_i: (pt_map_input _) => [inp'|].
     left.
-    apply (@SOF_input _ _ _ _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
     * exact: pt_not_in_failed_not_in.
     * rewrite /=.
       have H_q := pt_input_handlers_some h inp (onwState net h) H_i.
@@ -1215,7 +1212,7 @@ invcs H_step.
     have H_fail' := pt_map_in_snd _ _ _ _ fail_msg_fst_snd H_in'.
     by rewrite H_fail H_fail'.
   have H_pm := @pt_map_msg_for_eq msg_fail msg_fail h failed fail_msg_fst_snd.
-  have H_eq := @nodup_perm_collate_eq _ _ _ _ _ _ _ H_nd H_pm.
+  have H_eq := @nodup_perm_collate_eq _ _ _ _ _ _ H_nd H_pm.
   rewrite /l /pt_map_name_msgs in H_eq.
   apply: SOF_fail => //.
   * exact: pt_not_in_failed_not_in.
@@ -1226,8 +1223,8 @@ Qed.
 
 Corollary step_o_f_pt_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_o_f_star _ _ _ overlay_fst fail_msg_fst step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ overlay_snd fail_msg_snd step_o_f_init (map tot_map_name failed, pt_map_onet net) tr' /\
+    @step_o_f_star _ _ overlay_fst fail_msg_fst step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ overlay_snd fail_msg_snd step_o_f_init (map tot_map_name failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => net failed tr H_step.

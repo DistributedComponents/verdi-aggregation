@@ -2,9 +2,6 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import StructTact.Fin.
 
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrbool.
-
 Require Import OrderedType.
 
 Module Type NameType.
@@ -73,18 +70,21 @@ Definition root (x : fin n) := fin_to_nat x = 1.
 Definition root_dec (x : fin n) := Nat.eq_dec (fin_to_nat x) 1.
 Lemma root_unique : forall x y, root x -> root y -> x = y.
 Proof.
-move => x y.
-rewrite /root.
-move => H_x H_y.
-case (fin_compare n x y) => H_lt //.
-- rewrite /fin_lt in H_lt.
-  rewrite H_x H_y in H_lt.
+intros x y.
+unfold root.
+intros H_x H_y.
+case (fin_compare n x y); intros H_lt.
+- unfold fin_lt in H_lt.
+  rewrite H_x in H_lt.
+  rewrite H_y in H_lt.
   contradict H_lt.
-  by auto with arith.
-- rewrite /fin_lt in H_lt.
-  rewrite H_x H_y in H_lt.
+  auto with arith.
+- auto.
+- unfold fin_lt in H_lt.
+  rewrite H_x in H_lt.
+  rewrite H_y in H_lt.
   contradict H_lt.
-  by auto with arith.
+  auto with arith.
 Qed.
 End FinRootNameType.
 
@@ -99,31 +99,35 @@ Inductive fin_complete (n : nat) : fin n -> fin n -> Prop :=
 | fin_complete_neq : forall x y, x <> y -> fin_complete n x y.
 
 Definition fin_complete_dec : forall n (x y : fin n), {fin_complete n x y} + {~ fin_complete n x y }.
-move => n x y.
-case (fin_eq_dec n x y) => H_eq.
-  rewrite H_eq.
+intros n x y.
+case (fin_eq_dec n x y); intro H_eq.
+- rewrite H_eq.
   right.
-  move => H_r.
-  by inversion H_r.
-left.
-exact: fin_complete_neq.
+  intros H_r.
+  inversion H_r.
+  auto.
+- left.
+  apply fin_complete_neq.
+  auto.
 Defined.
 
 Lemma fin_complete_Symmetric : forall n, Symmetric (fin_complete n).
 Proof.
-rewrite /Symmetric.
-move => n x y H_r.
+unfold Symmetric.
+intros n x y H_r.
 inversion H_r; subst.
-apply: fin_complete_neq.
-move => H_eq.
-by rewrite H_eq in H.
+apply fin_complete_neq.
+intro H_eq.
+rewrite H_eq in H.
+auto.
 Qed.
 
 Lemma fin_complete_Irreflexive : forall n, Irreflexive (fin_complete n).
 Proof.
-rewrite /Irreflexive /Reflexive /complement.
-move => n x H_x.
-by inversion H_x.
+unfold Irreflexive; unfold Reflexive; unfold complement.
+intros n x H_x.
+inversion H_x.
+auto.
 Qed.
 
 Module FinCompleteAdjacentNameType (Import N : NatValue) (FN : FinNameType N) <: AdjacentNameType FN.
@@ -139,22 +143,9 @@ Module Adjacency (Import NT : NameType)
 
 Definition NS := NSet.t.
 
-Instance NT_NameParams : NameParams :=
-  {
-    name := name ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes
-  }.
+Definition adjacent_to_node (n : name) := filter (fun n' => if adjacent_to_dec n n' then true else false).
 
-Instance ANT_NameOverlayParams : NameOverlayParams NT_NameParams :=
-  {
-    adjacent_to := adjacent_to ;
-    adjacent_to_dec := adjacent_to_dec ;
-    adjacent_to_symmetric := adjacent_to_symmetric ;
-    adjacent_to_irreflexive := adjacent_to_irreflexive
-  }.
+Require Import mathcomp.ssreflect.ssreflect.
 
 Lemma adjacent_to_node_adjacent_to : 
   forall n n' ns,
@@ -192,7 +183,7 @@ move => n n' ns.
 split.
 elim: ns => //=.
 move => n0 ns IH.
-rewrite /adjacency /= /is_left.
+rewrite /adjacency /=.
 case adjacent_to_dec => H_dec /= H_in; last exact: IH.
 case: H_in => H_in.
   rewrite H_in.
@@ -204,7 +195,6 @@ exact: IH.
 elim: ns => //=; first by rewrite /adjacency /=; exact: NSet.empty_spec.
 move => n0 ns IH.
 rewrite /adjacency /=.
-rewrite /is_left.
 case adjacent_to_dec => H_dec /= H_ins; last exact: IH.
 apply NSet.add_spec in H_ins.
 case: H_ins => H_ins; first by left.

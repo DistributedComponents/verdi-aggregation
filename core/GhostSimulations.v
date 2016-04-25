@@ -11,7 +11,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 
 Set Implicit Arguments.
 
-Class GhostFailureParams (B : BaseParams) (N : NameParams) (M : MultiParams B N) (P : FailureParams M) :=
+Class GhostFailureParams (B : BaseParams) (M : MultiParams B) (P : FailureParams M) :=
   {
     ghost_data : Type;
     ghost_init : ghost_data ;
@@ -24,8 +24,7 @@ Class GhostFailureParams (B : BaseParams) (N : NameParams) (M : MultiParams B N)
 Section GhostVars.
 
 Context {base_params : BaseParams}.
-Context {name_params : NameParams}.
-Context {multi_params : MultiParams base_params name_params}.
+Context {multi_params : MultiParams base_params}.
 Context {failure_params : FailureParams multi_params}.
 Context {params : GhostFailureParams failure_params}.
 
@@ -36,7 +35,7 @@ Definition refined_net_handlers me src m st :=
 
 Definition refined_input_handlers me inp st :=
   let '(out, st', ps) :=
-      @input_handlers _ _ multi_params me inp (snd st) in
+      @input_handlers _ multi_params me inp (snd st) in
   (out, (ghost_input_handlers me inp st, st'), ps).
 
 Definition refined_reboot (st : ghost_data * data) :=
@@ -52,10 +51,15 @@ Instance refined_base_params : BaseParams :=
     output := output
   }.
 
-Instance refined_multi_params : MultiParams _ _ :=
+Instance refined_multi_params : MultiParams _ :=
   {
+    name := name ;
     msg := msg ;
     msg_eq_dec := msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
     init_handlers := refined_init_handlers;
     net_handlers := refined_net_handlers ;
     input_handlers := refined_input_handlers
@@ -67,13 +71,13 @@ Instance refined_failure_params : FailureParams _ :=
   }.
 
 Definition deghost_packet p :=
-  @mkPacket _ _ multi_params
-            (@pSrc _ _ refined_multi_params p)
+  @mkPacket _ multi_params
+            (@pSrc _ refined_multi_params p)
             (pDst p)
             (pBody p).
 
-Definition deghost (net : @network _ _ refined_multi_params) : (@network _ _ multi_params).
-  refine (@mkNetwork _ _ multi_params
+Definition deghost (net : @network _ refined_multi_params) : (@network _ multi_params).
+  refine (@mkNetwork _ multi_params
 
                      (map deghost_packet
                         (nwPackets net))
@@ -97,13 +101,13 @@ Instance refined_base_params_tot_map : BaseParamsTotalMap refined_base_params ba
     tot_map_output := id
   }.
 
-Instance refined_name_params_tot_map : NameParamsTotalMap name_params name_params := 
+Instance refined_multi_params_name_tot_map : MultiParamsNameTotalMap refined_multi_params multi_params := 
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_base_params_tot_map refined_name_params_tot_map refined_multi_params multi_params :=
+Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_base_params_tot_map refined_multi_params_name_tot_map :=
   {
     tot_map_msg := id    
   }.
@@ -172,8 +176,8 @@ Qed.
 
 Theorem ghost_simulation_1 :
   forall net net' failed failed' out,
-    @step_f _ _ _ refined_failure_params (failed, net) (failed', net') out ->
-    @step_f _ _ _ failure_params (failed, deghost net) (failed', deghost net') out.
+    @step_f _ _ refined_failure_params (failed, net) (failed', net') out ->
+    @step_f _ _ failure_params (failed, deghost net) (failed', deghost net') out.
 Proof.
 have H_sim := step_f_tot_mapped_simulation_1 ghost_tot_map_name_inv_inverse ghost_tot_map_name_inverse_inv ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
@@ -200,7 +204,7 @@ Qed.
 
 Theorem ghost_simulation_2 :
   forall net net' failed failed' out gnet,
-    @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+    @step_f _ _ failure_params (failed, net) (failed', net') out ->
     deghost gnet = net ->
     exists gnet',
       step_f (failed, gnet) (failed', gnet') out /\
@@ -245,13 +249,13 @@ apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
 Qed.
 
 Definition ghost_packet p :=
-  @mkPacket _ _ refined_multi_params
-            (@pSrc _ _ multi_params p)
+  @mkPacket _ refined_multi_params
+            (@pSrc _ multi_params p)
             (pDst p)
             (pBody p).
 
-Definition reghost (net : @network _ _ multi_params) : @network _ _ refined_multi_params.
-  refine (@mkNetwork _ _ refined_multi_params
+Definition reghost (net : @network _ multi_params) : @network _ refined_multi_params.
+  refine (@mkNetwork _ refined_multi_params
                      (map ghost_packet
                         (nwPackets net))
                      _
@@ -275,7 +279,7 @@ Qed.
 Theorem ghost_invariant_lift :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+       @step_f _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net') ->
     (forall net net' failed failed' out,
@@ -293,7 +297,7 @@ Theorem ghost_invariant_lower :
        P (deghost net) ->
        P (deghost net')) ->
     (forall net net' failed failed' out,
-       @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+       @step_f _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net').
 Proof.
@@ -320,8 +324,7 @@ Class MsgGhostFailureParams `(P : FailureParams) :=
 Section MsgGhostVars.
 
 Context {base_params : BaseParams}.
-Context {name_params : NameParams}.
-Context {multi_params : MultiParams base_params name_params}.
+Context {multi_params : MultiParams base_params}.
 Context {failure_params : FailureParams multi_params}.
 Context {params : MsgGhostFailureParams failure_params}.
 
@@ -346,10 +349,22 @@ Proof.
   decide equality; auto using msg_eq_dec, ghost_msg_eq_dec.
 Qed.
 
-Instance mgv_refined_multi_params : MultiParams _ _ :=
+Instance mgv_refined_base_params : BaseParams :=
   {
+    data := data ;
+    input := input ;
+    output := output
+  }.
+
+Instance mgv_refined_multi_params : MultiParams _ :=
+  {
+    name := name ;
     msg := (ghost_msg * msg) ;
     msg_eq_dec := mgv_msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
     init_handlers := init_handlers;
     net_handlers := mgv_refined_net_handlers ;
     input_handlers := mgv_refined_input_handlers
@@ -357,17 +372,17 @@ Instance mgv_refined_multi_params : MultiParams _ _ :=
 
 Instance mgv_refined_failure_params : FailureParams _ :=
   {
-    reboot := (@reboot base_params name_params multi_params failure_params)
+    reboot := (@reboot base_params multi_params failure_params)
   }.
 
 Definition mgv_deghost_packet p :=
-  @mkPacket _ _ multi_params
-            (@pSrc _ _ mgv_refined_multi_params p)
+  @mkPacket _ multi_params
+            (@pSrc _ mgv_refined_multi_params p)
             (pDst p)
             (snd (pBody p)).
 
-Definition mgv_deghost (net : @network _ _ mgv_refined_multi_params) : (@network _ _ multi_params).
-  refine (@mkNetwork _ _ multi_params
+Definition mgv_deghost (net : @network _ mgv_refined_multi_params) : (@network _ multi_params).
+  refine (@mkNetwork _ multi_params
                      (map mgv_deghost_packet
                         (nwPackets net))
                      _
@@ -380,20 +395,20 @@ Defined.
 
 Arguments mgv_deghost_packet /_.
 
-Instance mgv_refined_base_params_tot_map : BaseParamsTotalMap base_params base_params :=
+Instance mgv_refined_base_params_tot_map : BaseParamsTotalMap mgv_refined_base_params base_params :=
   {
     tot_map_data := id ;
     tot_map_input := id ;
     tot_map_output := id
   }.
 
-Instance mgv_refined_name_params_tot_map : NameParamsTotalMap name_params name_params := 
+Instance mgv_refined_multi_params_name_tot_map : MultiParamsNameTotalMap mgv_refined_multi_params multi_params := 
   {
     tot_map_name := id ;
     tot_map_name_inv := id
   }.
 
-Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_base_params_tot_map mgv_refined_name_params_tot_map mgv_refined_multi_params multi_params :=
+Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_base_params_tot_map mgv_refined_multi_params_name_tot_map :=
   {
     tot_map_msg := snd ;
   }.
@@ -472,8 +487,8 @@ Qed.
 
 Theorem mgv_ghost_simulation_1 :
   forall net net' failed failed' out,
-    @step_f _ _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
-    @step_f _ _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
+    @step_f _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
+    @step_f _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
 Proof.
 have H_sim := step_f_tot_mapped_simulation_1 mgv_tot_map_name_inv_inverse mgv_tot_map_name_inverse_inv mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
@@ -499,13 +514,13 @@ by rewrite H_eq {H_eq fs2}.
 Qed.
 
 Definition mgv_ghost_packet p :=
-  @mkPacket _ _ mgv_refined_multi_params
-            (@pSrc _ _ multi_params p)
+  @mkPacket _ mgv_refined_multi_params
+            (@pSrc _ multi_params p)
             (pDst p)
             (ghost_msg_default, pBody p).
 
-Definition mgv_reghost (net : @network _ _ multi_params) : @network _ _ mgv_refined_multi_params.
-  refine (@mkNetwork _ _ mgv_refined_multi_params
+Definition mgv_reghost (net : @network _ multi_params) : @network _ mgv_refined_multi_params.
+  refine (@mkNetwork _ mgv_refined_multi_params
                      (map mgv_ghost_packet
                         (nwPackets net))
                      _
@@ -528,7 +543,7 @@ Qed.
 
 Theorem mgv_ghost_simulation_2 :
   forall net net' failed failed' out gnet,
-    @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+    @step_f _ _ failure_params (failed, net) (failed', net') out ->
     mgv_deghost gnet = net ->
     exists gnet',
       step_f (failed, gnet) (failed', gnet') out /\
@@ -574,7 +589,7 @@ Qed.
 Theorem mgv_ghost_invariant_lift :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+       @step_f _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net') ->
     (forall net net' failed failed' out,
@@ -592,7 +607,7 @@ Theorem mgv_ghost_invariant_lower :
        P (mgv_deghost net) ->
        P (mgv_deghost net')) ->
     (forall net net' failed failed' out,
-       @step_f _ _ _ failure_params (failed, net) (failed', net') out ->
+       @step_f _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net').
 Proof.
@@ -606,8 +621,8 @@ Proof.
 Qed.
 
 End MsgGhostVars.
-Arguments deghost_packet /_ _ _ _ _ _.
-Arguments ghost_packet /_ _ _ _ _ _.
+Arguments deghost_packet /_ _ _ _ _.
+Arguments ghost_packet /_ _ _ _ _.
 
-Arguments mgv_deghost_packet /_ _ _ _ _ _.
-Arguments mgv_ghost_packet /_ _ _ _ _ _.
+Arguments mgv_deghost_packet /_ _ _ _ _.
+Arguments mgv_ghost_packet /_ _ _ _ _.

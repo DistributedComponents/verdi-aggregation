@@ -12,7 +12,8 @@ Require Import MSetProperties.
 Require Import mathcomp.ssreflect.ssreflect.
 
 Require Import UpdateLemmas.
-Local Arguments update {_} {_} _ _ _ _ : simpl never.
+
+Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -154,15 +155,28 @@ Instance FailureRecorder_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams NT_NameParams :=
+Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams :=
   {
+    name := name ;
     msg  := Msg ;
     msg_eq_dec := Msg_eq_dec ;
+    name_eq_dec := name_eq_dec ;
+    nodes := nodes ;
+    all_names_nodes := all_names_nodes ;
+    no_dup_nodes := no_dup_nodes ;
     init_handlers := InitData ;
     net_handlers := fun dst src msg s =>
                       runGenHandler_ignore s (NetHandler dst src msg) ;
     input_handlers := fun nm msg s =>
                         runGenHandler_ignore s (IOHandler nm msg)
+  }.
+
+Instance FailureRecorder_NameOverlayParams : NameOverlayParams FailureRecorder_MultiParams :=
+  {
+    adjacent_to := adjacent_to ;
+    adjacent_to_dec := adjacent_to_dec ;
+    adjacent_to_symmetric := adjacent_to_symmetric ;
+    adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
 
 Instance FailureRecorder_FailMsgParams : FailMsgParams FailureRecorder_MultiParams :=
@@ -689,7 +703,7 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
-      rewrite collate_msg_for_live_adjacent //.      
+      rewrite collate_msg_for_live_adjacent //.
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: all_names_nodes.
