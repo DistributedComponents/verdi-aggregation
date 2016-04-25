@@ -46,10 +46,6 @@ Context {base_map : BaseParamsPartialMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
 Context {multi_map : MultiParamsPartialMap base_map name_map}.
 
-Hypothesis tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-
-Hypothesis tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-
 Hypothesis pt_init_handlers_eq : forall n,
   pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
 
@@ -1269,4 +1265,3 @@ by rewrite H_eq -app_nil_end.
 Qed.
 
 End PartialMapSimulations.
-

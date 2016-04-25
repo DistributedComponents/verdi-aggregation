@@ -104,19 +104,15 @@ Instance refined_base_params_tot_map : BaseParamsTotalMap refined_base_params ba
 Instance refined_multi_params_name_tot_map : MultiParamsNameTotalMap refined_multi_params multi_params := 
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => eq_refl ;
+    tot_map_name_inverse_inv := fun _ => eq_refl
   }.
 
 Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_base_params_tot_map refined_multi_params_name_tot_map :=
   {
     tot_map_msg := id    
   }.
-
-Lemma ghost_tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-Proof. by []. Qed.
-
-Lemma ghost_tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-Proof. by []. Qed.
 
 Lemma ghost_eq_net_handlers_eq : 
   forall me src m st,
@@ -179,7 +175,7 @@ Theorem ghost_simulation_1 :
     @step_f _ _ refined_failure_params (failed, net) (failed', net') out ->
     @step_f _ _ failure_params (failed, deghost net) (failed', deghost net') out.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_1 ghost_tot_map_name_inv_inverse ghost_tot_map_name_inverse_inv ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_mapped_reboot_eq.
+have H_sim := step_f_tot_mapped_simulation_1 ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
 apply H_sim in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
@@ -210,7 +206,7 @@ Theorem ghost_simulation_2 :
       step_f (failed, gnet) (failed', gnet') out /\
       deghost gnet' = net'.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_2 ghost_tot_map_name_inv_inverse ghost_tot_map_name_inverse_inv ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_map_output_injective ghost_tot_mapped_reboot_eq.
+have H_sim := step_f_tot_mapped_simulation_2 ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_map_output_injective ghost_tot_mapped_reboot_eq.
 move => net net' failed failed' out gnet H_step H_eq.
 apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].
@@ -405,19 +401,15 @@ Instance mgv_refined_base_params_tot_map : BaseParamsTotalMap mgv_refined_base_p
 Instance mgv_refined_multi_params_name_tot_map : MultiParamsNameTotalMap mgv_refined_multi_params multi_params := 
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => eq_refl ;
+    tot_map_name_inverse_inv := fun _ => eq_refl
   }.
 
 Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_base_params_tot_map mgv_refined_multi_params_name_tot_map :=
   {
     tot_map_msg := snd ;
   }.
-
-Lemma mgv_tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-Proof. by []. Qed.
-
-Lemma mgv_tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-Proof. by []. Qed.
 
 Lemma mgv_eq_net_handlers_eq : 
   forall me src m st,
@@ -490,7 +482,7 @@ Theorem mgv_ghost_simulation_1 :
     @step_f _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
     @step_f _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_1 mgv_tot_map_name_inv_inverse mgv_tot_map_name_inverse_inv mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_mapped_reboot_eq.
+have H_sim := step_f_tot_mapped_simulation_1 mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
 apply H_sim in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
@@ -549,7 +541,7 @@ Theorem mgv_ghost_simulation_2 :
       step_f (failed, gnet) (failed', gnet') out /\
       mgv_deghost gnet' = net'.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_2 mgv_tot_map_name_inv_inverse mgv_tot_map_name_inverse_inv mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_map_output_injective mgv_tot_mapped_reboot_eq.
+have H_sim := step_f_tot_mapped_simulation_2 mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_map_output_injective mgv_tot_mapped_reboot_eq.
 move => net net' failed failed' out gnet H_step H_eq.
 apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].

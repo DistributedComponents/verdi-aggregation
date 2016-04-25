@@ -599,4 +599,58 @@ rewrite /sum_fold.
 by case H_find: (NMap.find _ _) => [m0|]; first by aac_reflexivity.
 Qed.
 
+Class AggregationData (A :  Type) :=
+  {
+    local : A -> m ;
+    aggregate : A -> m ;
+    adjacent : A -> NS ;
+    sent : A -> NM ;
+    received : A -> NM
+  }.
+
+Section AggregationProps.
+
+Context {A} {ad : AggregationData A}.
+
+Definition conserves_node_mass (d : A) : Prop := 
+d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
+
+Definition sum_local (l : list A) : m :=
+fold_right (fun (d : A) (partial : m) => partial * d.(local)) 1 l.
+
+Definition sum_aggregate (l : list A) : m :=
+fold_right (fun (d : A) (partial : m) => partial * d.(aggregate)) 1 l.
+
+Definition sum_sent (l : list A) : m :=
+fold_right (fun (d : A) (partial : m) => partial * sumM d.(adjacent) d.(sent)) 1 l.
+
+Definition sum_received (l : list A) : m :=
+fold_right (fun (d : A) (partial : m) => partial * sumM d.(adjacent) d.(received)) 1 l.
+
+Definition conserves_mass_globally (l : list A) : Prop :=
+sum_local l = sum_aggregate l * sum_sent l * (sum_received l)^-1.
+
+Definition conserves_node_mass_all (l : list A) : Prop :=
+forall d, In d l -> conserves_node_mass d.
+
+Lemma global_conservation : 
+  forall (l : list A), 
+    conserves_node_mass_all l ->
+    conserves_mass_globally l.
+Proof.
+rewrite /conserves_mass_globally /=.
+elim => [|d l IH]; first by gsimpl.
+move => H_cn.
+rewrite /=.
+rewrite /conserves_node_mass_all in H_cn.
+have H_cn' := H_cn d.
+rewrite H_cn'; last by left.
+rewrite IH; first by gsimpl; aac_reflexivity.
+move => d' H_in.
+apply: H_cn.
+by right.
+Qed.
+
+End AggregationProps.
+
 End AAux.

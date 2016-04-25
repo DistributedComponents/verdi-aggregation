@@ -559,19 +559,15 @@ Instance Tree_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Tree_Bas
 Instance Tree_FailureRecorder_name_params_tot_map : MultiParamsNameTotalMap Tree_MultiParams FR.FailureRecorder_MultiParams :=
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
 Instance Tree_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Tree_FailureRecorder_base_params_pt_map Tree_FailureRecorder_name_params_tot_map :=
   {
     pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.
-
-Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-Proof. by []. Qed.
-
-Lemma tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-Proof. by []. Qed.
 
 Lemma pt_init_handlers_eq : forall n,
   pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
@@ -666,7 +662,7 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Tree_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Tree_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.

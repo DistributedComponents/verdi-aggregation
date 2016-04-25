@@ -368,19 +368,15 @@ Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap A
 Instance Aggregation_FailureRecorder_name_params_tot_map : MultiParamsNameTotalMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
 Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map :=
   {
     pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.
-
-Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-Proof. by []. Qed.
-
-Lemma tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-Proof. by []. Qed.
 
 Lemma pt_init_handlers_eq :  forall n,
   pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
@@ -453,7 +449,7 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -2142,8 +2138,14 @@ Qed.
 
 End SingleNodeInvIn.
 
-Definition conserves_node_mass (d : Data) : Prop := 
-d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
+Instance AggregationData_Data : AggregationData Data :=
+  {
+    local := local ;
+    aggregate := aggregate ;
+    adjacent := adjacent ;
+    sent := sent ;
+    received := received
+  }.
 
 Lemma Aggregation_conserves_node_mass : 
 forall onet failed tr,
@@ -2257,42 +2259,6 @@ end; simpl.
 - move => H_in_f.
   have H_in_f': ~ In n failed0 by move => H_in; case: H_in_f; right.
   exact: IHrefl_trans_1n_trace1.
-Qed.
-
-Definition sum_local (l : list Data) : m :=
-fold_right (fun (d : Data) (partial : m) => partial * d.(local)) 1 l.
-
-Definition sum_aggregate (l : list Data) : m :=
-fold_right (fun (d : Data) (partial : m) => partial * d.(aggregate)) 1 l.
-
-Definition sum_sent (l : list Data) : m :=
-fold_right (fun (d : Data) (partial : m) => partial * sumM d.(adjacent) d.(sent)) 1 l.
-
-Definition sum_received (l : list Data) : m :=
-fold_right (fun (d : Data) (partial : m) => partial * sumM d.(adjacent) d.(received)) 1 l.
-
-Definition conserves_mass_globally (l : list Data) : Prop :=
-sum_local l = sum_aggregate l * sum_sent l * (sum_received l)^-1.
-
-Definition conserves_node_mass_all (l : list Data) : Prop :=
-forall d, In d l -> conserves_node_mass d.
-
-Lemma global_conservation : 
-  forall (l : list Data), 
-    conserves_node_mass_all l ->
-    conserves_mass_globally l.
-Proof.
-rewrite /conserves_mass_globally /=.
-elim => [|d l IH]; first by gsimpl.
-move => H_cn.
-rewrite /=.
-rewrite /conserves_node_mass_all in H_cn.
-have H_cn' := H_cn d.
-rewrite H_cn'; last by left.
-rewrite IH; first by gsimpl; aac_reflexivity.
-move => d' H_in.
-apply: H_cn.
-by right.
 Qed.
 
 Definition Nodes_data (ns : list name) (onet : ordered_network) : list Data :=
@@ -5251,7 +5217,7 @@ have H_cons := Aggregation_conserves_node_mass_all H_step.
 apply global_conservation in H_cons.
 rewrite /conserves_mass_globally in H_cons.
 rewrite H_cons {H_cons}.
-suff H_suff: sum_sent (Nodes_data (exclude failed nodes) onet) * (sum_received (Nodes_data (exclude failed nodes) onet))^-1 =
+suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (exclude failed nodes) onet) * (@sum_received _ AggregationData_Data (Nodes_data (exclude failed nodes) onet))^-1 =
              sum_aggregate_msg_incoming_active nodes (exclude failed nodes) onet *
              sum_fail_sent_incoming_active nodes (exclude failed nodes) onet *
              (sum_fail_received_incoming_active nodes (exclude failed nodes) onet)^-1 by aac_rewrite H_suff; aac_reflexivity.

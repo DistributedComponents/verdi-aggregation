@@ -27,7 +27,9 @@ Class MultiParamsNameTotalMap
  (P0 : MultiParams B0) (P1 : MultiParams B1)  :=
   {
     tot_map_name : @name B0 P0 -> @name B1 P1 ;
-    tot_map_name_inv : @name B1 P1 -> @name B0 P0
+    tot_map_name_inv : @name B1 P1 -> @name B0 P0 ;
+    tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n ;
+    tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n
   }.
 
 Class MultiParamsTotalMap
@@ -46,10 +48,6 @@ Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsTotalMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
 Context {multi_map : MultiParamsTotalMap base_map name_map}.
-
-Hypothesis tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-
-Hypothesis tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
 
 Hypothesis tot_init_handlers_eq : forall n, tot_map_data (init_handlers n) = init_handlers (tot_map_name n).
 

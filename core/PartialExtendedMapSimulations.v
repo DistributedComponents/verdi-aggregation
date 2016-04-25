@@ -41,10 +41,6 @@ Context {multi_snd : MultiParams base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
 Context {multi_map : MultiParamsPartialExtendedMap name_map}.
 
-Hypothesis tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-
-Hypothesis tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-
 Hypothesis pt_ext_init_handlers_eq : forall n,
   pt_ext_map_data (init_handlers n) n = init_handlers (tot_map_name n).
 

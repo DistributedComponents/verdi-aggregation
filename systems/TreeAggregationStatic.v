@@ -911,7 +911,9 @@ Ltac io_handler_cases :=
 Instance TreeAggregation_Aggregation_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
 Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map :=
@@ -942,12 +944,6 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
       | Level _ => None 
       end   
   }.
-
-Lemma tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n.
-Proof. by []. Qed.
-
-Lemma tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n.
-Proof. by []. Qed.
 
 Lemma pt_ext_init_handlers_eq : forall n,
   pt_ext_map_data (init_handlers n) n = init_handlers (tot_map_name n).
@@ -1380,7 +1376,7 @@ forall net failed tr,
     @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
     exists tr', @step_o_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _ _ _ TreeAggregation_Aggregation_params_pt_ext_map tot_map_name_inv_inverse tot_map_name_inverse_inv pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _ _ _ TreeAggregation_Aggregation_params_pt_ext_map pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
@@ -1408,7 +1404,9 @@ Instance TreeAggregation_Tree_base_params_pt_map : BaseParamsPartialMap TreeAggr
 Instance TreeAggregation_Tree_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
   {
     tot_map_name := id ;
-    tot_map_name_inv := id
+    tot_map_name_inv := id ;
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
 Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_params_tot_map :=
@@ -1750,7 +1748,7 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ TreeAggregation_Tree_multi_params_pt_map tot_map_name_inv_inverse tot_map_name_inverse_inv pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams adjacent_to_fst_snd _ _ pt_fail_msg_fst_snd.
+have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ TreeAggregation_Tree_multi_params_pt_map pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams adjacent_to_fst_snd _ _ pt_fail_msg_fst_snd.
 rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
 apply H_sim in H_st.
