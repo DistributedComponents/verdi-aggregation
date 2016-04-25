@@ -2,10 +2,12 @@ Require Import Verdi.
 Require Import NameOverlay.
 
 Require Import mathcomp.ssreflect.ssreflect.
+Require Import mathcomp.ssreflect.ssrfun.
 Require Import mathcomp.ssreflect.ssrbool.
 Require Import mathcomp.ssreflect.eqtype.
 Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
+
 Require Import mathcomp.fingroup.fingroup.
 
 Require Import Orders.
@@ -19,7 +21,7 @@ Set Implicit Arguments.
 
 Module Type CommutativeFinGroup.
 Parameter gT : finGroupType.
-Parameter commutes : forall x y : gT, commute x y.
+Parameter mulgC : @commutative gT _ mulg.
 End CommutativeFinGroup.
 
 Module AAux (Import NT : NameType)  
@@ -31,15 +33,13 @@ Import GroupScope.
 
 Instance aac_mulg_Assoc : Associative eq (mulg (T:=gT)) := mulgA (T:=gT).
 
-Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)).
-move => x y.
-rewrite commute_sym //.
-exact: commutes.
-Defined.
+Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)) := mulgC.
 
 Instance aac_mulg_unit : Unit eq (mulg (T:=gT)) 1.
-apply: (Build_Unit eq (mulg (T:=gT)) 1 _ _) => x; first by rewrite mul1g.
-by rewrite mulg1.
+Proof.
+apply: (Build_Unit eq mulg 1) => x. 
+- by rewrite mul1g.
+- by rewrite mulg1.
 Defined.
 
 Module NSetFacts := Facts NSet.
@@ -159,7 +159,7 @@ rewrite /= -IH /sum_fold {IH}.
 case (NMap.find _ _) => [m6|] // {a}; gsimpl.
 move: m6; elim: l => [m6|a l IH m6] => /=; first by gsimpl.
 case (NMap.find _ _) => [m7|] //.
-rewrite commutes IH; gsimpl.
+rewrite mulgC IH; gsimpl.
 by rewrite -IH.
 Qed.
 
