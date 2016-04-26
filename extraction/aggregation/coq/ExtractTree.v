@@ -29,6 +29,8 @@ Extract Inlined Constant fin => int.
 
 Extract Inlined Constant fin_eq_dec => "(fun _ -> (=))".
 Extract Inlined Constant all_fin => "(fun n -> (Obj.magic (seq 1 n)))".
+(* FIXME: fin_compare *)
+(* FIXME: fin_comparison *)
 
 Module N5 : NatValue. Definition n := 5. End N5.
 

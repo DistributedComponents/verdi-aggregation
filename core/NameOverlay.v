@@ -235,15 +235,15 @@ have H_in: In n' nodes by exact: all_names_nodes.
 exact: adjacency_mutual_in.
 Qed.
 
+Lemma adjacent_to_node_self_eq :
+  forall ns0 ns1 h,
+  adjacent_to_node h (ns0 ++ h :: ns1) = adjacent_to_node h (ns0 ++ ns1).
+Proof.
+elim => [|n ns0 IH] ns1 h /=.
+  case (adjacent_to_dec _ _) => /= H_dec //.
+  by apply adjacent_to_irreflexive in H_dec.
+case (adjacent_to_dec _ _) => /= H_dec //.
+by rewrite IH.
+Qed.
+
 End Adjacency.
-
-(*
-Module N3 : NatValue. Definition n := 3. End N3.
-Module FN_N3 : FinNameType N3 := FinName N3.
-Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
-Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
-Require Import MSetList.
-Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
-Module A := Adjacency FN_N3 NOT_N3 N3Set ANC_N3.
-*)
-

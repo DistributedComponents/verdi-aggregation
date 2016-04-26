@@ -672,20 +672,3 @@ by exists tr'.
 Qed.
 
 End Tree.
-
-(*
-Require Import StructTact.Fin.
-
-Module N3 : NatValue. Definition n := 3. End N3.
-Module FN_N3 : FinNameType N3 := FinName N3.
-Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
-Module NOTC_N3 : NameOrderedTypeCompat FN_N3 := FinNameOrderedTypeCompat N3 FN_N3.
-Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
-Require Import MSetList.
-Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
-Require Import FMapList.
-Module N3Map <: FMapInterface.S := FMapList.Make NOTC_N3.
-Module RNT_N3 := FinRootNameType N3 FN_N3.
-Module T := Tree FN_N3 NOT_N3 N3Set NOTC_N3 N3Map RNT_N3 ANC_N3.
-Print T.Msg.
-*)

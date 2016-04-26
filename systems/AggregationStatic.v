@@ -2261,9 +2261,6 @@ end; simpl.
   exact: IHrefl_trans_1n_trace1.
 Qed.
 
-Definition Nodes_data (ns : list name) (state : name -> Data) : list Data :=
-fold_right (fun (n : name) (l' : list Data) => n.(state) :: l') [] ns.
-
 Lemma Aggregation_conserves_node_mass_all : 
 forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
@@ -2375,66 +2372,6 @@ elim => //.
 move => n l IH.
 rewrite /= IH.
 by gsimpl.
-Qed.
-
-Lemma sum_local_split :
-  forall ns0 ns1 state n,
-    sum_local (Nodes_data (ns0 ++ n :: ns1) state) =
-    n.(state).(local) * sum_local (Nodes_data (ns0 ++ ns1) state).
-Proof.
-elim => /=; first by move => ns1 state n; aac_reflexivity.
-move => n ns IH ns1 state n'.
-rewrite IH /=.
-by gsimpl.
-Qed.
-
-Lemma sum_aggregate_split :
-  forall ns0 ns1 state n,
-    sum_aggregate (Nodes_data (ns0 ++ n :: ns1) state) =
-    n.(state).(aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) state).
-Proof.
-elim => /=; first by move => ns1 state n; aac_reflexivity.
-move => n ns IH ns1 state n'.
-rewrite IH /=.
-by gsimpl.
-Qed.
-
-Lemma nodup_notin : 
-  forall (A : Type) (a : A) (l l' : list A),
-    NoDup (l ++ a :: l') ->
-    ~ In a (l ++ l').
-Proof.
-move => A a.
-elim => /=; first by move => l' H_nd; inversion H_nd; subst.
-move => a' l IH l' H_nd.
-inversion H_nd; subst.
-move => H_in.
-case: H_in => H_in.
-  case: H1.
-  apply in_or_app.
-  by right; left.
-contradict H_in.
-exact: IH.
-Qed.
-
-Lemma Nodes_data_not_in : 
-forall n' d state ns,
-~ In n' ns ->
-fold_right
-  (fun (n : name) (l : list Data) =>
-     (match name_eq_dec n n' with
-      | left _ => d 
-      | right _ => n.(state) 
-      end) :: l) [] ns = Nodes_data ns state.
-Proof.
-move => n' d state.
-elim => //.
-move => a l IH H_in.
-rewrite /=.
-case name_eq_dec => H_dec; first by case: H_in; left.
-rewrite IH => //.
-move => H_in'.
-by case: H_in; right.
 Qed.
 
 (* with failed nodes - don't add their incoming messages, but add their outgoing channels to non-failed nodes *)
@@ -3338,19 +3275,8 @@ case (in_dec _ _ _) => /= H_dec; case (in_dec _ _ _) => /= H_dec' //.
   by move: H_s => [H_eq' H_eq''].
 Qed.
 
-Lemma Nodes_data_split :
-  forall ns0 ns1 state,
-    Nodes_data (ns0 ++ ns1) state =
-    Nodes_data ns0 state ++ Nodes_data ns1 state.
-Proof.
-elim => //.
-move => n ns0 IH ns1 state.
-rewrite /=.
-by rewrite IH.
-Qed.
-
 Lemma Nodes_data_not_in_eq :
-  forall ns state to d,
+  forall ns (state : name -> Data) to d,
     ~ In to ns ->
     Nodes_data ns (update state to d) =
     Nodes_data ns state.
@@ -3365,26 +3291,6 @@ rewrite IH //.
 move => H_in'.
 case: H_in.
 by right.
-Qed.
-
-Lemma sum_sent_distr : 
-  forall dl dl',
-    sum_sent (dl ++ dl') = sum_sent dl * sum_sent dl'.
-Proof.
-elim => /=; first by move => dl'; gsimpl.
-move => d dl IH dl'.
-rewrite IH.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_received_distr : 
-  forall dl dl',
-    sum_received (dl ++ dl') = sum_received dl * sum_received dl'.
-Proof.
-elim => /=; first by move => dl'; gsimpl.
-move => d dl IH dl'.
-rewrite IH.
-by aac_reflexivity.
 Qed.
 
 Lemma in_not_in_exclude : 
@@ -3747,61 +3653,6 @@ rewrite IH sum_fail_map_incoming_init.
 by gsimpl.
 Qed.
 
-Lemma nodup_in_not_in_right : 
-  forall ns0 ns1 (x : name),
-    NoDup (ns0 ++ ns1) -> In x ns0 -> ~ In x ns1.
-Proof.
-elim => //=.
-move => n ns0 IH ns1 x H_nd H_in.
-inversion H_nd => {l H0 x0 H}.
-case: H_in => H_in; last exact: IH.
-rewrite H_in in H1.
-move => H_in'.
-case: H1.
-apply in_or_app.
-by right.
-Qed.
-
-Lemma nodup_in_not_in_left : 
-  forall ns0 ns1 (x : name),
-    NoDup (ns0 ++ ns1) -> In x ns1 -> ~ In x ns0.
-Proof.
-elim => [|n ns0 IH] ns1 x H_nd H_in //.
-inversion H_nd => {l H0 x0 H}.
-move => H_in'.
-case: H_in' => H_in'.
-  rewrite H_in' in H1.
-  case: H1.
-  apply in_or_app.
-  by right.
-contradict H_in'.
-exact: (IH _ _ H2).
-Qed.
-
-Lemma nodup_app_split_left : 
-  forall (ns0 ns1 : list name), 
-    NoDup (ns0 ++ ns1) -> NoDup ns0.
-Proof.
-elim => [|n ns0 IH] ns1 H_nd; first exact: NoDup_nil.
-inversion H_nd => {l H0 x H}.
-apply NoDup_cons.
-  move => H_in.
-  case: H1.
-  apply in_or_app.
-  by left.
-move: H2.
-exact: IH.
-Qed.
-
-Lemma nodup_app_split_right : 
-  forall (ns0 ns1 : list name), 
-    NoDup (ns0 ++ ns1) -> NoDup ns1.
-Proof.
-elim => [|n ns0 IH] ns1 H_nd //.
-inversion H_nd => {l H0 x H}.
-exact: IH.
-Qed.
-
 Lemma sum_aggregate_msg_incoming_app_aggregate_eq :
   forall ns f h x m',
     In h ns ->
@@ -3930,39 +3781,6 @@ case (in_dec _ _) => H_dec; case name_eq_dec => H_dec' H_eq.
   by rewrite (IH _ _ _ _ _ H3).
 Qed.
 
-Lemma sum_sent_Nodes_data_distr : 
-  forall ns0 ns1 state,
-    sum_sent (Nodes_data ns0 state) * sum_sent (Nodes_data ns1 state) =
-    sum_sent (Nodes_data (ns0 ++ ns1) state).
-Proof.
-elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
-rewrite -IH.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_received_Nodes_data_distr : 
-  forall ns0 ns1 state,
-    (sum_received (Nodes_data ns1 state))^-1 * (sum_received (Nodes_data ns0 state))^-1 = 
-    (sum_received (Nodes_data (ns0 ++ ns1) state))^-1.
-Proof.
-elim => [|n ns0 IH] ns1 state /=; first by gsimpl.
-gsimpl.
-rewrite -IH.
-by aac_reflexivity.
-Qed.
-
-(* FIXME *)
-Lemma adjacent_to_node_self_eq :
-  forall ns0 ns1 h,
-  adjacent_to_node h (ns0 ++ h :: ns1) = adjacent_to_node h (ns0 ++ ns1).
-Proof.
-elim => [|n ns0 IH] ns1 h /=.
-  case (adjacent_to_dec _ _) => /= H_dec //.
-  by apply adjacent_to_irreflexive in H_dec.
-case (adjacent_to_dec _ _) => /= H_dec //.
-by rewrite IH.
-Qed.
-
 Lemma exclude_in_split_eq :
   forall ns0 ns1 ns failed h,
     exclude (h :: failed) (ns0 ++ h :: ns1) = ns ->
@@ -3994,19 +3812,6 @@ rewrite /=.
 case name_eq_dec => H_ex_dec //.
 move => H.
 by rewrite H.
-Qed.
-
-Lemma permutation_split : 
-  forall (ns : list name) ns' n,
-  Permutation (n :: ns) ns' ->
-  exists ns0, exists ns1, ns' = ns0 ++ n :: ns1.
-Proof.
-move => ns ns' n H_pm.
-have H_in: In n (n :: ns) by left. 
-have H_in': In n ns'.
-  move: H_pm H_in. 
-  exact: Permutation_in.
-by apply In_split in H_in'.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_permutation_eq :
@@ -5163,7 +4968,8 @@ rewrite H_cons {H_cons}.
 suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)) * (@sum_received _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)))^-1 =
              sum_aggregate_msg_incoming_active nodes (exclude failed nodes) onet.(onwPackets) *
              sum_fail_sent_incoming_active nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState) *
-             (sum_fail_received_incoming_active nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState))^-1 by aac_rewrite H_suff; aac_reflexivity.
+             (sum_fail_received_incoming_active nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState))^-1
+ by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
 remember step_o_f_init as y in *.
 have ->: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
@@ -5244,7 +5050,7 @@ end; simpl.
       rewrite H0 /= in H_le.
       move: H_le.
       case H_cnt: (count_occ _ _ _) => H_le; last by omega.
-      by apply count_occ_not_In in H_cnt.      
+      by apply count_occ_not_In in H_cnt.
     have H_ins := Aggregation_in_queue_fail_then_adjacent H_step1 _ _ H1 H_in.
     rewrite (sumM_remove_remove H_ins H).
     rewrite (sumM_remove_remove H_ins H3).
@@ -5383,12 +5189,9 @@ end; simpl.
     by aac_reflexivity.
   * have [m' H_snt] := Aggregation_in_set_exists_find_sent H_step1 _ H0 H.
     by rewrite H_snt in H3.
-  * rewrite update_nop.
-    by rewrite update_nop_ext.
-  * rewrite update_nop.
-    by rewrite update_nop_ext.
-  * rewrite update_nop.
-    by rewrite update_nop_ext.
+  * by rewrite update_nop update_nop_ext.
+  * by rewrite update_nop update_nop_ext.
+  * by rewrite update_nop update_nop_ext.
 - move {H_step2}.
   have H_in_from : In h nodes by exact: all_names_nodes.
   rewrite /= in IHH_step1.
@@ -5435,8 +5238,8 @@ end; simpl.
     set ss := sum_sent _.
     by aac_reflexivity.
   rewrite H_eq {H_eq} in IH.
-  rewrite sum_sent_Nodes_data_distr.  
-  aac_rewrite (sum_received_Nodes_data_distr ns0 ns1 (onwState net)).
+  rewrite sum_sent_Nodes_data_distr.
+  aac_rewrite (@sum_received_Nodes_data_distr _ AggregationData_Data ns0 ns1 (onwState net)).
   move: IH.
   rewrite -2!sum_aggregate_msg_incoming_active_split.
   move => IH.
@@ -5742,7 +5545,7 @@ end; simpl.
   move {H_dec_f}.
   case in_dec => /= H_dec_f //.
   move {H_dec_f}.
-  rewrite (collate_neq _ _ _ H_neq) //.    
+  rewrite (collate_neq _ _ _ H_neq) //.
   case in_dec => /= H_dec_f.
     contradict H_dec_f.
     rewrite /update2.
@@ -5875,20 +5678,3 @@ end; simpl.
 Qed.
 
 End Aggregation.
-
-(*
-Require Import StructTact.Fin.
-Module FinGroup (CFG : CommutativeFinGroup).
-Module N3 : NatValue. Definition n := 3. End N3.
-Module FN_N3 : FinNameType N3 := FinName N3.
-Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
-Module NOTC_N3 : NameOrderedTypeCompat FN_N3 := FinNameOrderedTypeCompat N3 FN_N3.
-Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
-Require Import MSetList.
-Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
-Require Import FMapList.
-Module N3Map <: FMapInterface.S := FMapList.Make NOTC_N3.
-Module AG := Aggregation FN_N3 NOT_N3 N3Set NOTC_N3 N3Map CFG ANC_N3.
-Print AG.Msg.
-End FinGroup.
-*)
