@@ -2261,13 +2261,13 @@ end; simpl.
   exact: IHrefl_trans_1n_trace1.
 Qed.
 
-Definition Nodes_data (ns : list name) (onet : ordered_network) : list Data :=
-fold_right (fun (n : name) (l' : list Data) => (onet.(onwState) n) :: l') [] ns.
+Definition Nodes_data (ns : list name) (state : name -> Data) : list Data :=
+fold_right (fun (n : name) (l' : list Data) => n.(state) :: l') [] ns.
 
 Lemma Aggregation_conserves_node_mass_all : 
 forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
- conserves_node_mass_all (Nodes_data (exclude failed nodes) onet).
+ conserves_node_mass_all (Nodes_data (exclude failed nodes) onet.(onwState)).
 Proof.
 move => onet failed tr H_st.
 rewrite /conserves_node_mass_all.
@@ -2286,7 +2286,7 @@ Qed.
 Corollary Aggregate_conserves_mass_globally :
 forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
- conserves_mass_globally (Nodes_data (exclude failed nodes) onet).
+ conserves_mass_globally (Nodes_data (exclude failed nodes) onet.(onwState)).
 Proof.
 move => onet failed tr H_step.
 apply: global_conservation.
@@ -2311,32 +2311,32 @@ by rewrite (Aggregation_self_channel_empty H_step).
 Qed.
 
 (* given n, sum aggregate messages for all its incoming channels *)
-Definition sum_aggregate_msg_incoming (ns : list name) (f : name -> name -> list Msg) (n : name) : m := 
+Definition sum_aggregate_msg_incoming (ns : list name) (packets : name -> name -> list Msg) (n : name) : m := 
 fold_right (fun (n' : name) (partial : m) => 
-  partial * if In_dec Msg_eq_dec Fail (f n' n) then 1 else sum_aggregate_msg (f n' n)) 1 ns.
+  partial * if In_dec Msg_eq_dec Fail (packets n' n) then 1 else sum_aggregate_msg (packets n' n)) 1 ns.
 
 (* given list of active names and all names, sum all incoming channels for all active *)
-Definition sum_aggregate_msg_incoming_active (allns : list name) (actns : list name)  (onet : ordered_network) : m :=
-fold_right (fun (n : name) (partial : m) => partial * sum_aggregate_msg_incoming allns onet.(onwPackets) n) 1 actns.
+Definition sum_aggregate_msg_incoming_active (allns : list name) (actns : list name)  (packets : name -> name -> list Msg) : m :=
+fold_right (fun (n : name) (partial : m) => partial * sum_aggregate_msg_incoming allns packets n) 1 actns.
 
 Definition sum_fail_map (l : list Msg) (from : name) (adj : NS) (map : NM) : m :=
 if In_dec Msg_eq_dec Fail l && NSet.mem from adj then sum_fold map from 1 else 1.
 
-Definition sum_fail_map_incoming (ns : list name) (f : name -> name -> list Msg) (n : name) (adj : NS) (map : NM) : m :=
-  fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (f n' n) n' adj map) 1 ns.
+Definition sum_fail_map_incoming (ns : list name) (packets : name -> name -> list Msg) (n : name) (adj : NS) (map : NM) : m :=
+fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (packets n' n) n' adj map) 1 ns.
 
-Definition sum_fail_sent_incoming_active (allns : list name) (actns : list name) (onet : ordered_network) : m :=
+Definition sum_fail_sent_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list Msg) (state : name -> Data) : m :=
 fold_right (fun (n : name) (partial : m) => 
-  partial * sum_fail_map_incoming allns onet.(onwPackets) n (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent)) 1 actns.
+  partial * sum_fail_map_incoming allns packets n n.(state).(adjacent) n.(state).(sent)) 1 actns.
 
-Definition sum_fail_received_incoming_active (allns : list name) (actns : list name) (onet : ordered_network) : m :=
+Definition sum_fail_received_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list Msg) (state : name -> Data) : m :=
 fold_right (fun (n : name) (partial : m) => 
-  partial * sum_fail_map_incoming allns onet.(onwPackets) n (onet.(onwState) n).(adjacent) (onet.(onwState) n).(received)) 1 actns.
+  partial * sum_fail_map_incoming allns packets n n.(state).(adjacent) n.(state).(received)) 1 actns.
 
-Definition conserves_network_mass (actns : list name) (allns : list name) (onet : ordered_network) : Prop :=
-sum_local (Nodes_data actns onet) = 
-  sum_aggregate (Nodes_data actns onet) * sum_aggregate_msg_incoming_active allns actns onet * 
-  sum_fail_sent_incoming_active allns actns onet * (sum_fail_received_incoming_active allns actns onet)^-1.
+Definition conserves_network_mass (actns : list name) (allns : list name) (packets : name -> name -> list Msg) (state : name -> Data) : Prop :=
+sum_local (Nodes_data actns state) = 
+  sum_aggregate (Nodes_data actns state) * sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_sent_incoming_active allns actns packets state * (sum_fail_received_incoming_active allns actns packets state)^-1.
 
 Lemma sum_aggregate_msg_incoming_step_o_init :
   forall ns n, sum_aggregate_msg_incoming ns step_o_init.(onwPackets) n = 1.
@@ -2350,7 +2350,7 @@ by gsimpl.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_all_step_o_init :
-  forall actns allns, sum_aggregate_msg_incoming_active allns actns step_o_init = 1.
+  forall actns allns, sum_aggregate_msg_incoming_active allns actns (fun _ _ => []) = 1.
 Proof.
 rewrite /sum_aggregate_msg_incoming_active /=.
 elim => [|a l IH] l' //=.
@@ -2359,7 +2359,7 @@ by gsimpl.
 Qed.
 
 Lemma sum_local_step_o_init :
-  forall ns, sum_local (Nodes_data ns step_o_init) = 1.
+  forall ns, sum_local (Nodes_data ns init_handlers) = 1.
 Proof.
 rewrite /Nodes_data /step_o_init /=.
 elim => //.
@@ -2369,7 +2369,7 @@ by gsimpl.
 Qed.
 
 Lemma sum_aggregate_step_o_init :
-  forall ns, sum_aggregate (Nodes_data ns step_o_init) = 1.
+  forall ns, sum_aggregate (Nodes_data ns init_handlers) = 1.
 Proof.
 elim => //.
 move => n l IH.
@@ -2378,23 +2378,23 @@ by gsimpl.
 Qed.
 
 Lemma sum_local_split :
-  forall ns0 ns1 onet n,
-    sum_local (Nodes_data (ns0 ++ n :: ns1) onet) =
-    (onet.(onwState) n).(local) * sum_local (Nodes_data (ns0 ++ ns1) onet).
+  forall ns0 ns1 state n,
+    sum_local (Nodes_data (ns0 ++ n :: ns1) state) =
+    n.(state).(local) * sum_local (Nodes_data (ns0 ++ ns1) state).
 Proof.
-elim => /=; first by move => ns1 onet n; aac_reflexivity.
-move => n ns IH ns1 onet n'.
+elim => /=; first by move => ns1 state n; aac_reflexivity.
+move => n ns IH ns1 state n'.
 rewrite IH /=.
 by gsimpl.
 Qed.
 
 Lemma sum_aggregate_split :
-  forall ns0 ns1 onet n,
-    sum_aggregate (Nodes_data (ns0 ++ n :: ns1) onet) =
-    (onet.(onwState) n).(aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) onet).
+  forall ns0 ns1 state n,
+    sum_aggregate (Nodes_data (ns0 ++ n :: ns1) state) =
+    n.(state).(aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) state).
 Proof.
-elim => /=; first by move => ns1 onet n; aac_reflexivity.
-move => n ns IH ns1 onet n'.
+elim => /=; first by move => ns1 state n; aac_reflexivity.
+move => n ns IH ns1 state n'.
 rewrite IH /=.
 by gsimpl.
 Qed.
@@ -2418,16 +2418,16 @@ exact: IH.
 Qed.
 
 Lemma Nodes_data_not_in : 
-forall n' d onet ns,
+forall n' d state ns,
 ~ In n' ns ->
 fold_right
   (fun (n : name) (l : list Data) =>
      (match name_eq_dec n n' with
       | left _ => d 
-      | right _ => (onet.(onwState) n) 
-      end) :: l) [] ns = Nodes_data ns onet.
+      | right _ => n.(state) 
+      end) :: l) [] ns = Nodes_data ns state.
 Proof.
-move => n' d onet.
+move => n' d state.
 elim => //.
 move => a l IH H_in.
 rewrite /=.
@@ -2440,16 +2440,16 @@ Qed.
 (* with failed nodes - don't add their incoming messages, but add their outgoing channels to non-failed nodes *)
 
 Lemma sum_aggregate_msg_neq_from :
-forall from to n onet ms ns,
+forall from to n packets ms ns,
 ~ In from ns ->
 fold_right
   (fun (n' : name) (partial : m) => 
-     partial * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns =
+     partial * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns =
 fold_right
   (fun (n' : name) (partial : m) => 
-     partial * sum_aggregate_msg (onet.(onwPackets) n' n)) 1 ns.
+     partial * sum_aggregate_msg (packets n' n)) 1 ns.
 Proof.
-move => from to n onet ms.
+move => from to n packets ms.
 elim => //.
 move => n0 ns IH H_in.
 rewrite /= IH /=; last by move => H_in'; case: H_in; right.
@@ -2461,16 +2461,16 @@ by left.
 Qed.
 
 Lemma sum_aggregate_msg_n_neq_from :
-forall from to n onet ms ns,
+forall from to n packets ms ns,
 to <> n ->
 fold_right
   (fun (n' : name) (partial : m) => 
-     partial * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns =
+     partial * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns =
 fold_right
   (fun (n' : name) (partial : m) => 
-     partial * sum_aggregate_msg (onet.(onwPackets) n' n)) 1 ns.
+     partial * sum_aggregate_msg (packets n' n)) 1 ns.
 Proof.
-move => from to n onet ms ns H_neq.
+move => from to n packets ms ns H_neq.
 elim: ns => //.
 move => n' l IH.
 rewrite /= IH /update2 /=.
@@ -2479,22 +2479,22 @@ by move: H_dec => [H_dec H_dec'].
 Qed.
 
 Lemma sum_aggregate_msg_neq_to :
-forall from to onet ms ns1 ns0,
+forall from to packets ms ns1 ns0,
 ~ In to ns1 ->
 fold_right
   (fun (n : name) (partial : m) =>
      partial *
      fold_right
        (fun (n' : name) (partial0 : m) =>
-          partial0 * sum_aggregate_msg (update2 onet.(onwPackets) from to ms n' n)) 1 ns0) 1 ns1 = 
+          partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns0) 1 ns1 = 
 fold_right
   (fun (n : name) (partial : m) =>
      partial *
      fold_right
        (fun (n' : name) (partial0 : m) =>
-          partial0 * sum_aggregate_msg (onet.(onwPackets) n' n)) 1 ns0) 1 ns1.
+          partial0 * sum_aggregate_msg (packets n' n)) 1 ns0) 1 ns1.
 Proof.
-move => from to onet ms.
+move => from to packets ms.
 elim => //=.
 move => n l IH ns H_in.
 rewrite IH /=; last by move => H_in'; case: H_in; right.
@@ -2516,28 +2516,18 @@ by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; re
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_not_in_eq :
-  forall ns ns' from to h ms d f g,
+  forall ns ns' from to ms f,
     ~ In to ns ->
-    sum_aggregate_msg_incoming_active ns' ns
-     {| onwPackets := update2 f from to ms;
-        onwState := update g h d |} = 
-    sum_aggregate_msg_incoming_active ns' ns {| onwPackets := f; onwState := g |}.
+    sum_aggregate_msg_incoming_active ns' ns (update2 f from to ms) =
+    sum_aggregate_msg_incoming_active ns' ns f.
 Proof.
 elim => //=.
-move => n ns IH ns' from to h ms d f g H_in.
+move => n ns IH ns' from to ms f H_in.
 have H_not_in: ~ In to ns by move => H_in'; case: H_in; right.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 rewrite IH //.
 by rewrite sum_aggregate_msg_incoming_neq_eq.
 Qed.
-
-Lemma sum_aggregate_msg_incoming_active_not_in_eq_alt :
-  forall ns ns' h d net,
-    sum_aggregate_msg_incoming_active ns' ns
-     {| onwPackets := onwPackets net;
-        onwState := update (onwState net) h d |} = 
-    sum_aggregate_msg_incoming_active ns' ns net.
-Proof. by []. Qed.
 
 Lemma sum_aggregate_msg_incoming_not_in_eq :
 forall ns ns0 f from to ms,
@@ -2573,15 +2563,15 @@ by rewrite H_eq' in H_neq.
 Qed.
 
 Lemma sum_aggregate_msg_fold_split :
-forall ns0 ns1 ns2 from to ms onet,
+forall ns0 ns1 ns2 from to ms packets,
 fold_right (fun (n : name) (partial : m) => partial * fold_right (fun (n' : name) (partial0 : m) =>
-         partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns0) 1 (ns1 ++ ns2) = 
+         partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns0) 1 (ns1 ++ ns2) = 
 fold_right (fun (n : name) (partial : m) => partial * fold_right (fun (n' : name) (partial0 : m) =>
-         partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns0) 1 ns1 * 
+         partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns0) 1 ns1 * 
 fold_right (fun (n : name) (partial : m) => partial * fold_right (fun (n' : name) (partial0 : m) =>
-         partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns0) 1 ns2.
+         partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns0) 1 ns2.
 Proof.
-move => ns0 ns1 ns2 from to ms onet.
+move => ns0 ns1 ns2 from to ms packets.
 elim: ns1 => //=; first by gsimpl.
 move => n ns1 IH.
 rewrite IH.
@@ -2589,13 +2579,13 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_split_folded :
-forall ns0 ns1 from to n onet ms,
+forall ns0 ns1 from to n packets ms,
 fold_right (fun (n' : name) (partial0 : m) =>
-        partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 (ns0 ++ ns1) = 
+        partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 (ns0 ++ ns1) = 
 fold_right (fun (n' : name) (partial0 : m) =>
-        partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns0 *
+        partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns0 *
 fold_right (fun (n' : name) (partial0 : m) =>
-        partial0 * sum_aggregate_msg (update2 (onwPackets onet) from to ms n' n)) 1 ns1.
+        partial0 * sum_aggregate_msg (update2 packets from to ms n' n)) 1 ns1.
 Proof.
 move => ns0 ns1 from to n onet ms.
 elim: ns0 => //=; first by gsimpl.
@@ -2605,12 +2595,12 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_split :
-  forall ns0 ns1 onet n,
-    sum_aggregate_msg_incoming (ns0 ++ ns1) onet n = 
-    sum_aggregate_msg_incoming ns0 onet n *
-    sum_aggregate_msg_incoming ns1 onet n.
+  forall ns0 ns1 packets n,
+    sum_aggregate_msg_incoming (ns0 ++ ns1) packets n = 
+    sum_aggregate_msg_incoming ns0 packets n *
+    sum_aggregate_msg_incoming ns1 packets n.
 Proof.
-move => ns0 ns1 onet n.
+move => ns0 ns1 packets n.
 elim: ns0 => //=; first by gsimpl.
 move => n' ns0 IH.
 rewrite IH.
@@ -2618,12 +2608,12 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_split :
-  forall ns0 ns1 ns2 onet,
-    sum_aggregate_msg_incoming_active ns0 (ns1 ++ ns2) onet = 
-    sum_aggregate_msg_incoming_active ns0 ns1 onet *
-    sum_aggregate_msg_incoming_active ns0 ns2 onet.
+  forall ns0 ns1 ns2 packets,
+    sum_aggregate_msg_incoming_active ns0 (ns1 ++ ns2) packets = 
+    sum_aggregate_msg_incoming_active ns0 ns1 packets *
+    sum_aggregate_msg_incoming_active ns0 ns2 packets.
 Proof.
-move => ns0 ns1 ns2 onet.
+move => ns0 ns1 ns2 packets.
 elim: ns1 => //=; first by gsimpl.
 move => n ns1 IH.
 rewrite /= IH.
@@ -2631,12 +2621,12 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_split :
-  forall ns0 ns1 ns2 onet,
-    sum_fail_sent_incoming_active ns0 (ns1 ++ ns2) onet = 
-    sum_fail_sent_incoming_active ns0 ns1 onet *
-    sum_fail_sent_incoming_active ns0 ns2 onet.
+  forall ns0 ns1 ns2 packets state,
+    sum_fail_sent_incoming_active ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_sent_incoming_active ns0 ns1 packets state *
+    sum_fail_sent_incoming_active ns0 ns2 packets state.
 Proof.
-move => ns0 ns1 ns2 onet.
+move => ns0 ns1 ns2 packets state.
 elim: ns1 => //=; first by gsimpl.
 move => n ns1 IH.
 rewrite /= IH.
@@ -2644,12 +2634,12 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_fail_received_incoming_active_split :
-  forall ns0 ns1 ns2 onet,
-    sum_fail_received_incoming_active ns0 (ns1 ++ ns2) onet = 
-    sum_fail_received_incoming_active ns0 ns1 onet *
-    sum_fail_received_incoming_active ns0 ns2 onet.
+  forall ns0 ns1 ns2 packets state,
+    sum_fail_received_incoming_active ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_received_incoming_active ns0 ns1 packets state *
+    sum_fail_received_incoming_active ns0 ns2 packets state.
 Proof.
-move => ns0 ns1 ns2 onet.
+move => ns0 ns1 ns2 packets state.
 elim: ns1 => //=; first by gsimpl.
 move => n ns1 IH.
 rewrite /= IH.
@@ -2667,16 +2657,16 @@ by case: msg => [m'|]; aac_reflexivity.
 Qed.
 
 Lemma fold_right_update_id :
-forall ns h x',
+forall ns h state,
 fold_right 
   (fun (n : name) (l' : list Data) =>
-     update (onwState x') h (onwState x' h) n :: l') [] ns =
+     update state h (state h) n :: l') [] ns =
 fold_right 
   (fun (n : name) (l' : list Data) =>
-     (onwState x' n) :: l') [] ns.
+     (state n) :: l') [] ns.
 Proof.
 elim => //.
-move => n l IH h onet.
+move => n l IH h state.
 rewrite /= IH.
 rewrite /update /=.
 case name_eq_dec => H_dec //.
@@ -2782,15 +2772,15 @@ case (in_dec _ _) => H_dec; case (in_dec _ _) => H_dec' //=.
 Qed.
 
 Lemma sum_fail_map_incoming_sent_neq_eq :
-  forall ns net from to ms n d,
+  forall ns packets state from to ms n d,
   n <> to ->
-  sum_fail_map_incoming ns (update2 (onwPackets net) from to ms) n
-    (adjacent (match name_eq_dec n to with left _ => d | right_ => onwState net n end))
-    (sent (match name_eq_dec n to with left _ => d |right _ => onwState net n end)) =
-  sum_fail_map_incoming ns (onwPackets net) n (adjacent (onwState net n)) (sent (onwState net n)).
+  sum_fail_map_incoming ns (update2 packets from to ms) n
+    (adjacent (match name_eq_dec n to with left _ => d | right_ => state n end))
+    (sent (match name_eq_dec n to with left _ => d |right _ => state n end)) =
+  sum_fail_map_incoming ns packets n (adjacent (state n)) (sent (state n)).
 Proof.
 elim => //=.
-move => n ns IH net from to ms n0 d H_neq.
+move => n ns IH packets state from to ms n0 d H_neq.
 rewrite IH //.
 case name_eq_dec => H_dec //=.
 rewrite /update2 /=.
@@ -2800,15 +2790,15 @@ by rewrite H_eq' in H_neq.
 Qed.
 
 Lemma sum_fail_map_incoming_received_neq_eq :
-  forall ns net from to ms n d,
+  forall ns packets state from to ms n d,
   n <> to ->
-  sum_fail_map_incoming ns (update2 (onwPackets net) from to ms) n
-    (adjacent (match name_eq_dec n to with left _ => d | right_ => onwState net n end))
-    (received (match name_eq_dec n to with left _ => d |right _ => onwState net n end)) =
-  sum_fail_map_incoming ns (onwPackets net) n (adjacent (onwState net n)) (received (onwState net n)).
+  sum_fail_map_incoming ns (update2 packets from to ms) n
+    (adjacent (match name_eq_dec n to with left _ => d | right_ => state n end))
+    (received (match name_eq_dec n to with left _ => d |right _ => state n end)) =
+  sum_fail_map_incoming ns packets n (adjacent (state n)) (received (state n)).
 Proof.
 elim => //=.
-move => n ns IH net from to ms n0 d H_neq.
+move => n ns IH packets state from to ms n0 d H_neq.
 rewrite IH //.
 case name_eq_dec => H_dec //=.
 rewrite /update2 /=.
@@ -2818,70 +2808,65 @@ by rewrite H_eq' in H_neq.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_not_in_eq :
-  forall ns0 ns1 net from to ms d,
+  forall ns0 ns1 packets state from to ms d,
     ~ In to ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0
-      {| onwPackets := update2 (onwPackets net) from to ms; 
-         onwState := fun nm : name => match name_eq_dec nm to with left _ => d | right _ => onwState net nm end |} =
-    sum_fail_sent_incoming_active ns1 ns0 net.
+    sum_fail_sent_incoming_active ns1 ns0 
+      (update2 packets from to ms) 
+      (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
+    sum_fail_sent_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
-move => n ns IH ns1 net from to ms d H_in.
+move => n ns IH ns1 packets state from to ms d H_in.
 rewrite /sum_fail_sent_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 rewrite sum_fail_map_incoming_sent_neq_eq //.
-rewrite -/(sum_fail_sent_incoming_active _ _ _).
+rewrite -/(sum_fail_sent_incoming_active _ _ _ _).
 have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-have IH' := IH ns1 net from to ms d H_in'.
-by rewrite -IH'.
+have IH' := IH ns1 packets state from to ms d H_in'.
+by rewrite IH' /=.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_not_in_eq_alt :
-forall ns net h d,
-  ~ In h ns ->
-  sum_fail_sent_incoming_active nodes ns
-     {| onwPackets := onwPackets net;
-        onwState := update (onwState net) h d |} =
-  sum_fail_sent_incoming_active nodes ns net.
+forall ns1 ns0 packets state h d,
+  ~ In h ns1 ->
+  sum_fail_sent_incoming_active ns0 ns1 packets (update state h d) =
+  sum_fail_sent_incoming_active ns0 ns1 packets state.
 Proof.
 elim => //=.
-move => n ns IH net h d H_in.
+move => n ns1 IH ns0 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
-have H_not_in: ~ In h ns by move => H_in'; case: H_in; right.
+have H_not_in: ~ In h ns1 by move => H_in'; case: H_in; right.
 rewrite IH //.
 rewrite /update.
 by case (name_eq_dec _ _) => H_dec.
 Qed.
 
 Lemma sum_fail_received_incoming_active_not_in_eq :
-  forall ns0 ns1 net from to ms d,
+  forall ns0 ns1 packets state from to ms d,
     ~ In to ns0 ->
-    sum_fail_received_incoming_active ns1 ns0
-      {| onwPackets := update2 (onwPackets net) from to ms; 
-         onwState := fun nm : name => match name_eq_dec nm to with left _ => d | right _ => onwState net nm end |} =
-    sum_fail_received_incoming_active ns1 ns0 net.
+    sum_fail_received_incoming_active ns1 ns0 (update2 packets from to ms)
+     (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
+    sum_fail_received_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
-move => n ns IH ns1 net from to ms d H_in.
+move => n ns IH ns1 packets state from to ms d H_in.
 rewrite /sum_fail_received_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 rewrite sum_fail_map_incoming_received_neq_eq //.
-rewrite -/(sum_fail_received_incoming_active _ _ _).
+rewrite -/(sum_fail_received_incoming_active _ _ _ _).
 have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-have IH' := IH ns1 net from to ms d H_in'.
-by rewrite -IH'.
+have IH' := IH ns1 packets state from to ms d H_in'.
+by rewrite IH'.
 Qed.
 
 Lemma sum_fail_received_incoming_active_not_in_eq_alt :
-forall ns net h d,
+forall ns packets state h d,
   ~ In h ns ->
-  sum_fail_received_incoming_active nodes ns
-     {| onwPackets := onwPackets net;
-        onwState := update (onwState net) h d |} =
-  sum_fail_received_incoming_active nodes ns net.
+  sum_fail_received_incoming_active nodes ns packets (update state h d) =
+  sum_fail_received_incoming_active nodes ns packets state.
 Proof.
 elim => //=.
-move => n ns IH net h d H_in.
+move => n ns IH packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_not_in: ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
@@ -3354,44 +3339,26 @@ case (in_dec _ _ _) => /= H_dec; case (in_dec _ _ _) => /= H_dec' //.
 Qed.
 
 Lemma Nodes_data_split :
-  forall ns0 ns1 onet,
-    Nodes_data (ns0 ++ ns1) onet =
-    Nodes_data ns0 onet ++ Nodes_data ns1 onet.
+  forall ns0 ns1 state,
+    Nodes_data (ns0 ++ ns1) state =
+    Nodes_data ns0 state ++ Nodes_data ns1 state.
 Proof.
 elim => //.
-move => n ns0 IH ns1 onet.
+move => n ns0 IH ns1 state.
 rewrite /=.
 by rewrite IH.
 Qed.
 
 Lemma Nodes_data_not_in_eq :
-  forall ns net from to ms d l,
+  forall ns state to d,
     ~ In to ns ->
-    Nodes_data ns {| onwPackets := collate to (update2 (onwPackets net) from to ms) l; onwState := update (onwState net) to d |} =
-    Nodes_data ns net.
+    Nodes_data ns (update state to d) =
+    Nodes_data ns state.
 Proof.
 elim => //.
-move => n ns IH net from to ms d l H_in.
+move => n ns IH state to d H_in.
 rewrite /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite {1}/update /=.
-case name_eq_dec => H_dec //.
-rewrite IH //.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma Nodes_data_not_in_eq_alt :
-  forall ns net h d l,
-    ~ In h ns ->
-    Nodes_data ns {| onwPackets := collate h (onwPackets net) l; onwState := update (onwState net) h d |} =
-    Nodes_data ns net.
-Proof.
-elim => //.
-move => n ns IH net h d l H_in.
-rewrite /=.
-have H_neq: n <> h by move => H_eq; case: H_in; left.
 rewrite {1}/update /=.
 case name_eq_dec => H_dec //.
 rewrite IH //.
@@ -3434,33 +3401,17 @@ contradict H_in'.
 exact: IH.
 Qed.
 
-Lemma sum_aggregate_msg_incoming_active_not_in_eq_alt2 :
-  forall ns ns' from to ms h d net,
-    ~ In to ns ->
-    sum_aggregate_msg_incoming_active ns' ns 
-      {| onwPackets := update2 (onwPackets net) from to ms;
-         onwState := update (onwState net) h d |} =
-    sum_aggregate_msg_incoming_active ns' ns net.
-Proof.
-elim => //=.
-move => n ns IH ns' from to ms h d net H_in.
-have H_not_in: ~ In to ns by move => H_in'; case: H_in; right.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite IH //.
-by rewrite sum_aggregate_msg_incoming_neq_eq.
-Qed.
-
 Lemma sum_fail_map_incoming_sent_neq_eq_alt :
-  forall ns net from to ms h n d,
+  forall ns packets state from to ms h n d,
   n <> to ->
   n <> h ->
-  sum_fail_map_incoming ns (update2 (onwPackets net) from to ms) n
-    (adjacent (update (onwState net) h d n))
-    (sent (update (onwState net) h d n)) =
-  sum_fail_map_incoming ns (onwPackets net) n (adjacent (onwState net n)) (sent (onwState net n)).
+  sum_fail_map_incoming ns (update2 packets from to ms) n
+    (adjacent (update state h d n))
+    (sent (update state h d n)) =
+  sum_fail_map_incoming ns packets n (adjacent (state n)) (sent (state n)).
 Proof.
 elim => //=.
-move => n ns IH net from to ms h n0 d H_neq H_neq'.
+move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
 rewrite IH //.
 rewrite /update.
 case (name_eq_dec _ _) => H_dec //=.
@@ -3471,38 +3422,36 @@ by rewrite H_eq' in H_neq.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_not_in_eq_alt2 :
-  forall ns0 ns1 net from to ms h d,
+  forall ns0 ns1 packets state from to ms h d,
     ~ In to ns0 ->
     ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0
-      {| onwPackets := update2 (onwPackets net) from to ms; 
-         onwState := update (onwState net) h d |} =
-    sum_fail_sent_incoming_active ns1 ns0 net.
+    sum_fail_sent_incoming_active ns1 ns0 (update2 packets from to ms) (update state h d) =
+    sum_fail_sent_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
-move => n ns IH ns1 net from to ms h d H_in H_in'.
+move => n ns IH ns1 packets state from to ms h d H_in H_in'.
 rewrite /sum_fail_sent_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 have H_neq': n <> h by move => H_eq; case: H_in'; left.
 rewrite sum_fail_map_incoming_sent_neq_eq_alt //.
-rewrite -/(sum_fail_sent_incoming_active _ _ _).
+rewrite -/(sum_fail_sent_incoming_active _ _ _ _).
 have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
 have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
-have IH' := IH ns1 net from to ms h d H_inn H_inn'.
-by rewrite -IH'.
+have IH' := IH ns1 packets state from to ms h d H_inn H_inn'.
+by rewrite IH'.
 Qed.
 
 Lemma sum_fail_map_incoming_received_neq_eq_alt :
-  forall ns net from to ms h n d,
+  forall ns packets state from to ms h n d,
   n <> to ->
   n <> h ->
-  sum_fail_map_incoming ns (update2 (onwPackets net) from to ms) n
-    (adjacent (update (onwState net) h d n))
-    (received (update (onwState net) h d n)) =
-  sum_fail_map_incoming ns (onwPackets net) n (adjacent (onwState net n)) (received (onwState net n)).
+  sum_fail_map_incoming ns (update2 packets from to ms) n
+    (adjacent (update state h d n))
+    (received (update state h d n)) =
+  sum_fail_map_incoming ns packets n (adjacent (state n)) (received (state n)).
 Proof.
 elim => //=.
-move => n ns IH net from to ms h n0 d H_neq H_neq'.
+move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
 rewrite IH //.
 rewrite /update.
 case (name_eq_dec _ _) => H_dec //=.
@@ -3513,24 +3462,22 @@ by rewrite H_eq' in H_neq.
 Qed.
 
 Lemma sum_fail_received_incoming_active_not_in_eq_alt2 :
-  forall ns0 ns1 net from to ms h d,
+  forall ns0 ns1 packets state from to ms h d,
     ~ In to ns0 ->
     ~ In h ns0 ->
-    sum_fail_received_incoming_active ns1 ns0
-      {| onwPackets := update2 (onwPackets net) from to ms; 
-         onwState := update (onwState net) h d |} =
-    sum_fail_received_incoming_active ns1 ns0 net.
+    sum_fail_received_incoming_active ns1 ns0 (update2 packets from to ms) (update state h d) =
+    sum_fail_received_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
-move => n ns IH ns1 net from to ms h d H_in H_in'.
+move => n ns IH ns1 packets state from to ms h d H_in H_in'.
 rewrite /sum_fail_sent_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 have H_neq': n <> h by move => H_eq; case: H_in'; left.
 rewrite sum_fail_map_incoming_received_neq_eq_alt //.
-rewrite -/(sum_fail_received_incoming_active _ _ _).
+rewrite -/(sum_fail_received_incoming_active _ _ _ _).
 have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
 have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
-have IH' := IH ns1 net from to ms h d H_inn H_inn'.
+have IH' := IH ns1 packets state from to ms h d H_inn H_inn'.
 by rewrite -IH'.
 Qed.
 
@@ -3665,13 +3612,13 @@ by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; re
 Qed.
 
 Lemma sum_fail_sent_incoming_active_update_not_in_eq :
-  forall ns0 ns1 f g h d,
+  forall ns0 ns1 packets state h d,
     ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 {| onwPackets := f; onwState := update g h d |} =
-    sum_fail_sent_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+    sum_fail_sent_incoming_active ns1 ns0 packets (update state h d) =
+    sum_fail_sent_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
-move => n ns IH ns1 f g h d H_in.
+move => n ns IH ns1 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_in': ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
@@ -3680,13 +3627,13 @@ by case (name_eq_dec _ _) => H_dec.
 Qed.
 
 Lemma sum_fail_received_incoming_active_update_not_in_eq :
-  forall ns0 ns1 f g h d,
+  forall ns0 ns1 packets state h d,
     ~ In h ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 {| onwPackets := f; onwState := update g h d |} =
-    sum_fail_received_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+    sum_fail_received_incoming_active ns1 ns0 packets (update state h d) =
+    sum_fail_received_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
-move => n ns IH ns1 f g h d H_in.
+move => n ns IH ns1 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_in': ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
@@ -3730,33 +3677,29 @@ by left.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_update2_app_eq :
-  forall ns0 ns1 f h x m' g,
-    (*~ In Fail (f h x) ->*)
-    sum_fail_sent_incoming_active ns1 ns0 
-      {| onwPackets := update2 f h x (f h x ++ [Aggregate m']); onwState := g |} =
-    sum_fail_sent_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+  forall ns0 ns1 packets state h x m',
+    sum_fail_sent_incoming_active ns1 ns0 (update2 packets h x (packets h x ++ [Aggregate m'])) state =
+    sum_fail_sent_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
-move => n ns IH ns1 f h x m' g.
+move => n ns IH ns1 packets state h x m'.
 rewrite IH //.
 by rewrite sum_fail_map_incoming_update2_app_eq.
 Qed.
 
 Lemma sum_fail_received_incoming_active_update2_app_eq :
-  forall ns0 ns1 f h x m' g,
-    (*~ In Fail (f h x) ->*)
-    sum_fail_received_incoming_active ns1 ns0 
-      {| onwPackets := update2 f h x (f h x ++ [Aggregate m']); onwState := g |} =
-    sum_fail_received_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+  forall ns0 ns1 packets state h x m',
+    sum_fail_received_incoming_active ns1 ns0 (update2 packets h x (packets h x ++ [Aggregate m'])) state =
+    sum_fail_received_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
-move => n ns IH ns1 f h x m' g.
+move => n ns IH ns1 packets state h x m'.
 rewrite IH //.
 by rewrite sum_fail_map_incoming_update2_app_eq.
 Qed.
 
 Lemma sum_sent_step_o_init : 
-  forall ns, sum_sent ((Nodes_data ns) step_o_init) = 1.
+  forall ns, sum_sent ((Nodes_data ns) init_handlers) = 1.
 Proof.
 elim => //=.
 move => n ns IH.
@@ -3765,7 +3708,7 @@ by gsimpl.
 Qed.
 
 Lemma sum_received_step_o_init : 
-  forall ns, sum_received ((Nodes_data ns) step_o_init) = 1.
+  forall ns, sum_received ((Nodes_data ns) init_handlers) = 1.
 Proof.
 elim => //=.
 move => n ns IH.
@@ -3787,7 +3730,7 @@ by contradict H_eq.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_step_o_init :
-  forall ns0 ns1, sum_fail_sent_incoming_active ns1 ns0 step_o_init = 1.
+  forall ns0 ns1, sum_fail_sent_incoming_active ns1 ns0 (fun _ _ => []) init_handlers = 1.
 Proof.
 elim => //=.
 move => n ns0 IH ns1.
@@ -3796,7 +3739,7 @@ by gsimpl.
 Qed.
 
 Lemma sum_fail_received_incoming_active_step_o_init :
-  forall ns0 ns1, sum_fail_received_incoming_active ns1 ns0 step_o_init = 1.
+  forall ns0 ns1, sum_fail_received_incoming_active ns1 ns0 (fun _ _ => []) init_handlers = 1.
 Proof.
 elim => //=.
 move => n ns0 IH ns1.
@@ -3907,18 +3850,18 @@ case (in_dec _ _) => /= H_dec; case (in_dec _ _) => /= H_dec' //.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_in_update2_app_eq :
-  forall ns0 ns1 f g x h d m',
+  forall ns0 ns1 f x h m',
     NoDup ns0 ->
     NoDup ns1 ->
     In x ns0 ->
     In h ns1 ->
     ~ In h ns0 ->
     ~ In Fail (f h x) ->
-    sum_aggregate_msg_incoming_active ns1 ns0 {| onwPackets := update2 f h x (f h x ++ [Aggregate m']); onwState := update g h d |} = 
-    sum_aggregate_msg_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |} * m'.
+    sum_aggregate_msg_incoming_active ns1 ns0 (update2 f h x (f h x ++ [Aggregate m'])) =
+    sum_aggregate_msg_incoming_active ns1 ns0 f * m'.
 Proof.
 elim => //=.
-move => n ns0 IH ns1 f g x h d m' H_nd H_nd' H_in H_inn H_in' H_f.
+move => n ns0 IH ns1 f x h m' H_nd H_nd' H_in H_inn H_in' H_f.
 have H_neq: h <> n by move => H_neq; case: H_in'; left.
 have H_nin: ~ In h ns0 by move => H_nin; case: H_in'; right.
 move {H_in'}.
@@ -3988,9 +3931,9 @@ case (in_dec _ _) => H_dec; case name_eq_dec => H_dec' H_eq.
 Qed.
 
 Lemma sum_sent_Nodes_data_distr : 
-  forall ns0 ns1 net,
-    sum_sent (Nodes_data ns0 net) * sum_sent (Nodes_data ns1 net) =
-    sum_sent (Nodes_data (ns0 ++ ns1) net).
+  forall ns0 ns1 state,
+    sum_sent (Nodes_data ns0 state) * sum_sent (Nodes_data ns1 state) =
+    sum_sent (Nodes_data (ns0 ++ ns1) state).
 Proof.
 elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
 rewrite -IH.
@@ -3998,16 +3941,17 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_received_Nodes_data_distr : 
-  forall ns0 ns1 net,
-    (sum_received (Nodes_data ns1 net))^-1 * (sum_received (Nodes_data ns0 net))^-1 = 
-    (sum_received (Nodes_data (ns0 ++ ns1) net))^-1.
+  forall ns0 ns1 state,
+    (sum_received (Nodes_data ns1 state))^-1 * (sum_received (Nodes_data ns0 state))^-1 = 
+    (sum_received (Nodes_data (ns0 ++ ns1) state))^-1.
 Proof.
-elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
+elim => [|n ns0 IH] ns1 state /=; first by gsimpl.
 gsimpl.
 rewrite -IH.
 by aac_reflexivity.
 Qed.
 
+(* FIXME *)
 Lemma adjacent_to_node_self_eq :
   forall ns0 ns1 h,
   adjacent_to_node h (ns0 ++ h :: ns1) = adjacent_to_node h (ns0 ++ ns1).
@@ -4088,10 +4032,10 @@ by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_permutation_eq :
-  forall ns1 ns1' ns0 net,
+  forall ns1 ns1' ns0 state,
   Permutation ns1 ns1' ->
-  sum_aggregate_msg_incoming_active ns1 ns0 net =
-  sum_aggregate_msg_incoming_active ns1' ns0 net.
+  sum_aggregate_msg_incoming_active ns1 ns0 state =
+  sum_aggregate_msg_incoming_active ns1' ns0 state.
 Proof.
 move => ns1 ns1' ns0.
 move: ns0 ns1 ns1'.
@@ -4134,26 +4078,26 @@ by gsimpl.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_permutation_eq :
-  forall ns1 ns1' ns net,
+  forall ns1 ns1' ns packets state,
   Permutation ns1 ns1' ->
-  sum_fail_sent_incoming_active ns1 ns net =
-  sum_fail_sent_incoming_active ns1' ns net.
+  sum_fail_sent_incoming_active ns1 ns packets state =
+  sum_fail_sent_incoming_active ns1' ns packets state.
 Proof.
 move => ns1 ns1' ns.
-elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' net H_pm //=.
-rewrite (IH _ _ _ H_pm).
+elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
+rewrite (IH _ _ _ _ H_pm).
 by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
 Qed.
 
 Lemma sum_fail_received_incoming_active_permutation_eq :
-  forall ns1 ns1' ns net,
+  forall ns1 ns1' ns packets state,
   Permutation ns1 ns1' ->
-  sum_fail_received_incoming_active ns1 ns net =
-  sum_fail_received_incoming_active ns1' ns net.
+  sum_fail_received_incoming_active ns1 ns packets state =
+  sum_fail_received_incoming_active ns1' ns packets state.
 Proof.
 move => ns1 ns1' ns.
-elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' net H_pm //=.
-rewrite (IH _ _ _ H_pm).
+elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
+rewrite (IH _ _ _ _ H_pm).
 by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
 Qed.
 
@@ -4497,76 +4441,76 @@ by move: H_ins => [H_ins H_ins'].
 Qed.
 
 Lemma sum_fail_sent_incoming_active_empty_1 : 
-  forall ns net,
-  sum_fail_sent_incoming_active [] ns net = 1.
+  forall ns packets state,
+  sum_fail_sent_incoming_active [] ns packets state = 1.
 Proof.
-elim => [|n ns IH] net //=.
+elim => [|n ns IH] packets state //=.
 rewrite IH.
 by gsimpl.
 Qed.
 
 Lemma sum_fail_sent_incoming_active_all_head_eq : 
-  forall ns ns' net n,
-  sum_fail_sent_incoming_active (n :: ns) ns' net = 
-  sum_fail_sent_incoming_active [n] ns' net * sum_fail_sent_incoming_active ns ns' net.
+  forall ns ns' packets state n,
+  sum_fail_sent_incoming_active (n :: ns) ns' packets state = 
+  sum_fail_sent_incoming_active [n] ns' packets state * sum_fail_sent_incoming_active ns ns' packets state.
 Proof.
 move => ns ns'.
 elim: ns' ns => /=.
-  move => ns net.
+  move => ns packets state.
   by gsimpl.
-move => n ns IH ns' net n'.
+move => n ns IH ns' packets state n'.
 rewrite IH.
 gsimpl.
 by aac_reflexivity.
 Qed.
 
 Lemma sum_fail_received_incoming_active_empty_1 : 
-  forall ns net,
-  sum_fail_received_incoming_active [] ns net = 1.
+  forall ns packets state,
+  sum_fail_received_incoming_active [] ns packets state = 1.
 Proof.
-elim => [|n ns IH] net //=.
+elim => [|n ns IH] packets state //=.
 rewrite IH.
 by gsimpl.
 Qed.
 
 Lemma sum_fail_received_incoming_active_all_head_eq : 
-  forall ns ns' net n,
-  sum_fail_received_incoming_active (n :: ns) ns' net = 
-  sum_fail_received_incoming_active [n] ns' net * sum_fail_received_incoming_active ns ns' net.
+  forall ns ns' packets state n,
+  sum_fail_received_incoming_active (n :: ns) ns' packets state = 
+  sum_fail_received_incoming_active [n] ns' packets state * sum_fail_received_incoming_active ns ns' packets state.
 Proof.
 move => ns ns'.
 elim: ns' ns => /=.
-  move => ns net.
+  move => ns packets state.
   by gsimpl.
-move => n ns IH ns' net n'.
+move => n ns IH ns' packets state n'.
 rewrite IH.
 gsimpl.
 by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_all_head_eq :
-  forall ns ns' net n,  
-  sum_aggregate_msg_incoming_active (n :: ns) ns' net = 
-  sum_aggregate_msg_incoming_active [n] ns' net * sum_aggregate_msg_incoming_active ns ns' net.
+  forall ns ns' packets n,  
+  sum_aggregate_msg_incoming_active (n :: ns) ns' packets = 
+  sum_aggregate_msg_incoming_active [n] ns' packets * sum_aggregate_msg_incoming_active ns ns' packets.
 Proof.
 move => ns ns'.
 elim: ns' ns => /=.
-  move => ns net.
+  move => ns packets.
   by gsimpl.
-move => n ns IH ns' net n'.
+move => n ns IH ns' packets n'.
 rewrite IH.
 gsimpl.
 by aac_reflexivity.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_singleton_neq_update2_eq :
-  forall ns f g h n n' ms,
+  forall ns f h n n' ms,
     h <> n ->
-    sum_aggregate_msg_incoming_active [n] ns {| onwPackets := f; onwState := g |} =
-    sum_aggregate_msg_incoming_active [n] ns {| onwPackets := update2 f h n' ms; onwState := g |}.
+    sum_aggregate_msg_incoming_active [n] ns f =
+    sum_aggregate_msg_incoming_active [n] ns (update2 f h n' ms).
 Proof.
 elim => //=.
-move => n0 ns IH f g h n n' ms H_neq.
+move => n0 ns IH f h n n' ms H_neq.
 gsimpl.
 case in_dec => /= H_dec; case in_dec => /= H_dec'.
 - by rewrite -IH.
@@ -4579,16 +4523,16 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
 - rewrite -IH //.
   rewrite /update2.
   by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
-Qed. 
+Qed.
 
 Lemma sum_aggregate_msg_incoming_active_singleton_neq_collate_eq :
-  forall ns f g h n,
+  forall ns f h n,
   h <> n ->
-  sum_aggregate_msg_incoming_active [n] ns {| onwPackets := f; onwState := g |} =  
-  sum_aggregate_msg_incoming_active [n] ns {| onwPackets := collate h f (msg_for Fail (adjacent_to_node h ns)); onwState := g |}.
+  sum_aggregate_msg_incoming_active [n] ns f =  
+  sum_aggregate_msg_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))).
 Proof.
 elim => //=.
-move => n' ns IH f g h n H_neq.
+move => n' ns IH f h n H_neq.
 gsimpl.
 case in_dec => /= H_dec; case adjacent_to_dec => H_dec'.
 - case in_dec => /= H_in.
@@ -4621,8 +4565,8 @@ Qed.
 Lemma sum_fail_sent_incoming_active_singleton_neq_update2_eq :
   forall ns f g h n n' ms,
     h <> n ->
-    sum_fail_sent_incoming_active [n] ns {| onwPackets := f; onwState := g |} =
-    sum_fail_sent_incoming_active [n] ns {| onwPackets := update2 f h n' ms; onwState := g |}.
+    sum_fail_sent_incoming_active [n] ns f g =
+    sum_fail_sent_incoming_active [n] ns (update2 f h n' ms) g.
 Proof.
 elim => //=.
 move => n0 ns IH f g h n n' ms H_neq.
@@ -4635,8 +4579,8 @@ Qed.
 Lemma sum_fail_sent_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
-  sum_fail_sent_incoming_active [n] ns {| onwPackets := f; onwState := g |} = 
-  sum_fail_sent_incoming_active [n] ns {| onwPackets := collate h f (msg_for Fail (adjacent_to_node h ns)); onwState := g |}.
+  sum_fail_sent_incoming_active [n] ns f g = 
+  sum_fail_sent_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -4652,8 +4596,8 @@ Qed.
 Lemma sum_fail_received_incoming_active_singleton_neq_update2_eq :
   forall ns f g h n n' ms,
     h <> n ->
-    sum_fail_received_incoming_active [n] ns {| onwPackets := f; onwState := g |} =
-    sum_fail_received_incoming_active [n] ns {| onwPackets := update2 f h n' ms; onwState := g |}.
+    sum_fail_received_incoming_active [n] ns f g =
+    sum_fail_received_incoming_active [n] ns (update2 f h n' ms) g.
 Proof.
 elim => //=.
 move => n0 ns IH f g h n n' ms H_neq.
@@ -4666,8 +4610,8 @@ Qed.
 Lemma sum_fail_received_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
-  sum_fail_received_incoming_active [n] ns {| onwPackets := f; onwState := g |} = 
-  sum_fail_received_incoming_active [n] ns {| onwPackets := collate h f (msg_for Fail (adjacent_to_node h ns)); onwState := g |}.
+  sum_fail_received_incoming_active [n] ns f g =
+  sum_fail_received_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -4709,13 +4653,13 @@ by rewrite collate_msg_for_not_adjacent.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_eq_not_in_eq :
-forall ns ns' from to ms f g,
+forall ns ns' from to ms f,
   ~ In to ns ->
-  sum_aggregate_msg_incoming_active ns' ns {| onwPackets := update2 f from to ms; onwState := g |} = 
-  sum_aggregate_msg_incoming_active ns' ns {| onwPackets := f; onwState := g |}.
+  sum_aggregate_msg_incoming_active ns' ns (update2 f from to ms) =
+  sum_aggregate_msg_incoming_active ns' ns f.
 Proof.
 elim => //=.
-move => n ns IH ns' from to ms f g H_in.
+move => n ns IH ns' from to ms f H_in.
 have H_not_in: ~ In to ns by move => H_in'; case: H_in; right.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 rewrite IH //.
@@ -4761,14 +4705,13 @@ by case in_dec => /= H_dec; rewrite IH.
 Qed.
   
 Lemma sum_aggregate_msg_incoming_active_collate_update2_eq :
-  forall ns ns' h n f g l ms,
+  forall ns ns' h n f l ms,
     ~ In n ns ->
-    sum_aggregate_msg_incoming_active ns' ns
-      {| onwPackets := collate h (update2 f h n ms) l; onwState := g |} =
-    sum_aggregate_msg_incoming_active ns' ns {| onwPackets := collate h f l; onwState := g |}.
+    sum_aggregate_msg_incoming_active ns' ns (collate h (update2 f h n ms) l) =
+    sum_aggregate_msg_incoming_active ns' ns (collate h f l).
 Proof.
 elim => //=.
-move => n' ns IH ns' h n f g l ms H_in.
+move => n' ns IH ns' h n f l ms H_in.
 have H_neq: n' <> n by move => H_in'; case: H_in; left.
 have H_in': ~ In n ns by move => H_in'; case: H_in; right.
 rewrite IH //.
@@ -4897,8 +4840,8 @@ Qed.
 Lemma sum_fail_sent_incoming_active_collate_update2_eq :
   forall ns ns' h n f g l ms,
   ~ In n ns ->
-  sum_fail_sent_incoming_active ns' ns {| onwPackets := collate h (update2 f h n ms) l; onwState := g |} =
-  sum_fail_sent_incoming_active ns' ns {| onwPackets := collate h f l; onwState := g |}.
+  sum_fail_sent_incoming_active ns' ns (collate h (update2 f h n ms) l) g =
+  sum_fail_sent_incoming_active ns' ns (collate h f l) g.
 Proof.
 elim => //=.
 move => n' ns IH ns' h n f g l ms H_in.
@@ -4911,8 +4854,8 @@ Qed.
 Lemma sum_fail_received_incoming_active_collate_update2_eq :
   forall ns ns' h n f g l ms,
   ~ In n ns ->
-  sum_fail_received_incoming_active ns' ns {| onwPackets := collate h (update2 f h n ms) l; onwState := g |} =
-  sum_fail_received_incoming_active ns' ns {| onwPackets := collate h f l; onwState := g |}.
+  sum_fail_received_incoming_active ns' ns (collate h (update2 f h n ms) l) g =
+  sum_fail_received_incoming_active ns' ns (collate h f l) g.
 Proof.
 elim => //=.
 move => n' ns IH ns' h n f g l ms H_in.
@@ -4938,8 +4881,8 @@ Qed.
 Lemma sum_fail_sent_incoming_active_not_in_eq_alt_alt :
   forall ns0 ns1 from to ms f g,
   ~ In to ns0 ->
-  sum_fail_sent_incoming_active ns1 ns0 {| onwPackets := update2 f from to ms; onwState := g |} =
-  sum_fail_sent_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+  sum_fail_sent_incoming_active ns1 ns0 (update2 f from to ms) g =
+  sum_fail_sent_incoming_active ns1 ns0 f g.
 Proof.
 elim => //.
 move => n ns IH ns1 from to ms f g H_in.
@@ -4952,8 +4895,8 @@ Qed.
 Lemma sum_fail_received_incoming_active_not_in_eq_alt_alt :
   forall ns0 ns1 from to ms f g,
   ~ In to ns0 ->
-  sum_fail_received_incoming_active ns1 ns0 {| onwPackets := update2 f from to ms; onwState := g |} =
-  sum_fail_received_incoming_active ns1 ns0 {| onwPackets := f; onwState := g |}.
+  sum_fail_received_incoming_active ns1 ns0 (update2 f from to ms) g =
+  sum_fail_received_incoming_active ns1 ns0 f g.
 Proof.
 elim => //.
 move => n ns IH ns1 from to ms f g H_in.
@@ -5209,7 +5152,7 @@ Qed.
 Lemma Aggregation_conserves_network_mass : 
   forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr ->
-  conserves_network_mass (exclude failed nodes) nodes onet.
+  conserves_network_mass (exclude failed nodes) nodes onet.(onwPackets) onet.(onwState).
 Proof.
 move => onet failed tr H_step.
 rewrite /conserves_network_mass.
@@ -5217,14 +5160,14 @@ have H_cons := Aggregation_conserves_node_mass_all H_step.
 apply global_conservation in H_cons.
 rewrite /conserves_mass_globally in H_cons.
 rewrite H_cons {H_cons}.
-suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (exclude failed nodes) onet) * (@sum_received _ AggregationData_Data (Nodes_data (exclude failed nodes) onet))^-1 =
-             sum_aggregate_msg_incoming_active nodes (exclude failed nodes) onet *
-             sum_fail_sent_incoming_active nodes (exclude failed nodes) onet *
-             (sum_fail_received_incoming_active nodes (exclude failed nodes) onet)^-1 by aac_rewrite H_suff; aac_reflexivity.
+suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)) * (@sum_received _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)))^-1 =
+             sum_aggregate_msg_incoming_active nodes (exclude failed nodes) onet.(onwPackets) *
+             sum_fail_sent_incoming_active nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState) *
+             (sum_fail_received_incoming_active nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState))^-1 by aac_rewrite H_suff; aac_reflexivity.
 remember step_o_f_init as y in *.
 have ->: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
-rewrite {2 4 6 8 10}H_eq_o {H_eq_o}.
+rewrite {2 4 6 8 9 11 12} H_eq_o {H_eq_o}.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init.
   rewrite H_init {H_init} /=.
@@ -5274,11 +5217,10 @@ end; simpl.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
-    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin).
-    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin').
-    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin).
-    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin').
-    have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
+    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
     rewrite /update.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
     rewrite H5 H6 H7 {H3 H4 H5 H6 H7}.
@@ -5311,10 +5253,10 @@ end; simpl.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
-    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin).
-    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin').
-    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin).
-    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ H_to_nin').
+    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
+    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
     have H_bef := Aggregation_in_after_all_fail_aggregate H_step1 _ H1 from.
     rewrite (sum_aggregate_msg_incoming_fail_update2_eq _ _ _ H_bef _ no_dup_nodes) //.
     rewrite /update.
@@ -5322,7 +5264,6 @@ end; simpl.
     rewrite H6 H7 H8.
     rewrite (sum_fail_map_incoming_fail_remove_eq _ _ _ no_dup_nodes H_ins _ H_in' H) //.
     rewrite (sum_fail_map_incoming_fail_remove_eq _ _ _ no_dup_nodes H_ins _ H_in' H3) //.
-    have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
     gsimpl.
     by aac_reflexivity.
   * have H_in: In Fail (onwPackets net from to) by rewrite H0; left.
@@ -5352,8 +5293,8 @@ end; simpl.
   rewrite 2!Nodes_data_split /=.
   rewrite {2 5}/update.
   case (name_eq_dec _ _) => H_dec {H_dec} //.
-  rewrite Nodes_data_not_in_eq_alt //.
-  rewrite Nodes_data_not_in_eq_alt //.  
+  rewrite Nodes_data_not_in_eq //.
+  rewrite Nodes_data_not_in_eq //.  
   rewrite 2!sum_sent_distr 2!sum_received_distr /=.
   rewrite 2!sum_aggregate_msg_incoming_active_split /=.
   rewrite 2!sum_fail_sent_incoming_active_split /=.
@@ -5361,8 +5302,7 @@ end; simpl.
   gsimpl.
   move => IH.
   io_handler_cases => //=.
-  * rewrite 2!sum_aggregate_msg_incoming_active_not_in_eq_alt.
-    rewrite sum_fail_sent_incoming_active_not_in_eq_alt //.
+  * rewrite sum_fail_sent_incoming_active_not_in_eq_alt //.
     rewrite sum_fail_sent_incoming_active_not_in_eq_alt //.
     rewrite sum_fail_received_incoming_active_not_in_eq_alt //.
     rewrite sum_fail_received_incoming_active_not_in_eq_alt //.
@@ -5376,11 +5316,9 @@ end; simpl.
     aac_rewrite IH.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_neq_eq //.
-    rewrite {5 6 7 8}/update.
+    rewrite {5 6 7 8}/update /=.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
-    rewrite H6 H7 H8.
-    set up2 := update2 _ _ _ _.
-    set netu := {| onwPackets := _; onwState := _ |}.
+    rewrite H6 H8.
     case (In_dec name_eq_dec x failed0) => H_dec.
       have H_or := Aggregation_in_adj_or_incoming_fail H_step1 _ H0 H.
       case: H_or => H_or //.
@@ -5389,19 +5327,20 @@ end; simpl.
       rewrite H_inn in H_x_ex.
       have H_x_nin: ~ In x ns0 by move => H_x_in; case: H_x_ex; apply in_or_app; left.
       have H_x_nin': ~ In x ns1 by move => H_x_in; case: H_x_ex; apply in_or_app; right; right.
-      rewrite sum_aggregate_msg_incoming_active_not_in_eq_alt2 //.
-      rewrite sum_aggregate_msg_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_sent_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_sent_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_received_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_received_incoming_active_not_in_eq_alt2 //.
+      rewrite /update /=.
+      case name_eq_dec => H_eq //.
+      rewrite H6 H7.
       rewrite (sum_fail_map_incoming_add_aggregate_eq _ _ _ _ no_dup_nodes) //.
       rewrite sum_fail_map_incoming_update2_not_eq //.
+      rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+      rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
       by aac_reflexivity.
     have H_in := Aggregation_not_failed_no_fail H_step1 _ x H0.
     have H_in' := Aggregation_not_failed_no_fail H_step1 _ h H_dec.
-    rewrite (sum_fail_map_incoming_not_in_fail_add_update2_eq _ _ _ _ _ _ _ no_dup_nodes) //.
-    rewrite (sum_fail_map_incoming_not_in_fail_update2_eq _ _ _ _ _ H_neq).
     rewrite sum_fail_sent_incoming_active_update_not_in_eq //.
     rewrite sum_fail_sent_incoming_active_update_not_in_eq //.   
     rewrite sum_fail_received_incoming_active_update_not_in_eq //.
@@ -5409,7 +5348,12 @@ end; simpl.
     rewrite sum_fail_sent_incoming_active_update2_app_eq //.
     rewrite sum_fail_sent_incoming_active_update2_app_eq //.
     rewrite sum_fail_received_incoming_active_update2_app_eq //.
-    rewrite sum_fail_received_incoming_active_update2_app_eq //.    
+    rewrite sum_fail_received_incoming_active_update2_app_eq //.
+    rewrite /update /=.
+    case name_eq_dec => H_eq //.
+    rewrite H6 H7.
+    rewrite (sum_fail_map_incoming_not_in_fail_add_update2_eq _ _ _ _ _ _ _ no_dup_nodes) //.    
+    rewrite (sum_fail_map_incoming_not_in_fail_update2_eq _ _ _ _ _ H_neq).
     have H_in_x: In x (exclude failed0 nodes) by exact: In_n_exclude.
     rewrite H_inn in H_in_x.
     apply in_app_or in H_in_x.
@@ -5421,9 +5365,8 @@ end; simpl.
         move: H_in_x.
         exact: nodup_in_not_in_right.
       have H_nd': NoDup ns0 by move: H_nd; exact: nodup_app_split_left.
-      rewrite (sum_aggregate_msg_incoming_active_not_in_eq_alt2 ns1) //.
-      rewrite (sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ _ _ no_dup_nodes) //.
-      have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+      rewrite (sum_aggregate_msg_incoming_active_not_in_eq ns1) //.
+      rewrite (sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ no_dup_nodes) //.
       by aac_reflexivity.
     case: H_in_x => H_in_x //.
     have H_nin_x: ~ In x ns0.
@@ -5435,21 +5378,17 @@ end; simpl.
     have H_nd': NoDup ns1.
       apply nodup_app_split_right in H_nd.
       by inversion H_nd.
-    rewrite sum_aggregate_msg_incoming_active_not_in_eq_alt2 //.
-    rewrite (sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ _ _ no_dup_nodes) //.
-    have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite (sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ no_dup_nodes) //.
     by aac_reflexivity.
   * have [m' H_snt] := Aggregation_in_set_exists_find_sent H_step1 _ H0 H.
     by rewrite H_snt in H3.
   * rewrite update_nop.
-    rewrite update_nop_ext.
-    by have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+    by rewrite update_nop_ext.
   * rewrite update_nop.
-    rewrite update_nop_ext.
-    by have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+    by rewrite update_nop_ext.
   * rewrite update_nop.
-    rewrite update_nop_ext.
-    by have ->: {| onwPackets := onwPackets net; onwState := onwState net |} = net by destruct net.
+    by rewrite update_nop_ext.
 - move {H_step2}.
   have H_in_from : In h nodes by exact: all_names_nodes.
   rewrite /= in IHH_step1.
@@ -5479,58 +5418,55 @@ end; simpl.
   rewrite /Net.adjacent_to_node -/(adjacent_to_node _ _).
   rewrite adjacent_to_node_self_eq.
   set l := collate _ _ _.
-  have ->: Nodes_data ns0 {| onwPackets := l; onwState := onwState net |} = Nodes_data ns0 net by [].
-  have ->: Nodes_data ns1 {| onwPackets := l; onwState := onwState net |} = Nodes_data ns1 net by [].
-  have H_eq: sum_sent (Nodes_data ns0 net) * 
-   sum_sent (Nodes_data ns1 net) *
+  have H_eq: sum_sent (Nodes_data ns0 (onwState net)) * 
+   sum_sent (Nodes_data ns1 (onwState net)) *
    sumM (adjacent (onwState net h)) (sent (onwState net h)) *
    (sumM (adjacent (onwState net h)) (received (onwState net h)))^-1 *
-   (sum_received (Nodes_data ns1 net))^-1 *
-   (sum_received (Nodes_data ns0 net))^-1 =
-   (sum_received (Nodes_data (ns0 ++ ns1) net))^-1 *
-   sum_sent (Nodes_data (ns0 ++ ns1) net) *    
+   (sum_received (Nodes_data ns1 (onwState net)))^-1 *
+   (sum_received (Nodes_data ns0 (onwState net)))^-1 =
+   (sum_received (Nodes_data (ns0 ++ ns1) (onwState net)))^-1 *
+   sum_sent (Nodes_data (ns0 ++ ns1) (onwState net)) *    
    sumM (adjacent (onwState net h)) (sent (onwState net h)) *
    (sumM (adjacent (onwState net h)) (received (onwState net h)))^-1.
     rewrite sum_sent_Nodes_data_distr.
-    aac_rewrite (sum_received_Nodes_data_distr ns0 ns1 net).
+    aac_rewrite (sum_received_Nodes_data_distr ns0 ns1 (onwState net)).
     gsimpl.
     set sr := sum_received _.
     set ss := sum_sent _.
     by aac_reflexivity.
   rewrite H_eq {H_eq} in IH.
   rewrite sum_sent_Nodes_data_distr.  
-  aac_rewrite (sum_received_Nodes_data_distr ns0 ns1 net).
-  set netl := {| onwPackets := _; onwState := _ |}.
+  aac_rewrite (sum_received_Nodes_data_distr ns0 ns1 (onwState net)).
   move: IH.
   rewrite -2!sum_aggregate_msg_incoming_active_split.
   move => IH.
-  have ->: sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) netl *
-   sum_fail_sent_incoming_active nodes ns0 netl *
-   sum_fail_sent_incoming_active nodes ns1 netl *
-   (sum_fail_received_incoming_active nodes ns1 netl)^-1 *
-   (sum_fail_received_incoming_active nodes ns0 netl)^-1 =
-   sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) netl *
-   sum_fail_sent_incoming_active nodes (ns0 ++ ns1) netl *
-   (sum_fail_received_incoming_active nodes (ns0 ++ ns1) netl)^-1.
+  have ->: sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) l *
+   sum_fail_sent_incoming_active nodes ns0 l (onwState net) *
+   sum_fail_sent_incoming_active nodes ns1 l (onwState net) *
+   (sum_fail_received_incoming_active nodes ns1 l (onwState net))^-1 *
+   (sum_fail_received_incoming_active nodes ns0 l (onwState net))^-1 =
+   sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) l *
+   sum_fail_sent_incoming_active nodes (ns0 ++ ns1) l (onwState net) *
+   (sum_fail_received_incoming_active nodes (ns0 ++ ns1) l (onwState net))^-1.
     rewrite sum_fail_sent_incoming_active_split.
     rewrite sum_fail_received_incoming_active_split.
     by gsimpl.
   move: IH.
-  have ->: sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) net *
+  have ->: sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) (onwPackets net) *
    sum_aggregate_msg_incoming nodes (onwPackets net) h *
-   sum_fail_sent_incoming_active nodes ns0 net *
-   sum_fail_sent_incoming_active nodes ns1 net *
+   sum_fail_sent_incoming_active nodes ns0 (onwPackets net) (onwState net) *
+   sum_fail_sent_incoming_active nodes ns1 (onwPackets net) (onwState net) *
    sum_fail_map_incoming nodes (onwPackets net) h
      (adjacent (onwState net h)) (sent (onwState net h)) *
    (sum_fail_map_incoming nodes (onwPackets net) h
       (adjacent (onwState net h)) (received (onwState net h)))^-1 *
-   (sum_fail_received_incoming_active nodes ns1 net)^-1 *
-   (sum_fail_received_incoming_active nodes ns0 net)^-1 =
-   sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) net *
+   (sum_fail_received_incoming_active nodes ns1 (onwPackets net) (onwState net))^-1 *
+   (sum_fail_received_incoming_active nodes ns0 (onwPackets net) (onwState net))^-1 =
+   sum_aggregate_msg_incoming_active nodes (ns0 ++ ns1) (onwPackets net) *
    sum_aggregate_msg_incoming nodes (onwPackets net) h *
-   sum_fail_sent_incoming_active nodes (ns0 ++ ns1) net *
+   sum_fail_sent_incoming_active nodes (ns0 ++ ns1) (onwPackets net) (onwState net) *
    sum_fail_map_incoming nodes (onwPackets net) h (adjacent (onwState net h)) (sent (onwState net h)) *
-   (sum_fail_received_incoming_active nodes (ns0 ++ ns1) net)^-1 *
+   (sum_fail_received_incoming_active nodes (ns0 ++ ns1) (onwPackets net) (onwState net))^-1 *
    (sum_fail_map_incoming nodes (onwPackets net) h (adjacent (onwState net h)) (received (onwState net h)))^-1.
     rewrite sum_fail_sent_incoming_active_split.
     rewrite sum_fail_received_incoming_active_split.
@@ -5542,8 +5478,8 @@ end; simpl.
   set ss := sum_sent _.
   move => IH.
   set sam := sum_aggregate_msg_incoming_active _ _ _.  
-  set sfsi := sum_fail_sent_incoming_active _ _ _.
-  set sfri := sum_fail_received_incoming_active _ _ _.
+  set sfsi := sum_fail_sent_incoming_active _ _ _ _.
+  set sfri := sum_fail_received_incoming_active _ _ _ _.
   suff H_suff: sr^-1 * ss * sums * sums^-1 * sumr^-1 * sumr =
                sam * sfsi * sfri^-1.
     move: H_suff.
@@ -5551,7 +5487,7 @@ end; simpl.
   aac_rewrite IH.
   move {IH}.
   rewrite /sums /sumr /sr /ss /sam /sfsi /sfri {sums sumr sr ss sam sfsi sfri}.
-  rewrite /netl /l {netl l}.
+  rewrite /l {l}.
   have H_acs := sumM_sent_fail_active_eq_with_self H_step1 _ H0.
   have H_acr := sumM_received_fail_active_eq_with_self H_step1 _ H0.
   have H_pmn: Permutation (h :: ns0 ++ ns1) (exclude failed0 nodes) by rewrite H_inn; exact: Permutation_middle.
@@ -5599,11 +5535,11 @@ end; simpl.
   move {H_in_from}.
   rewrite (sum_aggregate_msg_incoming_active_permutation_eq _ _ H_pm).
   rewrite (sum_aggregate_msg_incoming_permutation_eq _ _ H_pm).
-  rewrite (sum_fail_sent_incoming_active_permutation_eq _ _ H_pm).
-  rewrite (sum_fail_received_incoming_active_permutation_eq _ _ H_pm).
+  rewrite (sum_fail_sent_incoming_active_permutation_eq _ _ _ H_pm).
+  rewrite (sum_fail_received_incoming_active_permutation_eq _ _ _ H_pm).
   rewrite (sum_aggregate_msg_incoming_active_permutation_eq _ _ H_pm).
-  rewrite (sum_fail_sent_incoming_active_permutation_eq _ _ H_pm).
-  rewrite (sum_fail_received_incoming_active_permutation_eq _ _ H_pm).
+  rewrite (sum_fail_sent_incoming_active_permutation_eq _ _ _ H_pm).
+  rewrite (sum_fail_received_incoming_active_permutation_eq _ _ _ H_pm).
   move: H_nd H_nin ns H_ex {H_pm}.
   set ns' := ns0 ++ ns1.
   elim: ns' => /=; rewrite (Aggregation_self_channel_empty H_step1) //=; first by move => H_nd H_in ns H_eq; rewrite -H_eq /=; gsimpl.
@@ -5612,7 +5548,7 @@ end; simpl.
   have H_neq: h <> n by move => H_eq; case: H_in; left.
   have H_in': ~ In h ns' by move => H_in'; case: H_in; right.
   move {H_in H_nd}.
-  case name_eq_dec => H_dec //.
+  case name_eq_dec => H_dec //=.
   case (in_dec _ _ _) => H_dec'.
     move {H_dec}.
     move => H_ex.
@@ -5620,7 +5556,6 @@ end; simpl.
     move {IH}.
     move: IH'.
     gsimpl.
-    set net' := {| onwPackets := _; onwState := _ |}.
     move => IH.
     case in_dec => /= H_dec; case H_mem: (NSet.mem n (net.(onwState) h).(adjacent)).
     - apply NSetFacts.mem_2 in H_mem.
@@ -5649,10 +5584,9 @@ end; simpl.
       aac_rewrite IH.
       move {IH}.
       gsimpl.
-      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_sent_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
       rewrite -(sum_fail_received_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-      have ->: {| onwPackets := net.(onwPackets); onwState := net.(onwState) |} = net by destruct net.
       by aac_reflexivity.
     - move/negP: H_mem => H_mem.
       case: H_mem.
@@ -5694,10 +5628,9 @@ end; simpl.
       aac_rewrite IH.
       move {IH}.
       gsimpl.
-      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_sent_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
       rewrite -(sum_fail_received_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-      have ->: {| onwPackets := net.(onwPackets); onwState := net.(onwState) |} = net by destruct net.
       by aac_reflexivity.
   move {H_dec}.
   case: ns IH H2 H3 H_in' => //.
@@ -5786,15 +5719,13 @@ end; simpl.
     rewrite (sum_fail_sent_incoming_active_all_head_eq (n :: ns')).
     rewrite (sum_fail_sent_incoming_active_all_head_eq ns').
     move: IH'.
-    set net' := {| onwPackets := _; onwState := _ |}.
     gsimpl.
     move => IH.
     aac_rewrite IH.
     move {IH}.
-    rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+    rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
     rewrite -(sum_fail_sent_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
     rewrite -(sum_fail_received_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-    have ->: {| onwPackets := net.(onwPackets); onwState := net.(onwState) |} = net by destruct net.
     rewrite 2!(sum_fail_map_incoming_not_adjacent_collate_eq _ _ _ _ _ H_Adj).
     rewrite (sum_aggregate_msg_incoming_not_adjacent_collate_eq _ _ _ H_Adj).
     by aac_reflexivity.
@@ -5876,18 +5807,15 @@ end; simpl.
   rewrite (sum_fail_sent_incoming_active_all_head_eq (n :: ns')).
   rewrite (sum_fail_sent_incoming_active_all_head_eq ns').
   move: IH'.
-  set netc := {| onwPackets := _; onwState := _ |}.
   gsimpl.
   move => IH.
   aac_rewrite IH.
   move {IH}.
   set u2 := update2 _ _ _ _.
   set cl := collate _ _ _.
-  set netclu2 := {| onwPackets := _; onwState := _ |}.  
-  rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+  rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
   rewrite -(sum_fail_sent_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
   rewrite -(sum_fail_received_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-  set netu2 := {| onwPackets := _; onwState := _ |}.
   rewrite /sum_fail_map.
   case in_dec => /= H_dec // {H_dec}.
   case in_dec => /= H_dec; last first.
@@ -5917,12 +5845,9 @@ end; simpl.
   rewrite -H_eq_rcd {m'3 H_rcd' H_eq_rcd}.
   gsimpl.
   rewrite sum_aggregate_msg_incoming_active_eq_not_in_eq //.
-  have ->: {| onwPackets := net.(onwPackets); onwState := net.(onwState) |} = net by destruct net.
-  rewrite {1}/netclu2 {1}/cl {1}/u2.
+  rewrite {1}/cl {1}/u2.
   rewrite sum_aggregate_msg_incoming_active_collate_update2_eq //.
-  rewrite -/netc.
   rewrite sum_aggregate_msg_incoming_active_collate_update2_eq //.
-  rewrite -/netc.
   rewrite {1}/cl /u2.
   rewrite sum_aggregate_msg_incoming_collate_update2_notin_eq //.
   rewrite sum_aggregate_msg_incoming_collate_msg_for_notin_eq //.
@@ -5944,9 +5869,8 @@ end; simpl.
   rewrite sum_fail_received_incoming_active_collate_update2_eq //.
   rewrite sum_fail_received_incoming_active_collate_update2_eq //.
   rewrite sum_fail_sent_incoming_active_not_in_eq_alt_alt //.
-  rewrite sum_fail_received_incoming_active_not_in_eq_alt_alt //.  
-  rewrite -/netc {netu2 netclu2 u2 cl}.
-  have ->: {| onwPackets := net.(onwPackets); onwState := net.(onwState) |} = net by destruct net.
+  rewrite sum_fail_received_incoming_active_not_in_eq_alt_alt //.
+  rewrite /cl {u2 cl}.
   by aac_reflexivity.
 Qed.
 
