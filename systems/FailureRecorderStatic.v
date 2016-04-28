@@ -13,95 +13,11 @@ Require Import mathcomp.ssreflect.ssreflect.
 
 Require Import UpdateLemmas.
 
+Require Import OrderedAux.
+
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
-
-Lemma count_occ_app_split : 
-  forall (A : Type) eq_dec  l l' (a : A),
-    count_occ eq_dec (l ++ l') a = count_occ eq_dec l a + count_occ eq_dec l' a.
-Proof.
-move => A eq_dec.
-elim => //.
-move => a' l IH l' a.
-rewrite /=.
-case (eq_dec _ _) => H_dec; first by rewrite IH.
-by rewrite IH.
-Qed.
-
-(* holds when there are no a' in the list until after all a *)
-Fixpoint In_all_before (A : Type) (a a' : A) l : Prop :=
-match l with
-| [] => True
-| a0 :: l' => ~ In a l' \/ (a' <> a0 /\ In_all_before a a' l')
-end.
-
-Lemma head_before_all_not_in : 
-  forall (A : Type) l (a a' : A),
-  a <> a' ->
-  In_all_before a a' (a' :: l) ->
-  ~ In a l.
-Proof.
-move => A l a a' H_neq H_bef.
-case: H_bef => H_bef //.
-by move: H_bef => [H_neq' H_bef].
-Qed.
-
-Lemma append_neq_before_all : 
-  forall (A : Type) l (a a' a0 : A),
-    a0 <> a ->
-    In_all_before a a' l ->
-    In_all_before a a' (l ++ [a0]).
-Proof.
-move => A.
-elim => [|a l IH] a' a0 a1 H_neq H_bef; first by left.
-rewrite /=.
-case: H_bef => H_bef.
-  left.
-  move => H_in.
-  apply in_app_or in H_in.
-  case: H_in => H_in //.
-  by case: H_in => H_in.
-move: H_bef => [H_neq' H_bef].
-right.
-split => //.
-exact: IH.
-Qed.
-
-Lemma append_before_all_not_in : 
-  forall (A : Type) l (a a' a0 : A),
-    ~ In a' l ->
-    In_all_before a a' (l ++ [a0]).
-Proof.
-move => A.
-elim => [|a l IH] a0 a' a1 H_in; first by left.
-have H_neq': a' <> a.
-  move => H_neq.
-  rewrite H_neq in H_in.
-  case: H_in.
-  by left.
-have H_in': ~ In a' l.
-  move => H_in'.
-  by case: H_in; right.
-rewrite /=.
-right.
-split => //.
-exact: IH.
-Qed.
-
-Lemma not_in_all_before :
-  forall (A : Type) l (a a' : A),
-    ~ In a l ->
-    In_all_before a a' l.
-Proof.
-move => A.
-case => //.
-move => a l a0 a' H_in.
-have H_in': ~ In a0 l.
-  move => H_in'.
-  by case: H_in; right.
-by left.
-Qed.
 
 Module FailureRecorder (Import NT : NameType) 
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
@@ -509,95 +425,6 @@ end; simpl.
 Qed.
 
 End SingleNodeInvOut.
-
-Lemma collate_msg_for_not_adjacent :
-  forall m n h ns f,
-    ~ adjacent_to h n ->
-    collate h f (msg_for m (adjacent_to_node h ns)) h n = f h n.
-Proof.
-move => m n h ns f H_adj.
-move: f.
-elim: ns => //.
-move => n' ns IH f.
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec' //.
-rewrite /=.
-rewrite IH.
-rewrite /update2.
-case (sumbool_and _ _) => H_and //.
-move: H_and => [H_and H_and'].
-by rewrite -H_and' in H_adj.
-Qed.
-
-Lemma collate_msg_for_notin :
-  forall m n h ns f failed,
-    ~ In n ns ->
-    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n.
-Proof.
-move => m n h ns f failed.
-move: f.
-elim: ns => //.
-move => n' ns IH f H_in.
-rewrite /=.
-case (in_dec _ _) => H_dec.
-  rewrite IH //.
-  move => H_in'.
-  by case: H_in; right.
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
-  rewrite /=.
-  rewrite IH.
-    rewrite /update2.
-    case (sumbool_and _ _) => H_and //.
-    move: H_and => [H_and H_and'].
-    rewrite H_and' in H_in.
-    by case: H_in; left.
-  move => H_in'.
-  case: H_in.
-  by right.
-rewrite IH //.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma collate_msg_for_live_adjacent :
-  forall m n h ns f failed,
-    ~ In n failed ->
-    adjacent_to h n ->
-    In n ns ->
-    NoDup ns ->
-    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [m].
-Proof.
-move => m n h ns f failed H_in H_adj.
-move: f.
-elim: ns => //.
-move => n' ns IH f H_in' H_nd.
-inversion H_nd; subst.
-rewrite /=.
-case (in_dec _ _) => H_dec.
-  case: H_in' => H_in'; first by rewrite H_in' in H_dec.
-  by rewrite IH.
-case: H_in' => H_in'.
-  rewrite H_in'.
-  rewrite H_in' in H1.
-  rewrite /=.
-  case (adjacent_to_dec _ _) => H_dec' //.
-  rewrite /=.
-  rewrite collate_msg_for_notin //.
-  rewrite /update2.
-  case (sumbool_and _ _) => H_sumb //.
-  by case: H_sumb.
-have H_neq: n' <> n by move => H_eq; rewrite -H_eq in H_in'. 
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
-  rewrite /=.
-  rewrite IH //.
-  rewrite /update2.
-  case (sumbool_and _ _) => H_sumb //.
-  by move: H_sumb => [H_eq H_eq'].
-by rewrite IH.
-Qed.
 
 Section SingleNodeInvIn.
 
@@ -1142,15 +969,3 @@ by move: H_or => [H_in H_in'].
 Qed.
 
 End FailureRecorder.
-
-(*
-Require Import StructTact.Fin.
-Module N3 : NatValue. Definition n := 3. End N3.
-Module FN_N3 : FinNameType N3 := FinName N3.
-Module NOT_N3 : NameOrderedType FN_N3 := FinNameOrderedType N3 FN_N3.
-Module ANC_N3 := FinCompleteAdjacentNameType N3 FN_N3.
-Require Import MSetList.
-Module N3Set <: MSetInterface.S := MSetList.Make NOT_N3.
-Module FR := FailureRecorder FN_N3 NOT_N3 N3Set ANC_N3.
-Print FR.Msg.
-*)

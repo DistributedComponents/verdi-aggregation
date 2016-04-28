@@ -45,6 +45,7 @@ Require Import Sorting.Permutation.
 
 Require Import AAC_tactics.AAC.
 
+Require Import OrderedAux.
 Require Import AggregationAux.
 Require Import FailureRecorderStatic.
 
@@ -1019,177 +1020,6 @@ end; simpl.
 Qed.
 
 End SingleNodeInv.
-
-Lemma collate_msg_for_notin :
-  forall m' n h ns f,
-    ~ In n ns ->
-    collate h f (msg_for m' (adjacent_to_node h ns)) h n = f h n.
-Proof.
-move => m' n h ns f.
-move: f.
-elim: ns => //.
-move => n' ns IH f H_in.
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
-  rewrite /=.
-  rewrite IH.
-    rewrite /update2.
-    case (sumbool_and _ _) => H_and //.
-    move: H_and => [H_and H_and'].
-    rewrite H_and' in H_in.
-    by case: H_in; left.
-  move => H_in'.
-  case: H_in.
-  by right.
-rewrite IH //.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma collate_msg_for_in_failed :
-  forall m' n h ns f failed,
-    In n failed ->
-    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n.
-Proof.
-move => m' n h ns f failed.
-move: f.
-elim: ns => //.
-  move => n' ns IH f H_in.
-  rewrite /=.
-  case (in_dec _ _) => H_dec; first by rewrite IH.
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'; last by rewrite IH.
-rewrite /= IH //.
-rewrite /update2.
-case (sumbool_and _ _) => H_and //.
-move: H_and => [H_and H_and'].
-by rewrite -H_and' in H_in.
-Qed.
-
-Lemma collate_msg_for_not_adjacent :
-  forall m' n h ns f,
-    ~ adjacent_to h n ->
-    collate h f (msg_for m' (adjacent_to_node h ns)) h n = f h n.
-Proof.
-move => m' n h ns f H_adj.
-move: f.
-elim: ns => //.
-move => n' ns IH f.
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec' //.
-rewrite /=.
-rewrite IH.
-rewrite /update2.
-case (sumbool_and _ _) => H_and //.
-move: H_and => [H_and H_and'].
-by rewrite -H_and' in H_adj.
-Qed.
-
-Lemma collate_neq :
-  forall h n n' ns f,
-    h <> n ->
-    collate h f ns n n' = f n n'.
-Proof.
-move => h n n' ns f H_neq.
-move: f.
-elim: ns => //.
-case.
-move => n0 mg ms IH f.
-rewrite /=.
-rewrite IH.
-rewrite /update2 /=.
-case (sumbool_and _ _) => H_and //.
-by move: H_and => [H_and H_and'].
-Qed.
-
-Lemma collate_msg_for_live_adjacent_alt :
-  forall mg n h ns f,
-    adjacent_to h n ->
-    ~ In n ns ->
-    collate h f (msg_for mg (adjacent_to_node h (n :: ns))) h n = f h n ++ [mg].
-Proof.
-move => mg n h ns f H_adj H_in /=.
-case adjacent_to_dec => /= H_dec // {H_dec}.
-move: f n h H_in H_adj.
-elim: ns  => //=.
-  move => f H_in n h.
-  rewrite /update2.
-  case (sumbool_and _ _ _ _) => H_and //.
-  by case: H_and => H_and.
-move => n' ns IH f n h H_in H_adj.
-have H_in': ~ In n ns by move => H_in'; case: H_in; right.
-have H_neq: n <> n' by move => H_eq; case: H_in; left.
-case adjacent_to_dec => /= H_dec; last by rewrite IH.
-rewrite {3}/update2.
-case sumbool_and => H_and; first by move: H_and => [H_and H_and'].
-have IH' := IH f.
-rewrite collate_msg_for_notin //.
-rewrite /update2.
-case sumbool_and => H_and'; first by move: H_and' => [H_and' H_and'']; rewrite H_and'' in H_neq.
-case sumbool_and => H_and'' //.
-by case: H_and''.
-Qed.
-
-Lemma exclude_in : 
-  forall n ns ns',
-    In n (exclude ns' ns) ->
-    In n ns.
-Proof.
-move => n.
-elim => //=.
-move => n' ns IH ns'.
-case (in_dec _ _) => H_dec.
-  move => H_in.
-  right.
-  move: H_in.
-  exact: IH.
-move => H_in.
-case: H_in => H_in; first by left.
-right.
-move: H_in.
-exact: IH.
-Qed.
-
-Lemma collate_msg_for_live_adjacent :
-  forall m' n h ns f failed,
-    ~ In n failed ->
-    adjacent_to h n ->
-    In n ns ->
-    NoDup ns ->
-    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [m'].
-Proof.
-move => m' n h ns f failed H_in H_adj.
-move: f.
-elim: ns => //.
-move => n' ns IH f H_in' H_nd.
-inversion H_nd; subst.
-rewrite /=.
-case (in_dec _ _) => H_dec.
-  case: H_in' => H_in'; first by rewrite H_in' in H_dec.
-  by rewrite IH.
-case: H_in' => H_in'.
-  rewrite H_in'.
-  rewrite H_in' in H1.
-  rewrite /=.
-  case (adjacent_to_dec _ _) => H_dec' //.
-  rewrite /=.
-  rewrite collate_msg_for_notin //.
-    rewrite /update2.
-    case (sumbool_and _ _) => H_sumb //.
-    by case: H_sumb.
-  move => H_inn.
-  by apply exclude_in in H_inn.
-have H_neq: n' <> n by move => H_eq; rewrite -H_eq in H_in'. 
-rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
-  rewrite /=.
-  rewrite IH //.
-  rewrite /update2.
-  case (sumbool_and _ _) => H_sumb //.
-  by move: H_sumb => [H_eq H_eq'].
-by rewrite IH.
-Qed.
 
 Definition self_channel_empty (n : name) (onet : ordered_network) : Prop :=
 onet.(onwPackets) n n = [].
@@ -2612,42 +2442,6 @@ Qed.
 
 (* take Fail messages into account when summing up Aggregate messages *)
 
-Lemma In_n_exclude : 
-  forall n ns ns',
-    ~ In n ns' ->
-    In n ns ->
-    In n (exclude ns' ns).
-Proof.
-move => n.
-elim => //=.
-move => n' ns IH ns' H_in H_in'.
-case: H_in' => H_in'.
-  rewrite H_in'.
-  case (in_dec _ _) => H_dec //.
-  by left.
-case (in_dec _ _) => H_dec; first exact: IH.
-right.
-exact: IH.
-Qed.
-
-Lemma nodup_exclude : 
-  forall ns ns', 
-    NoDup ns ->
-    NoDup (exclude ns' ns).
-Proof.
-elim => //.
-move => n ns IH ns' H_nd.
-rewrite /=.
-inversion H_nd.
-case (in_dec _ _) => H_dec; first exact: IH.
-apply NoDup_cons.
-  move => H_in.
-  case: H1.
-  move: H_in.
-  exact: exclude_in.
-exact: IH.
-Qed.
-
 Lemma sum_aggregate_msg_incoming_update2_eq :
   forall ns f from to ms n,
   ~ In from ns ->
@@ -3293,20 +3087,6 @@ case: H_in.
 by right.
 Qed.
 
-Lemma in_not_in_exclude : 
-  forall ns ns' n,
-    In n ns' ->
-    ~ In n (exclude ns' ns).
-Proof.
-elim => //=; first by move => ns' n H_in H_n.
-move => n ns IH ns' n' H_in.
-case (in_dec _ _) => H_dec; first exact: IH.
-move => H_in'.
-case: H_in' => H_in'; first by rewrite H_in' in H_dec.
-contradict H_in'.
-exact: IH.
-Qed.
-
 Lemma sum_fail_map_incoming_sent_neq_eq_alt :
   forall ns packets state from to ms h n d,
   n <> to ->
@@ -3727,91 +3507,6 @@ have H_neq': n <> x by move => H_eq; rewrite -H_eq in H_in.
 rewrite IH //.
 rewrite sum_aggregate_msg_incoming_neq_eq //.
 by aac_reflexivity.
-Qed.
-
-Lemma exclude_failed_not_in :
-  forall ns h failed,
-    ~ In h ns ->
-    exclude (h :: failed) ns = exclude failed ns.
-Proof.
-elim => //.
-move => n ns IH h failed H_in.
-have H_neq: h <> n by move => H_eq; case: H_in; left.
-have H_in': ~ In h ns by move => H_in'; case: H_in; right.
-rewrite /=.
-case name_eq_dec => H_dec //.
-case (in_dec _ _) => H_dec'; first exact: IH.
-by rewrite IH.
-Qed.
-
-Lemma exclude_in_app : 
-  forall ns ns0 ns1 h failed, 
-  NoDup ns ->
-  exclude failed ns = ns0 ++ h :: ns1 -> 
-  exclude (h :: failed) ns = ns0 ++ ns1.
-Proof.
-elim; first by case.
-move => n ns IH ns0 ns1 h failed H_nd.
-inversion H_nd => {x H0 l H H_nd}.
-rewrite /=.
-case (in_dec _ _) => H_dec; case name_eq_dec => H_dec' H_eq.
-- exact: IH.
-- exact: IH.
-- rewrite -H_dec' {n H_dec'} in H_eq H1 H_dec.
-  case: ns0 H_eq.
-    rewrite 2!app_nil_l.
-    move => H_eq.
-    inversion H_eq.
-    by rewrite exclude_failed_not_in.
-  move => x ns' H_eq.
-  inversion H_eq => {H_eq}.
-  rewrite H0 {h H0} in H1 H_dec.
-  have H_in: In x (exclude failed ns).
-    rewrite H3.
-    apply in_or_app.
-    by right; left.
-  by apply exclude_in in H_in.
-- case: ns0 H_eq.
-    rewrite app_nil_l.
-    move => H_eq.
-    inversion H_eq.
-    by rewrite H0 in H_dec'.
-  move => n' ns0 H_eq.
-  inversion H_eq.
-  by rewrite (IH _ _ _ _ _ H3).
-Qed.
-
-Lemma exclude_in_split_eq :
-  forall ns0 ns1 ns failed h,
-    exclude (h :: failed) (ns0 ++ h :: ns1) = ns ->
-    exclude (h :: failed) (h :: ns0 ++ ns1) = ns.
-Proof.
-elim => //.
-move => n ns IH ns1 ns' failed h.
-rewrite /=.
-case name_eq_dec => H_dec; case name_eq_dec => H_dec' //.
-  move => H_ex.
-  apply IH in H_ex.
-  move: H_ex.
-  rewrite /=.
-  by case name_eq_dec.
-case (in_dec _ _ _) => H_dec''.
-  move => H_ex.
-  apply IH in H_ex.
-  move: H_ex.
-  rewrite /=.
-  by case name_eq_dec.
-move => H_ex.
-case: ns' H_ex => //.
-move => a ns' H_ex.
-inversion H_ex.
-rewrite H1.
-apply IH in H1.
-move: H1.
-rewrite /=.
-case name_eq_dec => H_ex_dec //.
-move => H.
-by rewrite H.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_permutation_eq :
@@ -4440,7 +4135,7 @@ move => n' ns IH ns' f h n adj map H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite (collate_msg_for_not_adjacent _ _ _ H_adj).
+by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams _ _ _ _ _ H_adj).
 Qed.
 
 Lemma sum_aggregate_msg_incoming_not_adjacent_collate_eq :
@@ -4454,7 +4149,7 @@ move => n' ns IH ns' f h n H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite collate_msg_for_not_adjacent.
+by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams).
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_eq_not_in_eq :
@@ -4471,26 +4166,6 @@ rewrite IH //.
 by rewrite sum_aggregate_msg_incoming_neq_eq.
 Qed.
 
-Lemma collate_f_any_eq :
-  forall  f g h n n' l,
-  f n n' = g n n' ->
-  collate h f l n n' = collate h g l n n'.
-Proof.
-move => f g h n n' l.
-elim: l f g => //.
-case => n0 m l IH f g H_eq.
-rewrite /=.
-set f' := update2 _ _ _ _.
-set g' := update2 _ _ _ _.
-rewrite (IH f' g') //.
-rewrite /f' /g' {f' g'}.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec //.
-move: H_dec => [H_eq_h H_eq_n].
-rewrite -H_eq_h -H_eq_n in H_eq.
-by rewrite H_eq.
-Qed.
-
 Lemma sum_aggregate_msg_incoming_collate_update2_eq :
   forall ns h n n' f l ms,
   n' <> n ->
@@ -4504,7 +4179,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by case in_dec => /= H_dec; rewrite IH.
 Qed.
@@ -4521,42 +4196,6 @@ have H_neq: n' <> n by move => H_in'; case: H_in; left.
 have H_in': ~ In n ns by move => H_in'; case: H_in; right.
 rewrite IH //.
 by rewrite sum_aggregate_msg_incoming_collate_update2_eq.
-Qed.
-
-Lemma in_collate_in :
-  forall ns n h f mg,
-  ~ In n ns ->
-  In mg ((collate h f (msg_for mg (adjacent_to_node h ns))) h n) ->
-  In mg (f h n).
-Proof.
-elim => //=.
-move => n' ns IH n h f mg H_in.
-have H_neq: n' <> n by move => H_eq; case: H_in; left.
-have H_in': ~ In n ns by move => H_in'; case: H_in; right.
-case adjacent_to_dec => H_dec; last exact: IH.
-rewrite /=.
-set up2 := update2 _ _ _ _.
-have H_eq_f: up2 h n = f h n.
-  rewrite /up2 /update2.
-  by case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq_f).
-exact: IH.
-Qed.
-
-Lemma collate_in_in :
-  forall l h n n' f mg,
-    In mg (f n' n) ->
-    In mg ((collate h f l) n' n).
-Proof.
-elim => //=.
-case => n0 mg' l IH h n n' f mg H_in.
-apply IH.
-rewrite /update2.
-case sumbool_and => H_dec //.
-move: H_dec => [H_eq H_eq'].
-apply in_or_app.
-left.
-by rewrite H_eq H_eq'.
 Qed.
 
 Lemma sum_aggregate_msg_collate_fail_eq :
@@ -4588,7 +4227,7 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
   case: H_dec'.
   rewrite -H_eq.
   rewrite -H_eq {H_eq} in H_dec.
-  by apply in_collate_in in H_dec.
+  by apply (@in_collate_in _ _ Aggregation_NameOverlayParams) in H_dec.
 - case: H_dec.
   exact: collate_in_in.
 - rewrite IH //.
@@ -4617,11 +4256,11 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
 - case: H_dec.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq_f).
+  by rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
 - rewrite IH //.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq_f).
+  by rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
 Qed.
 
 Lemma sum_fail_map_incoming_collate_update2_eq :
@@ -4637,7 +4276,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by rewrite IH.
 Qed.
@@ -5473,9 +5112,9 @@ end; simpl.
       case: H_Adj'.
       move: H_ins'.
       exact: (Aggregation_in_adj_adjacent_to H_step1).
-    case in_dec => /= H_dec; first by rewrite collate_msg_for_not_adjacent // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
+    case in_dec => /= H_dec; first by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams) // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
     move {H_dec}.
-    rewrite (collate_msg_for_not_adjacent _ _ _ H_Adj).
+    rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams _ _ _ _ _ H_Adj).
     rewrite (collate_neq _ _ _ H_neq) //.
     rewrite (Aggregation_self_channel_empty H_step1) //=.
     rewrite {3 6}/sum_fail_map /=.
@@ -5555,10 +5194,10 @@ end; simpl.
   have H_in_n: ~ In n ns.
     move => H_in_n.
     rewrite -H_ex' in H_in_n.
-    by apply exclude_in in H_in_n.
+    by apply (@exclude_in _ Aggregation_MultiParams) in H_in_n.
   case in_dec => /= H_dec_f; last first.
     case: H_dec_f.
-    have H_a := collate_msg_for_live_adjacent_alt Fail _ _ H_Adj H_in_n.
+    have H_a := @collate_msg_for_live_adjacent_alt _ _ Aggregation_NameOverlayParams Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
     case adjacent_to_dec => /= H_dec // {H_dec}.
@@ -5624,7 +5263,7 @@ end; simpl.
   case in_dec => /= H_dec; last first.
     case: H_dec.
     rewrite /cl /u2.
-    have H_a := collate_msg_for_live_adjacent_alt Fail _ _ H_Adj H_in_n.
+    have H_a := @collate_msg_for_live_adjacent_alt _ _ Aggregation_NameOverlayParams Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
     case adjacent_to_dec => /= H_dec // {H_dec}.
