@@ -689,42 +689,42 @@ move: H2.
 exact: IH.
 Qed.
 
-Class AggregationData (A :  Type) :=
+Class AggregationData (data : Type) :=
   {
-    local : A -> m ;
-    aggregate : A -> m ;
-    adjacent : A -> NS ;
-    sent : A -> NM ;
-    received : A -> NM
+    aggr_local : data -> m ;
+    aggr_aggregate : data -> m ;
+    aggr_adjacent : data -> NS ;
+    aggr_sent : data -> NM ;
+    aggr_received : data -> NM
   }.
 
 Section AggregationProps.
 
-Context {A} {ad : AggregationData A}.
+Context {data} {ad : AggregationData data}.
 
-Definition conserves_node_mass (d : A) : Prop := 
-d.(local) = d.(aggregate) * sumM d.(adjacent) d.(sent) * (sumM d.(adjacent) d.(received))^-1.
+Definition conserves_node_mass (d : data) : Prop := 
+d.(aggr_local) = d.(aggr_aggregate) * sumM d.(aggr_adjacent) d.(aggr_sent) * (sumM d.(aggr_adjacent) d.(aggr_received))^-1.
 
-Definition sum_local (l : list A) : m :=
-fold_right (fun (d : A) (partial : m) => partial * d.(local)) 1 l.
+Definition sum_local (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * d.(aggr_local)) 1 l.
 
-Definition sum_aggregate (l : list A) : m :=
-fold_right (fun (d : A) (partial : m) => partial * d.(aggregate)) 1 l.
+Definition sum_aggregate (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * d.(aggr_aggregate)) 1 l.
 
-Definition sum_sent (l : list A) : m :=
-fold_right (fun (d : A) (partial : m) => partial * sumM d.(adjacent) d.(sent)) 1 l.
+Definition sum_sent (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_sent)) 1 l.
 
-Definition sum_received (l : list A) : m :=
-fold_right (fun (d : A) (partial : m) => partial * sumM d.(adjacent) d.(received)) 1 l.
+Definition sum_received (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_received)) 1 l.
 
-Definition conserves_mass_globally (l : list A) : Prop :=
+Definition conserves_mass_globally (l : list data) : Prop :=
 sum_local l = sum_aggregate l * sum_sent l * (sum_received l)^-1.
 
-Definition conserves_node_mass_all (l : list A) : Prop :=
+Definition conserves_node_mass_all (l : list data) : Prop :=
 forall d, In d l -> conserves_node_mass d.
 
 Lemma global_conservation : 
-  forall (l : list A), 
+  forall (l : list data), 
     conserves_node_mass_all l ->
     conserves_mass_globally l.
 Proof.
@@ -741,13 +741,13 @@ apply: H_cn.
 by right.
 Qed.
 
-Definition Nodes_data (ns : list name) (state : name -> A) : list A :=
-fold_right (fun (n : name) (l' : list A) => n.(state) :: l') [] ns.
+Definition Nodes_data (ns : list name) (state : name -> data) : list data :=
+fold_right (fun (n : name) (l' : list data) => n.(state) :: l') [] ns.
 
 Lemma sum_local_split :
   forall ns0 ns1 state n,
     sum_local (Nodes_data (ns0 ++ n :: ns1) state) =
-    n.(state).(local) * sum_local (Nodes_data (ns0 ++ ns1) state).
+    n.(state).(aggr_local) * sum_local (Nodes_data (ns0 ++ ns1) state).
 Proof.
 elim => /=; first by move => ns1 state n; aac_reflexivity.
 move => n ns IH ns1 state n'.
@@ -758,7 +758,7 @@ Qed.
 Lemma sum_aggregate_split :
   forall ns0 ns1 state n,
     sum_aggregate (Nodes_data (ns0 ++ n :: ns1) state) =
-    n.(state).(aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) state).
+    n.(state).(aggr_aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) state).
 Proof.
 elim => /=; first by move => ns1 state n; aac_reflexivity.
 move => n ns IH ns1 state n'.
@@ -770,7 +770,7 @@ Lemma Nodes_data_not_in :
 forall n' d state ns,
 ~ In n' ns ->
 fold_right
-  (fun (n : name) (l : list A) =>
+  (fun (n : name) (l : list data) =>
      (match name_eq_dec n n' with
       | left _ => d 
       | right _ => n.(state) 
@@ -839,5 +839,584 @@ by aac_reflexivity.
 Qed.
 
 End AggregationProps.
+
+Class AggregationMsg :=
+  {
+    aggr_msg : Type ;
+    aggr_msg_eq_dec : forall x y : aggr_msg, {x = y} + {x <> y} ;
+    aggr_fail : aggr_msg ;
+    aggr_of : aggr_msg -> m ;    
+  }.
+
+Section MsgFolds.
+
+Context {am : AggregationMsg}.
+
+Context {data} {ad : AggregationData data}.
+
+Definition aggregate_sum_fold (mg : aggr_msg) (partial : m) : m :=
+partial * (aggr_of mg).
+
+Definition sum_aggregate_msg := fold_right aggregate_sum_fold 1.
+
+(* given n, sum aggregate messages for all its incoming channels *)
+Definition sum_aggregate_msg_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) : m := 
+fold_right (fun (n' : name) (partial : m) => 
+  partial * if In_dec aggr_msg_eq_dec aggr_fail (packets n' n) then 1 else sum_aggregate_msg (packets n' n)) 1 ns.
+
+(* given list of active names and all names, sum all incoming channels for all active *)
+Definition sum_aggregate_msg_incoming_active (allns : list name) (actns : list name)  (packets : name -> name -> list aggr_msg) : m :=
+fold_right (fun (n : name) (partial : m) => partial * sum_aggregate_msg_incoming allns packets n) 1 actns.
+
+Definition sum_fail_map (l : list aggr_msg) (from : name) (adj : NS) (map : NM) : m :=
+if In_dec aggr_msg_eq_dec aggr_fail l && NSet.mem from adj then sum_fold map from 1 else 1.
+
+Definition sum_fail_map_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) (adj : NS) (map : NM) : m :=
+fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (packets n' n) n' adj map) 1 ns.
+
+Definition sum_fail_sent_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
+fold_right (fun (n : name) (partial : m) => 
+  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_sent)) 1 actns.
+
+Definition sum_fail_received_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
+fold_right (fun (n : name) (partial : m) => 
+  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_received)) 1 actns.
+
+Definition conserves_network_mass (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : Prop :=
+sum_local (Nodes_data actns state) = 
+  sum_aggregate (Nodes_data actns state) * sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_sent_incoming_active allns actns packets state * (sum_fail_received_incoming_active allns actns packets state)^-1.
+
+Lemma sum_aggregate_msg_incoming_step_o_init :
+  forall ns n, sum_aggregate_msg_incoming ns (fun _ _ => []) n = 1.
+Proof.
+move => ns n.
+rewrite /sum_aggregate_msg_incoming /= {n}.
+elim: ns => //.
+move => n l IH.
+rewrite /= IH.
+by gsimpl.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_step_o_init :
+  forall actns allns, sum_aggregate_msg_incoming_active allns actns (fun _ _ => []) = 1.
+Proof.
+rewrite /sum_aggregate_msg_incoming_active /=.
+elim => [|a l IH] l' //=.
+rewrite IH sum_aggregate_msg_incoming_step_o_init.
+by gsimpl.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_split :
+  forall ns0 ns1 packets n,
+    sum_aggregate_msg_incoming (ns0 ++ ns1) packets n = 
+    sum_aggregate_msg_incoming ns0 packets n *
+    sum_aggregate_msg_incoming ns1 packets n.
+Proof.
+move => ns0 ns1 packets n.
+elim: ns0 => //=; first by gsimpl.
+move => n' ns0 IH.
+rewrite IH.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_split :
+  forall ns0 ns1 ns2 packets,
+    sum_aggregate_msg_incoming_active ns0 (ns1 ++ ns2) packets = 
+    sum_aggregate_msg_incoming_active ns0 ns1 packets *
+    sum_aggregate_msg_incoming_active ns0 ns2 packets.
+Proof.
+move => ns0 ns1 ns2 packets.
+elim: ns1 => //=; first by gsimpl.
+move => n ns1 IH.
+rewrite /= IH.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_split :
+  forall ns0 ns1 ns2 packets state,
+    sum_fail_sent_incoming_active ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_sent_incoming_active ns0 ns1 packets state *
+    sum_fail_sent_incoming_active ns0 ns2 packets state.
+Proof.
+move => ns0 ns1 ns2 packets state.
+elim: ns1 => //=; first by gsimpl.
+move => n ns1 IH.
+rewrite /= IH.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_received_incoming_active_split :
+  forall ns0 ns1 ns2 packets state,
+    sum_fail_received_incoming_active ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_received_incoming_active ns0 ns1 packets state *
+    sum_fail_received_incoming_active ns0 ns2 packets state.
+Proof.
+move => ns0 ns1 ns2 packets state.
+elim: ns1 => //=; first by gsimpl.
+move => n ns1 IH.
+rewrite /= IH.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_split : 
+  forall l1 l2,
+    sum_aggregate_msg (l1 ++ l2) = sum_aggregate_msg l1 * sum_aggregate_msg l2.
+Proof.
+elim => //= [|mg l' IH] l2; first by gsimpl.
+rewrite IH.
+rewrite /aggregate_sum_fold /=.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_map_incoming_add_not_in_eq :
+  forall ns f m' from to adj map,
+  ~ In from ns ->
+  sum_fail_map_incoming ns f to adj (NMap.add from m' map) =
+  sum_fail_map_incoming ns f to adj map.
+Proof.
+elim => //=.
+move => n ns IH f m' from to adj map H_in.
+have H_neq: from <> n by move => H_eq; case: H_in; left.
+have H_not_in: ~ In from ns by move => H_in'; case: H_in; right.
+rewrite IH //.
+rewrite /sum_fail_map /sum_fold.
+case H_find: (NMap.find _ _) => [m0|]; case H_find': (NMap.find _ _) => [m1|] //.
+- apply NMapFacts.find_mapsto_iff in H_find.
+  apply NMapFacts.add_neq_mapsto_iff in H_find => //.
+  apply NMapFacts.find_mapsto_iff in H_find.
+  rewrite H_find in H_find'.
+  by inversion H_find'.
+- apply NMapFacts.find_mapsto_iff in H_find.
+  apply NMapFacts.add_neq_mapsto_iff in H_find => //.
+  apply NMapFacts.find_mapsto_iff in H_find.
+  by rewrite H_find in H_find'.
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply (NMapFacts.add_neq_mapsto_iff _ m' _ H_neq) in H_find'.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  by rewrite H_find in H_find'.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_permutation_eq :
+  forall ns1 ns1' f h,
+  Permutation ns1 ns1' ->
+  sum_aggregate_msg_incoming ns1 f h =
+  sum_aggregate_msg_incoming ns1' f h.
+Proof.
+elim => //=.
+  move => ns1' f h H_eq.
+  apply Permutation_nil in H_eq.
+  by rewrite H_eq.
+move => n ns IH ns1' f h H_pm.
+have H_pm' := H_pm.
+apply permutation_split in H_pm.
+move: H_pm => [ns0 [ns1 H_eq]].
+rewrite H_eq in H_pm'.
+rewrite H_eq {H_eq ns1'}.
+apply Permutation_cons_app_inv in H_pm'.
+rewrite (IH _ _ _ H_pm').
+rewrite 2!sum_aggregate_msg_incoming_split /=.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_permutation_eq :
+  forall ns1 ns1' ns0 state,
+  Permutation ns1 ns1' ->
+  sum_aggregate_msg_incoming_active ns1 ns0 state =
+  sum_aggregate_msg_incoming_active ns1' ns0 state.
+Proof.
+move => ns1 ns1' ns0.
+move: ns0 ns1 ns1'.
+elim => //=.
+move => n ns IH ns1 ns1' net H_pm.
+rewrite (IH _ _ _ H_pm).
+by rewrite (sum_aggregate_msg_incoming_permutation_eq _ _ H_pm).
+Qed.
+
+Lemma sum_fail_map_incoming_split : 
+  forall ns0 ns1 f h adj map,
+    sum_fail_map_incoming (ns0 ++ ns1) f h adj map =
+    sum_fail_map_incoming ns0 f h adj map * sum_fail_map_incoming ns1 f h adj map.
+Proof.
+elim => [|n ns0 IH] ns1 f h adj map; first by gsimpl.
+rewrite /= IH.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_map_incoming_permutation_eq :
+  forall ns1 ns1' f h adj map,
+  Permutation ns1 ns1' ->
+  sum_fail_map_incoming ns1 f h adj map =
+  sum_fail_map_incoming ns1' f h adj map.
+Proof.
+elim => //=.
+  move => ns1' f h adj map H_eq.
+  apply Permutation_nil in H_eq.
+  by rewrite H_eq.
+move => n ns IH ns1' f h adj map H_pm.
+have H_pm' := H_pm.
+apply permutation_split in H_pm.
+move: H_pm => [ns0 [ns1 H_eq]].
+rewrite H_eq in H_pm'.
+rewrite H_eq {H_eq ns1'}.
+apply Permutation_cons_app_inv in H_pm'.
+rewrite (IH _ _ _ _ _ H_pm').
+rewrite 2!sum_fail_map_incoming_split /=.
+by gsimpl.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_permutation_eq :
+  forall ns1 ns1' ns packets state,
+  Permutation ns1 ns1' ->
+  sum_fail_sent_incoming_active ns1 ns packets state =
+  sum_fail_sent_incoming_active ns1' ns packets state.
+Proof.
+move => ns1 ns1' ns.
+elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
+rewrite (IH _ _ _ _ H_pm).
+by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
+Qed.
+
+Lemma sum_fail_received_incoming_active_permutation_eq :
+  forall ns1 ns1' ns packets state,
+  Permutation ns1 ns1' ->
+  sum_fail_received_incoming_active ns1 ns packets state =
+  sum_fail_received_incoming_active ns1' ns packets state.
+Proof.
+move => ns1 ns1' ns.
+elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
+rewrite (IH _ _ _ _ H_pm).
+by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
+Qed.
+
+Lemma sum_fail_map_incoming_remove_not_in_eq :
+  forall ns f adj map n n',
+  ~ In n' ns ->
+  sum_fail_map_incoming ns f n (NSet.remove n' adj) map =
+  sum_fail_map_incoming ns f n adj map.
+Proof.
+elim => //=.
+move => n0 ns IH f adj map n n' H_in.
+have H_neq: n' <> n0 by move => H_eq; case: H_in; left.
+have H_in': ~ In n' ns by move => H_in'; case: H_in; right.
+rewrite IH //.
+rewrite /sum_fail_map.
+case in_dec => /= H_adj //.
+case: ifP => H_mem; case: ifP => H_mem' //.
+  apply NSetFacts.mem_2 in H_mem.
+  have H_ins: ~ NSet.In n0 adj.
+    move => H_ins.
+    apply NSetFacts.mem_1 in H_ins.
+    by rewrite H_mem' in H_ins.
+  by apply NSetFacts.remove_3 in H_mem.
+apply NSetFacts.mem_2 in H_mem'.
+have H_ins: ~ NSet.In n0 (NSet.remove n' adj).
+  move => H_ins.
+  apply NSetFacts.mem_1 in H_ins.
+  by rewrite H_ins in H_mem.
+case: H_ins.
+exact: NSetFacts.remove_2.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_empty_1 : 
+  forall ns packets state,
+  sum_fail_sent_incoming_active [] ns packets state = 1.
+Proof.
+elim => [|n ns IH] packets state //=.
+rewrite IH.
+by gsimpl.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_all_head_eq : 
+  forall ns ns' packets state n,
+  sum_fail_sent_incoming_active (n :: ns) ns' packets state = 
+  sum_fail_sent_incoming_active [n] ns' packets state * sum_fail_sent_incoming_active ns ns' packets state.
+Proof.
+move => ns ns'.
+elim: ns' ns => /=.
+  move => ns packets state.
+  by gsimpl.
+move => n ns IH ns' packets state n'.
+rewrite IH.
+gsimpl.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_received_incoming_active_empty_1 : 
+  forall ns packets state,
+  sum_fail_received_incoming_active [] ns packets state = 1.
+Proof.
+elim => [|n ns IH] packets state //=.
+rewrite IH.
+by gsimpl.
+Qed.
+
+Lemma sum_fail_received_incoming_active_all_head_eq : 
+  forall ns ns' packets state n,
+  sum_fail_received_incoming_active (n :: ns) ns' packets state = 
+  sum_fail_received_incoming_active [n] ns' packets state * sum_fail_received_incoming_active ns ns' packets state.
+Proof.
+move => ns ns'.
+elim: ns' ns => /=.
+  move => ns packets state.
+  by gsimpl.
+move => n ns IH ns' packets state n'.
+rewrite IH.
+gsimpl.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_all_head_eq :
+  forall ns ns' packets n,  
+  sum_aggregate_msg_incoming_active (n :: ns) ns' packets = 
+  sum_aggregate_msg_incoming_active [n] ns' packets * sum_aggregate_msg_incoming_active ns ns' packets.
+Proof.
+move => ns ns'.
+elim: ns' ns => /=.
+  move => ns packets.
+  by gsimpl.
+move => n ns IH ns' packets n'.
+rewrite IH.
+gsimpl.
+by aac_reflexivity.
+Qed.
+
+Lemma sumM_sumM_active_eq : 
+  forall (ns : list name) (adj adj' : NS) (map : NM) (f : name -> name -> list aggr_msg) (n : name),
+  NoDup ns ->
+  (forall n', In aggr_fail (f n' n) -> ~ In n' ns) ->
+  (forall n', NSet.In n' adj' -> NSet.In n' adj /\ ~ In aggr_fail (f n' n)) ->
+  (forall n', NSet.In n' adj -> NSet.In n' adj' \/ In aggr_fail (f n' n)) ->
+  (forall n', NSet.In n' adj -> exists m', NMap.find n' map = Some m') ->
+  (forall n', NSet.In n' adj -> (In n' ns \/ In aggr_fail (f n' n))) ->
+  sumM adj' map = sumM_active adj map ns.
+Proof.
+elim => [|n' ns IH] adj adj' map f n H_nd H_f H_and H_or H_ex_map H_ex_nd /=.
+- case H_emp: (NSet.is_empty adj').
+    apply NSet.is_empty_spec in H_emp. 
+    rewrite /sumM sumM_fold_right.
+    apply NSetProps.elements_Empty in H_emp.
+    by rewrite H_emp.
+  have H_not: ~ NSet.Empty adj'.
+    move => H_not.
+    apply NSet.is_empty_spec in H_not. 
+    by rewrite H_emp in H_not. 
+  rewrite /NSet.Empty in H_not.
+  contradict H_not.
+  move => n' H_ins.
+  apply H_and in H_ins as [H_ins H_q'].
+  apply H_ex_nd in H_ins.
+  by case: H_ins => H_ins.
+- inversion H_nd; subst.
+  rewrite /= /sum_active_fold /sum_fold.
+  case H_mem: (NSet.mem n' adj).
+    apply NSetFacts.mem_2 in H_mem.
+    case H_find: (NMap.find n' map) => [m'|]; last first.
+      apply H_ex_map in H_mem as [m' H_find'].
+      by rewrite H_find in H_find'.
+    have H_or' :=  H_mem.
+    apply H_or in H_or'.
+    case: H_or' => H_or'; last first.
+      apply (H_f n') in H_or'.
+      contradict H_or'.
+      by left.
+    have ->: sumM adj' map = sumM adj' map * m'^-1 * m' by gsimpl.
+    rewrite -(sumM_remove H_or' H_find).
+    rewrite (sumM_active_remove_eq _ _ _ _ H1).
+    rewrite (IH (NSet.remove n' adj) _ map f n H2) //.
+    * move => n0 H_in.
+      apply H_f in H_in.
+      move => H_in'.
+      by case: H_in; right.
+    * move => n0 H_ins.
+      have H_neq: n' <> n0.
+        move => H_eq'.
+        rewrite H_eq' in H_ins. 
+        by apply NSetFacts.remove_1 in H_ins.
+      apply NSetFacts.remove_3 in H_ins.
+      apply H_and in H_ins as [H_ins' H_not].
+      split => //.
+      by apply NSetFacts.remove_2.
+    * move => n0 H_ins.
+      have H_ins' := H_ins.
+      apply NSetFacts.remove_3 in H_ins'.
+      have H_neq: n' <> n0.
+        move => H_eq'.
+        rewrite H_eq' in H_ins. 
+        by apply NSetFacts.remove_1 in H_ins.
+      apply H_or in H_ins'.
+      case: H_ins' => H_ins'; last by right.
+      left.
+      by apply NSetFacts.remove_2.
+    * move => n0 H_ins.
+      apply NSetFacts.remove_3 in H_ins.
+      by apply H_ex_map.
+    * move => n0 H_ins.
+      have H_ins': NSet.In n0 adj by apply NSetFacts.remove_3 in H_ins.
+      case (H_ex_nd n0 H_ins') => H_or''; last by right.
+      have H_neq: n' <> n0.
+        move => H_eq'.
+        rewrite H_eq' in H_ins. 
+        by apply NSetFacts.remove_1 in H_ins. 
+      case: H_or'' => H_or'' //.
+      by left.
+  have H_ins: ~ NSet.In n' adj by move => H_ins; apply NSetFacts.mem_1 in H_ins; rewrite H_ins in H_mem.
+  rewrite (IH adj adj' map f n H2) //.
+    move => n0 H_f'.
+    apply H_f in H_f'.
+    move => H_in.
+    by case: H_f'; right.
+  move => n0 H_ins'. 
+  case (H_ex_nd n0 H_ins') => H_or'; last by right.
+  have H_neq: n' <> n0.
+    move => H_eq'.
+    by rewrite H_eq' in H_ins.
+  case: H_or' => H_or' //.
+  by left.
+Qed.
+
+Lemma sumM_remove_fail_ex_eq : 
+  forall ns f adj map n,
+    NoDup ns ->
+    (forall n', NSet.In n' adj -> In n' ns) ->
+    (forall n', NSet.In n' adj -> exists m', NMap.find n' map = Some m') ->
+    exists adj', 
+      sumM adj map * (sum_fail_map_incoming ns f n adj map)^-1 = sumM adj' map /\
+      (forall n', NSet.In n' adj' -> (NSet.In n' adj /\ ~ In aggr_fail (f n' n))) /\
+      (forall n', NSet.In n' adj -> (NSet.In n' adj' \/ In aggr_fail (f n' n))).
+Proof.
+elim => [|n' ns IH] /= f adj map n H_nd H_in_tot H_ex.
+  exists adj.
+  split; first by gsimpl.
+  by split => n' H_ins; apply H_in_tot in H_ins.
+inversion H_nd => {l x H H0 H_nd}.
+have H_in_tot': forall n0, NSet.In n0 (NSet.remove n' adj) -> In n0 ns.
+  move => n0 H_ins.
+  have H_neq: n' <> n0 by move => H_eq; rewrite H_eq in H_ins; apply NSetFacts.remove_1 in H_ins.
+  apply NSetFacts.remove_3 in H_ins.
+  apply H_in_tot in H_ins.
+  by case: H_ins => H_ins.
+have H_ex': forall n0, NSet.In n0 (NSet.remove n' adj) -> exists m', NMap.find n0 map = Some m'.
+  move => n0 H_ins.
+  apply: H_ex.
+  by apply NSetFacts.remove_3 in H_ins.
+have [adj' [H_eq [H_and H_or]]] := IH f (NSet.remove n' adj) map n H2 H_in_tot' H_ex'.
+move {IH H_in_tot' H_ex'}.
+rewrite /sum_fail_map.
+case: in_dec => /= H_in.
+  case: ifP => H_mem.
+    apply NSetFacts.mem_2 in H_mem.
+    have [m' H_find] := H_ex _ H_mem.
+    exists adj'; split.
+      rewrite -H_eq.    
+      rewrite (sumM_remove H_mem H_find).
+      gsimpl.
+      rewrite /sum_fold.
+      case H_find': (NMap.find _ _) => [m0|]; last by rewrite H_find in H_find'.
+      rewrite H_find in H_find'.
+      inversion H_find'.
+      gsimpl.
+      by rewrite sum_fail_map_incoming_remove_not_in_eq.
+    split.
+      move => n0 H_ins.
+      apply H_and in H_ins.
+      move: H_ins => [H_ins H_in'].
+      by apply NSetFacts.remove_3 in H_ins.
+    move => n0 H_ins.
+    have H_ins' := H_ins.
+    apply H_in_tot in H_ins'.
+    case: H_ins' => H_ins'; first by rewrite -H_ins'; right.
+    have H_neq: n' <> n0 by move => H_eq'; rewrite -H_eq' in H_ins'.
+    have H_ins_n0: NSet.In n0 (NSet.remove n' adj) by apply NSetFacts.remove_2.
+    by apply H_or in H_ins_n0.
+  move/negP: H_mem => H_mem.
+  have H_ins: ~ NSet.In n' adj by move => H_ins; case: H_mem; apply NSetFacts.mem_1.
+  move {H_mem}.
+  exists adj'.
+  split.
+    gsimpl.
+    rewrite -H_eq.
+    have H_equ: NSet.Equal adj (NSet.remove n' adj).
+      split => H_ins'.
+        have H_neq: n' <> a by move => H_eq'; rewrite -H_eq' in H_ins'.
+        by apply NSetFacts.remove_2.
+      by apply NSetFacts.remove_3 in H_ins'.
+    rewrite -(sumM_eq _ H_equ).
+    by rewrite sum_fail_map_incoming_remove_not_in_eq.
+  split.
+    move => n0 H_ins'.
+    apply H_and in H_ins'.
+    move: H_ins' => [H_ins' H_in'].
+    by apply NSetFacts.remove_3 in H_ins'.
+  move => n0 H_ins'.
+  have H_ins_n0 := H_ins'.
+  apply H_in_tot in H_ins_n0.
+  case: H_ins_n0 => H_ins_n0; first by rewrite -H_ins_n0; right.
+  have H_neq: n' <> n0 by move => H_eq'; rewrite -H_eq' in H_ins'.
+  have H_insr: NSet.In n0 (NSet.remove n' adj) by apply NSetFacts.remove_2.
+  by apply H_or in H_insr.
+case H_mem: (NSet.mem n' adj).
+  apply NSetFacts.mem_2 in H_mem.
+  have H_find := H_mem.
+  apply H_ex in H_find.
+  move: H_find => [m' H_find].
+  rewrite (sumM_remove H_mem H_find) in H_eq.
+  exists (NSet.add n' adj').
+  split.
+    gsimpl.
+    have H_ins: ~ NSet.In n' adj'.
+      move => H_ins.
+      apply H_and in H_ins.
+      move: H_ins => [H_ins H_f].
+      by apply NSetFacts.remove_1 in H_ins.
+    rewrite (sumM_add H_ins H_find).
+    rewrite -H_eq.
+    rewrite sum_fail_map_incoming_remove_not_in_eq //.
+    set s1 := sumM _ _.
+    set s2 := sum_fail_map_incoming _ _ _ _ _.
+    suff H_suff: s1 * s2^-1 = s1 * s2^-1 * m' * m'^-1 by rewrite H_suff; aac_reflexivity.
+    by gsimpl.    
+  split.
+    move => n0 H_ins.
+    case (name_eq_dec n' n0) => H_dec; first by rewrite -H_dec.
+    apply NSetFacts.add_3 in H_ins => //.
+    apply H_and in H_ins.
+    move: H_ins => [H_ins H_f].
+    by apply NSetFacts.remove_3 in H_ins.
+  move => n0 H_ins.
+  case (name_eq_dec n' n0) => H_dec; first by left; rewrite H_dec; apply NSetFacts.add_1.
+  have H_ins': NSet.In n0 (NSet.remove n' adj) by apply NSetFacts.remove_2.
+  apply H_or in H_ins'.
+  case: H_ins' => H_ins'; last by right.
+  left.
+  exact: NSetFacts.add_2.
+move/negP: H_mem => H_mem.
+have H_ins: ~ NSet.In n' adj by move => H_ins; case: H_mem; apply NSetFacts.mem_1.
+move {H_mem}.
+exists adj'.
+split.
+  gsimpl.
+  rewrite -H_eq.
+  have H_equ: NSet.Equal adj (NSet.remove n' adj).
+    split => H_ins'.
+      have H_neq: n' <> a by move => H_eq'; rewrite -H_eq' in H_ins'.
+      by apply NSetFacts.remove_2.
+    by apply NSetFacts.remove_3 in H_ins'.
+  rewrite -(sumM_eq _ H_equ).
+  by rewrite sum_fail_map_incoming_remove_not_in_eq.
+split.
+  move => n0 H_ins'.
+  apply H_and in H_ins'.
+  move: H_ins' => [H_ins' H_and'].
+  by apply NSetFacts.remove_3 in H_ins'.
+move => n0 H_ins'.
+have H_neq: n' <> n0 by move => H_eq'; rewrite -H_eq' in H_ins'.
+have H_ins_n0: NSet.In n0 (NSet.remove n' adj) by apply NSetFacts.remove_2.
+apply H_or in H_ins_n0.
+case: H_ins_n0 => H_ins_n0; last by right.
+by left.
+Qed.
+
+End MsgFolds.
 
 End AAux.

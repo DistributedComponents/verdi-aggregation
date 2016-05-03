@@ -1757,4 +1757,21 @@ rewrite map_id in H_st.
 by exists tr'.
 Qed.
 
+Instance AggregationData_Data : AggregationData Data :=
+  {
+    aggr_local := local ;
+    aggr_aggregate := aggregate ;
+    aggr_adjacent := adjacent ;
+    aggr_sent := sent ;
+    aggr_received := received
+  }.
+
+Instance AggregationMsg_TreeAggregation : AggregationMsg :=
+  {
+    aggr_msg := msg ;
+    aggr_msg_eq_dec := msg_eq_dec ;
+    aggr_fail := Fail ;
+    aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
+  }.
+
 End TreeAggregation.
