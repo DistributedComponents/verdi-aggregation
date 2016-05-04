@@ -13,7 +13,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 
 Require Import UpdateLemmas.
 
-Require Import OrderedAux.
+Require Import OrderedLemmas.
 
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 

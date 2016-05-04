@@ -45,7 +45,7 @@ Require Import Sorting.Permutation.
 
 Require Import AAC_tactics.AAC.
 
-Require Import OrderedAux.
+Require Import OrderedLemmas.
 Require Import AggregationAux.
 Require Import FailureRecorderStatic.
 
@@ -459,6 +459,7 @@ rewrite map_id in H_st.
 by exists tr'.
 Qed.
 
+(* FIXME *)
 Lemma in_msg_pt_map_msgs :
   forall l m' m0,
     pt_map_msg m0 = Some m' ->
@@ -476,6 +477,7 @@ move: H_in.
 exact: IH.
 Qed.
 
+(* FIXME *)
 Lemma in_pt_map_msgs_in_msg :
   forall l m' m0,
     pt_map_msg m0 = Some m' ->

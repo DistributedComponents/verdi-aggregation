@@ -17,6 +17,7 @@ Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 Require Import FunctionalExtensionality.
 Require Import Sumbool.
 Require Import Sorting.Permutation.
+Require Import OrderedLemmas.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
@@ -952,8 +953,8 @@ apply NoDup_Permutation; last split.
   apply nodup_msg_for.
   apply nodup_exclude.
   exact: no_dup_nodes.
-- apply nodup_msg_for_snd.
-  apply nodup_exclude_snd.
+- apply nodup_msg_for.
+  apply nodup_exclude.
   exact: no_dup_nodes.
 - case: x => n m0 H_in.
   have H_eq' := pt_ext_map_in_snd _ _ _ _ H_eq H_in.
@@ -1077,7 +1078,7 @@ invcs H_step.
     rewrite /pt_ext_map_name_msgs /=.
     rewrite /l {l}.
     apply nodup_snd_fst.
-      apply (@nodup_pt_ext_map msg_fail); first exact: in_msg_for_msg_fst.
+      apply (@nodup_pt_ext_map msg_fail); first exact: in_for_msg.
       apply nodup_msg_for.
       apply nodup_exclude.
       exact: no_dup_nodes.

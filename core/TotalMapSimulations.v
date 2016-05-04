@@ -7,9 +7,10 @@ Require Import StructTact.Util.
 
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
-Require Import FunctionalExtensionality.
 Require Import Sumbool.
+Require Import FunctionalExtensionality.
 Require Import Sorting.Permutation.
+Require Import OrderedLemmas.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
@@ -818,194 +819,6 @@ invcs H_step.
     by rewrite H_eq_sw.
 Qed.
 
-Lemma collate_neq :
-  forall h n n' ns f,
-    h <> n ->
-    collate h f ns n n' = f n n'.
-Proof.
-move => h n n' ns f H_neq.
-move: f.
-elim: ns => //.
-case.
-move => n0 mg ms IH f.
-rewrite /=.
-rewrite IH.
-rewrite /update2 /=.
-case (sumbool_and _ _) => H_and //.
-by move: H_and => [H_and H_and'].
-Qed.
-
-Lemma collate_not_in_eq :
-  forall h' h f l,
- ~ In h (map (fun nm : name * msg => fst nm) l) -> 
-  collate h' f l h' h = f h' h.
-Proof.
-move => h' h f l.
-elim: l f => //=.
-case => n m l IH f H_in.
-rewrite IH /update2.
-  case (sumbool_and _ _ _ _) => H_dec //.
-  by case: H_in; left; move: H_dec => [H_eq H_eq'].
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma collate_app :
-  forall h' l1 l2 f,
-  collate h' f (l1 ++ l2) = collate h' (collate h' f l1) l2.
-Proof.
-move => h'.
-elim => //.
-case => n m l1 IH l2 f.
-rewrite /=.
-by rewrite IH.
-Qed.
-
-Lemma collate_f_eq :
-  forall  f g h h' l,
-  f h h' = g h h' ->
-  collate h f l h h' = collate h g l h h'.
-Proof.
-move => f g h h' l.
-elim: l f g => //.
-case => n m l IH f g H_eq.
-rewrite /=.
-set f' := update2 _ _ _ _.
-set g' := update2 _ _ _ _.
-rewrite (IH f' g') //.
-rewrite /f' /g' {f' g'}.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec //.
-move: H_dec => [H_eq_h H_eq_n].
-by rewrite H_eq_n H_eq.
-Qed.
-
-Lemma collate_neq_update2 :
-  forall h h' n f l ms,
-  n <> h' ->
-  collate h (update2 f h n ms) l h h' = collate h f l h h'.
-Proof.
-move => h h' n f l ms H_neq.
-have H_eq: update2 f h n ms h h' =  f h h'.
-  rewrite /update2 /=.
-  by case (sumbool_and _ _ _ _) => H_eq; first by move: H_eq => [H_eq H_eq'].
-by rewrite (collate_f_eq _ _ _ _ _ H_eq).
-Qed.
-
-Lemma collate_not_in :
-  forall h h' l1 l2 f,
-  ~ In h' (map (fun nm : name * msg => fst nm) l1) ->
-  collate h f (l1 ++ l2) h h' = collate h f l2 h h'.
-Proof.
-move => h h' l1 l2 f H_in.
-rewrite collate_app.
-elim: l1 f H_in => //.
-case => n m l IH f H_in.
-rewrite /= IH.
-  have H_neq: n <> h' by move => H_eq; case: H_in; left.
-  by rewrite collate_neq_update2.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma collate_not_in_mid :
- forall h h' l1 l2 f m,
-   ~ In h (map (fun nm : name * msg => fst nm) (l1 ++ l2)) ->
-   collate h' (update2 f h' h (f h' h ++ [m])) (l1 ++ l2) = collate h' f (l1 ++ (h, m) :: l2).
-Proof.
-move => h h' l1 l2 f m H_in.
-apply functional_extensionality => from.
-apply functional_extensionality => to.
-case (name_eq_dec h' from) => H_dec.
-  rewrite -H_dec.
-  case (name_eq_dec h to) => H_dec'.
-    rewrite -H_dec'.
-    rewrite collate_not_in; last first.
-      move => H_in'.
-      case: H_in.
-      rewrite map_app.
-      apply in_or_app.
-      by left.
-    rewrite collate_not_in //.
-    move => H_in'.
-    case: H_in.
-    rewrite map_app.
-    apply in_or_app.
-    by left.
-  rewrite collate_neq_update2 //.
-  rewrite 2!collate_app.
-  rewrite /=.
-  by rewrite collate_neq_update2.
-rewrite collate_neq //.
-rewrite collate_neq //.
-rewrite /update2 /=.
-case (sumbool_and _ _) => H_dec' //.
-by move: H_dec' => [H_eq H_eq'].
-Qed.
-
-Lemma permutation_map_fst :
-  forall l l',
-  Permutation l l' ->
-  Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) l').
-Proof.
-elim.
-  move => l' H_pm.
-  apply Permutation_nil in H_pm.
-  by rewrite H_pm.
-case => /= n m l IH l' H_pm.
-have H_in: In (n, m) ((n, m) :: l) by left.
-have H_in': In (n, m) l'.
-  move: H_pm H_in.
-  exact: Permutation_in.
-apply in_split in H_in'.
-move: H_in' => [l1 [l2 H_eq]].
-rewrite H_eq in H_pm.
-apply Permutation_cons_app_inv in H_pm.
-rewrite H_eq.
-apply IH in H_pm.
-move: H_pm.
-rewrite 2!map_app /=.
-move => H_pm.
-exact: Permutation_cons_app.
-Qed.
-
-Lemma nodup_perm_collate_eq :
-  forall h f l l',
-    NoDup (map (fun nm => fst nm) l) ->
-    Permutation l l' ->
-    collate h f l = collate h f l'.
-Proof.
-move => h f l.
-elim: l h f.
-  move => h f l' H_nd H_pm.
-  apply Permutation_nil in H_pm.
-  by rewrite H_pm.
-case => h m l IH h' f l' H_nd.
-rewrite /= in H_nd.
-inversion H_nd; subst.
-move => H_pm.
-rewrite /=.
-have H_in': In (h, m) ((h, m) :: l) by left.
-have H_pm' := Permutation_in _ H_pm H_in'.
-apply in_split in H_pm'.
-move: H_pm' => [l1 [l2 H_eq]].
-rewrite H_eq.
-rewrite H_eq in H_pm.
-apply Permutation_cons_app_inv in H_pm.
-have IH' := IH h' (update2 f h' h (f h' h ++ [m])) _ H2 H_pm.
-rewrite IH'.
-rewrite collate_not_in_mid //.
-move => H_in.
-case: H1.
-suff H_pm': Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) (l1 ++ l2)).
-  move: H_in.
-  apply Permutation_in.
-  exact: Permutation_sym.
-exact: permutation_map_fst.
-Qed.
-
 Lemma nodup_to_map_name :
   forall ns, NoDup ns ->
         NoDup (map tot_map_name ns).
@@ -1037,226 +850,8 @@ apply: NoDup_Permutation; last split.
   exact: all_names_nodes.
 Qed.
 
-Lemma not_in_exclude :
-  forall (n : @name _ multi_fst) ns failed,
-    ~ In n ns ->
-    ~ In n (exclude failed ns).
-Proof.
-move => n.
-elim => //.
-move => n' l IH failed H_in.
-rewrite /=.
-case (in_dec _ _) => H_dec.
-  apply IH.
-  move => H_in'.
-  case: H_in.
-  by right.
-move => H_in'.
-case: H_in' => H_in'.
-  case: H_in.
-  by left.
-contradict H_in'.
-apply: IH.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma not_in_exclude_snd :
-  forall n ns failed,
-    ~ In n ns ->
-    ~ In n (exclude failed ns).
-Proof.
-move => n.
-elim => //.
-move => n' l IH failed H_in.
-rewrite /=.
-case (in_dec _ _) => H_dec.
-  apply IH.
-  move => H_in'.
-  case: H_in.
-  by right.
-move => H_in'.
-case: H_in' => H_in'.
-  case: H_in.
-  by left.
-contradict H_in'.
-apply: IH.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma nodup_exclude :
-  forall (ns : list (@name _ multi_fst)) failed, NoDup ns ->
-               NoDup (exclude failed ns).
-Proof.
-elim => //.
-move => n ns IH failed H_nd.
-rewrite /=.
-inversion H_nd.
-case (in_dec _ _ _) => H_dec; first exact: IH.
-apply NoDup_cons; last exact: IH.
-exact: not_in_exclude.
-Qed.
-
-Lemma nodup_exclude_snd :
-  forall ns failed, NoDup ns ->
-               NoDup (exclude failed ns).
-Proof.
-elim => //.
-move => n ns IH failed H_nd.
-rewrite /=.
-inversion H_nd.
-case (in_dec _ _ _) => H_dec; first exact: IH.
-apply NoDup_cons; last exact: IH.
-exact: not_in_exclude_snd.
-Qed.
-
 Context {overlay_fst : NameOverlayParams multi_fst}.
 Context {overlay_snd : NameOverlayParams multi_snd}.
-
-Lemma not_in_msg_for :
-  forall (n : @name _ multi_fst) h m ns,
-    ~ In n ns ->
-    ~ In (n, m) (msg_for m (adjacent_to_node h ns)).
-Proof.
-move => n h m.
-elim => //=.
-move => n' ns IH H_in.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  move => H_in'.
-  case: H_in' => H_in'.
-    inversion H_in'.
-    by case: H_in; left.
-  contradict H_in'.
-  apply: IH.
-  move => H_in'.
-  case: H_in.
-  by right.
-apply: IH.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma not_in_msg_for_snd :
-  forall n h m ns,
-    ~ In n ns ->
-    ~ In (n, m) (msg_for m (adjacent_to_node h ns)).
-Proof.
-move => n h m.
-elim => //=.
-move => n' ns IH H_in.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  move => H_in'.
-  case: H_in' => H_in'.
-    inversion H_in'.
-    by case: H_in; left.
-  contradict H_in'.
-  apply: IH.
-  move => H_in'.
-  case: H_in.
-  by right.
-apply: IH.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma nodup_msg_for :
-  forall (h : @name _ multi_fst) m ns,
-    NoDup ns ->
-    NoDup (msg_for m (adjacent_to_node h ns)).
-Proof.
-move => h m.
-elim => //=.
-  move => H_nd.
-  exact: NoDup_nil.
-move => n ns IH H_in.
-inversion H_in.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  apply NoDup_cons.
-    apply IH in H2.
-    exact: not_in_msg_for.
-  exact: IH.
-exact: IH.
-Qed.
-
-Lemma nodup_msg_for_snd :
-  forall h m ns,
-    NoDup ns ->
-    NoDup (msg_for m (adjacent_to_node h ns)).
-Proof.
-move => h m.
-elim => //=.
-  move => H_nd.
-  exact: NoDup_nil.
-move => n ns IH H_in.
-inversion H_in.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  apply NoDup_cons.
-    apply IH in H2.
-    exact: not_in_msg_for_snd.
-  exact: IH.
-exact: IH.
-Qed.
-
-Lemma snd_eq_not_in :
-  forall l n m,
-  (forall nm, In nm l -> snd nm = m) ->
-  ~ In (n, m) l ->
-  ~ In n (map (fun nm : name * msg => fst nm) l).
-Proof.
-elim => //.
-case => n m l IH n' m' H_in H_in'.
-rewrite /= => H_in_map.
-case: H_in_map => H_in_map.
-  case: H_in'.
-  left.
-  rewrite -H_in_map.
-  have H_in' := H_in (n, m).
-  rewrite -H_in' //.
-  by left.
-contradict H_in_map.
-apply: (IH _ m').
-  move => nm H_inn.
-  apply: H_in.
-  by right.
-move => H_inn.
-case: H_in'.
-by right.
-Qed.
-
-Lemma nodup_snd_fst :
-  forall nms,
-    NoDup nms ->
-    (forall nm nm', In nm nms -> In nm' nms -> snd nm = snd nm') ->
-    NoDup (map (fun nm : name * msg => fst nm) nms).
-Proof.
-elim => //=.
-  move => H_nd H_eq.
-  exact: NoDup_nil.
-case => n m l IH H_nd H_in.
-inversion H_nd.
-rewrite /=.
-apply NoDup_cons.
-  have H_snd: forall nm, In nm l -> snd nm = m.
-    move => nm H_in_nm.
-    have ->: m = snd (n, m) by [].
-    apply H_in; first by right.
-    by left.    
-  exact: (@snd_eq_not_in _ _ m).
-apply IH => //.
-move => nm nm' H_in_nm H_in_nm'.
-apply H_in => //.
-  by right.
-by right.
-Qed.
 
 Lemma tot_map_in_snd :
 forall h m ns nm,
@@ -1363,46 +958,6 @@ apply: IH => //.
 move => nm H_in_nm.
 apply: H_fail.
 by right.
-Qed.
-
-Lemma in_for_msg :
-  forall h m ns nm,
-  In nm (msg_for m (adjacent_to_node h ns)) ->
-  snd nm = m.
-Proof.
-move => h m.
-elim => //.
-move => n l IH.
-case => /= n' m'.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  move => H_in.
-  case: H_in => H_in; first by inversion H_in.
-  have ->: m' = snd (n', m') by [].
-  exact: IH.
-move => H_in.
-have ->: m' = snd (n', m') by [].
-exact: IH.
-Qed.
-
-Lemma in_msg_for_msg_fst :
-  forall (h : @name _ multi_fst) m ns nm,
-  In nm (msg_for m (adjacent_to_node h ns)) ->
-  snd nm = m.
-Proof.
-move => h m.
-elim => //.
-move => n l IH.
-case => /= n' m'.
-case (adjacent_to_dec _ _) => H_dec.
-  rewrite /=.
-  move => H_in.
-  case: H_in => H_in; first by inversion H_in.
-  have ->: m' = snd (n', m') by [].
-  exact: IH.
-move => H_in.
-have ->: m' = snd (n', m') by [].
-exact: IH.
 Qed.
 
 Lemma in_tot_map_name :
@@ -1528,32 +1083,6 @@ case (adjacent_to_dec _ _) => H_dec'.
 exact: IH.
 Qed.
 
-Lemma in_msg_for_adjacent_in :
-  forall m ns n h,
-  In (n, m) (msg_for m (adjacent_to_node h ns)) ->
-  adjacent_to h n /\ In n ns.
-Proof.
-move => m.
-elim => //=.
-move => n ns IH n' h.
-case (adjacent_to_dec _ _) => /= H_dec.
-  move => H_in.
-  case: H_in => H_in.
-    inversion H_in.
-    rewrite H0 in H_dec.
-    split => //.
-    by left.
-  apply IH in H_in.
-  move: H_in => [H_adj H_in].
-  split => //.
-  by right.
-move => H_in.
-apply IH in H_in.
-move: H_in => [H_adj H_in].
-split => //.
-by right.
-Qed.
-
 Lemma in_exclude_not_in_failed_map :
   forall ns n failed,
   In n (exclude (map tot_map_name failed) ns) ->
@@ -1666,12 +1195,12 @@ Lemma map_msg_for_eq :
 Proof.
 move => h m failed.
 apply NoDup_Permutation; last split.
-- apply (@nodup_tot_map m); first exact: in_msg_for_msg_fst.
+- apply (@nodup_tot_map m); first exact: in_for_msg.
   apply nodup_msg_for.
   apply nodup_exclude.
   exact: no_dup_nodes.
-- apply nodup_msg_for_snd.
-  apply nodup_exclude_snd.
+- apply nodup_msg_for.
+  apply nodup_exclude.
   exact: no_dup_nodes.
 - case: x => n m' H_in.
   have H_eq := tot_map_in_snd _ _ _ _ H_in.
@@ -1691,7 +1220,7 @@ apply NoDup_Permutation; last split.
     rewrite tot_map_name_inverse_inv in H_adj.
     have H_inn: In n nodes by exact: all_names_nodes.
     exact: in_in_adj_msg_for.
-  exact: in_msg_for_msg_fst.
+  exact: in_for_msg.
 - case: x => n m' H_in.
   have H_eq := in_for_msg _ _ _ _ H_in.
   rewrite /= in H_eq.
@@ -1705,7 +1234,7 @@ apply NoDup_Permutation; last split.
   move: H_in => [H_in_f H_in].
   apply not_in_map_not_in_failed in H_in_f.
   have H_in_n: In (tot_map_name_inv n) nodes by exact: all_names_nodes.
-  apply in_tot_map_msg; first by move => nm; apply in_msg_for_msg_fst.
+  apply in_tot_map_msg; first by move => nm; apply in_for_msg.
   apply adjacent_in_in_msg => //.
   exact: not_in_failed_in_exclude.
 Qed.
@@ -1820,7 +1349,7 @@ invcs H_step.
     rewrite /tot_map_name_msgs /=.
     rewrite /l {l}.
     apply nodup_snd_fst.
-      apply (@nodup_tot_map msg_fail); first exact: in_msg_for_msg_fst.
+      apply (@nodup_tot_map msg_fail); first exact: in_for_msg.
       apply nodup_msg_for.
       apply nodup_exclude.
       exact: no_dup_nodes.
@@ -1829,7 +1358,7 @@ invcs H_step.
     have H_fail' := tot_map_in_snd _ _ _ _ H_in'.
     by rewrite H_fail H_fail'.
   have H_pm := map_msg_fail_eq h failed.
-  have H_eq := @nodup_perm_collate_eq _ _ _ _ H_nd H_pm.
+  have H_eq := nodup_perm_collate_eq _ _ H_nd H_pm.
   rewrite /l /tot_map_name_msgs in H_eq.
   apply: SOF_fail.
   * exact: not_in_failed_not_in.
