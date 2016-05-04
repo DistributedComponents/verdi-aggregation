@@ -1774,4 +1774,45 @@ Instance AggregationMsg_TreeAggregation : AggregationMsg :=
     aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
   }.
 
+Instance AggregationMsgMap_Aggregation_TreeAggregation : AggregationMsgMap AggregationMsg_TreeAggregation AG.AggregationMsg_Aggregation :=
+  {
+    map_msgs := pt_ext_map_msgs ;    
+  }.
+Proof.
+- elim => //=.
+  case => [m'||olv] ms IH /=.
+  * by rewrite /aggregate_sum_fold /= IH.
+  * by rewrite /aggregate_sum_fold /= IH.
+  * by rewrite /aggregate_sum_fold /= IH; gsimpl.
+- elim => //=.
+  case => [m'||olv] ms IH /=.
+  * by split => H_in; case: H_in => H_in //; right; apply IH.
+  * by split => H_in; left.
+  * split => H_in; last by right; apply IH.
+    case: H_in => H_in //.
+    by apply IH.
+Defined.
+
+Lemma TreeAggregation_conserves_network_mass : 
+  forall onet failed tr,
+  step_o_f_star step_o_f_init (failed, onet) tr ->
+  conserves_network_mass (exclude failed nodes) nodes onet.(onwPackets) onet.(onwState).
+Proof.
+move => onet failed tr H_st.
+have [tr' H_st'] := TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 H_st.
+have H_inv := AG.Aggregation_conserves_network_mass H_st'.
+rewrite /= /id /= /conserves_network_mass in H_inv.
+rewrite /conserves_network_mass.
+move: H_inv.
+set state := fun n : name => _.
+set packets := fun src dst : name => _.
+rewrite (sum_local_aggr_local_eq _ (onwState onet)) //.
+move => H_inv.
+rewrite H_inv {H_inv}.
+rewrite (sum_aggregate_aggr_aggregate_eq _ (onwState onet)) //.
+rewrite sum_aggregate_msg_incoming_active_map_msgs_eq /map_msgs /= -/packets.
+rewrite (sum_fail_sent_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets //.
+by rewrite (sum_fail_received_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets.
+Qed.
+
 End TreeAggregation.

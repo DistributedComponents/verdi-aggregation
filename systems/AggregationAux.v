@@ -855,7 +855,7 @@ Context {am : AggregationMsg}.
 Context {data} {ad : AggregationData data}.
 
 Definition aggregate_sum_fold (mg : aggr_msg) (partial : m) : m :=
-partial * (aggr_of mg).
+partial * aggr_of mg.
 
 Definition sum_aggregate_msg := fold_right aggregate_sum_fold 1.
 
@@ -1418,5 +1418,261 @@ by left.
 Qed.
 
 End MsgFolds.
+
+Class AggregationMsgMap (P1 : AggregationMsg) (P2 : AggregationMsg) :=
+  {
+    map_msgs : list (@aggr_msg P1) -> list (@aggr_msg P2) ;
+    sum_aggregate_msg_map_msgs_eq : forall ms, sum_aggregate_msg ms = sum_aggregate_msg (map_msgs ms) ;
+    aggr_fail_in_in : forall ms, In aggr_fail ms <-> In aggr_fail (map_msgs ms)
+  }.
+
+Section AggregationInstProps.
+
+Context {data_fst} {ad_fst : AggregationData data_fst}.
+Context {data_snd} {ad_snd : AggregationData data_snd}.
+
+Lemma sum_local_aggr_local_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) ns,
+   (forall n, In n ns -> n.(state).(aggr_local) = n.(state').(aggr_local)) ->
+    sum_local (Nodes_data ns state) = sum_local (Nodes_data ns state').
+Proof.
+move => state state'.
+elim => //=.
+move => n ns IH H_in.
+rewrite /= H_in; last by left.
+rewrite IH //.
+move => n' H_in'.
+by rewrite H_in; last by right.
+Qed.
+
+Lemma sum_aggregate_aggr_aggregate_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) ns,
+   (forall n, In n ns -> n.(state).(aggr_aggregate) = n.(state').(aggr_aggregate)) ->
+    sum_aggregate (Nodes_data ns state) = sum_aggregate (Nodes_data ns state').
+Proof.
+move => state state'.
+elim => //=.
+move => n ns IH H_in.
+rewrite /= H_in; last by left.
+rewrite IH //.
+move => n' H_in'.
+by rewrite H_in; last by right.
+Qed.
+
+Context {am_fst : AggregationMsg}.
+Context {am_snd : AggregationMsg}.
+Context {amm : AggregationMsgMap am_fst am_snd}.
+
+Lemma sum_aggregate_msg_incoming_map_msgs_eq :
+  forall (ns : list name) (packets : name -> name -> list (@aggr_msg am_fst)) (n : name),
+  sum_aggregate_msg_incoming ns packets n = sum_aggregate_msg_incoming ns (fun src dst => map_msgs (packets src dst)) n.
+Proof.
+elim => //=.
+move => n ns IH packets n'.
+rewrite /is_left /=.
+case in_dec => H_dec; case in_dec => H_dec'.
+- by gsimpl; rewrite IH.
+- by apply aggr_fail_in_in in H_dec.
+- by apply aggr_fail_in_in in H_dec'.
+- by rewrite sum_aggregate_msg_map_msgs_eq IH.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_map_msgs_eq :
+  forall (actns allns : list name) (packets : name -> name -> list (@aggr_msg am_fst)),
+  sum_aggregate_msg_incoming_active allns actns packets = sum_aggregate_msg_incoming_active allns actns (fun src dst => map_msgs (packets src dst)).
+Proof.
+elim => //=.
+move => n ns IH allns packets.
+by rewrite sum_aggregate_msg_incoming_map_msgs_eq IH.
+Qed.
+
+Lemma sum_fail_map_map_msgs_eq :
+  forall (packets : name -> name -> list (@aggr_msg am_fst)) src dst from adj map,
+    sum_fail_map (packets src dst) from adj map = sum_fail_map (map_msgs (packets src dst)) from adj map.
+Proof.
+move => packets src dst from adj map.
+rewrite /sum_fail_map /=.
+case in_dec => H_dec; case in_dec => /= H_dec' //; first by apply aggr_fail_in_in in H_dec.
+by apply aggr_fail_in_in in H_dec'.
+Qed.
+
+Lemma sum_fail_map_incoming_map_msgs_eq :
+  forall ns (packets : name -> name -> list (@aggr_msg am_fst)) n adj map,
+     sum_fail_map_incoming ns packets n adj map = sum_fail_map_incoming ns (fun src dst => map_msgs (packets src dst)) n adj map.
+Proof.
+elim => //=.
+move => n ns IH packets n' adj map.
+by rewrite sum_fail_map_map_msgs_eq // IH.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_map_msgs_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+    (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
+    (forall n, In n actns -> n.(state).(aggr_sent) = n.(state').(aggr_sent)) ->    
+    sum_fail_sent_incoming_active allns actns packets state = 
+    sum_fail_sent_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+Proof.
+move => state state' packets allns.
+elim => //=.
+move => n actns IH H_eq H_eq'.
+rewrite sum_fail_map_incoming_map_msgs_eq //.
+rewrite H_eq; last by left.
+rewrite H_eq'; last by left.
+rewrite IH //.
+  move => n' H_in.
+  by rewrite H_eq; last by right.
+move => n' H_in.
+by rewrite H_eq'; last by right.
+Qed.
+
+Lemma sum_fail_received_incoming_active_map_msgs_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+    (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
+    (forall n, In n actns -> n.(state).(aggr_received) = n.(state').(aggr_received)) ->
+    sum_fail_received_incoming_active allns actns packets state = 
+    sum_fail_received_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+Proof.
+move => state state' packets allns.
+elim => //=.
+move => n actns IH H_eq H_eq'.
+rewrite sum_fail_map_incoming_map_msgs_eq //.
+rewrite H_eq; last by left.
+rewrite H_eq'; last by left.
+rewrite IH //.
+  move => n' H_in.
+  by rewrite H_eq; last by right.
+move => n' H_in.
+by rewrite H_eq'; last by right.
+Qed.
+
+(*
+Lemma sum_aggregate_msg_map_msgs_eq :
+  forall (ns : list name) (packets : name -> name -> list (@aggr_msg am_fst)),
+  (forall src dst, sum_aggregate_msg (packets src dst) = sum_aggregate_msg (map_msgs (packets src dst))) ->
+  (forall src dst, In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst))) ->
+  forall n, sum_aggregate_msg_incoming ns packets n = sum_aggregate_msg_incoming ns (fun src dst => map_msgs (packets src dst)) n.
+Proof.
+elim => //=.
+move => n ns IH packets H_eq H_iff n'.
+rewrite /is_left /=.
+case in_dec => H_dec; case in_dec => H_dec'.
+- by gsimpl; rewrite IH.
+- by apply H_iff in H_dec.
+- by apply H_iff in H_dec'.
+- by rewrite H_eq IH.
+Qed.
+
+Lemma sum_aggregate_msg_map_msgs_eq' :
+  forall (actns allns : list name) (packets : name -> name -> list (@aggr_msg am_fst)),
+  (forall src dst, In src allns -> In dst actns -> sum_aggregate_msg (packets src dst) = sum_aggregate_msg (map_msgs (packets src dst))) ->
+  (forall src dst, In src allns -> In dst actns -> (In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst)))) ->
+  forall n, In n actns ->
+       sum_aggregate_msg_incoming allns packets n = sum_aggregate_msg_incoming allns (fun src dst => map_msgs (packets src dst)) n.
+Proof.
+move => actns.
+elim => //=.
+move => n allns IH packets H_eq H_iff.
+move => n' H_in.
+rewrite /is_left /=.
+case in_dec => H_dec; case in_dec => H_dec'.
+- gsimpl.
+  rewrite IH //.
+    move => src dst H_in_src H_in_dst.
+    rewrite H_eq //.
+    by right.
+  move => src dst H_in_src H_in_dst.
+  apply: H_iff => //.
+  by right.
+- apply H_iff in H_dec => //.
+  by left.
+- apply H_iff in H_dec' => //.
+  by left.
+- rewrite H_eq //; last by left.
+  rewrite IH //.
+    move => src dst H_in_src H_in_dst.
+    rewrite H_eq //.
+    by right.
+  move => src dst H_in_src H_in_dst.
+  apply: H_iff => //.
+  by right.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_map_msgs_eq :
+  forall (actns allns : list name) (packets : name -> name -> list (@aggr_msg am_fst)),
+  (forall src dst, sum_aggregate_msg (packets src dst) = sum_aggregate_msg (map_msgs (packets src dst))) ->
+  (forall src dst, In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst))) ->
+  sum_aggregate_msg_incoming_active allns actns packets = sum_aggregate_msg_incoming_active allns actns (fun src dst => map_msgs (packets src dst)).
+Proof.
+elim => //=.
+move => n ns IH allns packets H_eq H_iff.
+by rewrite (sum_aggregate_msg_map_msgs_eq _ _ H_eq H_iff) IH.
+Qed.
+
+Lemma sum_fail_map_map_msgs_eq :
+ forall (packets : name -> name -> list (@aggr_msg am_fst)) src dst from adj map,
+ (In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst))) ->
+sum_fail_map (packets src dst) from adj map = sum_fail_map (map_msgs (packets src dst)) from adj map.
+Proof.
+move => packets src dst from adj map H_iff.
+rewrite /sum_fail_map /=.
+case in_dec => H_dec; case in_dec => /= H_dec' //; first by apply H_iff in H_dec.
+by apply H_iff in H_dec'.
+Qed.
+
+Lemma sum_fail_map_incoming_map_msgs_eq :
+  forall ns (packets : name -> name -> list (@aggr_msg am_fst)) n adj map,
+    (forall src dst, (In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst)))) ->
+    sum_fail_map_incoming ns packets n adj map = sum_fail_map_incoming ns (fun src dst => map_msgs (packets src dst)) n adj map.
+Proof.
+elim => //=.
+move => n ns IH packets n' adj map H_iff.
+by rewrite sum_fail_map_map_msgs_eq // IH.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_map_msgs_eq :
+forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+(forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
+(forall n, In n actns -> n.(state).(aggr_sent) = n.(state').(aggr_sent)) ->
+(forall src dst, (In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst)))) ->
+sum_fail_sent_incoming_active allns actns packets state = 
+sum_fail_sent_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+Proof.
+move => state state' packets allns.
+elim => //=.
+move => n actns IH H_eq H_eq' H_iff.
+rewrite sum_fail_map_incoming_map_msgs_eq //.
+rewrite H_eq; last by left.
+rewrite H_eq'; last by left.
+rewrite IH //.
+  move => n' H_in.
+  by rewrite H_eq; last by right.
+move => n' H_in.
+by rewrite H_eq'; last by right.
+Qed.
+
+Lemma sum_fail_received_incoming_active_map_msgs_eq :
+forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+(forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
+(forall n, In n actns -> n.(state).(aggr_received) = n.(state').(aggr_received)) ->
+(forall src dst, (In aggr_fail (packets src dst) <-> In aggr_fail (map_msgs (packets src dst)))) ->
+sum_fail_received_incoming_active allns actns packets state = 
+sum_fail_received_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+Proof.
+move => state state' packets allns.
+elim => //=.
+move => n actns IH H_eq H_eq' H_iff.
+rewrite sum_fail_map_incoming_map_msgs_eq //.
+rewrite H_eq; last by left.
+rewrite H_eq'; last by left.
+rewrite IH //.
+  move => n' H_in.
+  by rewrite H_eq; last by right.
+move => n' H_in.
+by rewrite H_eq'; last by right.
+Qed.
+
+*)
+
+End AggregationInstProps.
 
 End AAux.
