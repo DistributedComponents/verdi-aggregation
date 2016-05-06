@@ -104,54 +104,53 @@ Instance refined_base_params_tot_map : BaseParamsTotalMap refined_base_params ba
 Instance refined_multi_params_name_tot_map : MultiParamsNameTotalMap refined_multi_params multi_params := 
   {
     tot_map_name := id ;
-    tot_map_name_inv := id ;
+    tot_map_name_inv := id
+  }.
+
+Instance refined_multi_params_name_tot_map_bijective : MultiParamsNameTotalMapBijective refined_multi_params_name_tot_map :=
+  {
     tot_map_name_inv_inverse := fun _ => eq_refl ;
     tot_map_name_inverse_inv := fun _ => eq_refl
   }.
 
-Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_base_params_tot_map refined_multi_params_name_tot_map :=
+Instance refined_multi_params_tot_map : MultiParamsTotalMap refined_multi_params multi_params :=
   {
     tot_map_msg := id    
   }.
 
-Lemma ghost_eq_net_handlers_eq : 
-  forall me src m st,
-    tot_mapped_net_handlers me src m st = 
-    net_handlers (tot_map_name me) (tot_map_name src) (tot_map_msg m) (tot_map_data st).
+Instance refined_multi_params_map_congruency : MultiParamsTotalMapCongruency refined_base_params_tot_map refined_multi_params_name_tot_map refined_multi_params_tot_map := 
+  {
+    tot_init_handlers_eq := fun _ => refl_equal ;
+    tot_net_handlers_eq := _ ;
+    tot_input_handlers_eq := _ ;
+    tot_map_output_injective := fun _ _ H => H
+  }.
 Proof.
-move => me src m st.
-rewrite /tot_mapped_net_handlers /= /refined_net_handlers /= /tot_map_name_msgs /= /id /=.
-repeat break_let.
-move {p0 Heqp1 p Heqp2}.
-inversion Heqp; subst.
-rewrite /=.
-rewrite -/id.
-rewrite map_id.
-by rewrite map_fst_snd_id.
+- move => me src m st.
+  rewrite /tot_mapped_net_handlers /= /refined_net_handlers /= /tot_map_name_msgs /= /id /=.
+  repeat break_let.
+  move {p0 Heqp1 p Heqp2}.
+  inversion Heqp; subst.
+  rewrite /=.
+  rewrite -/id.
+  rewrite map_id.
+  by rewrite map_fst_snd_id.
+- move => me inp st.
+  rewrite /tot_mapped_input_handlers /=.
+  repeat break_let.
+  rewrite map_id.
+  rewrite /refined_input_handlers in Heqp.
+  repeat break_let.
+  rewrite /id /= Heqp1.
+  inversion Heqp; subst.
+  rewrite /= /tot_map_name_msgs /= /id /=.
+  by rewrite map_fst_snd_id.
 Qed.
 
-Lemma ghost_eq_input_handlers_eq : forall me inp st,
-  tot_mapped_input_handlers me inp st = input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st).
-Proof.
-move => me inp st.
-rewrite /tot_mapped_input_handlers /=.
-repeat break_let.
-rewrite map_id.
-rewrite /refined_input_handlers in Heqp.
-repeat break_let.
-rewrite /id /= Heqp1.
-inversion Heqp; subst.
-rewrite /= /tot_map_name_msgs /= /id /=.
-by rewrite map_fst_snd_id.
-Qed.
-
-Lemma ghost_tot_map_output_injective : 
-  forall o o', tot_map_output o = tot_map_output o' -> o = o'.
-Proof. by []. Qed.
-
-Lemma ghost_tot_mapped_reboot_eq : forall d,
-  tot_map_data (reboot d) = reboot (tot_map_data d).
-Proof. by []. Qed.
+Instance refined_failure_params_map_congruency : FailureParamsTotalMapCongruency refined_failure_params failure_params refined_base_params_tot_map := 
+  {
+    tot_reboot_eq := fun _ => eq_refl
+  }.
 
 Lemma map_id_tr :
 forall out,
@@ -175,9 +174,8 @@ Theorem ghost_simulation_1 :
     @step_f _ _ refined_failure_params (failed, net) (failed', net') out ->
     @step_f _ _ failure_params (failed, deghost net) (failed', deghost net') out.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_1 ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
-apply H_sim in H_step.
+apply step_f_tot_mapped_simulation_1 in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
 rewrite /tot_map_trace_occ /= /id /= in H_step.
 rewrite /tot_map_packet /= /id /= in H_step.
@@ -206,8 +204,8 @@ Theorem ghost_simulation_2 :
       step_f (failed, gnet) (failed', gnet') out /\
       deghost gnet' = net'.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_2 ghost_eq_net_handlers_eq ghost_eq_input_handlers_eq ghost_tot_map_output_injective ghost_tot_mapped_reboot_eq.
 move => net net' failed failed' out gnet H_step H_eq.
+have H_sim := @step_f_tot_mapped_simulation_2 _ _ _ _ _ _ _ refined_multi_params_name_tot_map_bijective refined_multi_params_map_congruency _ _ refined_failure_params_map_congruency.
 apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
@@ -221,9 +219,8 @@ apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
   set nwS2 := fun _ => _.
   have H_eq_s: nwS1 = nwS2 by rewrite /nwS1 /nwS2 {nwS1 nwS2}; apply functional_extensionality => n; case: gnet'.
   by rewrite H_eq_p H_eq_s.
-- rewrite /tot_map_net /= /id /= /tot_map_packet /= /id /=.
-  move: H_eq.
-  rewrite /deghost /=.
+- rewrite -H_eq {H_step H_eq}.
+  rewrite /deghost /tot_map_net /= /id /= /tot_map_packet /= /id /=.
   set nwPf1 := fun p : packet => _.
   set nwPf2 := fun p : packet => _.
   have H_eq_p: nwPf1 = nwPf2 by rewrite /nwPf1 /nwPf2 {nwPf1 nwPf2}; apply functional_extensionality; case.
@@ -402,63 +399,62 @@ Instance mgv_refined_multi_params_name_tot_map : MultiParamsNameTotalMap mgv_ref
   {
     tot_map_name := id ;
     tot_map_name_inv := id ;
+  }.
+
+Instance mgv_refined_multi_params_name_tot_map_bijective : MultiParamsNameTotalMapBijective mgv_refined_multi_params_name_tot_map :=
+  {
     tot_map_name_inv_inverse := fun _ => eq_refl ;
     tot_map_name_inverse_inv := fun _ => eq_refl
   }.
 
-Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_base_params_tot_map mgv_refined_multi_params_name_tot_map :=
+Instance mgv_refined_multi_params_tot_map : MultiParamsTotalMap mgv_refined_multi_params multi_params :=
   {
     tot_map_msg := snd ;
   }.
 
-Lemma mgv_eq_net_handlers_eq : 
-  forall me src m st,
-    tot_mapped_net_handlers me src m st = 
-    net_handlers (tot_map_name me) (tot_map_name src) (tot_map_msg m) (tot_map_data st).
+Instance mgv_refined_multi_params_map_congruency : MultiParamsTotalMapCongruency mgv_refined_base_params_tot_map mgv_refined_multi_params_name_tot_map mgv_refined_multi_params_tot_map :=
+  {
+    tot_init_handlers_eq := fun _ => refl_equal ;
+    tot_net_handlers_eq := _ ;
+    tot_input_handlers_eq := _ ;
+    tot_map_output_injective := fun _ _ H => H
+  }.
 Proof.
-move => me src m st.
-rewrite /tot_mapped_net_handlers /= /mgv_refined_net_handlers /= /tot_map_name_msgs /= /id /=.
-repeat break_let.
-rewrite -/id map_id.
-inversion Heqp; subst.
-move {Heqp0 Heqp}.
-rewrite /add_ghost_msg /=.
-elim: l0 => //.
-case => n m' l IH.
-rewrite /=.
-injection IH; subst.
-move => IH'.
-by rewrite IH'.
+- move => me src m st.
+  rewrite /tot_mapped_net_handlers /= /mgv_refined_net_handlers /= /tot_map_name_msgs /= /id /=.
+  repeat break_let.
+  rewrite -/id map_id.
+  inversion Heqp; subst.
+  move {Heqp0 Heqp}.
+  rewrite /add_ghost_msg /=.
+  elim: l0 => //.
+  case => n m' l IH.
+  rewrite /=.
+  injection IH; subst.
+  move => IH'.
+  by rewrite IH'.
+- move => me inp st.
+  rewrite /tot_mapped_input_handlers /=.
+  repeat break_let.
+  rewrite map_id /id /=.
+  rewrite /mgv_refined_input_handlers in Heqp.
+  repeat break_let.
+  inversion Heqp; subst.
+  rewrite /= /tot_map_name_msgs /= /id /=.
+  move {Heqp1 Heqp}.
+  elim: l1 => //.
+  case => n m l.
+  rewrite /=.
+  move => IH.
+  injection IH; subst.
+  move => IH'.
+  by rewrite IH'.
 Qed.
 
-Lemma mgv_eq_input_handlers_eq : forall me inp st,
-  tot_mapped_input_handlers me inp st = input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st).
-Proof.
-move => me inp st.
-rewrite /tot_mapped_input_handlers /=.
-repeat break_let.
-rewrite map_id /id /=.
-rewrite /mgv_refined_input_handlers in Heqp.
-repeat break_let.
-inversion Heqp; subst.
-rewrite /= /tot_map_name_msgs /= /id /=.
-move {Heqp1 Heqp}.
-elim: l1 => //.
-case => n m l.
-rewrite /=.
-move => IH.
-injection IH; subst.
-move => IH'.
-by rewrite IH'.
-Qed.
-
-Lemma mgv_tot_map_output_injective : 
-  forall o o', tot_map_output o = tot_map_output o' -> o = o'.
-Proof. by []. Qed.
-
-Lemma mgv_tot_mapped_reboot_eq : forall d,
-  tot_map_data (reboot d) = reboot (tot_map_data d).
-Proof. by []. Qed.
+Instance mgv_refined_failure_params_map_congruency : FailureParamsTotalMapCongruency mgv_refined_failure_params failure_params mgv_refined_base_params_tot_map := 
+  {
+    tot_reboot_eq := fun _ => eq_refl
+  }.
 
 Lemma mgv_map_id_tr :
 forall out,
@@ -482,9 +478,8 @@ Theorem mgv_ghost_simulation_1 :
     @step_f _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
     @step_f _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_1 mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_mapped_reboot_eq.
 move => net net' failed failed' out H_step.
-apply H_sim in H_step.
+apply step_f_tot_mapped_simulation_1 in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
 rewrite /tot_map_trace_occ /= /id /= in H_step.
 rewrite /tot_map_packet /= /id /= in H_step.
@@ -541,8 +536,8 @@ Theorem mgv_ghost_simulation_2 :
       step_f (failed, gnet) (failed', gnet') out /\
       mgv_deghost gnet' = net'.
 Proof.
-have H_sim := step_f_tot_mapped_simulation_2 mgv_eq_net_handlers_eq mgv_eq_input_handlers_eq mgv_tot_map_output_injective mgv_tot_mapped_reboot_eq.
 move => net net' failed failed' out gnet H_step H_eq.
+have H_sim := @step_f_tot_mapped_simulation_2 _ _ _ _ _ _ _ mgv_refined_multi_params_name_tot_map_bijective mgv_refined_multi_params_map_congruency _ _ mgv_refined_failure_params_map_congruency.
 apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.

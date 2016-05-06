@@ -28,19 +28,23 @@ Class MultiParamsNameTotalMap
  (P0 : MultiParams B0) (P1 : MultiParams B1)  :=
   {
     tot_map_name : @name B0 P0 -> @name B1 P1 ;
-    tot_map_name_inv : @name B1 P1 -> @name B0 P0 ;
+    tot_map_name_inv : @name B1 P1 -> @name B0 P0
+  }.
+
+Class MultiParamsNameTotalMapBijective `(M : MultiParamsNameTotalMap) :=
+  {
     tot_map_name_inv_inverse : forall n, tot_map_name_inv (tot_map_name n) = n ;
-    tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n
+    tot_map_name_inverse_inv : forall n, tot_map_name (tot_map_name_inv n) = n ;
   }.
 
 Class MultiParamsTotalMap
- (B0 : BaseParams) (B1 : BaseParams) (B : BaseParamsTotalMap B0 B1) 
- (P0 : MultiParams B0) (P1 : MultiParams B1) (P : MultiParamsNameTotalMap P0 P1) :=
+ (B0 : BaseParams) (B1 : BaseParams)
+ (P0 : MultiParams B0) (P1 : MultiParams B1) :=
   {
     tot_map_msg : @msg B0 P0 -> @msg B1 P1
   }.
 
-Section TotalMapSimulations.
+Section TotalMapDefs.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
@@ -48,9 +52,7 @@ Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsTotalMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
-Context {multi_map : MultiParamsTotalMap base_map name_map}.
-
-Hypothesis tot_init_handlers_eq : forall n, tot_map_data (init_handlers n) = init_handlers (tot_map_name n).
+Context {multi_map : MultiParamsTotalMap multi_fst multi_snd}.
 
 Definition tot_map_name_msgs :=
   map (fun nm => (tot_map_name (fst nm), tot_map_msg (snd nm))).
@@ -59,19 +61,57 @@ Definition tot_mapped_net_handlers me src m st :=
   let '(out, st', ps) := net_handlers me src m st in
   (map tot_map_output out, tot_map_data st', tot_map_name_msgs ps).
 
-Hypothesis tot_net_handlers_eq : forall me src m st,
-  tot_mapped_net_handlers me src m st = 
-  net_handlers (tot_map_name me) (tot_map_name src) (tot_map_msg m) (tot_map_data st).
-
 Definition tot_mapped_input_handlers me inp st :=
   let '(out, st', ps) := input_handlers me inp st in
   (map tot_map_output out, tot_map_data st', tot_map_name_msgs ps).
 
-Hypothesis tot_input_handlers_eq : forall me inp st,
-  tot_mapped_input_handlers me inp st = input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st).
+End TotalMapDefs.
 
-Hypothesis tot_map_output_injective : 
-  forall o o', tot_map_output o = tot_map_output o' -> o = o'.
+Class MultiParamsTotalMapCongruency
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (B : BaseParamsTotalMap B0 B1) 
+  (N : MultiParamsNameTotalMap P0 P1)
+  (P : MultiParamsTotalMap P0 P1) :=
+  {
+    tot_init_handlers_eq : forall n, tot_map_data (init_handlers n) = init_handlers (tot_map_name n) ;
+    tot_net_handlers_eq : forall me src m st, tot_mapped_net_handlers me src m st = 
+      net_handlers (tot_map_name me) (tot_map_name src) (tot_map_msg m) (tot_map_data st) ;
+    tot_input_handlers_eq : forall me inp st, tot_mapped_input_handlers me inp st = 
+      input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st) ;
+    tot_map_output_injective : forall o o', tot_map_output o = tot_map_output o' -> o = o'
+  }.
+
+Class FailureParamsTotalMapCongruency 
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (F0 : FailureParams P0) (F1 : FailureParams P1)
+  (B : BaseParamsTotalMap B0 B1) :=
+  {
+    tot_reboot_eq : forall d, tot_map_data (reboot d) = reboot (tot_map_data d)
+  }.
+
+Class NameOverlayParamsTotalMapCongruency
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (O0 : NameOverlayParams P0) (O1 : NameOverlayParams P1)
+  (N : MultiParamsNameTotalMap P0 P1) :=
+  {
+    tot_adjacent_to_fst_snd : forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n')
+  }.
+
+Class FailMsgParamsTotalMapCongruency 
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (F0 : FailMsgParams P0) (F1 : FailMsgParams P1)
+  (P : MultiParamsTotalMap P0 P1) :=
+  {
+    tot_fail_msg_fst_snd : msg_fail = tot_map_msg msg_fail
+  }.
+
+Section TotalMapBijective.
+
+Context `{MB : MultiParamsNameTotalMapBijective}.
 
 Lemma tot_map_name_injective : 
 forall n n', tot_map_name n = tot_map_name n' -> n = n'.
@@ -83,6 +123,20 @@ rewrite -(tot_map_name_inv_inverse n) in H_dec.
 rewrite H_eq in H_dec.
 by rewrite tot_map_name_inv_inverse in H_dec.
 Qed.
+
+End TotalMapBijective.
+
+Section TotalMapSimulations.
+
+Context {base_fst : BaseParams}.
+Context {base_snd : BaseParams}.
+Context {multi_fst : MultiParams base_fst}.
+Context {multi_snd : MultiParams base_snd}.
+Context {base_map : BaseParamsTotalMap base_fst base_snd}.
+Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {multi_map : MultiParamsTotalMap multi_fst multi_snd}.
+Context {name_map_bijective : MultiParamsNameTotalMapBijective name_map}.
+Context {multi_map_congr : MultiParamsTotalMapCongruency base_map name_map multi_map}.
 
 Definition tot_map_trace_occ (e : @name _ multi_fst * (@input base_fst + list (@output base_fst))) :=
 match e with
@@ -290,7 +344,7 @@ invcs H_step.
     rewrite H_eq_dst.
     apply (@SM_deliver _ _ _ _ _ pks1 pks2 _ d' l') => //=.
     suff H_suff: lo = out' by rewrite H_suff.
-    have H_eq_hnd := tot_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    have H_eq_hnd := @tot_net_handlers_eq _ _ _ _ _ _ _ multi_map_congr (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
     rewrite /tot_mapped_net_handlers /= in H_eq_hnd.
     repeat break_let.
     inversion H_hnd'.
@@ -329,7 +383,7 @@ invcs H_step.
       case: p H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd' => src' dst' m' H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd'.
       by inversion H0.
     rewrite 2!map_app.
-    have H_eq_hnd := tot_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    have H_eq_hnd := @tot_net_handlers_eq _ _ _ _ _ _ _ multi_map_congr (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
     rewrite /tot_mapped_net_handlers /= in H_eq_hnd.
     repeat break_let.
     inversion H_hnd'.
@@ -367,7 +421,7 @@ invcs H_step.
 - rewrite /tot_map_net /=.
   case: mnet H => /= pks sts H_hnd.
   have [h' [inp' [out' [H_eq_mout [H_eq_n [H_eq_out H_eq_inp]]]]]] := tot_map_trace_occ_in_inv _ (eq_sym H3).
-  have H_q := tot_input_handlers_eq h' inp' (sts h').
+  have H_q := @tot_input_handlers_eq _ _ _ _ _ _ _ multi_map_congr h' inp' (sts h').
   rewrite /tot_mapped_input_handlers in H_q.
   repeat break_let.
   rewrite H_eq_n H_eq_inp in H_q.
@@ -411,8 +465,7 @@ Qed.
 
 Context {fail_fst : FailureParams multi_fst}.
 Context {fail_snd : FailureParams multi_snd}.
-
-Hypothesis tot_reboot_eq : forall d, tot_map_data (reboot d) = reboot (tot_map_data d).
+Context {fail_map_congr : FailureParamsTotalMapCongruency fail_fst fail_snd base_map}.
 
 Lemma not_in_failed_not_in :
   forall n failed,
@@ -483,6 +536,7 @@ Proof.
 move => h net.
 apply: functional_extensionality => n.
 case (name_eq_dec _ _) => H_dec; case (name_eq_dec _ _) => H_dec' //.
+- by rewrite tot_reboot_eq.
 - rewrite -H_dec in H_dec'.
   by rewrite tot_map_name_inverse_inv in H_dec'.
 - rewrite H_dec' in H_dec.
@@ -624,7 +678,7 @@ invcs H_step.
       move => H_in.
       by apply in_failed_in in H_in.
     suff H_suff: lo = out' by rewrite H_suff.
-    have H_eq_hnd := tot_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    have H_eq_hnd := @tot_net_handlers_eq _ _ _ _ _ _ _ multi_map_congr (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
     rewrite /tot_mapped_net_handlers /= in H_eq_hnd.
     repeat break_let.
     inversion H_hnd'.
@@ -663,7 +717,7 @@ invcs H_step.
       case: p H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd' => src' dst' m' H_eq_pks H_eq_pks2 H0 H_eq_dst H_eq_src H_hnd'.
       by inversion H0.
     rewrite 2!map_app.
-    have H_eq_hnd := tot_net_handlers_eq (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
+    have H_eq_hnd := @tot_net_handlers_eq _ _ _ _ _ _ _ multi_map_congr (pDst p) (pSrc p) (pBody p) (sts (pDst p)).
     rewrite /tot_mapped_net_handlers /= in H_eq_hnd.
     repeat break_let.
     inversion H_hnd'.
@@ -701,7 +755,7 @@ invcs H_step.
 - rewrite /tot_map_net /=.
   case: mnet H5 => /= pks sts H_hnd.
   have [h' [inp' [out' [H_eq_mout [H_eq_n [H_eq_out H_eq_inp]]]]]] := tot_map_trace_occ_in_inv _ (eq_sym H4).
-  have H_q := tot_input_handlers_eq h' inp' (sts h').
+  have H_q := @tot_input_handlers_eq _ _ _ _ _ _ _ multi_map_congr h' inp' (sts h').
   rewrite /tot_mapped_input_handlers in H_q.
   repeat break_let.
   rewrite H_eq_n H_eq_inp in H_q.
@@ -812,6 +866,7 @@ invcs H_step.
       rewrite /nwS1 /nwS2 {nwS1 nwS2}.
       apply functional_extensionality => n.
       case (name_eq_dec _ _) => H_dec; case (name_eq_dec _ _) => H_dec' => //.
+      + by rewrite tot_reboot_eq.
       + rewrite -H_dec in H_dec'.
         by rewrite tot_map_name_inverse_inv in H_dec'.
       + rewrite H_dec' in H_dec.
@@ -852,6 +907,7 @@ Qed.
 
 Context {overlay_fst : NameOverlayParams multi_fst}.
 Context {overlay_snd : NameOverlayParams multi_snd}.
+Context {overlay_map_congr : NameOverlayParamsTotalMapCongruency overlay_fst overlay_snd name_map}.
 
 Lemma tot_map_in_snd :
 forall h m ns nm,
@@ -1184,9 +1240,6 @@ case (in_dec _ _ _) => H_dec; case: H_in' => H_in'.
   exact: IH.
 Qed.
 
-Hypothesis adjacent_to_fst_snd : 
-  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
-
 Lemma map_msg_for_eq :
   forall h m failed,
   Permutation 
@@ -1216,7 +1269,7 @@ apply NoDup_Permutation; last split.
     have H_nin: ~ In n (map tot_map_name failed).
       rewrite -(tot_map_name_inverse_inv n).
       exact: not_in_failed_not_in.
-    apply adjacent_to_fst_snd in H_adj.
+    apply tot_adjacent_to_fst_snd in H_adj.
     rewrite tot_map_name_inverse_inv in H_adj.
     have H_inn: In n nodes by exact: all_names_nodes.
     exact: in_in_adj_msg_for.
@@ -1229,7 +1282,7 @@ apply NoDup_Permutation; last split.
   apply in_msg_for_adjacent_in in H_in.
   move: H_in => [H_adj H_in].
   rewrite -(tot_map_name_inverse_inv n) in H_adj.
-  apply adjacent_to_fst_snd in H_adj.
+  apply tot_adjacent_to_fst_snd in H_adj.
   apply in_exclude_not_in_failed_map in H_in.
   move: H_in => [H_in_f H_in].
   apply not_in_map_not_in_failed in H_in_f.
@@ -1241,8 +1294,7 @@ Qed.
 
 Context {fail_msg_fst : FailMsgParams multi_fst}.
 Context {fail_msg_snd : FailMsgParams multi_snd}.
-
-Hypothesis fail_msg_fst_snd : msg_fail = tot_map_msg msg_fail.
+Context {fail_msg_map_congr : FailMsgParamsTotalMapCongruency fail_msg_fst fail_msg_snd multi_map}.
 
 Lemma map_msg_fail_eq :
   forall h failed,
@@ -1251,7 +1303,7 @@ Lemma map_msg_fail_eq :
     (msg_for msg_fail (adjacent_to_node (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
 Proof.
 move => h failed.
-rewrite fail_msg_fst_snd.
+rewrite tot_fail_msg_fst_snd.
 exact: map_msg_for_eq.
 Qed.
 

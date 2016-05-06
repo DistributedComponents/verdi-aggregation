@@ -32,13 +32,13 @@ Class BaseParamsPartialMap (P0 : BaseParams) (P1 : BaseParams) :=
   }.
 
 Class MultiParamsPartialMap
- (B0 : BaseParams) (B1 : BaseParams) (B : BaseParamsPartialMap B0 B1)
- (P0 : MultiParams B0) (P1 : MultiParams B1) (P : MultiParamsNameTotalMap P0 P1) :=
+ (B0 : BaseParams) (B1 : BaseParams)
+ (P0 : MultiParams B0) (P1 : MultiParams B1) :=
   {
     pt_map_msg : @msg B0 P0 -> option (@msg B1 P1)
   }.
 
-Section PartialMapSimulations.
+Section PartialMapDefs.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
@@ -46,10 +46,7 @@ Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsPartialMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
-Context {multi_map : MultiParamsPartialMap base_map name_map}.
-
-Hypothesis pt_init_handlers_eq : forall n,
-  pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
+Context {multi_map : MultiParamsPartialMap multi_fst multi_snd}.
 
 Definition pt_map_name_msgs :=
   fold_right (fun nm l => 
@@ -69,27 +66,56 @@ Definition pt_mapped_net_handlers me src m st :=
   let '(out, st', ps) := net_handlers me src m st in
   (pt_map_outputs out, pt_map_data st', pt_map_name_msgs ps).
 
-Hypothesis pt_net_handlers_some : forall me src m st m',
-  pt_map_msg m = Some m' ->
-  pt_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st).
-
-Hypothesis pt_net_handlers_none : forall me src m st out st' ps,
-  pt_map_msg m = None ->
-  net_handlers me src m st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
-
 Definition pt_mapped_input_handlers me inp st :=
   let '(out, st', ps) := input_handlers me inp st in
   (pt_map_outputs out, pt_map_data st', pt_map_name_msgs ps).
 
-Hypothesis pt_input_handlers_some : forall me inp st inp',
-  pt_map_input inp = Some inp' ->
-  pt_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_map_data st).
+End PartialMapDefs.
 
-Hypothesis pt_input_handlers_none : forall me inp st out st' ps,
-  pt_map_input inp = None ->
-  input_handlers me inp st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
+Class MultiParamsPartialMapCongruency
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (B : BaseParamsPartialMap B0 B1) 
+  (N : MultiParamsNameTotalMap P0 P1)
+  (P : MultiParamsPartialMap P0 P1) :=
+  {
+    pt_init_handlers_eq : forall n, pt_map_data (init_handlers n) = init_handlers (tot_map_name n) ;
+    pt_net_handlers_some : forall me src m st m',
+        pt_map_msg m = Some m' ->
+        pt_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st) ;    
+    pt_net_handlers_none : forall me src m st out st' ps,
+        pt_map_msg m = None ->
+        net_handlers me src m st = (out, st', ps) ->
+        pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [] ;
+    pt_input_handlers_some : forall me inp st inp',
+        pt_map_input inp = Some inp' ->
+        pt_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_map_data st) ;
+    pt_input_handlers_none : forall me inp st out st' ps,
+        pt_map_input inp = None ->
+        input_handlers me inp st = (out, st', ps) ->
+        pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = []
+  }.
+
+Class FailMsgParamsPartialMapCongruency 
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (F0 : FailMsgParams P0) (F1 : FailMsgParams P1)
+  (P : MultiParamsPartialMap P0 P1) :=
+  {
+    pt_fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail)
+  }.
+
+Section PartialMapSimulations.
+
+Context {base_fst : BaseParams}.
+Context {base_snd : BaseParams}.
+Context {multi_fst : MultiParams base_fst}.
+Context {multi_snd : MultiParams base_snd}.
+Context {base_map : BaseParamsPartialMap base_fst base_snd}.
+Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {multi_map : MultiParamsPartialMap multi_fst multi_snd}.
+Context {name_map_bijective : MultiParamsNameTotalMapBijective name_map}.
+Context {multi_map_congr : MultiParamsPartialMapCongruency base_map name_map multi_map}.
 
 Definition pt_map_trace_occ (e : @name _ multi_fst * (@input base_fst + list (@output base_fst))) :
  option (@name _ multi_snd * (@input base_snd + list (@output base_snd))) :=
@@ -674,17 +700,6 @@ apply: H_in => //.
 by right.
 Qed.
 
-Lemma tot_map_name_injective : 
-forall n n', tot_map_name n = tot_map_name n' -> n = n'.
-Proof.
-move => n n'.
-case (name_eq_dec n n') => H_dec //.
-move => H_eq.
-rewrite -(tot_map_name_inv_inverse n) in H_dec.
-rewrite H_eq in H_dec.
-by rewrite tot_map_name_inv_inverse in H_dec.
-Qed.
-
 Lemma pt_map_in_in :
   forall m m0 n l,
   (forall nm, In nm l -> snd nm = m) ->
@@ -1052,8 +1067,7 @@ case (in_dec _ _ _) => H_dec; case: H_in' => H_in'.
   exact: IH.
 Qed.
 
-Hypothesis adjacent_to_fst_snd : 
-  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
+Context {overlay_map_congr : NameOverlayParamsTotalMapCongruency overlay_fst overlay_snd name_map}.
 
 Lemma pt_map_msg_for_eq :
   forall m m' h failed,
@@ -1090,7 +1104,7 @@ apply NoDup_Permutation; last split.
     have H_nin: ~ In n (map tot_map_name failed).
       rewrite -(tot_map_name_inverse_inv n).
       exact: pt_not_in_failed_not_in.
-    apply adjacent_to_fst_snd in H_adj.
+    apply tot_adjacent_to_fst_snd in H_adj.
     rewrite tot_map_name_inverse_inv in H_adj.
     have H_inn: In n nodes by exact: all_names_nodes.
     exact: pt_in_in_adj_msg_for.
@@ -1103,7 +1117,7 @@ apply NoDup_Permutation; last split.
   apply in_msg_for_adjacent_in in H_in.
   move: H_in => [H_adj H_in].
   rewrite -(tot_map_name_inverse_inv n) in H_adj.
-  apply adjacent_to_fst_snd in H_adj.
+  apply tot_adjacent_to_fst_snd in H_adj.
   apply pt_in_exclude_not_in_failed_map in H_in.
   move: H_in => [H_in_f H_in].
   apply pt_not_in_map_not_in_failed in H_in_f.
@@ -1115,8 +1129,7 @@ Qed.
 
 Context {fail_msg_fst : FailMsgParams multi_fst}.
 Context {fail_msg_snd : FailMsgParams multi_snd}.
-
-Hypothesis fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail).
+Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fail_msg_snd multi_map}.
 
 Theorem step_o_f_pt_mapped_simulation_1 :
   forall net net' failed failed' tr,
@@ -1206,18 +1219,12 @@ invcs H_step.
       apply nodup_exclude.
       exact: no_dup_nodes.
     move => nm nm' H_in H_in'.
-    have H_fail := pt_map_in_snd _ _ _ _ fail_msg_fst_snd H_in.
-    have H_fail' := pt_map_in_snd _ _ _ _ fail_msg_fst_snd H_in'.
-    by rewrite H_fail H_fail'.
-  have H_pm := @pt_map_msg_for_eq msg_fail msg_fail h failed fail_msg_fst_snd.
-  have H_eq := @nodup_perm_collate_eq _ _ _ _ _ _ H_nd H_pm.
-  rewrite /l /pt_map_name_msgs in H_eq.
+    by rewrite (pt_map_in_snd  _ _ _ _ pt_fail_msg_fst_snd H_in) (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in').
   apply: SOF_fail => //.
   * exact: pt_not_in_failed_not_in.
-  * rewrite /=.
-    rewrite /l collate_pt_map_eq /pt_map_name_msgs.
-    by rewrite H_eq.
-Qed.
+  * rewrite /= /l collate_pt_map_eq /pt_map_name_msgs.
+    by rewrite (nodup_perm_collate_eq _ _ H_nd (pt_map_msg_for_eq msg_fail h failed pt_fail_msg_fst_snd)).
+Qed. 
 
 Corollary step_o_f_pt_mapped_simulation_star_1 :
   forall net failed tr,

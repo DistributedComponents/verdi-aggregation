@@ -908,15 +908,19 @@ Ltac io_handler_cases :=
   intuition idtac; subst; 
   repeat find_rewrite.
 
-Instance TreeAggregation_Aggregation_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
+Instance TreeAggregation_Aggregation_name_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id ;
+  }.
+
+Instance TreeAggregation_Aggregation_name_tot_map_bijective : MultiParamsNameTotalMapBijective TreeAggregation_Aggregation_name_tot_map :=
+  {
     tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
-Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_Aggregation_name_params_tot_map :=
+Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     pt_ext_map_data := fun d _ => 
       AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
@@ -945,376 +949,6 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
       end   
   }.
 
-Lemma pt_ext_init_handlers_eq : forall n,
-  pt_ext_map_data (init_handlers n) n = init_handlers (tot_map_name n).
-Proof.
-move => n.
-rewrite /= /InitData /=.
-by case root_dec.
-Qed.
-
-Lemma pt_ext_net_handlers_some : forall me src m st m',
-  pt_ext_map_msg m = Some m' ->
-  pt_ext_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_ext_map_data st me).
-Proof.
-move => me src.
-case => //.
-  move => m' st mg.
-  rewrite /pt_ext_map_msg /=.
-  rewrite /pt_ext_mapped_net_handlers /=.
-  repeat break_let.
-  move => H_eq.
-  inversion H_eq.
-  rewrite /id /=.
-  apply net_handlers_NetHandler in Heqp.
-  net_handler_cases => //.
-    injection H1 => H_eqx.
-    rewrite H_eqx.
-    monad_unfold.
-    repeat break_let.
-    rewrite /=.
-    move: Heqp.
-    rewrite /AG.NetHandler /=.
-    monad_unfold.
-    break_let.
-    move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; last by rewrite H in H_find.
-    rewrite H in H_find.
-    injection H_find => H_eq_m.
-    rewrite H_eq_m.
-    repeat break_let.
-    move => Heqp Heqp'.      
-    rewrite Heqp' in Heqp.
-    by inversion Heqp.
-  rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  case H_find: NMap.find => /= [m0|]; first by rewrite H in H_find.
-  repeat break_let.
-  move => Heqp Heqp'.
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-move => st.
-case => //.
-rewrite /pt_ext_map_msg /=.
-rewrite /pt_ext_mapped_net_handlers /=.
-repeat break_let.
-move => H_eq.
-inversion H_eq.
-rewrite /id /=.
-apply net_handlers_NetHandler in Heqp.
-net_handler_cases => //.
-- monad_unfold.
-  repeat break_let.
-  rewrite /=.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-  case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-  rewrite H2 in H_find.
-  injection H_find => H_eq_m.
-  rewrite H_eq_m.
-  rewrite H1 in H_find'.
-  injection H_find' => H_eq'_m.
-  rewrite H_eq'_m.
-  repeat break_let.
-  move => Heqp Heqp'.
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-- monad_unfold.
-  repeat break_let.
-  rewrite /=.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-  case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-  rewrite H2 in H_find.
-  injection H_find => H_eq_m.
-  rewrite H_eq_m.
-  rewrite H1 in H_find'.
-  injection H_find' => H_eq'_m.
-  rewrite H_eq'_m.
-  repeat break_let.
-  move => Heqp Heqp'.
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-- monad_unfold.
-  repeat break_let.
-  rewrite /=.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-  case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-  rewrite H2 in H_find.
-  injection H_find => H_eq_m.
-  rewrite H_eq_m.
-  rewrite H1 in H_find'.
-  injection H_find' => H_eq'_m.
-  rewrite H_eq'_m.
-  repeat break_let.
-  move => Heqp Heqp'.
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  case H_find: NMap.find => /= [m0|]; first by rewrite H_find in H10.
-  repeat break_let.
-  move => Heqp Heqp'.      
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  rewrite /=.
-  case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H10 in H_find'.
-  case H_find: NMap.find => /= [m0|].
-    repeat break_let.
-    move => Heqp Heqp'.      
-    rewrite Heqp' in Heqp.
-    by inversion Heqp.
-  repeat break_let.
-  move => Heqp Heqp'.      
-  rewrite Heqp' in Heqp.
-  by inversion Heqp.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  rewrite /=.
-  case H_find': (NMap.find _  st.(sent)) => /= [m1|]; first by rewrite H11 in H_find'.
-  repeat break_let.
-  move => H_eq' H_eq''.
-  inversion H_eq'; subst.
-  by inversion H_eq''.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  rewrite /=.
-  case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
-  case H_find: NMap.find => [m0|].
-    repeat break_let.
-    move => H_eq' H_eq''.
-    inversion H_eq'; subst.
-    by inversion H_eq''.
-  repeat break_let.
-  move => H_eq' H_eq''.
-  inversion H_eq'; subst.
-  by inversion H_eq''.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  rewrite /=.
-  case H_find: NMap.find => [m0|]; first by rewrite H11 in H_find.
-  repeat break_let.
-  move => H_eq' H_eq''.
-  inversion H_eq'; subst.
-  by inversion H_eq''.
-- rewrite /=.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  rewrite /AG.NetHandler /=.
-  monad_unfold.
-  break_let.
-  move: Heqp2.
-  rewrite /=.
-  case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
-  case H_find: NMap.find => [m0|].
-    repeat break_let.
-    move => H_eq' H_eq''.
-    inversion H_eq'; subst.
-    by inversion H_eq''.
-  repeat break_let.
-  move => H_eq' H_eq''.
-  inversion H_eq'; subst.
-  by inversion H_eq''.  
-Qed.
-
-Lemma pt_ext_net_handlers_none : forall me src m st out st' ps,
-  pt_ext_map_msg m = None ->
-  net_handlers me src m st = (out, st', ps) ->
-  pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_ext_map_name_msgs ps = [].
-Proof.
-move => me src.
-case => //.
-move => m' d out d' ps H_eq H_eq'.
-apply net_handlers_NetHandler in H_eq'.
-net_handler_cases => //.
-* case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
-  move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
-  move => H0 H2 H3 H4 H5 H6 H7 H8.
-  by rewrite H2 H3 H4 H5 H6.
-* case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
-  move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
-  move => H0 H2 H3 H4 H5 H6 H7 H8.
-  by rewrite H2 H3 H4 H5 H6.
-* case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
-  move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
-  move => H0 H2 H3 H4 H5 H6 H7 H8.
-  by rewrite H2 H3 H4 H5 H6.
-* case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
-  move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
-  move => H0 H2 H3 H4 H5 H6 H7 H8.
-  by rewrite H2 H3 H4 H5 H6.
-Qed.
-
-Lemma pt_ext_input_handlers_some : forall me inp st inp',
-  pt_ext_map_input inp me st = Some inp' ->
-  pt_ext_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_ext_map_data st me).
-Proof.
-move => me.
-case => //.
-- move => m' st.
-  case => //=.
-  move => m'' H_eq.
-  injection H_eq => H_eq'.
-  rewrite H_eq' {H_eq H_eq'}.
-  rewrite /pt_ext_mapped_input_handlers.
-  repeat break_let.  
-  rewrite /id /=.
-  apply input_handlers_IOHandler in Heqp.
-  io_handler_cases => //.
-  monad_unfold.
-  repeat break_let.
-  move: Heqp.
-  injection H0 => H_eq_m.
-  rewrite -H_eq_m {H_eq_m H0}.
-  rewrite /AG.IOHandler.
-  monad_unfold.
-  rewrite /=.
-  move => Heqp.
-  by inversion Heqp.
-- move => st.
-  case => //=; first by move => m'; case root_dec => H_dec //=; case: parent.
-    move => dst.
-    case root_dec => H_dec //=.
-    case H_p: parent => [dst'|] H_eq //=.
-    rewrite /id /=.
-    injection H_eq => H_eq'.
-    rewrite -H_eq' {H_eq H_eq'}.
-    rewrite /pt_ext_mapped_input_handlers.
-    repeat break_let.      
-    apply input_handlers_IOHandler in Heqp.
-    have H_p' := H_p.
-    move: H_p'.
-    rewrite /parent.
-    case par => H_p' H_eq //=.
-    move: H_p' H_eq => /= [nlv' H_min].
-    inversion H_min.
-    inversion H.
-    move => H_eq.
-    injection H_eq => H_eq'.
-    rewrite -H_eq'.
-    rewrite -H_eq' in H_p.
-    move {H_eq' H_eq dst'}.
-    io_handler_cases => //=.
-    * rewrite /id /=.
-      injection H7 => H_eq.
-      rewrite -H_eq in H6.
-      rewrite -H_eq.
-      monad_unfold.
-      repeat break_let.
-      move: Heqp.      
-      rewrite /AG.IOHandler.
-      monad_unfold.
-      rewrite /=.
-      repeat break_let.
-      move: Heqp2.
-      case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
-      case sumbool_not => //= H_not.
-      repeat break_let.
-      move: Heqp2.
-      case H_find: NMap.find => [m0|]; last by rewrite H_find in H6.
-      rewrite H_find in H6.
-      injection H6 => H_eq'.
-      rewrite H_eq'.
-      move => H_eq_p H_eq'_p H_eq''_p.
-      inversion H_eq''_p.
-      subst.
-      inversion H_eq'_p; subst.
-      rewrite -2!app_nil_end.
-      by inversion H_eq_p.
-    * monad_unfold.
-      repeat break_let.
-      move: Heqp.      
-      rewrite /AG.IOHandler.
-      monad_unfold.
-      repeat break_let.
-      move: Heqp2.
-      case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
-      case sumbool_not => //= H_not.
-      move => H_eq H_eq'.
-      rewrite H_eq' in H_eq.
-      by inversion H_eq.
-    * injection H7 => H_eq.
-      rewrite -H_eq in H6.
-      monad_unfold.
-      repeat break_let.
-      move: Heqp.
-      rewrite /AG.IOHandler.
-      monad_unfold.
-      repeat break_let.
-      move: Heqp2.
-      case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
-      case sumbool_not => //= H_not.
-      repeat break_let.
-      move: Heqp2.
-      case H_find: NMap.find => [m0|]; first by rewrite H_find in H6.
-      rewrite -2!app_nil_end.
-      move => H_eq_1 H_eq_2 H_eq3.
-      inversion H_eq3; subst.
-      inversion H_eq_2; subst.
-      by inversion H_eq_1.
-    * by case root_dec => //= H_dec; case: parent.
-- move => st.
-  case => //.
-  rewrite /pt_ext_map_input /= => H_eq.
-  rewrite /pt_ext_mapped_input_handlers.
-  repeat break_let.  
-  rewrite /id /=.
-  apply input_handlers_IOHandler in Heqp.
-  by io_handler_cases.
-Qed.
-
 Lemma pt_ext_map_name_msgs_level_adjacent_empty : 
   forall fs lvo,
   pt_ext_map_name_msgs (level_adjacent lvo fs) = [].
@@ -1328,58 +962,409 @@ rewrite fold_left_level_fold_eq /=.
 by rewrite pt_ext_map_name_msgs_app_distr /= -app_nil_end IH.
 Qed.
 
-Lemma pt_ext_input_handlers_none : forall me inp st out st' ps,
-  pt_ext_map_input inp me st = None ->
-  input_handlers me inp st = (out, st', ps) ->
-  pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_ext_map_name_msgs ps = [].
+Instance TreeAggregation_Aggregation_multi_params_pt_ext_map_congruency : MultiParamsPartialExtendedMapCongruency TreeAggregation_Aggregation_name_tot_map TreeAggregation_Aggregation_params_pt_ext_map :=
+  {
+    pt_ext_init_handlers_eq := _ ;
+    pt_ext_net_handlers_some := _ ;
+    pt_ext_net_handlers_none := _ ;
+    pt_ext_input_handlers_some := _ ;
+    pt_ext_input_handlers_none := _ 
+  }.
 Proof.
-move => me.
-case => //=.
-- move => st out st' ps.
-  case root_dec => /= H_dec.    
+- move => n.
+  rewrite /= /InitData /=.
+  by case root_dec.
+- move => me src.
+  case => //.
+    move => m' st mg.
+    rewrite /pt_ext_map_msg /=.
+    rewrite /pt_ext_mapped_net_handlers /=.
+    repeat break_let.
     move => H_eq.
+    inversion H_eq.
+    rewrite /id /=.
+    apply net_handlers_NetHandler in Heqp.
+    net_handler_cases => //.
+      injection H1 => H_eqx.
+      rewrite H_eqx.
+      monad_unfold.
+      repeat break_let.
+      rewrite /=.
+      move: Heqp.
+      rewrite /AG.NetHandler /=.
+      monad_unfold.
+      break_let.
+      move: Heqp2.
+      case H_find: NMap.find => /= [m0|]; last by rewrite H in H_find.
+      rewrite H in H_find.
+      injection H_find => H_eq_m.
+      rewrite H_eq_m.
+      repeat break_let.
+      move => Heqp Heqp'.      
+      rewrite Heqp' in Heqp.
+      by inversion Heqp.
+    rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    case H_find: NMap.find => /= [m0|]; first by rewrite H in H_find.
+    repeat break_let.
+    move => Heqp Heqp'.
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  move => st.
+  case => //.
+  rewrite /pt_ext_map_msg /=.
+  rewrite /pt_ext_mapped_net_handlers /=.
+  repeat break_let.
+  move => H_eq.
+  inversion H_eq.
+  rewrite /id /=.
+  apply net_handlers_NetHandler in Heqp.
+  net_handler_cases => //.
+  * monad_unfold.
+    repeat break_let.
+    rewrite /=.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
+    rewrite H2 in H_find.
+    injection H_find => H_eq_m.
+    rewrite H_eq_m.
+    rewrite H1 in H_find'.
+    injection H_find' => H_eq'_m.
+    rewrite H_eq'_m.
+    repeat break_let.
+    move => Heqp Heqp'.
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  * monad_unfold.
+    repeat break_let.
+    rewrite /=.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
+    rewrite H2 in H_find.
+    injection H_find => H_eq_m.
+    rewrite H_eq_m.
+    rewrite H1 in H_find'.
+    injection H_find' => H_eq'_m.
+    rewrite H_eq'_m.
+    repeat break_let.
+    move => Heqp Heqp'.
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  * monad_unfold.
+    repeat break_let.
+    rewrite /=.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
+    rewrite H2 in H_find.
+    injection H_find => H_eq_m.
+    rewrite H_eq_m.
+    rewrite H1 in H_find'.
+    injection H_find' => H_eq'_m.
+    rewrite H_eq'_m.
+    repeat break_let.
+    move => Heqp Heqp'.
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    case H_find: NMap.find => /= [m0|]; first by rewrite H_find in H10.
+    repeat break_let.
+    move => Heqp Heqp'.      
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H10 in H_find'.
+    case H_find: NMap.find => /= [m0|].
+      repeat break_let.
+      move => Heqp Heqp'.      
+      rewrite Heqp' in Heqp.
+      by inversion Heqp.
+    repeat break_let.
+    move => Heqp Heqp'.      
+    rewrite Heqp' in Heqp.
+    by inversion Heqp.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find': (NMap.find _  st.(sent)) => /= [m1|]; first by rewrite H11 in H_find'.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by inversion H_eq''.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
+    case H_find: NMap.find => [m0|].
+      repeat break_let.
+      move => H_eq' H_eq''.
+      inversion H_eq'; subst.
+      by inversion H_eq''.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by inversion H_eq''.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find: NMap.find => [m0|]; first by rewrite H11 in H_find.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by inversion H_eq''.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find': (NMap.find _ st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
+    case H_find: NMap.find => [m0|].
+      repeat break_let.
+      move => H_eq' H_eq''.
+      inversion H_eq'; subst.
+      by inversion H_eq''.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by inversion H_eq''.
+- move => me src.
+  case => //.
+  move => m' d out d' ps H_eq H_eq'.
+  apply net_handlers_NetHandler in H_eq'.
+  net_handler_cases => //.
+  * case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
+    move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
+    move => H0 H2 H3 H4 H5 H6 H7 H8.
+    by rewrite H2 H3 H4 H5 H6.
+  * case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
+    move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
+    move => H0 H2 H3 H4 H5 H6 H7 H8.
+    by rewrite H2 H3 H4 H5 H6.
+  * case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
+    move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
+    move => H0 H2 H3 H4 H5 H6 H7 H8.
+    by rewrite H2 H3 H4 H5 H6.
+  * case: d' H0 H2 H3 H4 H5 H6 H7 H8 => /=. 
+    move => local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0.
+    move => H0 H2 H3 H4 H5 H6 H7 H8.
+    by rewrite H2 H3 H4 H5 H6.
+- move => me.
+  case => //.
+  * move => m' st.
+    case => //=.
+    move => m'' H_eq.
+    injection H_eq => H_eq'.
+    rewrite H_eq' {H_eq H_eq'}.
+    rewrite /pt_ext_mapped_input_handlers.
+    repeat break_let.  
+    rewrite /id /=.
+    apply input_handlers_IOHandler in Heqp.
+    io_handler_cases => //.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    injection H0 => H_eq_m.
+    rewrite -H_eq_m {H_eq_m H0}.
+    rewrite /AG.IOHandler.
+    monad_unfold.
+    rewrite /=.
+    move => Heqp.
+    by inversion Heqp.
+  * move => st.
+    case => //=; first by move => m'; case root_dec => H_dec //=; case: parent.
+      move => dst.
+      case root_dec => H_dec //=.
+      case H_p: parent => [dst'|] H_eq //=.
+      rewrite /id /=.
+      injection H_eq => H_eq'.
+      rewrite -H_eq' {H_eq H_eq'}.
+      rewrite /pt_ext_mapped_input_handlers.
+      repeat break_let.      
+      apply input_handlers_IOHandler in Heqp.
+      have H_p' := H_p.
+      move: H_p'.
+      rewrite /parent.
+      case par => H_p' H_eq //=.
+      move: H_p' H_eq => /= [nlv' H_min].
+      inversion H_min.
+      inversion H.
+      move => H_eq.
+      injection H_eq => H_eq'.
+      rewrite -H_eq'.
+      rewrite -H_eq' in H_p.
+      move {H_eq' H_eq dst'}.
+      io_handler_cases => //=.
+      + rewrite /id /=.
+        injection H7 => H_eq.
+        rewrite -H_eq in H6.
+        rewrite -H_eq.
+        monad_unfold.
+        repeat break_let.
+        move: Heqp.      
+        rewrite /AG.IOHandler.
+        monad_unfold.
+        rewrite /=.
+        repeat break_let.
+        move: Heqp2.
+        case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
+        case sumbool_not => //= H_not.
+        repeat break_let.
+        move: Heqp2.
+        case H_find: NMap.find => [m0|]; last by rewrite H_find in H6.
+        rewrite H_find in H6.
+        injection H6 => H_eq'.
+        rewrite H_eq'.
+        move => H_eq_p H_eq'_p H_eq''_p.
+        inversion H_eq''_p.
+        subst.
+        inversion H_eq'_p; subst.
+        rewrite -2!app_nil_end.
+        by inversion H_eq_p.
+      + monad_unfold.
+        repeat break_let.
+        move: Heqp.      
+        rewrite /AG.IOHandler.
+        monad_unfold.
+        repeat break_let.
+        move: Heqp2.
+        case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
+        case sumbool_not => //= H_not.
+        move => H_eq H_eq'.
+        rewrite H_eq' in H_eq.
+        by inversion H_eq.
+      + injection H7 => H_eq.
+        rewrite -H_eq in H6.
+        monad_unfold.
+        repeat break_let.
+        move: Heqp.
+        rewrite /AG.IOHandler.
+        monad_unfold.
+        repeat break_let.
+        move: Heqp2.
+        case H_mem: NSet.mem => /=; last by move/negP: H_mem => H_mem; case: H_mem; apply NSetFacts.mem_1.
+        case sumbool_not => //= H_not.
+        repeat break_let.
+        move: Heqp2.
+        case H_find: NMap.find => [m0|]; first by rewrite H_find in H6.
+        rewrite -2!app_nil_end.
+        move => H_eq_1 H_eq_2 H_eq3.
+        inversion H_eq3; subst.
+        inversion H_eq_2; subst.
+        by inversion H_eq_1.
+      + by case root_dec => //= H_dec; case: parent.
+  * move => st.
+    case => //.
+    rewrite /pt_ext_map_input /= => H_eq.
+    rewrite /pt_ext_mapped_input_handlers.
+    repeat break_let.  
+    rewrite /id /=.
+    apply input_handlers_IOHandler in Heqp.
+    by io_handler_cases.
+- move => me.
+  case => //=.
+  * move => st out st' ps.
+    case root_dec => /= H_dec.    
+      move => H_eq.
+      monad_unfold.
+      repeat break_let.
+      move => H_eq'.
+      by io_handler_cases => //=; inversion H_eq'.
+    case H_p: parent => [dst'|] H_eq //=.
     monad_unfold.
     repeat break_let.
     move => H_eq'.
-    by io_handler_cases => //=; inversion H_eq'.
-  case H_p: parent => [dst'|] H_eq //=.
-  monad_unfold.
-  repeat break_let.
-  move => H_eq'.
-  io_handler_cases; inversion H_eq' => //=.
-  by rewrite -H4 H1.
-- move => st out st' ps H_eq.
-  monad_unfold.
-  repeat break_let.
-  move => H_eq'.
-  by io_handler_cases; inversion H_eq' => //=.
-- move => st out st' ps H_eq.
-  monad_unfold.
-  repeat break_let.
-  move => H_eq'.
-  io_handler_cases; inversion H_eq' => //=.
-  * by rewrite -H2 -H3 -H4 -H5 -H6 H11.
-  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
-  * by rewrite -H2 -H3 -H4 -H5 -H6 H11.
-  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
+    io_handler_cases; inversion H_eq' => //=.
+    by rewrite -H4 H1.
+  * move => st out st' ps H_eq.
+    monad_unfold.
+    repeat break_let.
+    move => H_eq'.
+    by io_handler_cases; inversion H_eq' => //=.
+  * move => st out st' ps H_eq.
+    monad_unfold.
+    repeat break_let.
+    move => H_eq'.
+    io_handler_cases; inversion H_eq' => //=.
+    + by rewrite -H2 -H3 -H4 -H5 -H6 H11.
+    + by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
+    + by rewrite -H2 -H3 -H4 -H5 -H6 H11.
+    + by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
 Qed.
 
-Lemma fail_msg_fst_snd : pt_ext_map_msg msg_fail = Some (msg_fail).
-Proof. by []. Qed.
+Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialExtendedMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_ext_map := 
+  {
+    pt_ext_fail_msg_fst_snd := Logic.eq_refl
+  }.
 
-Lemma adjacent_to_fst_snd : 
-  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
-Proof. by []. Qed.
+Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams TreeAggregation_Aggregation_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
     exists tr', @step_o_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-have H_sim := @step_o_f_pt_ext_mapped_simulation_star_1 _ _ _ _ _ TreeAggregation_Aggregation_params_pt_ext_map pt_ext_init_handlers_eq pt_ext_net_handlers_some pt_ext_net_handlers_none pt_ext_input_handlers_some pt_ext_input_handlers_none TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
-rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
-apply H_sim in H_st.
+apply step_o_f_pt_ext_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' H_st].
 rewrite map_id in H_st.
 by exists tr'.
@@ -1401,15 +1386,19 @@ Instance TreeAggregation_Tree_base_params_pt_map : BaseParamsPartialMap TreeAggr
                     end
   }.
 
-Instance TreeAggregation_Tree_name_params_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
+Instance TreeAggregation_Tree_name_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id ;
+  }.
+
+Instance TreeAggregation_Tree_name_tot_map_bijective : MultiParamsNameTotalMapBijective TreeAggregation_Tree_name_tot_map :=
+  {
     tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
-Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_params_tot_map :=
+Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
   {
     pt_map_msg := fun m => match m with 
                         | Fail => Some TR.Fail 
@@ -1418,329 +1407,310 @@ Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAg
                         end ;
   }.
 
-Lemma pt_init_handlers_eq : forall n,
-  pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
-Proof.
-move => n.
-rewrite /= /InitData /= /TR.InitData /= /id /=.
-by case root_dec => /= H_dec.
-Qed.
-
-Lemma pt_net_handlers_some : forall me src m st m',
-  pt_map_msg m = Some m' ->
-  pt_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st).
-Proof.
-Proof.
-move => me src.
-case => // [d|].
-  case => H_eq //.
+Instance TreeAggregation_Tree_multi_params_pt_map_congruency : MultiParamsPartialMapCongruency TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_tot_map TreeAggregation_Tree_multi_params_pt_map :=
+  {
+    pt_init_handlers_eq := _ ;
+    pt_net_handlers_some := _ ;
+    pt_net_handlers_none := _ ;
+    pt_input_handlers_some := _ ;
+    pt_input_handlers_none := _
+  }.
+- move => n.
+  rewrite /= /InitData /= /TR.InitData /= /id /=.
+  by case root_dec => /= H_dec.
+- move => me src.
+  case => // [d|].
+    case => H_eq //.
+    rewrite /pt_mapped_net_handlers.
+    repeat break_let.
+    apply net_handlers_NetHandler in Heqp.
+    net_handler_cases => //=.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      monad_unfold.
+      repeat break_let.
+      move: Heqp.
+      case root_dec => /= H_dec H_eq_st //.
+      rewrite H5 H8 H9.
+      by inversion H_eq_st.   
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      monad_unfold.
+      repeat break_let.
+      move: Heqp.
+      case root_dec => /= H_dec H_eq_st //.
+      repeat break_let.
+      move: Heqp2.
+      case olv_eq_dec => /= H_dec' H_st //.
+      rewrite H6 H9 H10.
+      inversion H_st; subst.
+      by inversion H_eq_st.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      repeat break_let.
+      move: Heqp0.
+      case olv_eq_dec => /= H_dec' //.
+      move => Heqp0.
+      rewrite H6 H9 H10.
+      inversion Heqp0; subst.
+      by inversion Heqp.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      by rewrite H4 H7 H8.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      by rewrite H4 H7 H8.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      repeat break_let.
+      move: Heqp0.
+      case olv_eq_dec => /= H_dec' //.
+      move => H_eq'.
+      rewrite H5 H8 H9.
+      inversion H_eq'; subst.
+      by inversion Heqp.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      repeat break_let.
+      move: Heqp0.
+      case olv_eq_dec => /= H_dec' //.
+      move => H_eq'.
+      rewrite H5 H8 H9.
+      inversion H_eq'; subst.
+      by inversion Heqp.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      repeat break_let.
+      move: Heqp0.
+      case olv_eq_dec => /= H_dec' //.
+      move => H_eq'.
+      rewrite H5 H8 H9.
+      inversion H_eq'; subst.
+      by inversion Heqp.
+    - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
+      case root_dec => /= H_dec //=.
+      monad_unfold.
+      rewrite /=.
+      repeat break_let.
+      move: Heqp0.
+      case olv_eq_dec => /= H_dec' //.
+      move => H_eq'.
+      rewrite H5 H8 H9.
+      inversion H_eq'; subst.
+      by inversion Heqp.
+  move => olv st.
+  case => // olv' H_eq.
+  rewrite /pt_map_msg /= in H_eq.
+  injection H_eq => H_eq_olv.
+  rewrite -H_eq_olv {H_eq_olv H_eq olv'}.
   rewrite /pt_mapped_net_handlers.
   repeat break_let.
   apply net_handlers_NetHandler in Heqp.
-  net_handler_cases => //=.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    monad_unfold.
+  net_handler_cases => //=; rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=; case root_dec => /= H_dec; monad_unfold => //.
+  - injection H1 => H_eq_olv.
     repeat break_let.
-    move: Heqp.
-    case root_dec => /= H_dec H_eq_st //.
-    rewrite H5 H8 H9.
-    by inversion H_eq_st.   
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    monad_unfold.
+    move: Heqp0.
+    case H_eq_olv': olv => /= [lv'|]; case olv_eq_dec => /= H_dec' //= H_st.
+    * rewrite H_eq_olv' in H_eq_olv.
+      injection H_eq_olv => H_eq_olv_eq.
+      inversion H_st; subst.
+      inversion Heqp; subst.
+      by rewrite H4 H7 H8.
+    * inversion H_st; subst.
+      inversion Heqp; subst.
+      injection H_eq_olv' => H_eq.
+      by rewrite -H_eq in H_dec'.
+    * inversion H_st; subst.
+      inversion Heqp; subst.
+      by rewrite H4 H7 H8.
+    * by inversion H_st; subst.
+  - injection H1 => H_eq_olv.
     repeat break_let.
-    move: Heqp.
-    case root_dec => /= H_dec H_eq_st //.
-    repeat break_let.
-    move: Heqp2.
-    case olv_eq_dec => /= H_dec' H_st //.
-    rewrite H6 H9 H10.
-    inversion H_st; subst.
-    by inversion H_eq_st.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
+    move: Heqp0.
+    case H_eq_olv': olv => /= [lv'|]; case olv_eq_dec => /= H_dec' //= H_st.
+    * rewrite H_eq_olv' in H_eq_olv.
+      injection H_eq_olv => H_eq_olv_eq.
+      inversion H_st; subst.
+      inversion Heqp; subst.
+      by rewrite H4 H7 H8.
+    * inversion H_st; subst.
+      inversion Heqp; subst.
+      injection H_eq_olv' => H_eq.
+      by rewrite H4 H7 H8 H_eq.
+    * inversion H_st; subst.
+      inversion Heqp; subst.
+      by rewrite H4 H7 H8.
+    * by inversion H_st; subst.
+  - inversion H0.
     repeat break_let.
     move: Heqp0.
     case olv_eq_dec => /= H_dec' //.
-    move => Heqp0.
-    rewrite H6 H9 H10.
+    move => H_eq'.
+    inversion H_eq'; subst.
+    inversion Heqp; subst.
+    by rewrite H4 H7 H8.
+  - inversion H0.
+    repeat break_let.
+    move: Heqp0.
+    case olv_eq_dec => /= H_dec' //.
+    move => H_eq'.
+    inversion H_eq'; subst.
+    inversion Heqp; subst.
+    by rewrite H4 H7 H8.
+- move => me src.
+  case => //.
+  move => olv d out d' ps H_eq H_eq'.
+  apply net_handlers_NetHandler in H_eq'.
+  net_handler_cases => //.
+  case: d' H1 H2 H3 H4 H5 H6 H7 => /= local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0. 
+  move => H_eq_l H_eq_a H_eq_ad H_eq_s H_eq_r H_eq_b H_eq_lv.
+  by rewrite H_eq_ad H_eq_b H_eq_lv.
+- move => me.
+  case => //= st; case => //= H_eq; rewrite /id /= /TR.IOHandler /TR.RootIOHandler /TR.NonRootIOHandler; case root_dec => /= H_dec; monad_unfold => //=.
+  - rewrite /pt_mapped_input_handlers /=.
+    repeat break_let.
+    monad_unfold.
+    repeat break_let.
+    io_handler_cases => //.
+    by inversion Heqp.
+  - rewrite /pt_mapped_input_handlers /=.
+    repeat break_let.
+    monad_unfold.
+    repeat break_let.
+    io_handler_cases => //.
+    by inversion Heqp.
+  - repeat break_let.
+    move: Heqp0.
+    case H_b: broadcast.
+      repeat break_let.
+      move => H_eq'.
+      inversion Heqp; subst => {Heqp}.
+      inversion H_eq'; subst => {H_eq'}.
+      inversion Heqp0; subst => {Heqp0}.
+      rewrite 4!app_nil_r.
+      rewrite /pt_mapped_input_handlers /=.
+      repeat break_let.
+      monad_unfold.
+      repeat break_let.
+      io_handler_cases => //.
+      inversion Heqp; subst => {Heqp}.
+      rewrite /=.    
+      rewrite H4 H7 H8.
+      move: Heqp5.
+      set sla := TR.send_level_adjacent _ _ _.
+      move => Heqp.
+      have H_snd: snd sla = TR.level_adjacent (Some 0) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
+      rewrite Heqp /= in H_snd.
+      have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
+      rewrite Heqp /= in H_snd_fst_fst.
+      rewrite H_snd H_snd_fst_fst.
+      set ptl := pt_map_name_msgs _.
+      set ptl' := TR.level_adjacent _ _.
+      suff H_suff: ptl = ptl' by rewrite H_suff.
+      rewrite /ptl /ptl' /=.
+      rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
+      elim: NSet.elements => //=.
+      move => n ns IH.
+      rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
+      by rewrite TR.fold_left_level_fold_eq IH.
+    move => H_eq'.
+    inversion Heqp; subst.
+    inversion H_eq'; subst.
+    rewrite /pt_mapped_input_handlers /=.
+    repeat break_let.
+    monad_unfold.
+    repeat break_let.
+    io_handler_cases => //.
     inversion Heqp0; subst.
-    by inversion Heqp.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    by rewrite H4 H7 H8.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    by rewrite H4 H7 H8.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    repeat break_let.
+    by rewrite H_b.
+  - repeat break_let.
     move: Heqp0.
-    case olv_eq_dec => /= H_dec' //.
+    case H_b: broadcast.  
+      repeat break_let.
+      move => H_eq'.
+      inversion Heqp; subst => {Heqp}.
+      inversion H_eq'; subst => {H_eq'}.
+      inversion Heqp0; subst => {Heqp0}.
+      rewrite 4!app_nil_r.
+      rewrite /pt_mapped_input_handlers /=.
+      repeat break_let.
+      monad_unfold.
+      repeat break_let.
+      io_handler_cases => //.
+      inversion Heqp; subst => {Heqp}.
+      rewrite /=.    
+      rewrite H4 H7 H8.
+      move: Heqp5.
+      set sla := TR.send_level_adjacent _ _ _.
+      move => Heqp.
+      have H_snd: snd sla = TR.level_adjacent (level (adjacent st) (levels st)) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
+      rewrite Heqp /= in H_snd.
+      have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
+      rewrite Heqp /= in H_snd_fst_fst.
+      rewrite H_snd H_snd_fst_fst.
+      set ptl := pt_map_name_msgs _.
+      set ptl' := TR.level_adjacent _ _.
+      suff H_suff: ptl = ptl' by rewrite H_suff.
+      rewrite /ptl /ptl' /=.
+      rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
+      elim: NSet.elements => //=.
+      move => n ns IH.
+      rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
+      by rewrite TR.fold_left_level_fold_eq IH.
     move => H_eq'.
-    rewrite H5 H8 H9.
+    inversion Heqp; subst.
     inversion H_eq'; subst.
-    by inversion Heqp.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    repeat break_let.
-    move: Heqp0.
-    case olv_eq_dec => /= H_dec' //.
-    move => H_eq'.
-    rewrite H5 H8 H9.
-    inversion H_eq'; subst.
-    by inversion Heqp.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    repeat break_let.
-    move: Heqp0.
-    case olv_eq_dec => /= H_dec' //.
-    move => H_eq'.
-    rewrite H5 H8 H9.
-    inversion H_eq'; subst.
-    by inversion Heqp.
-  - rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=.
-    case root_dec => /= H_dec //=.
-    monad_unfold.
-    rewrite /=.
-    repeat break_let.
-    move: Heqp0.
-    case olv_eq_dec => /= H_dec' //.
-    move => H_eq'.
-    rewrite H5 H8 H9.
-    inversion H_eq'; subst.
-    by inversion Heqp.
-move => olv st.
-case => // olv' H_eq.
-rewrite /pt_map_msg /= in H_eq.
-injection H_eq => H_eq_olv.
-rewrite -H_eq_olv {H_eq_olv H_eq olv'}.
-rewrite /pt_mapped_net_handlers.
-repeat break_let.
-apply net_handlers_NetHandler in Heqp.
-net_handler_cases => //=; rewrite /id /= /TR.NetHandler /= /TR.RootNetHandler /TR.NonRootNetHandler /=; case root_dec => /= H_dec; monad_unfold => //.
-- injection H1 => H_eq_olv.
-  repeat break_let.
-  move: Heqp0.
-  case H_eq_olv': olv => /= [lv'|]; case olv_eq_dec => /= H_dec' //= H_st.
-  * rewrite H_eq_olv' in H_eq_olv.
-    injection H_eq_olv => H_eq_olv_eq.
-    inversion H_st; subst.
-    inversion Heqp; subst.
-    by rewrite H4 H7 H8.
-  * inversion H_st; subst.
-    inversion Heqp; subst.
-    injection H_eq_olv' => H_eq.
-    by rewrite -H_eq in H_dec'.
-  * inversion H_st; subst.
-    inversion Heqp; subst.
-    by rewrite H4 H7 H8.
-  * by inversion H_st; subst.
-- injection H1 => H_eq_olv.
-  repeat break_let.
-  move: Heqp0.
-  case H_eq_olv': olv => /= [lv'|]; case olv_eq_dec => /= H_dec' //= H_st.
-  * rewrite H_eq_olv' in H_eq_olv.
-    injection H_eq_olv => H_eq_olv_eq.
-    inversion H_st; subst.
-    inversion Heqp; subst.
-    by rewrite H4 H7 H8.
-  * inversion H_st; subst.
-    inversion Heqp; subst.
-    injection H_eq_olv' => H_eq.
-    by rewrite H4 H7 H8 H_eq.
-  * inversion H_st; subst.
-    inversion Heqp; subst.
-    by rewrite H4 H7 H8.
-  * by inversion H_st; subst.
-- inversion H0.
-  repeat break_let.
-  move: Heqp0.
-  case olv_eq_dec => /= H_dec' //.
-  move => H_eq'.
-  inversion H_eq'; subst.
-  inversion Heqp; subst.
-  by rewrite H4 H7 H8.
-- inversion H0.
-  repeat break_let.
-  move: Heqp0.
-  case olv_eq_dec => /= H_dec' //.
-  move => H_eq'.
-  inversion H_eq'; subst.
-  inversion Heqp; subst.
-  by rewrite H4 H7 H8.
-Qed.
-
-Lemma pt_net_handlers_none : forall me src m st out st' ps,    
-  pt_map_msg m = None ->
-  net_handlers me src m st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
-Proof.
-move => me src.
-case => //.
-move => olv d out d' ps H_eq H_eq'.
-apply net_handlers_NetHandler in H_eq'.
-net_handler_cases => //.
-case: d' H1 H2 H3 H4 H5 H6 H7 => /= local0 aggregate0 adjacent0 sent0 received0 broadcast0 levels0. 
-move => H_eq_l H_eq_a H_eq_ad H_eq_s H_eq_r H_eq_b H_eq_lv.
-by rewrite H_eq_ad H_eq_b H_eq_lv.
-Qed.
-
-Lemma pt_input_handlers_some : forall me inp st inp',
-  pt_map_input inp = Some inp' ->
-  pt_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_map_data st).
-Proof.
-move => me.
-case => //= st; case => //= H_eq; rewrite /id /= /TR.IOHandler /TR.RootIOHandler /TR.NonRootIOHandler; case root_dec => /= H_dec; monad_unfold => //=.
-- rewrite /pt_mapped_input_handlers /=.
-  repeat break_let.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  by inversion Heqp.
-- rewrite /pt_mapped_input_handlers /=.
-  repeat break_let.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  by inversion Heqp.
-- repeat break_let.
-  move: Heqp0.
-  case H_b: broadcast.
-    repeat break_let.
-    move => H_eq'.
-    inversion Heqp; subst => {Heqp}.
-    inversion H_eq'; subst => {H_eq'}.
-    inversion Heqp0; subst => {Heqp0}.
-    rewrite 4!app_nil_r.
     rewrite /pt_mapped_input_handlers /=.
     repeat break_let.
     monad_unfold.
     repeat break_let.
     io_handler_cases => //.
-    inversion Heqp; subst => {Heqp}.
-    rewrite /=.    
-    rewrite H4 H7 H8.
-    move: Heqp5.
-    set sla := TR.send_level_adjacent _ _ _.
-    move => Heqp.
-    have H_snd: snd sla = TR.level_adjacent (Some 0) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
-    rewrite Heqp /= in H_snd.
-    have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
-    rewrite Heqp /= in H_snd_fst_fst.
-    rewrite H_snd H_snd_fst_fst.
-    set ptl := pt_map_name_msgs _.
-    set ptl' := TR.level_adjacent _ _.
-    suff H_suff: ptl = ptl' by rewrite H_suff.
-    rewrite /ptl /ptl' /=.
-    rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
-    elim: NSet.elements => //=.
-    move => n ns IH.
-    rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
-    by rewrite TR.fold_left_level_fold_eq IH.
-  move => H_eq'.
-  inversion Heqp; subst.
-  inversion H_eq'; subst.
-  rewrite /pt_mapped_input_handlers /=.
-  repeat break_let.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  inversion Heqp0; subst.
-  by rewrite H_b.
-- repeat break_let.
-  move: Heqp0.
-  case H_b: broadcast.  
-    repeat break_let.
-    move => H_eq'.
-    inversion Heqp; subst => {Heqp}.
-    inversion H_eq'; subst => {H_eq'}.
-    inversion Heqp0; subst => {Heqp0}.
-    rewrite 4!app_nil_r.
-    rewrite /pt_mapped_input_handlers /=.
-    repeat break_let.
+    inversion Heqp0; subst.
+    by rewrite H_b.
+- move => me.
+  case => //=.
+  - move => m' st out st' ps H_eq H_eq'.
     monad_unfold.
     repeat break_let.
     io_handler_cases => //.
-    inversion Heqp; subst => {Heqp}.
-    rewrite /=.    
-    rewrite H4 H7 H8.
-    move: Heqp5.
-    set sla := TR.send_level_adjacent _ _ _.
-    move => Heqp.
-    have H_snd: snd sla = TR.level_adjacent (level (adjacent st) (levels st)) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
-    rewrite Heqp /= in H_snd.
-    have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
-    rewrite Heqp /= in H_snd_fst_fst.
-    rewrite H_snd H_snd_fst_fst.
-    set ptl := pt_map_name_msgs _.
-    set ptl' := TR.level_adjacent _ _.
-    suff H_suff: ptl = ptl' by rewrite H_suff.
-    rewrite /ptl /ptl' /=.
-    rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
-    elim: NSet.elements => //=.
-    move => n ns IH.
-    rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
-    by rewrite TR.fold_left_level_fold_eq IH.
-  move => H_eq'.
-  inversion Heqp; subst.
-  inversion H_eq'; subst.
-  rewrite /pt_mapped_input_handlers /=.
-  repeat break_let.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  inversion Heqp0; subst.
-  by rewrite H_b.
+    * inversion H_eq'; subst.
+      by rewrite H2 H5 H6.
+    * by inversion H_eq'.
+    * by inversion H_eq'.
+  - move => st out st' ps H_eq H_eq'.
+    monad_unfold.
+    repeat break_let.
+    io_handler_cases => //; inversion H_eq' => //=.
+    inversion H_eq'; subst.
+    by rewrite H6 H9 H10.
+  - move => st out st' ps H_eq.
+    monad_unfold.
+    repeat break_let.
+    io_handler_cases => //.
+    * by inversion H; subst.
+    * by inversion H.
+    * by inversion H.
 Qed.
 
-Lemma pt_input_handlers_none : forall me inp st out st' ps,
-  pt_map_input inp = None ->
-  input_handlers me inp st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
-Proof.
-move => me.
-case => //=.
-- move => m' st out st' ps H_eq H_eq'.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  * inversion H_eq'; subst.
-    by rewrite H2 H5 H6.
-  * by inversion H_eq'.
-  * by inversion H_eq'.
-- move => st out st' ps H_eq H_eq'.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //; inversion H_eq' => //=.
-  inversion H_eq'; subst.
-  by rewrite H6 H9 H10.
-- move => st out st' ps H_eq.
-  monad_unfold.
-  repeat break_let.
-  io_handler_cases => //.
-  * by inversion H; subst.
-  * by inversion H.
-  * by inversion H.
-Qed.
+Instance TreeAggregation_Tree_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency TreeAggregation_FailMsgParams TR.Tree_FailMsgParams TreeAggregation_Tree_multi_params_pt_map := 
+  {
+    pt_fail_msg_fst_snd := Logic.eq_refl
+  }.
 
-Lemma pt_fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail).
-Proof. by []. Qed.
-
-Lemma pt_adjacent_to_fst_snd : 
-  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
-Proof. by []. Qed.
+Instance TreeAggregation_Tree_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams TreeAggregation_Tree_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
 
 Theorem TreeAggregation_Tree_pt_mapped_simulation_star_1 :
 forall net failed tr,
@@ -1748,10 +1718,8 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ TreeAggregation_Tree_multi_params_pt_map pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams adjacent_to_fst_snd _ _ pt_fail_msg_fst_snd.
-rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
-apply H_sim in H_st.
+apply step_o_f_pt_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' [H_st H_eq]].
 rewrite map_id in H_st.
 by exists tr'.

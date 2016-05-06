@@ -366,83 +366,73 @@ Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap A
     pt_map_output := fun _ => None
   }.
 
-Instance Aggregation_FailureRecorder_name_params_tot_map : MultiParamsNameTotalMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
+Instance Aggregation_FailureRecorder_name_tot_map : MultiParamsNameTotalMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
     tot_map_name := id ;
     tot_map_name_inv := id ;
+  }.
+
+Instance Aggregation_FailureRecorder_name_tot_map_bijective : MultiParamsNameTotalMapBijective Aggregation_FailureRecorder_name_tot_map :=
+  {
     tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
-Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_params_tot_map :=
+Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
     pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.
 
-Lemma pt_init_handlers_eq :  forall n,
-  pt_map_data (init_handlers n) = init_handlers (tot_map_name n).
-Proof. by []. Qed.
-
-Lemma pt_net_handlers_some : forall me src m st m',
-  pt_map_msg m = Some m' ->
-  pt_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st).
+Instance Aggregation_FailureRecorder_multi_params_pt_map_congruency : MultiParamsPartialMapCongruency Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_tot_map Aggregation_FailureRecorder_multi_params_pt_map :=
+  {
+    pt_init_handlers_eq := fun _ => Logic.eq_refl ;
+    pt_net_handlers_some := _ ;
+    pt_net_handlers_none := _ ;
+    pt_input_handlers_some := _ ;
+    pt_input_handlers_none := _
+  }.
 Proof.
-move => me src.
-case => // d.
-case => H_eq.
-rewrite /pt_mapped_net_handlers.
-repeat break_let.
-apply net_handlers_NetHandler in Heqp.
-net_handler_cases => //.
-- by rewrite /= /runGenHandler_ignore /= H4.
-- by rewrite /= /runGenHandler_ignore /id /= H3.
-- by rewrite /= /runGenHandler_ignore /id /= H3.
+- move => me src.
+  case => // d.
+  case => H_eq.
+  rewrite /pt_mapped_net_handlers.
+  repeat break_let.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //.
+  * by rewrite /= /runGenHandler_ignore /=; find_rewrite.
+  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
+  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
+- move => me src.
+  case => //.
+  move => m' d out d' ps H_eq H_eq'.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //.
+  by rewrite /=; find_rewrite.
+- by [].
+- move => me.
+  case.
+  * move => m' d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    io_handler_cases => //.
+    by rewrite /=; find_rewrite.
+  * move => src d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    io_handler_cases => //.
+    by rewrite /=; find_rewrite.
+  * move => d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    by io_handler_cases.
 Qed.
 
-Lemma pt_net_handlers_none : forall me src m st out st' ps,    
-  pt_map_msg m = None ->
-  net_handlers me src m st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
-Proof.
-move => me src.
-case => //.
-move => m' d out d' ps H_eq H_eq'.
-apply net_handlers_NetHandler in H_eq'.
-net_handler_cases => //.
-by rewrite /= H3.
-Qed.
+Instance Aggregation_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Aggregation_FailMsgParams FR.FailureRecorder_FailMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
+  {
+    pt_fail_msg_fst_snd := Logic.eq_refl
+  }.
 
-Lemma pt_input_handlers_some : forall me inp st inp',
-  pt_map_input inp = Some inp' ->
-  pt_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_map_data st).
-Proof. by []. Qed.
-
-Lemma pt_input_handlers_none : forall me inp st out st' ps,
-  pt_map_input inp = None ->
-  input_handlers me inp st = (out, st', ps) ->
-  pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [].
-Proof.
-move => me.
-case.
-- move => m' d out d' ps H_eq H_inp.
-  apply input_handlers_IOHandler in H_inp.
-  io_handler_cases => //.
-  by rewrite /= H2.
-- move => src d out d' ps H_eq H_inp.
-  apply input_handlers_IOHandler in H_inp.
-  io_handler_cases => //.
-  by rewrite /= H5.
-- move => d out d' ps H_eq H_inp.
-  apply input_handlers_IOHandler in H_inp.
-  by io_handler_cases.
-Qed.
-
-Lemma fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail).
-Proof. by []. Qed.
-
-Lemma adjacent_to_fst_snd : 
-  forall n n', adjacent_to n n' <-> adjacent_to (tot_map_name n) (tot_map_name n').
-Proof. by []. Qed.
+Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams Aggregation_FailureRecorder_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
 
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
@@ -450,10 +440,8 @@ forall net failed tr,
     exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
-have H_sim := @step_o_f_pt_mapped_simulation_star_1 _ _ _  _ _ _ _ pt_init_handlers_eq pt_net_handlers_some pt_net_handlers_none pt_input_handlers_some pt_input_handlers_none Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams adjacent_to_fst_snd _ _ fail_msg_fst_snd.
-rewrite /tot_map_name /= /id in H_sim.
 move => onet failed tr H_st.
-apply H_sim in H_st.
+apply step_o_f_pt_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' [H_st H_eq]].
 rewrite map_id in H_st.
 by exists tr'.
@@ -3628,7 +3616,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by case in_dec => /= H_dec; rewrite IH.
 Qed.
@@ -3705,11 +3693,11 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
 - case: H_dec.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
+  by rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
 - rewrite IH //.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
+  by rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
 Qed.
 
 Lemma sum_fail_map_incoming_collate_update2_eq :
@@ -3725,7 +3713,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (@collate_f_any_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by rewrite IH.
 Qed.
