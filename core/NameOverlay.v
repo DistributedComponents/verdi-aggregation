@@ -172,6 +172,22 @@ split => //.
 by case adjacent_to_dec.
 Qed.
 
+Lemma not_in_not_in_adjacent_to_node :
+  forall ns n h,
+    ~ In n ns ->
+    ~ In n (adjacent_to_node h ns).
+Proof.
+elim => //=.
+move => n' ns IH n h H_in.
+have H_neq: n' <> n by move => H_neq; case: H_in; left.
+have H_not_in: ~ In n ns by move => H_in'; case: H_in; right.
+case adjacent_to_dec => H_dec; last exact: IH.
+move => H_in'.
+case: H_in' => H_in' //.
+contradict H_in'.
+exact: IH.
+Qed.
+
 Definition adjacency (n : name) (ns : list name) : NS :=
   fold_right (fun n' fs => NSet.add n' fs) NSet.empty (adjacent_to_node n ns).
 

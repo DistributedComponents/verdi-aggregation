@@ -257,7 +257,7 @@ move => H.
 by rewrite H.
 Qed.
 
-Lemma collate_f_any_eq :
+Lemma collate_f_eq :
   forall  f g h n n' l,
   f n n' = g n n' ->
   collate h f l n n' = collate h g l n n'.
@@ -276,7 +276,6 @@ move: H_dec => [H_eq_h H_eq_n].
 rewrite -H_eq_h -H_eq_n in H_eq.
 by rewrite H_eq.
 Qed.
-
 
 Lemma collate_in_in :
   forall l h n n' f mg,
@@ -338,25 +337,6 @@ rewrite /=.
 by rewrite IH.
 Qed.
 
-Lemma collate_f_eq :
-  forall  f g h h' l,
-  f h h' = g h h' ->
-  collate h f l h h' = collate h g l h h'.
-Proof.
-move => f g h h' l.
-elim: l f g => //.
-case => n m l IH f g H_eq.
-rewrite /=.
-set f' := update2 _ _ _ _.
-set g' := update2 _ _ _ _.
-rewrite (IH f' g') //.
-rewrite /f' /g' {f' g'}.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec //.
-move: H_dec => [H_eq_h H_eq_n].
-by rewrite H_eq_n H_eq.
-Qed.
-
 Lemma collate_neq_update2 :
   forall h h' n f l ms,
   n <> h' ->
@@ -366,7 +346,7 @@ move => h h' n f l ms H_neq.
 have H_eq: update2 f h n ms h h' =  f h h'.
   rewrite /update2 /=.
   by case (sumbool_and _ _ _ _) => H_eq; first by move: H_eq => [H_eq H_eq'].
-by rewrite (collate_f_eq _ _ _ _ _ H_eq).
+by rewrite (collate_f_eq _ _ _ _ _ _ H_eq).
 Qed.
 
 Lemma collate_not_in :
@@ -698,7 +678,7 @@ set up2 := update2 _ _ _ _.
 have H_eq_f: up2 h n = f h n.
   rewrite /up2 /update2.
   by case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-rewrite (collate_f_any_eq _ _ _ _ _ _ H_eq_f).
+rewrite (collate_f_eq _ _ _ _ _ _ H_eq_f).
 exact: IH.
 Qed.
 
