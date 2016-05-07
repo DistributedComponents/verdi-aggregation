@@ -214,4 +214,37 @@ decide equality.
 exact: lv_eq_dec.
 Defined.
 
+Class TreeMsg :=
+  {
+    tree_msg : Type ;
+    tree_level : option lv -> tree_msg
+  }.
+
+Section LevelFolds.
+
+Context {tr_msg : TreeMsg}.
+
+Definition level_fold (lvo : option lv) (n : name) (partial : list (name * tree_msg)) : list (name * tree_msg) :=
+(n, tree_level lvo) :: partial.
+
+Definition level_adjacent (lvo : option lv) (fs : NS) : list (name * tree_msg) :=
+NSet.fold (level_fold lvo) fs [].
+
+Lemma fold_left_level_fold_eq :
+forall ns nml olv,
+fold_left (fun l n => level_fold olv n l) ns nml = fold_left (fun l n => level_fold olv n l) ns [] ++ nml.
+Proof.
+elim => //=.
+move => n ns IH nml olv.
+rewrite /level_fold /=.
+rewrite IH.
+have IH' := IH ([(n, tree_level olv)]).
+rewrite IH'.
+set bla := fold_left _ _ _.
+rewrite -app_assoc.
+by rewrite app_assoc.
+Qed.
+
+End LevelFolds.
+
 End TAux.

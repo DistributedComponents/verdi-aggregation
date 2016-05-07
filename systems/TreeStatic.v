@@ -150,11 +150,11 @@ Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
 if root_dec me then RootNetHandler src msg 
 else NonRootNetHandler me src msg.
 
-Definition level_fold (lvo : option lv) (n : name) (partial : list (name * Msg)) : list (name * Msg) :=
-(n, Level lvo) :: partial.
-
-Definition level_adjacent (lvo : option lv) (fs : NS) : list (name * Msg) :=
-NSet.fold (level_fold lvo) fs [].
+Instance Tree_TreeMsg : TreeMsg := 
+  {
+    tree_msg := Msg ;
+    tree_level := Level
+  }.
 
 Definition send_level_fold (lvo : option lv) (n : name) (res : Handler Data) : Handler Data :=
 send (n, Level lvo) ;; res.
@@ -329,21 +329,6 @@ find_inversion.
 destruct u. auto.
 Qed.
 
-Lemma fold_left_level_fold_eq :
-forall ns nml olv,
-fold_left (fun l n => level_fold olv n l) ns nml = fold_left (fun l n => level_fold olv n l) ns [] ++ nml.
-Proof.
-elim => //=.
-move => n ns IH nml olv.
-rewrite /level_fold /=.
-rewrite IH.
-have IH' := IH ([(n, Level olv)]).
-rewrite IH'.
-set bla := fold_left _ _ _.
-rewrite -app_assoc.
-by rewrite app_assoc.
-Qed.
-
 Lemma send_level_fold_app :
   forall ns st olv nm,
 snd (fold_left 
@@ -373,8 +358,8 @@ rewrite 2!NSet.fold_spec.
 move: olv st.
 elim: NSet.elements => [|n ns IH] //=.
 move => olv st.
-rewrite {2}/level_fold {2}/send_level_fold.
-rewrite fold_left_level_fold_eq.
+rewrite {2}/level_fold {2}/send_level_fold /= /flip /=.
+rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
 have IH' := IH olv st.
 rewrite -IH'.
 monad_unfold.
@@ -623,7 +608,7 @@ Proof.
       elim: NSet.elements => //=.
       move => n l IH.
       rewrite /flip /= /level_fold.
-      rewrite fold_left_level_fold_eq.
+      rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
       by rewrite pt_map_name_msgs_app_distr /= IH.
     + case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_eq_l.
       by rewrite H_eq'.
@@ -631,7 +616,7 @@ Proof.
       elim: NSet.elements => //=.
       move => n l IH.
       rewrite /flip /= /level_fold.
-      rewrite fold_left_level_fold_eq.
+      rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
       by rewrite pt_map_name_msgs_app_distr /= IH.
 Qed.
 

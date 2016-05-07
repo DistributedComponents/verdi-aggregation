@@ -262,12 +262,6 @@ Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
 if root_dec me then RootNetHandler src msg 
 else NonRootNetHandler me src msg.
 
-Definition level_fold (lvo : option lv) (n : name) (partial : list (name * Msg)) : list (name * Msg) :=
-(n, Level lvo) :: partial.
-
-Definition level_adjacent (lvo : option lv) (fs : NS) : list (name * Msg) :=
-NSet.fold (level_fold lvo) fs [].
-
 Definition send_level_fold (lvo : option lv) (n : name) (res : Handler Data) : Handler Data :=
 send (n, Level lvo) ;; res.
 
@@ -621,21 +615,6 @@ find_inversion.
 destruct u. auto.
 Qed.
 
-Lemma fold_left_level_fold_eq :
-forall ns nml olv,
-fold_left (fun l n => level_fold olv n l) ns nml = fold_left (fun l n => level_fold olv n l) ns [] ++ nml.
-Proof.
-elim => //=.
-move => n ns IH nml olv.
-rewrite /level_fold /=.
-rewrite IH.
-have IH' := IH ([(n, Level olv)]).
-rewrite IH'.
-set bla := fold_left _ _ _.
-rewrite -app_assoc.
-by rewrite app_assoc.
-Qed.
-
 Lemma send_level_fold_app :
   forall ns st olv nm,
 snd (fold_left 
@@ -655,6 +634,12 @@ rewrite app_assoc.
 by rewrite -IH.
 Qed.
 
+Instance TreeAggregation_TreeMsg : TreeMsg := 
+  {
+    tree_msg := Msg ;
+    tree_level := Level
+  }.
+
 Lemma send_level_adjacent_fst_eq : 
 forall fs olv st,
   snd (send_level_adjacent olv fs st) = level_adjacent olv fs.
@@ -666,7 +651,7 @@ move: olv st.
 elim: NSet.elements => [|n ns IH] //=.
 move => olv st.
 rewrite {2}/level_fold {2}/send_level_fold.
-rewrite fold_left_level_fold_eq.
+rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg).
 have IH' := IH olv st.
 rewrite -IH'.
 monad_unfold.
@@ -958,7 +943,7 @@ rewrite /level_adjacent NSet.fold_spec.
 elim: NSet.elements => //=.
 move => n ns IH.
 rewrite {2}/level_fold /=.
-rewrite fold_left_level_fold_eq /=.
+rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) /=.
 by rewrite pt_ext_map_name_msgs_app_distr /= -app_nil_end IH.
 Qed.
 
@@ -1609,20 +1594,20 @@ Instance TreeAggregation_Tree_multi_params_pt_map_congruency : MultiParamsPartia
       move: Heqp5.
       set sla := TR.send_level_adjacent _ _ _.
       move => Heqp.
-      have H_snd: snd sla = TR.level_adjacent (Some 0) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
+      have H_snd: snd sla = @level_adjacent TR.Tree_TreeMsg (Some 0) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
       rewrite Heqp /= in H_snd.
       have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
       rewrite Heqp /= in H_snd_fst_fst.
       rewrite H_snd H_snd_fst_fst.
       set ptl := pt_map_name_msgs _.
-      set ptl' := TR.level_adjacent _ _.
+      set ptl' := level_adjacent _ _.
       suff H_suff: ptl = ptl' by rewrite H_suff.
       rewrite /ptl /ptl' /=.
-      rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
+      rewrite /level_adjacent 2!NSet.fold_spec.
       elim: NSet.elements => //=.
       move => n ns IH.
-      rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
-      by rewrite TR.fold_left_level_fold_eq IH.
+      rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) pt_map_name_msgs_app_distr /= /id /=.
+      by rewrite (@fold_left_level_fold_eq TR.Tree_TreeMsg) IH.
     move => H_eq'.
     inversion Heqp; subst.
     inversion H_eq'; subst.
@@ -1653,20 +1638,20 @@ Instance TreeAggregation_Tree_multi_params_pt_map_congruency : MultiParamsPartia
       move: Heqp5.
       set sla := TR.send_level_adjacent _ _ _.
       move => Heqp.
-      have H_snd: snd sla = TR.level_adjacent (level (adjacent st) (levels st)) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
+      have H_snd: snd sla = @level_adjacent TR.Tree_TreeMsg (level (adjacent st) (levels st)) st.(adjacent) by rewrite TR.send_level_adjacent_fst_eq.
       rewrite Heqp /= in H_snd.
       have H_snd_fst_fst: snd (fst (fst sla)) = [] by rewrite TR.send_level_adjacent_snd_fst_fst.
       rewrite Heqp /= in H_snd_fst_fst.
       rewrite H_snd H_snd_fst_fst.
       set ptl := pt_map_name_msgs _.
-      set ptl' := TR.level_adjacent _ _.
+      set ptl' := level_adjacent _ _.
       suff H_suff: ptl = ptl' by rewrite H_suff.
       rewrite /ptl /ptl' /=.
-      rewrite /level_adjacent /TR.level_adjacent 2!NSet.fold_spec.
+      rewrite /level_adjacent 2!NSet.fold_spec.
       elim: NSet.elements => //=.
       move => n ns IH.
-      rewrite fold_left_level_fold_eq pt_map_name_msgs_app_distr /= /id /=.
-      by rewrite TR.fold_left_level_fold_eq IH.
+      rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) pt_map_name_msgs_app_distr /= /id /=.
+      by rewrite (@fold_left_level_fold_eq TR.Tree_TreeMsg) IH.
     move => H_eq'.
     inversion Heqp; subst.
     inversion H_eq'; subst.
