@@ -4296,7 +4296,6 @@ end; simpl.
   rewrite 2!sum_fail_received_incoming_active_split /=.
   gsimpl.
   move => IH.
-  rewrite /Net.adjacent_to_node -/(adjacent_to_node _ _).
   rewrite adjacent_to_node_self_eq.
   set l := collate _ _ _.
   have H_eq: sum_sent (Nodes_data ns0 (onwState net)) * 
