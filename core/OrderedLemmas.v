@@ -826,4 +826,117 @@ split => //.
 by right.
 Qed.
 
+Lemma collate_ls_not_in :
+  forall ns f h mg from to,
+    ~ In from ns ->
+    collate_ls ns f h mg from to = f from to.
+Proof.
+elim => //=.
+move => n ns IH f h mg from to H_in.
+have H_neq: n <> from by move => H_eq; case: H_in; left.
+have H_in': ~ In from ns by move => H_in'; case: H_in; right.
+rewrite IH //.
+rewrite /update2.
+case sumbool_and => H_dec //.
+by move: H_dec => [H_eq H_eq'].
+Qed.
+
+Lemma collate_ls_neq_to : 
+  forall ns f h mg from to,
+    h <> to ->
+    collate_ls ns f h mg from to = f from to.
+Proof.
+elim => //=.
+move => n ns IH f h mg from to H_neq.
+rewrite IH //.
+rewrite /update2.
+case sumbool_and => H_dec //.
+by move: H_dec => [H_eq H_eq'].
+Qed.
+
+Lemma collate_ls_nodup_in : 
+  forall ns f h mg from,
+  NoDup ns ->
+  In from ns ->
+  collate_ls ns f h mg from h = f from h ++ [mg].
+Proof.
+elim => //=.
+move => n ns IH f h mg from H_nd H_in.
+inversion H_nd; subst.
+break_or_hyp.
+  rewrite collate_ls_not_in //.
+  rewrite /update2.
+  by case sumbool_and => H_dec; last break_or_hyp.    
+have H_neq: n <> from by move => H_eq; find_rewrite.
+rewrite IH //.
+rewrite /update2.
+by case sumbool_and => H_dec; first by break_and; find_rewrite.
+Qed.
+
+Lemma collate_ls_f_eq :
+  forall ns f g h mg n n',
+  f n n' = g n n' ->
+  collate_ls ns f h mg n n' = collate_ls ns g h mg n n'.
+Proof.
+elim => //=.
+move => n0 ns IH f g h mg n n' H_eq.
+set f' := update2 _ _ _ _.
+set g' := update2 _ _ _ _.
+rewrite (IH f' g') //.
+rewrite /f' /g' {f' g'}.
+rewrite /update2 /=.
+case sumbool_and => H_dec //.
+by break_and; repeat find_rewrite.
+Qed.
+
+Lemma collate_ls_neq_update2 : 
+  forall ns f n h h' ms mg,
+  n <> h' ->
+  collate_ls ns (update2 f n h ms) h mg h' h = collate_ls ns f h mg h' h.
+Proof.
+move => ns f n h h' ms mg H_neq.
+have H_eq: update2 f n h ms h' h = f h' h.
+  rewrite /update2.
+  by case sumbool_and => H_eq; first by break_and; find_rewrite.
+by rewrite (collate_ls_f_eq _ _ _ _ _ _ _ H_eq).
+Qed.
+
+Lemma collate_ls_not_adjacent :
+  forall ns f n h mg,
+    ~ adjacent_to h n ->
+    collate_ls (adjacent_to_node h ns) f h mg n h = f n h.
+Proof.
+elim => //=.
+move => n' ns IH f n h mg H_adj.
+case (name_eq_dec n n') => H_dec.
+  rewrite -H_dec.
+  case adjacent_to_dec => H_dec' //=.
+  by rewrite IH.
+case adjacent_to_dec => H_dec' /=; last by rewrite IH.
+rewrite IH //.
+rewrite /update2.
+by case sumbool_and => H_and; first by break_and; find_rewrite.
+Qed.
+
+Lemma collate_ls_not_in_adjacent :
+  forall ns f n h mg,
+    ~ In n ns ->
+    collate_ls (adjacent_to_node h ns) f h mg n h = f n h.
+Proof.
+move => ns f n h mg H_in.
+rewrite collate_ls_not_in //.
+exact: not_in_not_in_adjacent_to_node.
+Qed.
+
+Lemma collate_ls_not_in_adjacent_exclude :
+  forall ns f n h mg failed,
+    ~ In n ns ->
+    collate_ls (adjacent_to_node h (exclude failed ns)) f h mg n h = f n h.
+Proof.
+move => ns f n h mg failed H_in.
+rewrite collate_ls_not_in //.
+apply: not_in_not_in_adjacent_to_node.
+exact: not_in_exclude.
+Qed.
+
 End OrderedNameOverlayParams.
