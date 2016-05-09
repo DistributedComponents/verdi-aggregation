@@ -8,6 +8,7 @@ Require Import AggregationAux.
 Require Import TreeAggregationStatic.
 
 Require Import mathcomp.ssreflect.ssreflect.
+Require Import mathcomp.ssreflect.ssrfun.
 Require Import mathcomp.ssreflect.fintype.
 
 Require Import mathcomp.fingroup.fingroup.
@@ -57,7 +58,7 @@ Module RNT_N5 := FinRootNameType N5 FN_N5.
 
 Module CFG : CommutativeFinGroup.
 Definition gT := [finGroupType of 'I_128].
-Definition commutes : forall x y : gT, commute x y. exact: Zp_mulgC. Defined.
+Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
 End CFG.
 
 Module TA := TreeAggregation FN_N5 NOT_N5 N5Set NOTC_N5 N5Map RNT_N5 CFG ANC_N5.
