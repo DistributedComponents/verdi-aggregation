@@ -66,8 +66,8 @@ Parameter root_unique : forall n n', root n -> root n' -> n = n'.
 End RootNameType.
 
 Module FinRootNameType (Import N : NatValue) (FN : FinNameType N) <: RootNameType FN.
-Definition root (x : fin n) := fin_to_nat x = 1.
-Definition root_dec (x : fin n) := Nat.eq_dec (fin_to_nat x) 1.
+Definition root (x : fin n) := fin_to_nat x = 0.
+Definition root_dec (x : fin n) := Nat.eq_dec (fin_to_nat x) 0.
 Lemma root_unique : forall x y, root x -> root y -> x = y.
 Proof.
 intros x y.

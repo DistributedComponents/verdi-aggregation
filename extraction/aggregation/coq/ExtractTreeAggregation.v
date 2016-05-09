@@ -37,10 +37,11 @@ Extract Inlined Constant fin => int.
 
 Extract Inlined Constant fin_eq_dec => "(fun _ -> (=))".
 Extract Inlined Constant all_fin => "(fun n -> (Obj.magic (seq 1 n)))".
-(* FIXME: fin_compare *)
-(* FIXME: fin_comparison *)
 
-Import GroupScope.
+Extract Inlined Constant fin_compare => "(fun _ n m -> if n = m then EQ else if n < m then LT else GT)".
+Extract Inlined Constant fin_comparison => "(fun _ n m -> if n = m then Eq else if n < m then Lt else Gt)".
+
+Extract Inlined Constant fin_to_nat => "(fun _ n -> n)".
 
 Module N5 : NatValue. Definition n := 5. End N5.
 
@@ -62,5 +63,6 @@ Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
 End CFG.
 
 Module TA := TreeAggregation FN_N5 NOT_N5 N5Set NOTC_N5 N5Map RNT_N5 CFG ANC_N5.
+Import TA.
 
-Extraction "TreeAggregation.ml" TA.TreeAggregation_BaseParams TA.TreeAggregation_MultiParams.
+Extraction "extraction/aggregation/coq/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.

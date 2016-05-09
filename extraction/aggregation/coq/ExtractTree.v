@@ -29,8 +29,11 @@ Extract Inlined Constant fin => int.
 
 Extract Inlined Constant fin_eq_dec => "(fun _ -> (=))".
 Extract Inlined Constant all_fin => "(fun n -> (Obj.magic (seq 1 n)))".
-(* FIXME: fin_compare *)
-(* FIXME: fin_comparison *)
+
+Extract Inlined Constant fin_compare => "(fun _ n m -> if n = m then EQ else if n < m then LT else GT)".
+Extract Inlined Constant fin_comparison => "(fun _ n m -> if n = m then Eq else if n < m then Lt else Gt)".
+
+Extract Inlined Constant fin_to_nat => "(fun _ n -> n)".
 
 Module N5 : NatValue. Definition n := 5. End N5.
 
@@ -47,5 +50,6 @@ Module N5Map <: FMapInterface.S := FMapList.Make NOTC_N5.
 Module RNT_N5 := FinRootNameType N5 FN_N5.
 
 Module T := Tree FN_N5 NOT_N5 N5Set NOTC_N5 N5Map RNT_N5 ANC_N5.
+Import T.
 
-Extraction "Tree.ml" T.Tree_BaseParams T.Tree_MultiParams.
+Extraction "extraction/aggregation/coq/Tree.ml" seq Tree_BaseParams Tree_MultiParams.
