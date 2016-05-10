@@ -346,23 +346,23 @@ Variable P : Data -> list msg -> Prop.
 
 Hypothesis after_init : P (InitData n) [].
 
-Hypothesis recv_fail_neq_from :
-  forall onet failed tr from ms,
+Hypothesis recv_fail_from_eq :
+  forall onet failed tr ms,
   step_o_f_star step_o_f_init (failed, onet) tr ->
   ~ In n failed ->
-  In from failed ->
-  from <> n ->
-  onet.(onwPackets) from n = Fail :: ms ->
+  In n' failed ->
+  n' <> n ->
+  onet.(onwPackets) n' n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n n') ->
-  P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
+  P (mkData (NSet.remove n' (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
 
-Hypothesis recv_fail_neq :
+Hypothesis recv_fail_from_neq :
   forall onet failed tr from ms,
   step_o_f_star step_o_f_init (failed, onet) tr ->
   ~ In n failed ->
   In from failed ->
-  n <> n' ->
   from <> n ->
+  from <> n' ->
   onet.(onwPackets) from n = Fail :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n n') ->
   P (mkData (NSet.remove from (onet.(onwState) n).(adjacent))) (onet.(onwPackets) n n').
@@ -400,12 +400,26 @@ end; simpl.
     move => adjacent0 H_eq.
     rewrite H_eq {adjacent0 H_eq}.
     case: H_dec => H_dec.
-      case (In_dec name_eq_dec from failed) => H_in; first exact: (recv_fail_neq_from H'_step1 H_in_f H_in H_dec H0).
+      case (name_eq_dec from n') => H_dec'.
+        rewrite H_dec'.
+        rewrite H_dec' in H0 H_dec.
+        case (In_dec name_eq_dec n' failed) => H_in; first exact: (recv_fail_from_eq H'_step1 _ _ _ H0).
+        have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
+        rewrite H0 in H_inl.
+        by case: H_inl; left.
+      case (In_dec name_eq_dec from failed) => H_in; first exact: (recv_fail_from_neq H'_step1 _ _ _ _ H0).
+      have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
+      rewrite H0 in H_inl.
+      by case: H_inl; left.      
+    case (name_eq_dec from n) => H_neq; first by rewrite H_neq (Failure_self_channel_empty H'_step1) in H0.
+    case (name_eq_dec from n') => H_dec'.
+      rewrite H_dec'.
+      rewrite H_dec' in H0 H_dec.
+      case (In_dec name_eq_dec n' failed) => H_in; first by apply: (recv_fail_from_eq H'_step1 _ _ _ H0) => //; auto.
       have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
       rewrite H0 in H_inl.
       by case: H_inl; left.
-    case (name_eq_dec from n) => H_neq; first by rewrite H_neq (Failure_self_channel_empty H'_step1) in H0.
-    case (In_dec name_eq_dec from failed) => H_in; first exact: recv_fail_neq H'_step1 _ _ H_dec _ H0 H4.
+    case (In_dec name_eq_dec from failed) => H_in; first exact: (recv_fail_from_neq H'_step1 _ _ _ _ H0).
     have H_inl := Failure_not_failed_no_fail H'_step1 _ n H_in.
     rewrite H0 in H_inl.
     by case: H_inl; left.

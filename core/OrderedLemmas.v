@@ -535,6 +535,19 @@ contradict H_in'.
 exact: IH.
 Qed.
 
+Lemma nodup_adjacent_to_node:
+  forall h ns,
+    NoDup ns ->
+    NoDup (adjacent_to_node h ns).
+Proof.
+move => h m.
+elim => //=; first exact: NoDup_nil.
+move => n ns H_in H_nd.
+case adjacent_to_dec => H_dec //.
+apply NoDup_cons.
+exact: not_in_not_in_adjacent_to_node.
+Qed.
+
 Lemma adjacent_to_node_self_eq :
   forall ns0 ns1 h,
   adjacent_to_node h (ns0 ++ h :: ns1) = adjacent_to_node h (ns0 ++ ns1).
