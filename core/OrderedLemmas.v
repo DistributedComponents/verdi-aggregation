@@ -886,6 +886,22 @@ rewrite /update2.
 by case sumbool_and => H_dec; first by break_and; find_rewrite.
 Qed.
 
+Lemma collate_ls_live_adjacent : 
+  forall ns f failed h mg from,
+  ~ In from failed ->
+  adjacent_to h from ->
+  In from ns ->
+  NoDup ns ->     
+  collate_ls (adjacent_to_node h (exclude failed ns)) f h mg from h = f from h ++ [mg].
+Proof.
+move => ns f failed h mg from.
+move => H_f H_adj H_in H_nd.
+rewrite collate_ls_nodup_in //; first by apply: nodup_adjacent_to_node; exact: nodup_exclude.
+apply filter_In.
+split; first exact: In_n_exclude.
+by case adjacent_to_dec.
+Qed.
+
 Lemma collate_ls_f_eq :
   forall ns f g h mg n n',
   f n n' = g n n' ->

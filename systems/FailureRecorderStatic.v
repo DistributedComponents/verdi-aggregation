@@ -183,14 +183,11 @@ end; rewrite /=.
 - exact: IHrefl_trans_1n_trace1.
 Qed.
 
-Definition self_channel_empty (n : name) (onet : ordered_network) : Prop :=
-onet.(onwPackets) n n = [].
-
 Lemma Failure_self_channel_empty : 
 forall onet failed tr, 
  step_o_f_star step_o_f_init (failed, onet) tr -> 
  forall n, ~ In n failed ->
-   self_channel_empty n onet.
+   onet.(onwPackets) n n = [].
 Proof.
 move => onet failed tr H.
 have H_eq_f: failed = fst (failed, onet) by [].
@@ -200,8 +197,6 @@ rewrite {2}H_eq_o {H_eq_o}.
 remember step_o_f_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
-rewrite /self_channel_empty in IHrefl_trans_1n_trace1.
-rewrite /self_channel_empty.
 concludes.
 match goal with
 | [ H : step_o_f _ _ _ |- _ ] => invc H

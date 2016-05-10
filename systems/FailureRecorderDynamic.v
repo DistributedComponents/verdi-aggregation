@@ -842,4 +842,3 @@ Qed.
 *)
 
 End FailureRecorder.
-x
