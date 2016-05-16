@@ -378,7 +378,7 @@ Instance Aggregation_FailureRecorder_name_tot_map_bijective : MultiParamsNameTot
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
-Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsPartialMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
+Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsMsgPartialMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
   {
     pt_map_msg := fun m => match m with Fail => Some FR.Fail | _ => None end ;
   }.

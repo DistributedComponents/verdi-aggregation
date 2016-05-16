@@ -31,7 +31,7 @@ Class BaseParamsPartialMap (P0 : BaseParams) (P1 : BaseParams) :=
     pt_map_output : @output P0 -> option (@output P1)
   }.
 
-Class MultiParamsPartialMap
+Class MultiParamsMsgPartialMap
  (B0 : BaseParams) (B1 : BaseParams)
  (P0 : MultiParams B0) (P1 : MultiParams B1) :=
   {
@@ -46,7 +46,7 @@ Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsPartialMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
-Context {multi_map : MultiParamsPartialMap multi_fst multi_snd}.
+Context {msg_map : MultiParamsMsgPartialMap multi_fst multi_snd}.
 
 Definition pt_map_name_msgs :=
   fold_right (fun nm l => 
@@ -77,30 +77,35 @@ Class MultiParamsPartialMapCongruency
   (P0 : MultiParams B0) (P1 : MultiParams B1)
   (B : BaseParamsPartialMap B0 B1) 
   (N : MultiParamsNameTotalMap P0 P1)
-  (P : MultiParamsPartialMap P0 P1) :=
+  (P : MultiParamsMsgPartialMap P0 P1) :=
   {
-    pt_init_handlers_eq : forall n, pt_map_data (init_handlers n) = init_handlers (tot_map_name n) ;
+    pt_init_handlers_eq : forall n, 
+      pt_map_data (init_handlers n) = init_handlers (tot_map_name n) ;
     pt_net_handlers_some : forall me src m st m',
-        pt_map_msg m = Some m' ->
-        pt_mapped_net_handlers me src m st = net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st) ;    
+      pt_map_msg m = Some m' ->
+      pt_mapped_net_handlers me src m st = 
+        net_handlers (tot_map_name me) (tot_map_name src) m' (pt_map_data st) ;
     pt_net_handlers_none : forall me src m st out st' ps,
-        pt_map_msg m = None ->
-        net_handlers me src m st = (out, st', ps) ->
-        pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = [] ;
+      pt_map_msg m = None ->
+      net_handlers me src m st = (out, st', ps) ->
+      pt_map_data st' = pt_map_data st /\ 
+        pt_map_name_msgs ps = [] /\ pt_map_outputs out = [] ;
     pt_input_handlers_some : forall me inp st inp',
-        pt_map_input inp = Some inp' ->
-        pt_mapped_input_handlers me inp st = input_handlers (tot_map_name me) inp' (pt_map_data st) ;
+      pt_map_input inp = Some inp' ->
+      pt_mapped_input_handlers me inp st = 
+        input_handlers (tot_map_name me) inp' (pt_map_data st) ;
     pt_input_handlers_none : forall me inp st out st' ps,
-        pt_map_input inp = None ->
-        input_handlers me inp st = (out, st', ps) ->
-        pt_map_data st' = pt_map_data st /\ pt_map_name_msgs ps = [] /\ pt_map_outputs out = []
+      pt_map_input inp = None ->
+      input_handlers me inp st = (out, st', ps) ->
+      pt_map_data st' = pt_map_data st /\ 
+        pt_map_name_msgs ps = [] /\ pt_map_outputs out = []
   }.
 
 Class FailMsgParamsPartialMapCongruency 
   (B0 : BaseParams) (B1 : BaseParams)
   (P0 : MultiParams B0) (P1 : MultiParams B1)
   (F0 : FailMsgParams P0) (F1 : FailMsgParams P1)
-  (P : MultiParamsPartialMap P0 P1) :=
+  (P : MultiParamsMsgPartialMap P0 P1) :=
   {
     pt_fail_msg_fst_snd : pt_map_msg msg_fail = Some (msg_fail)
   }.
@@ -113,9 +118,9 @@ Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {base_map : BaseParamsPartialMap base_fst base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
-Context {multi_map : MultiParamsPartialMap multi_fst multi_snd}.
+Context {msg_map : MultiParamsMsgPartialMap multi_fst multi_snd}.
 Context {name_map_bijective : MultiParamsNameTotalMapBijective name_map}.
-Context {multi_map_congr : MultiParamsPartialMapCongruency base_map name_map multi_map}.
+Context {multi_map_congr : MultiParamsPartialMapCongruency base_map name_map msg_map}.
 
 Definition pt_map_trace_occ (e : @name _ multi_fst * (@input base_fst + list (@output base_fst))) :
  option (@name _ multi_snd * (@input base_snd + list (@output base_snd))) :=
@@ -152,7 +157,8 @@ fold_right (fun p l =>
             end) [].
 
 Definition pt_map_net (net : @network _ multi_fst) : @network _ multi_snd :=
-mkNetwork (pt_map_packets net.(nwPackets)) (fun n => pt_map_data (net.(nwState) (tot_map_name_inv n))).
+  {| nwPackets := pt_map_packets net.(nwPackets) ;
+     nwState := fun n => pt_map_data (net.(nwState) (tot_map_name_inv n)) |}.
 
 Lemma pt_init_handlers_fun_eq : 
     init_handlers = fun n : name => pt_map_data (init_handlers (tot_map_name_inv n)).
@@ -180,7 +186,7 @@ Proof.
 elim => //=.
 move => n l IH l'.
 rewrite /= IH.
-by case (pt_map_packet _).
+by break_match.
 Qed.
 
 Lemma pt_map_name_msgs_empty_eq :
@@ -190,35 +196,34 @@ Lemma pt_map_name_msgs_empty_eq :
 Proof.
 elim => //=.
 case => n m l IH dst.
-case H_m: (pt_map_msg _) => [m'|] //=.
+case H_m: pt_map_msg => [m'|] //=.
 move => H_eq.
 by rewrite IH.
 Qed.
 
-Lemma pt_map_packet_map_app_eq :
-  forall l h ms,
-    pt_map_packets (map (fun m : name * msg => {| pSrc := h; pDst := fst m; pBody := snd m |}) l ++ ms) = 
-    map (fun m : name * msg => {| pSrc := tot_map_name h; pDst := fst m; pBody := snd m |}) (pt_map_name_msgs l) ++ pt_map_packets ms.
+Lemma pt_map_packet_map_eq :
+  forall l h,
+    pt_map_packets (map (fun m : name * msg => {| pSrc := h; pDst := fst m; pBody := snd m |}) l) = 
+    map (fun m : name * msg => {| pSrc := tot_map_name h; pDst := fst m; pBody := snd m |}) (pt_map_name_msgs l).
 Proof.
-move => l h ms.
+move => l h.
 elim: l => //=.
 case => n m l IH.
-case (pt_map_msg _) => [m'|] //.
+case pt_map_msg => [m'|] //.
 by rewrite IH.
 Qed.
 
-Lemma pt_map_packet_app_eq :
-  forall l p p' ms ms',
+Lemma pt_map_packet_map_eq_some :
+  forall l p p',
     pt_map_packet p = Some p' ->
-    pt_map_packets (map (fun m : name * msg => {| pSrc := pDst p; pDst := fst m; pBody := snd m |}) l ++ ms ++ ms') = 
-    map (fun m : name * msg => {| pSrc := pDst p'; pDst := fst m; pBody := snd m |}) (pt_map_name_msgs l) ++ pt_map_packets ms ++ pt_map_packets ms'.
+    pt_map_packets (map (fun m : name * msg => {| pSrc := pDst p; pDst := fst m; pBody := snd m |}) l) = 
+    map (fun m : name * msg => {| pSrc := pDst p'; pDst := fst m; pBody := snd m |}) (pt_map_name_msgs l).
 Proof.
-move => l; case => /= src dst m p ms ms'.
+move => l; case => /= src dst m p.
 case H_m: (pt_map_msg m) => [m'|] // H_eq.
 injection H_eq => H_eq_p.
 rewrite -H_eq_p /=.
-rewrite -pt_map_packets_app_distr.
-exact: pt_map_packet_map_app_eq.
+exact: pt_map_packet_map_eq.
 Qed.
 
 Lemma pt_map_update_eq :
@@ -292,9 +297,8 @@ case => {net net' tr}.
       rewrite H_hnd in H_q.
       rewrite H_q.
       by rewrite tot_map_name_inv_inverse.
-    * rewrite /= /pt_map_net /=.
-      rewrite (pt_map_packet_app_eq _ _ _ _ H_m).
-      by rewrite (pt_map_update_eq_some _ _ _ H_m).
+    * rewrite /= /pt_map_net /= 2!pt_map_packets_app_distr.
+      by rewrite (pt_map_packet_map_eq_some _ _ H_m) (pt_map_update_eq_some _ _ _ H_m).
   right.
   split.
   * rewrite H_eq' {H_eq'}.
@@ -330,8 +334,8 @@ case => {net net' tr}.
       rewrite H_hnd in H_q.
       rewrite H_q.
       by rewrite tot_map_name_inv_inverse.
-    rewrite /= H_eq /= /pt_map_net /=.  
-    rewrite pt_map_packet_map_app_eq.
+    rewrite /= H_eq /= /pt_map_net /=.
+    rewrite -pt_map_packet_map_eq -pt_map_packets_app_distr.
     by rewrite -pt_map_update_eq.
   right.
   split.
@@ -430,8 +434,8 @@ fold_right (fun m l =>
             end) [].
 
 Definition pt_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network _ multi_snd :=
-mkONetwork (fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
-           (fun n => pt_map_data (onet.(onwState) (tot_map_name_inv n))).
+  {| onwPackets := fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)) ;
+     onwState := fun n => pt_map_data (onet.(onwState) (tot_map_name_inv n)) |}.
 
 Lemma pt_map_msg_update2 : 
   forall f ms to from,
@@ -1129,7 +1133,7 @@ Qed.
 
 Context {fail_msg_fst : FailMsgParams multi_fst}.
 Context {fail_msg_snd : FailMsgParams multi_snd}.
-Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fail_msg_snd multi_map}.
+Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fail_msg_snd msg_map}.
 
 Theorem step_o_f_pt_mapped_simulation_1 :
   forall net net' failed failed' tr,

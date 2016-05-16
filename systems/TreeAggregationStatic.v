@@ -1383,7 +1383,7 @@ Instance TreeAggregation_Tree_name_tot_map_bijective : MultiParamsNameTotalMapBi
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
-Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsPartialMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
+Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsMsgPartialMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
   {
     pt_map_msg := fun m => match m with 
                         | Fail => Some TR.Fail 
