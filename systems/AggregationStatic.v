@@ -1974,7 +1974,7 @@ Instance AggregationData_Data : AggregationData Data :=
 Instance AggregationMsg_Aggregation : AggregationMsg :=
   {
     aggr_msg := msg ;
-    aggr_msg_EqDec_eq := EqDec_eq_msg ;
+    aggr_msg_eq_dec := msg_eq_dec ;
     aggr_fail := Fail ;
     aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
   }.
@@ -4034,26 +4034,6 @@ end; simpl.
   have H_in: ~ In n failed0 by move => H_in; case: H_f; right.
   have H_in': ~ In n' failed0 by move => H_in'; case: H_f'; right.
   exact: IHH_st1.
-Qed.
-
-Lemma update'_nop :
-  forall (sigma : name -> data) x y,
-    update' sigma x (sigma x) y = sigma y.
-Proof.
-  unfold update'.
-  intros. break_if; congruence.
-Qed.
-
-Require Import FunctionalExtensionality.
-
-Lemma update'_nop_ext :
-  forall (sigma : name -> data) h,
-    update' sigma h (sigma h) = sigma.
-Proof.
-  intros.
-  apply functional_extensionality.
-  intros.
-  apply update'_nop.
 Qed.
 
 Lemma Aggregation_conserves_network_mass : 

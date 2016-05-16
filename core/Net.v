@@ -66,12 +66,9 @@ Class EqDec_eq (A : Type) := eq_dec : forall (x y : A), {x = y} + {x <> y}.
 
 Instance EqDec_eq_name `{params : MultiParams} : EqDec_eq name := name_eq_dec.
 
-Instance EqDec_eq_msg `{params : MultiParams} : EqDec_eq msg := msg_eq_dec.
-
-Section DecDefs.
+Section EqDecDefs.
   Context {A : Type}.
-  Context {ea : EqDec_eq A}.
-  Context {R : relation A} {rd : RelDec R}.
+  Context {eqA : EqDec_eq A}.
 
   Definition update' {B} st h (v : B) := fun nm => if eq_dec nm h then v else st nm.
 
@@ -95,11 +92,11 @@ Section DecDefs.
     end.
 
   Definition exclude (excluded : list A) := filter (fun a => if (in_dec eq_dec a excluded) then false else true).
-  
-  Definition map_pair {B} (b : B) := map (fun (a : A) => (a, b)).
-  
-  Definition filter_rel (a : A) := filter (fun a' => if rel_dec a a' then true else false).
-End DecDefs.
+End EqDecDefs.
+
+Definition map_pair {A} {B} (b : B) := map (fun (a : A) => (a, b)).
+
+Definition filter_rel {A} {R : relation A} {RDec: RelDec R} (a : A) := filter (fun a' => if rel_dec a a' then true else false).
 
 Section StepRelations.
   Variable A : Type.

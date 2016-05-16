@@ -2,7 +2,6 @@ Require Import Verdi.
 
 Require Import FunctionalExtensionality.
 Require Import Sumbool.
-Require Import Sorting.Permutation.
 Require Import Relation_Definitions.
 Require Import RelationClasses.
 
@@ -40,6 +39,24 @@ move => n n' ns H_in H_adj.
 apply filter_In.
 split => //.
 by case rel_dec.
+Qed.
+
+Lemma update'_nop :
+  forall B (sigma : A -> B) x y,
+    update' sigma x (sigma x) y = sigma y.
+Proof.
+  unfold update'.
+  intros. break_if; congruence.
+Qed.
+
+Lemma update'_nop_ext :
+  forall B (sigma : A -> B) h,
+    update' sigma h (sigma h) = sigma.
+Proof.
+  intros.
+  apply functional_extensionality.
+  intros.
+  apply update'_nop.
 Qed.
 
 Lemma count_occ_app_split : 

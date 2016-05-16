@@ -1724,7 +1724,7 @@ Instance AggregationData_Data : AggregationData Data :=
 Instance AggregationMsg_TreeAggregation : AggregationMsg :=
   {
     aggr_msg := msg ;
-    aggr_msg_EqDec_eq := EqDec_eq_msg ;
+    aggr_msg_eq_dec := msg_eq_dec ;
     aggr_fail := Fail ;
     aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
   }.
