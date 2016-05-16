@@ -3,25 +3,53 @@ Require Import Verdi.
 Require Import FunctionalExtensionality.
 Require Import Sumbool.
 Require Import Sorting.Permutation.
+Require Import Relation_Definitions.
+Require Import RelationClasses.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
 Set Implicit Arguments.
 
-Section ListProps.
+Section OrderedProps.
 
-Variable A : Type.
+Context {A : Type}. 
+Context {ea : EqDec_eq A}.
+Context {R : relation A} {rd : RelDec R}.
 
-Variable A_eq_dec : forall (a a' : A), {a = a'} + {a <> a'}.
+Lemma filter_rel_related :
+  forall n n' ns,
+  In n' (filter_rel n ns) -> 
+  In n' ns /\ R n n'.
+Proof.
+move => n n' ns H_in.
+rewrite /filter_rel in H_in.
+apply filter_In in H_in.
+move: H_in => [H_in H_eq].
+split => //.
+move: H_eq.
+by case rel_dec.
+Qed.
+
+Lemma related_filter_rel : 
+  forall n n' ns,
+    In n' ns -> 
+    R n n' ->
+    In n' (filter_rel n ns).
+Proof.
+move => n n' ns H_in H_adj.
+apply filter_In.
+split => //.
+by case rel_dec.
+Qed.
 
 Lemma count_occ_app_split : 
   forall l l' (a : A),
-    count_occ A_eq_dec (l ++ l') a = count_occ A_eq_dec l a + count_occ A_eq_dec l' a.
+    count_occ eq_dec (l ++ l') a = count_occ eq_dec l a + count_occ eq_dec l' a.
 Proof.
 elim => //.
 move => a' l IH l' a.
 rewrite /=.
-case A_eq_dec => H_dec; first by rewrite IH.
+case eq_dec => H_dec; first by rewrite IH.
 by rewrite IH.
 Qed.
 
@@ -95,12 +123,6 @@ have H_in': ~ In a0 l.
   by case: H_in; right.
 by left.
 Qed.
-
-End ListProps.
-
-Section OrderedMultiParams.
-
-Context `{multi_params : MultiParams}.
 
 Lemma exclude_in : 
   forall n ns ns',
@@ -182,7 +204,7 @@ move => n ns IH h failed H_in.
 have H_neq: h <> n by move => H_eq; case: H_in; left.
 have H_in': ~ In h ns by move => H_in'; case: H_in; right.
 rewrite /=.
-case name_eq_dec => H_dec //.
+case eq_dec => H_dec //.
 case (in_dec _ _) => H_dec'; first exact: IH.
 by rewrite IH.
 Qed.
@@ -197,7 +219,7 @@ elim; first by case.
 move => n ns IH ns0 ns1 h failed H_nd.
 inversion H_nd => {x H0 l H H_nd}.
 rewrite /=.
-case (in_dec _ _) => H_dec; case name_eq_dec => H_dec' H_eq.
+case (in_dec _ _) => H_dec; case eq_dec => H_dec' H_eq.
 - exact: IH.
 - exact: IH.
 - rewrite -H_dec' {n H_dec'} in H_eq H1 H_dec.
@@ -232,18 +254,18 @@ Proof.
 elim => //.
 move => n ns IH ns1 ns' failed h.
 rewrite /=.
-case name_eq_dec => H_dec; case name_eq_dec => H_dec' //.
+case eq_dec => H_dec; case eq_dec => H_dec' //.
   move => H_ex.
   apply IH in H_ex.
   move: H_ex.
   rewrite /=.
-  by case name_eq_dec.
+  by case eq_dec.
 case (in_dec _ _ _) => H_dec''.
   move => H_ex.
   apply IH in H_ex.
   move: H_ex.
   rewrite /=.
-  by case name_eq_dec.
+  by case eq_dec.
 move => H_ex.
 case: ns' H_ex => //.
 move => a ns' H_ex.
@@ -252,17 +274,17 @@ rewrite H1.
 apply IH in H1.
 move: H1.
 rewrite /=.
-case name_eq_dec => H_ex_dec //.
+case eq_dec => H_ex_dec //.
 move => H.
 by rewrite H.
 Qed.
 
 Lemma collate_f_eq :
-  forall  f g h n n' l,
+  forall B (f : A -> A -> list B) g h n n' l,
   f n n' = g n n' ->
   collate h f l n n' = collate h g l n n'.
 Proof.
-move => f g h n n' l.
+move => B f g h n n' l.
 elim: l f g => //.
 case => n0 m l IH f g H_eq.
 rewrite /=.
@@ -278,10 +300,11 @@ by rewrite H_eq.
 Qed.
 
 Lemma collate_in_in :
-  forall l h n n' f mg,
+  forall B l h n n' (f : A -> A -> list B) mg,
     In mg (f n' n) ->
     In mg ((collate h f l) n' n).
 Proof.
+move => B.
 elim => //=.
 case => n0 mg' l IH h n n' f mg H_in.
 apply IH.
@@ -294,11 +317,11 @@ by rewrite H_eq H_eq'.
 Qed.
 
 Lemma collate_neq :
-  forall h n n' ns f,
+  forall B h n n' ns (f : A -> A -> list B),
     h <> n ->
     collate h f ns n n' = f n n'.
 Proof.
-move => h n n' ns f H_neq.
+move => B h n n' ns f H_neq.
 move: f.
 elim: ns => //.
 case.
@@ -311,11 +334,11 @@ by move: H_and => [H_and H_and'].
 Qed.
 
 Lemma collate_not_in_eq :
-  forall h' h f l,
- ~ In h (map (fun nm : name * msg => fst nm) l) -> 
+  forall B h' h (f : A -> A -> list B) l,
+ ~ In h (map (fun nm : A * B => fst nm) l) -> 
   collate h' f l h' h = f h' h.
 Proof.
-move => h' h f l.
+move => B h' h f l.
 elim: l f => //=.
 case => n m l IH f H_in.
 rewrite IH /update2.
@@ -327,10 +350,10 @@ by right.
 Qed.
 
 Lemma collate_app :
-  forall h' l1 l2 f,
+  forall B h' l1 l2 (f : A -> A -> list B),
   collate h' f (l1 ++ l2) = collate h' (collate h' f l1) l2.
 Proof.
-move => h'.
+move => B h'.
 elim => //.
 case => n m l1 IH l2 f.
 rewrite /=.
@@ -338,11 +361,11 @@ by rewrite IH.
 Qed.
 
 Lemma collate_neq_update2 :
-  forall h h' n f l ms,
+  forall B h h' n (f : A -> A -> list B) l ms,
   n <> h' ->
   collate h (update2 f h n ms) l h h' = collate h f l h h'.
 Proof.
-move => h h' n f l ms H_neq.
+move => B h h' n f l ms H_neq.
 have H_eq: update2 f h n ms h h' =  f h h'.
   rewrite /update2 /=.
   by case (sumbool_and _ _ _ _) => H_eq; first by move: H_eq => [H_eq H_eq'].
@@ -350,11 +373,11 @@ by rewrite (collate_f_eq _ _ _ _ _ _ H_eq).
 Qed.
 
 Lemma collate_not_in :
-  forall h h' l1 l2 f,
-  ~ In h' (map (fun nm : name * msg => fst nm) l1) ->
+  forall B h h' l1 l2 (f : A -> A -> list B),
+  ~ In h' (map (fun nm : A * B => fst nm) l1) ->
   collate h f (l1 ++ l2) h h' = collate h f l2 h h'.
 Proof.
-move => h h' l1 l2 f H_in.
+move => B h h' l1 l2 f H_in.
 rewrite collate_app.
 elim: l1 f H_in => //.
 case => n m l IH f H_in.
@@ -367,16 +390,16 @@ by right.
 Qed.
 
 Lemma collate_not_in_mid :
- forall h h' l1 l2 f m,
-   ~ In h (map (fun nm : name * msg => fst nm) (l1 ++ l2)) ->
+ forall B h h' l1 l2 (f : A -> A -> list B) m,
+   ~ In h (map (fun nm : A * B => fst nm) (l1 ++ l2)) ->
    collate h' (update2 f h' h (f h' h ++ [m])) (l1 ++ l2) = collate h' f (l1 ++ (h, m) :: l2).
 Proof.
-move => h h' l1 l2 f m H_in.
+move => B h h' l1 l2 f m H_in.
 apply functional_extensionality => from.
 apply functional_extensionality => to.
-case (name_eq_dec h' from) => H_dec.
+case (eq_dec h' from) => H_dec.
   rewrite -H_dec.
-  case (name_eq_dec h to) => H_dec'.
+  case (eq_dec h to) => H_dec'.
     rewrite -H_dec'.
     rewrite collate_not_in; last first.
       move => H_in'.
@@ -402,10 +425,11 @@ by move: H_dec' => [H_eq H_eq'].
 Qed.
 
 Lemma permutation_map_fst :
-  forall l l',
+  forall B l l',
   Permutation l l' ->
-  Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) l').
+  Permutation (map (fun nm : A * B => fst nm) l) (map (fun nm : A * B => fst nm) l').
 Proof.
+move => B.
 elim.
   move => l' H_pm.
   apply Permutation_nil in H_pm.
@@ -428,12 +452,12 @@ exact: Permutation_cons_app.
 Qed.
 
 Lemma nodup_perm_collate_eq :
-  forall h f l l',
+  forall B h (f : A -> A -> list B) l l',
     NoDup (map (fun nm => fst nm) l) ->
     Permutation l l' ->
     collate h f l = collate h f l'.
 Proof.
-move => h f l.
+move => B h f l.
 elim: l h f.
   move => h f l' H_nd H_pm.
   apply Permutation_nil in H_pm.
@@ -455,7 +479,7 @@ rewrite IH'.
 rewrite collate_not_in_mid //.
 move => H_in.
 case: H1.
-suff H_pm': Permutation (map (fun nm : name * msg => fst nm) l) (map (fun nm : name * msg => fst nm) (l1 ++ l2)).
+suff H_pm': Permutation (map (fun nm : A * B => fst nm) l) (map (fun nm : A * B => fst nm) (l1 ++ l2)).
   move: H_in.
   apply Permutation_in.
   exact: Permutation_sym.
@@ -488,11 +512,12 @@ by right.
 Qed.
 
 Lemma snd_eq_not_in :
-  forall l n m,
+  forall B l n m,
   (forall nm, In nm l -> snd nm = m) ->
   ~ In (n, m) l ->
-  ~ In n (map (fun nm : name * msg => fst nm) l).
+  ~ In n (map (fun nm : A * B => fst nm) l).
 Proof.
+move => B.
 elim => //.
 case => n m l IH n' m' H_in H_in'.
 rewrite /= => H_in_map.
@@ -513,63 +538,58 @@ case: H_in'.
 by right.
 Qed.
 
-End OrderedMultiParams.
-
-Section OrderedNameOverlayParams.
-
-Context `{overlay_params : NameOverlayParams}.
-
-Lemma not_in_not_in_adjacent_to_node :
+Lemma not_in_not_in_filter_rel :
   forall ns n h,
     ~ In n ns ->
-    ~ In n (adjacent_to_node h ns).
+    ~ In n (filter_rel h ns).
 Proof.
 elim => //=.
 move => n' ns IH n h H_in.
 have H_neq: n' <> n by move => H_neq; case: H_in; left.
 have H_not_in: ~ In n ns by move => H_in'; case: H_in; right.
-case adjacent_to_dec => H_dec; last exact: IH.
+case rel_dec => H_dec; last exact: IH.
 move => H_in'.
 case: H_in' => H_in' //.
 contradict H_in'.
 exact: IH.
 Qed.
 
-Lemma nodup_adjacent_to_node:
+Lemma nodup_filter_rel:
   forall h ns,
     NoDup ns ->
-    NoDup (adjacent_to_node h ns).
+    NoDup (filter_rel h ns).
 Proof.
 move => h m.
 elim => //=; first exact: NoDup_nil.
 move => n ns H_in H_nd.
-case adjacent_to_dec => H_dec //.
+case rel_dec => H_dec //.
 apply NoDup_cons.
-exact: not_in_not_in_adjacent_to_node.
+exact: not_in_not_in_filter_rel.
 Qed.
 
-Lemma adjacent_to_node_self_eq :
+
+Lemma filter_rel_self_eq {irreflexive_R : Irreflexive R} :
   forall ns0 ns1 h,
-  adjacent_to_node h (ns0 ++ h :: ns1) = adjacent_to_node h (ns0 ++ ns1).
+  filter_rel h (ns0 ++ h :: ns1) = filter_rel h (ns0 ++ ns1).
 Proof.
 elim => [|n ns0 IH] ns1 h /=.
-  case (adjacent_to_dec _ _) => /= H_dec //.
-  by apply adjacent_to_irreflexive in H_dec.
-case (adjacent_to_dec _ _) => /= H_dec //.
+  case (rel_dec _ _) => /= H_dec //.
+  by apply irreflexive_R in H_dec.
+case (rel_dec _ _) => /= H_dec //.
 by rewrite IH.
 Qed.
 
-Lemma collate_msg_for_not_adjacent :
-  forall m n h ns f,
-    ~ adjacent_to h n ->
-    collate h f (msg_for m (adjacent_to_node h ns)) h n = f h n.
+Lemma collate_map_pair_not_related :
+  forall B m n h ns (f : A -> A -> list B),
+    ~ R h n ->
+    collate h f (map_pair m (filter_rel h ns)) h n = f h n.
 Proof.
-move => m n h ns f H_adj.
+move => B m n h ns f H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f.
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec' //.
+case (rel_dec _ _) => H_dec' //.
 rewrite /=.
 rewrite IH.
 rewrite /update2.
@@ -578,17 +598,17 @@ move: H_and => [H_and H_and'].
 by rewrite -H_and' in H_adj.
 Qed.
 
-Lemma collate_msg_for_notin :
-  forall m' n h ns f,
+Lemma collate_map_pair_notin :
+  forall B m' n h ns (f : A -> A -> list B),
     ~ In n ns ->
-    collate h f (msg_for m' (adjacent_to_node h ns)) h n = f h n.
+    collate h f (map_pair m' (filter_rel h ns)) h n = f h n.
 Proof.
-move => m' n h ns f.
+move => B m' n h ns f.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in.
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
+case (rel_dec _ _) => H_dec'.
   rewrite /=.
   rewrite IH.
     rewrite /update2.
@@ -605,26 +625,26 @@ case: H_in.
 by right.
 Qed.
 
-Lemma collate_msg_for_notin_exclude :
-  forall m n h ns f failed,
+Lemma collate_map_pair_notin_exclude :
+  forall B m n h ns (f : A -> A -> list B) failed,
     ~ In n ns ->
-    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (map_pair m (filter_rel h (exclude failed ns))) h n = f h n.
 Proof.
-move => m n h ns f failed H_in.
-apply: collate_msg_for_notin.
+move => B m n h ns f failed H_in.
+apply collate_map_pair_notin.
 move => H_ex.
 by apply exclude_in in H_ex.
 Qed.
 
-Lemma collate_msg_for_live_adjacent :
-  forall m n h ns f failed,
+Lemma collate_map_pair_live_related :
+  forall B m n h ns (f : A -> A -> list B) failed,
     ~ In n failed ->
-    adjacent_to h n ->
+    R h n ->
     In n ns ->
     NoDup ns ->
-    collate h f (msg_for m (adjacent_to_node h (exclude failed ns))) h n = f h n ++ [m].
+    collate h f (map_pair m (filter_rel h (exclude failed ns))) h n = f h n ++ [m].
 Proof.
-move => m n h ns f failed H_in H_adj.
+move => B m n h ns f failed H_in H_adj.
 move: f.
 elim: ns => //.
 move => n' ns IH f H_in' H_nd.
@@ -637,15 +657,15 @@ case: H_in' => H_in'.
   rewrite H_in'.
   rewrite H_in' in H1.
   rewrite /=.
-  case (adjacent_to_dec _ _) => H_dec' //.
+  case (rel_dec _ _) => H_dec' //.
   rewrite /=.
-  rewrite collate_msg_for_notin_exclude //.
+  rewrite collate_map_pair_notin_exclude //.
   rewrite /update2.
   case (sumbool_and _ _) => H_sumb //.
   by case: H_sumb.
 have H_neq: n' <> n by move => H_eq; rewrite -H_eq in H_in'. 
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
+case (rel_dec _ _) => H_dec'.
   rewrite /=.
   rewrite IH //.
   rewrite /update2.
@@ -654,19 +674,19 @@ case (adjacent_to_dec _ _) => H_dec'.
 by rewrite IH.
 Qed.
 
-Lemma collate_msg_for_in_failed :
-  forall m' n h ns f failed,
+Lemma collate_map_pair_in_failed :
+  forall B m' n h ns (f : A -> A -> list B) failed,
     In n failed ->
-    collate h f (msg_for m' (adjacent_to_node h (exclude failed ns))) h n = f h n.
+    collate h f (map_pair m' (filter_rel h (exclude failed ns))) h n = f h n.
 Proof.
-move => m' n h ns f failed.
+move => B m' n h ns f failed.
 move: f.
 elim: ns => //.
   move => n' ns IH f H_in.
   rewrite /=.
   case (in_dec _ _) => H_dec; first by rewrite IH.
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'; last by rewrite IH.
+case (rel_dec _ _) => H_dec'; last by rewrite IH.
 rewrite /= IH //.
 rewrite /update2.
 case (sumbool_and _ _) => H_and //.
@@ -674,14 +694,14 @@ move: H_and => [H_and H_and'].
 by rewrite -H_and' in H_in.
 Qed.
 
-Lemma collate_msg_for_live_adjacent_alt :
-  forall mg n h ns f,
-    adjacent_to h n ->
+Lemma collate_map_pair_live_related_alt :
+  forall B mg n h ns (f : A -> A -> list B),
+    R h n ->
     ~ In n ns ->
-    collate h f (msg_for mg (adjacent_to_node h (n :: ns))) h n = f h n ++ [mg].
+    collate h f (map_pair mg (filter_rel h (n :: ns))) h n = f h n ++ [mg].
 Proof.
-move => mg n h ns f H_adj H_in /=.
-case adjacent_to_dec => /= H_dec // {H_dec}.
+move => B mg n h ns f H_adj H_in /=.
+case rel_dec => /= H_dec // {H_dec}.
 move: f n h H_in H_adj.
 elim: ns  => //=.
   move => f H_in n h.
@@ -691,11 +711,11 @@ elim: ns  => //=.
 move => n' ns IH f n h H_in H_adj.
 have H_in': ~ In n ns by move => H_in'; case: H_in; right.
 have H_neq: n <> n' by move => H_eq; case: H_in; left.
-case adjacent_to_dec => /= H_dec; last by rewrite IH.
+case rel_dec => /= H_dec; last by rewrite IH.
 rewrite {3}/update2.
 case sumbool_and => H_and; first by move: H_and => [H_and H_and'].
 have IH' := IH f.
-rewrite collate_msg_for_notin //.
+rewrite collate_map_pair_notin //.
 rewrite /update2.
 case sumbool_and => H_and'; first by move: H_and' => [H_and' H_and'']; rewrite H_and'' in H_neq.
 case sumbool_and => H_and'' //.
@@ -703,16 +723,17 @@ by case: H_and''.
 Qed.
 
 Lemma in_collate_in :
-  forall ns n h f mg,
+  forall B ns n h (f : A -> A -> list B) mg,
   ~ In n ns ->
-  In mg ((collate h f (msg_for mg (adjacent_to_node h ns))) h n) ->
+  In mg ((collate h f (map_pair mg (filter_rel h ns))) h n) ->
   In mg (f h n).
 Proof.
+move => B.
 elim => //=.
 move => n' ns IH n h f mg H_in.
 have H_neq: n' <> n by move => H_eq; case: H_in; left.
 have H_in': ~ In n ns by move => H_in'; case: H_in; right.
-case adjacent_to_dec => H_dec; last exact: IH.
+case rel_dec => H_dec; last exact: IH.
 rewrite /=.
 set up2 := update2 _ _ _ _.
 have H_eq_f: up2 h n = f h n.
@@ -722,15 +743,15 @@ rewrite (collate_f_eq _ _ _ _ _ _ H_eq_f).
 exact: IH.
 Qed.
 
-Lemma not_in_msg_for :
-  forall n h m ns,
+Lemma not_in_map_pair :
+  forall B n h (m : B) ns,
     ~ In n ns ->
-    ~ In (n, m) (msg_for m (adjacent_to_node h ns)).
+    ~ In (n, m) (map_pair m (filter_rel h ns)).
 Proof.
-move => n h m.
+move => B n h m.
 elim => //=.
 move => n' ns IH H_in.
-case (adjacent_to_dec _ _) => H_dec.
+case (rel_dec _ _) => H_dec.
   rewrite /=.
   move => H_in'.
   case: H_in' => H_in'.
@@ -747,32 +768,33 @@ case: H_in.
 by right.
 Qed.
 
-Lemma nodup_msg_for :
-  forall h m ns,
+Lemma nodup_map_pair :
+  forall B h (m : B) ns,
     NoDup ns ->
-    NoDup (msg_for m (adjacent_to_node h ns)).
+    NoDup (map_pair m (filter_rel h ns)).
 Proof.
-move => h m.
+move => B h m.
 elim => //=.
   move => H_nd.
   exact: NoDup_nil.
 move => n ns IH H_in.
 inversion H_in.
-case (adjacent_to_dec _ _) => H_dec.
+case (rel_dec _ _) => H_dec.
   rewrite /=.
   apply NoDup_cons.
     apply IH in H2.
-    exact: not_in_msg_for.
+    exact: not_in_map_pair.
   exact: IH.
 exact: IH.
 Qed.
 
 Lemma nodup_snd_fst :
-  forall nms,
+  forall B nms,
     NoDup nms ->
     (forall nm nm', In nm nms -> In nm' nms -> snd nm = snd nm') ->
-    NoDup (map (fun nm : name * msg => fst nm) nms).
+    NoDup (map (fun nm : A * B => fst nm) nms).
 Proof.
+move => B.
 elim => //=.
   move => H_nd H_eq.
   exact: NoDup_nil.
@@ -785,7 +807,7 @@ apply NoDup_cons.
     have ->: m = snd (n, m) by [].
     apply H_in; first by right.
     by left.    
-  exact: (@snd_eq_not_in _ _ _ _ m).
+  exact: (@snd_eq_not_in _ _ _ m).
 apply IH => //.
 move => nm nm' H_in_nm H_in_nm'.
 apply H_in => //.
@@ -794,15 +816,15 @@ by right.
 Qed.
 
 Lemma in_for_msg :
-  forall h m ns nm,
-  In nm (msg_for m (adjacent_to_node h ns)) ->
+  forall B h (m : B) ns nm,
+  In nm (map_pair m (filter_rel h ns)) ->
   snd nm = m.
 Proof.
-move => h m.
+move => B h m.
 elim => //.
 move => n l IH.
 case => /= n' m'.
-case (adjacent_to_dec _ _) => H_dec.
+case (rel_dec _ _) => H_dec.
   rewrite /=.
   move => H_in.
   case: H_in => H_in; first by inversion H_in.
@@ -813,15 +835,15 @@ have ->: m' = snd (n', m') by [].
 exact: IH.
 Qed.
 
-Lemma in_msg_for_adjacent_in :
-  forall m ns n h,
-  In (n, m) (msg_for m (adjacent_to_node h ns)) ->
-  adjacent_to h n /\ In n ns.
+Lemma in_map_pair_related_in :
+  forall B (m : B) ns n h,
+  In (n, m) (map_pair m (filter_rel h ns)) ->
+  R h n /\ In n ns.
 Proof.
-move => m.
+move => B m.
 elim => //=.
 move => n ns IH n' h.
-case (adjacent_to_dec _ _) => /= H_dec.
+case (rel_dec _ _) => /= H_dec.
   move => H_in.
   case: H_in => H_in.
     inversion H_in.
@@ -840,10 +862,11 @@ by right.
 Qed.
 
 Lemma collate_ls_not_in :
-  forall ns f h mg from to,
+  forall B ns (f : A -> A -> list B) h mg from to,
     ~ In from ns ->
     collate_ls ns f h mg from to = f from to.
 Proof.
+move => B.
 elim => //=.
 move => n ns IH f h mg from to H_in.
 have H_neq: n <> from by move => H_eq; case: H_in; left.
@@ -855,10 +878,11 @@ by move: H_dec => [H_eq H_eq'].
 Qed.
 
 Lemma collate_ls_neq_to : 
-  forall ns f h mg from to,
+  forall B ns (f : A -> A -> list B) h mg from to,
     h <> to ->
     collate_ls ns f h mg from to = f from to.
 Proof.
+move => B.
 elim => //=.
 move => n ns IH f h mg from to H_neq.
 rewrite IH //.
@@ -868,11 +892,12 @@ by move: H_dec => [H_eq H_eq'].
 Qed.
 
 Lemma collate_ls_nodup_in : 
-  forall ns f h mg from,
+  forall B ns (f : A -> A -> list B) h mg from,
   NoDup ns ->
   In from ns ->
   collate_ls ns f h mg from h = f from h ++ [mg].
 Proof.
+move => B.
 elim => //=.
 move => n ns IH f h mg from H_nd H_in.
 inversion H_nd; subst.
@@ -886,27 +911,28 @@ rewrite /update2.
 by case sumbool_and => H_dec; first by break_and; find_rewrite.
 Qed.
 
-Lemma collate_ls_live_adjacent : 
-  forall ns f failed h mg from,
+Lemma collate_ls_live_related : 
+  forall B ns (f : A -> A -> list B) failed h mg from,
   ~ In from failed ->
-  adjacent_to h from ->
+  R h from ->
   In from ns ->
   NoDup ns ->     
-  collate_ls (adjacent_to_node h (exclude failed ns)) f h mg from h = f from h ++ [mg].
+  collate_ls (filter_rel h (exclude failed ns)) f h mg from h = f from h ++ [mg].
 Proof.
-move => ns f failed h mg from.
+move => B ns f failed h mg from.
 move => H_f H_adj H_in H_nd.
-rewrite collate_ls_nodup_in //; first by apply: nodup_adjacent_to_node; exact: nodup_exclude.
+rewrite collate_ls_nodup_in //; first by apply: nodup_filter_rel; exact: nodup_exclude.
 apply filter_In.
 split; first exact: In_n_exclude.
-by case adjacent_to_dec.
+by case rel_dec.
 Qed.
 
 Lemma collate_ls_f_eq :
-  forall ns f g h mg n n',
+  forall B ns (f : A -> A -> list B) g h mg n n',
   f n n' = g n n' ->
   collate_ls ns f h mg n n' = collate_ls ns g h mg n n'.
 Proof.
+move => B.
 elim => //=.
 move => n0 ns IH f g h mg n n' H_eq.
 set f' := update2 _ _ _ _.
@@ -919,53 +945,54 @@ by break_and; repeat find_rewrite.
 Qed.
 
 Lemma collate_ls_neq_update2 : 
-  forall ns f n h h' ms mg,
+  forall B ns (f : A -> A -> list B) n h h' ms mg,
   n <> h' ->
   collate_ls ns (update2 f n h ms) h mg h' h = collate_ls ns f h mg h' h.
 Proof.
-move => ns f n h h' ms mg H_neq.
+move => B ns f n h h' ms mg H_neq.
 have H_eq: update2 f n h ms h' h = f h' h.
   rewrite /update2.
   by case sumbool_and => H_eq; first by break_and; find_rewrite.
 by rewrite (collate_ls_f_eq _ _ _ _ _ _ _ H_eq).
 Qed.
 
-Lemma collate_ls_not_adjacent :
-  forall ns f n h mg,
-    ~ adjacent_to h n ->
-    collate_ls (adjacent_to_node h ns) f h mg n h = f n h.
+Lemma collate_ls_not_related :
+  forall B ns (f : A -> A -> list B) n h mg,
+    ~ R h n ->
+    collate_ls (filter_rel h ns) f h mg n h = f n h.
 Proof.
+move => B.
 elim => //=.
 move => n' ns IH f n h mg H_adj.
-case (name_eq_dec n n') => H_dec.
+case (eq_dec n n') => H_dec.
   rewrite -H_dec.
-  case adjacent_to_dec => H_dec' //=.
+  case rel_dec => H_dec' //=.
   by rewrite IH.
-case adjacent_to_dec => H_dec' /=; last by rewrite IH.
+case rel_dec => H_dec' /=; last by rewrite IH.
 rewrite IH //.
 rewrite /update2.
 by case sumbool_and => H_and; first by break_and; find_rewrite.
 Qed.
 
-Lemma collate_ls_not_in_adjacent :
-  forall ns f n h mg,
+Lemma collate_ls_not_in_related :
+  forall B ns (f : A -> A -> list B) n h mg,
     ~ In n ns ->
-    collate_ls (adjacent_to_node h ns) f h mg n h = f n h.
+    collate_ls (filter_rel h ns) f h mg n h = f n h.
 Proof.
-move => ns f n h mg H_in.
+move => B ns f n h mg H_in.
 rewrite collate_ls_not_in //.
-exact: not_in_not_in_adjacent_to_node.
+exact: not_in_not_in_filter_rel.
 Qed.
 
-Lemma collate_ls_not_in_adjacent_exclude :
-  forall ns f n h mg failed,
+Lemma collate_ls_not_in_related_exclude :
+  forall B ns (f : A -> A -> list B) n h mg failed,
     ~ In n ns ->
-    collate_ls (adjacent_to_node h (exclude failed ns)) f h mg n h = f n h.
+    collate_ls (filter_rel h (exclude failed ns)) f h mg n h = f n h.
 Proof.
-move => ns f n h mg failed H_in.
+move => B ns f n h mg failed H_in.
 rewrite collate_ls_not_in //.
-apply: not_in_not_in_adjacent_to_node.
+apply: not_in_not_in_filter_rel.
 exact: not_in_exclude.
 Qed.
 
-End OrderedNameOverlayParams.
+End OrderedProps.

@@ -47,19 +47,19 @@ end; rewrite /=.
   rewrite /update_opt /=.
   have H_neq: h <> n by move => H_eq; case: H_in; left.
   have H_not_in: ~ In n (odnwNodes net0) by move => H_not_in; case: H_in; right.
-  case name_eq_dec => H_dec; first by rewrite H_dec in H_neq.
+  case eq_dec => H_dec; first by rewrite H_dec in H_neq.
   exact: IHrefl_trans_1n_trace1.
 - move => n H_in.
   rewrite /= in IHrefl_trans_1n_trace1.
   rewrite /update_opt /=.
   have H_neq: n <> to by move => H_eq; rewrite H_eq in H_in.
-  case name_eq_dec => H_dec //.
+  case eq_dec => H_dec //.
   exact: IHrefl_trans_1n_trace1.
 - move => n H_in.
   rewrite /= in IHrefl_trans_1n_trace1.
   rewrite /update_opt.
   have H_neq: n <> h by move => H_eq; rewrite H_eq in H_in.
-  case name_eq_dec => H_dec //.
+  case eq_dec => H_dec //.
   exact: IHrefl_trans_1n_trace1.
 - move => n H_in.
   rewrite /= in IHrefl_trans_1n_trace1.
@@ -85,21 +85,21 @@ end; rewrite /=.
 - move => n H_in.
   case: H_in => H_in.
     rewrite -H_in /update_opt.
-    case name_eq_dec => H_dec //.
+    break_if => //.
     by exists (init_handlers h).
   have H_neq: n <> h by move => H_eq; rewrite H_eq in H_in.
   have [d H_eq] := IHrefl_trans_1n_trace1 _ H_in.
   exists d.
   rewrite /update_opt /=.
-  by case name_eq_dec.
+  by break_if.
 - move => n H_in.
   rewrite /update_opt.
-  case name_eq_dec => H_dec; first by exists d'.
+  break_if; first by exists d'.
   have [d0 H_eq] := IHrefl_trans_1n_trace1 _ H_in.
   by exists d0.
 - move => n H_in.
   rewrite /update_opt.
-  case name_eq_dec => H_dec; first by exists d'.
+  break_if; first by exists d'.
   have [d0 H_eq] := IHrefl_trans_1n_trace1 _ H_in.
   by exists d0.
 - move => n H_in.
@@ -186,7 +186,7 @@ end; rewrite /=.
 - move => n H_a n'. 
   have H_neq: h <> n by eauto.
   have H_not_in: ~ In n (odnwNodes net0) by eauto.
-  rewrite collate_ls_not_in; last by apply: not_in_not_in_adjacent_to_node; exact: not_in_exclude.
+  rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; exact: not_in_exclude.
   rewrite collate_neq //.
   by eauto.
 - move => n H_a n'.
@@ -391,8 +391,8 @@ match goal with
 end; simpl.
 - move => n.
   case (name_eq_dec h n) => H_dec; last by rewrite collate_ls_neq_to // collate_neq.
-  rewrite H_dec collate_ls_not_adjacent; last exact: adjacent_to_irreflexive.
-  by rewrite collate_msg_for_not_adjacent; last exact: adjacent_to_irreflexive.
+  rewrite H_dec collate_ls_not_related; last exact: adjacent_to_irreflexive.
+  by rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
     rewrite /= /update2.
@@ -404,7 +404,7 @@ end; simpl.
 - move => n.
   case (name_eq_dec h n) => H_dec; last by rewrite collate_neq.
   rewrite H_dec.
-  rewrite collate_msg_for_not_adjacent //; last exact: adjacent_to_irreflexive.
+  rewrite collate_map_pair_not_related //; last exact: adjacent_to_irreflexive.
 Qed.
 
 Lemma Failure_node_not_adjacent_self : 
@@ -480,25 +480,25 @@ end; simpl.
   break_or_hyp.
     case (name_eq_dec n n') => H_dec.
       rewrite -H_dec {H_dec n'}.
-      rewrite collate_ls_not_in; last by apply: not_in_not_in_adjacent_to_node; exact: not_in_exclude.
-      rewrite collate_msg_for_notin; last exact: not_in_exclude.
+      rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; exact: not_in_exclude.
+      rewrite collate_map_pair_notin; last exact: not_in_exclude.
       by rewrite (Failure_self_channel_empty H).      
     rewrite collate_ls_neq_to //.
     case (adjacent_to_dec n n') => H_dec'.
       case (In_dec name_eq_dec n' failed) => H_in_f.
-        rewrite collate_msg_for_in_failed //.
+        rewrite collate_map_pair_in_failed //.
         by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H).
       case (In_dec name_eq_dec n' (odnwNodes net)) => H_in.
-        rewrite collate_msg_for_live_adjacent //; last exact: (ordered_dynamic_nodes_no_dup H).
+        rewrite collate_map_pair_live_related //; last exact: (ordered_dynamic_nodes_no_dup H).
         move => H_in'.
         find_apply_lem_hyp in_app_or.
         simpl in *.
         break_or_hyp; last by break_or_hyp.
         contradict H0.
         by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H). 
-      rewrite collate_msg_for_notin; last exact: not_in_exclude.
+      rewrite collate_map_pair_notin; last exact: not_in_exclude.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H). 
-    rewrite collate_msg_for_not_adjacent //. 
+    rewrite collate_map_pair_not_related //. 
     by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H).
   have H_neq: h <> n by move => H_eq; repeat find_rewrite.
   case (name_eq_dec h n') => H_dec.
@@ -512,12 +512,12 @@ end; simpl.
         break_or_hyp; last by break_or_hyp.
         contradict H3.
         by eauto.
-      * apply: nodup_adjacent_to_node.
+      * apply: nodup_filter_rel.
         apply: nodup_exclude.
         by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
-      * apply: adjacent_to_adjacent_to_node => //.
+      * apply: related_filter_rel => //.
         exact: In_n_exclude.
-    rewrite collate_ls_not_in; last by move => H_in; find_apply_lem_hyp adjacent_to_node_adjacent_to; break_and.
+    rewrite collate_ls_not_in; last by move => H_in; find_apply_lem_hyp filter_rel_related; break_and.
     rewrite collate_neq //.
     by eauto.
   rewrite collate_ls_neq_to //.
@@ -574,7 +574,7 @@ end; simpl in *.
   rewrite collate_ls_neq_to //.
   case (name_eq_dec h n') => H_dec.
     rewrite -H_dec.
-    rewrite collate_msg_for_notin; last exact: not_in_exclude.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
     by auto.
   rewrite collate_neq //.
   by auto.
@@ -592,7 +592,7 @@ end; simpl in *.
   have H_neq: h <> n by move => H_eq; rewrite -H_eq in H_in.
   case (name_eq_dec h n') => H_dec.
     rewrite -H_dec.
-    rewrite collate_msg_for_notin; last exact: not_in_exclude.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
     by auto.
   rewrite collate_neq //.
   by auto.
@@ -793,20 +793,20 @@ end; simpl in *.
     find_injection.
     case (name_eq_dec h n') => H_dec.
       repeat find_reverse_rewrite.
-      rewrite collate_ls_not_adjacent; last exact: adjacent_to_irreflexive.
-      rewrite collate_msg_for_not_adjacent; last exact: adjacent_to_irreflexive.
+      rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
+      rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
       by rewrite (Failure_self_channel_empty s1).
     rewrite collate_ls_neq_to //.
     case (In_dec name_eq_dec n' (odnwNodes net)) => H_a'; last first.
-      rewrite collate_msg_for_notin; last exact: not_in_exclude.
+      rewrite collate_map_pair_notin; last exact: not_in_exclude.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
     case (In_dec name_eq_dec n' failed0) => H_f'.
-      rewrite collate_msg_for_notin //; last exact: in_not_in_exclude.
+      rewrite collate_map_pair_notin //; last exact: in_not_in_exclude.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
     case (adjacent_to_dec h n') => H_dec'.
-      rewrite collate_msg_for_live_adjacent //; last exact: (ordered_dynamic_nodes_no_dup s1).
+      rewrite collate_map_pair_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
-    rewrite collate_msg_for_not_adjacent //.
+    rewrite collate_map_pair_not_related //.
     by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
   break_or_hyp => //.
   set f := collate _ _ _.
@@ -814,16 +814,16 @@ end; simpl in *.
   rewrite (collate_ls_f_eq _ _ _ _ _ _ _ H_eq_f) {H_eq_f f}.
   case (name_eq_dec h n') => H_dec'; last by rewrite collate_ls_neq_to //; eauto.  
   repeat find_reverse_rewrite.
-  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_ls_not_adjacent //; eauto.
+  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_ls_not_related //; eauto.
   rewrite collate_ls_nodup_in.
   * have H_p: P d (odnwPackets net n h) by eauto.
     move: H_p.
     rewrite (Failure_inactive_no_incoming s1) //=.
     by eauto.
-  * apply: nodup_adjacent_to_node.
+  * apply: nodup_filter_rel.
     apply: nodup_exclude.
     by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
-  * apply: adjacent_to_adjacent_to_node => //.
+  * apply: related_filter_rel => //.
     exact: In_n_exclude.
 Admitted.
 

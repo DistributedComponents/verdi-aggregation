@@ -22,8 +22,6 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 
-Require Import Sorting.Permutation.
-
 Require Import AAC_tactics.AAC.
 
 Require Import AggregationAux.
@@ -368,6 +366,8 @@ Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams :=
                         runGenHandler_ignore s (IOHandler nm msg)
   }.
 
+Instance TreeAggregation_EqDec_eq_name : EqDec_eq name := EqDec_eq_name.
+
 Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_MultiParams :=
   {
     adjacent_to := adjacent_to ;
@@ -375,6 +375,8 @@ Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_M
     adjacent_to_symmetric := adjacent_to_symmetric ;
     adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
+
+Instance TreeAggregation_RelDec_adjacent_to : RelDec adjacent_to := RelDec_adjacent_to.
 
 Instance TreeAggregation_FailMsgParams : FailMsgParams TreeAggregation_MultiParams :=
   {
@@ -1722,7 +1724,7 @@ Instance AggregationData_Data : AggregationData Data :=
 Instance AggregationMsg_TreeAggregation : AggregationMsg :=
   {
     aggr_msg := msg ;
-    aggr_msg_eq_dec := msg_eq_dec ;
+    aggr_msg_EqDec_eq := EqDec_eq_msg ;
     aggr_fail := Fail ;
     aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
   }.

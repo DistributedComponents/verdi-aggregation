@@ -196,6 +196,8 @@ Instance Aggregation_MultiParams : MultiParams Aggregation_BaseParams :=
                         runGenHandler_ignore s (IOHandler nm msg)
   }.
 
+Instance Aggregation_EqDec_eq_name : EqDec_eq name := EqDec_eq_name.
+
 Instance Aggregation_NameOverlayParams : NameOverlayParams Aggregation_MultiParams :=
   {
     adjacent_to := adjacent_to ;
@@ -203,6 +205,8 @@ Instance Aggregation_NameOverlayParams : NameOverlayParams Aggregation_MultiPara
     adjacent_to_symmetric := adjacent_to_symmetric ;
     adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
+
+Instance Aggregation_RelDec_adjacent_to : RelDec adjacent_to := RelDec_adjacent_to.
 
 Instance Aggregation_FailMsgParams : FailMsgParams Aggregation_MultiParams :=
   {
@@ -673,17 +677,17 @@ end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H7 H8 H9 H10 H11 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H7 H8 H9 H10 H11.
     rewrite H10 H9.
     exact: IHrefl_trans_1n_trace1.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H8 H9 H10 H11 H12 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H8 H9 H10 H11 H12.
@@ -701,7 +705,7 @@ end; simpl.
     apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq'.
     by apply NMapFacts.find_mapsto_iff.
   * move: H13 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H5 H6 H7 H8 H9.
@@ -710,7 +714,7 @@ end; simpl.
     apply NSetFacts.remove_3 in H_ins.
     exact: IHrefl_trans_1n_trace1.
   * move: H13 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H5 H6 H7 H8 H9.
@@ -721,14 +725,14 @@ end; simpl.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H7 H8 H9 H6 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H7 H8 H9 H6.
     rewrite H7 H8 /=.
     exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H8 H9 H10 H11 H12 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H8 H9 H10 H11 H12.
@@ -747,16 +751,16 @@ end; simpl.
     apply NMapFacts.add_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_dec'.
     by apply NMapFacts.find_mapsto_iff.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H7 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
 - move => n H_in n' H_ins.
   have H_neq: ~ In n failed by move => H_in'; case: H_in; right.
@@ -792,7 +796,7 @@ end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H7 H8 H9 H10 H11 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H7 H8 H9 H10 H11.
@@ -811,10 +815,10 @@ end; simpl.
     apply NMapFacts.add_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_dec'.
     by apply NMapFacts.find_mapsto_iff.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H5 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H8 H9 H10 H11 H12 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H8 H9 H10 H11 H12.
@@ -832,7 +836,7 @@ end; simpl.
     apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq'.
     by apply NMapFacts.find_mapsto_iff.
   * move: H13 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H5 H6 H7 H8 H9.
@@ -841,7 +845,7 @@ end; simpl.
     apply NSetFacts.remove_3 in H_ins.
     exact: IHrefl_trans_1n_trace1.
   * move: H13 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H5 H6 H7 H8 H9.
@@ -852,30 +856,30 @@ end; simpl.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H7 H8 H9 H6 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H7 H8 H9 H6.
     rewrite H7 H9 /=.
     exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     case: d H8 H9 H10 H11 H12 => /= local0 aggregate0 adjacent0 sent0 received0.
     move => H8 H9 H10 H11 H12.
     rewrite H10 H12.
     exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H4 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
   * move: H7 {H1}.
-    rewrite /update /=.
+    rewrite /update' /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
 - move => n H_in n' H_ins.
   have H_neq: ~ In n failed by move => H_in'; case: H_in; right.
@@ -954,7 +958,7 @@ match goal with
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec; last exact: IHH'_step1.
   rewrite -H_dec {H_dec H'_step2 to} in H0, H1, H2.
   net_handler_cases => //.
@@ -988,7 +992,7 @@ end; simpl.
     by rewrite H_snt in H9.
 - move => H_in_f.
   find_apply_lem_hyp input_handlers_IOHandler.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec; last exact: IHH'_step1.
   rewrite -H_dec {H_dec H'_step2} in H0 H1.
   io_handler_cases => //.
@@ -1169,9 +1173,9 @@ end; simpl.
   rewrite H_dec in H_neq H2.
   rewrite H_dec {H_dec h}.
   case (adjacent_to_dec n' n0) => H_dec; last first.
-    rewrite collate_msg_for_not_adjacent //.
+    rewrite collate_map_pair_not_related //.
     exact: IHrefl_trans_1n_trace1.
-  rewrite collate_msg_for_live_adjacent //.
+  rewrite collate_map_pair_live_related //.
   * apply: append_neq_before_all => //.
     exact: IHrefl_trans_1n_trace1.
   * exact: all_names_nodes.
@@ -1202,7 +1206,7 @@ end; simpl.
   net_handler_cases => //=.
   * rewrite /= in IHrefl_trans_1n_trace1.
     move: H4.
-    rewrite /update2 /update /=.
+    rewrite /update2 /update' /=.
     case (sumbool_and _ _ _ _) => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       rewrite -H_dec' H_eq in H2.
@@ -1226,7 +1230,7 @@ end; simpl.
     + exact: IHrefl_trans_1n_trace1.
   * rewrite /= in IHrefl_trans_1n_trace1.
     move: H4.
-    rewrite /update2 /update /=.
+    rewrite /update2 /update' /=.
     case (sumbool_and _ _ _ _) => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       rewrite -H_dec' H_eq in H2.
@@ -1245,7 +1249,7 @@ end; simpl.
       exact: IHrefl_trans_1n_trace1.
     + exact: IHrefl_trans_1n_trace1.
   * move: H4.
-    rewrite /update2 /update /=.
+    rewrite /update2 /update' /=.
     case (sumbool_and _ _ _ _) => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       rewrite -H_dec' H_eq in H2.
@@ -1267,7 +1271,7 @@ end; simpl.
       exact: IHrefl_trans_1n_trace1.
     + exact: IHrefl_trans_1n_trace1.
   * move: H12.
-    rewrite /update2 /update /=.
+    rewrite /update2 /update' /=.
     case (sumbool_and _ _ _ _) => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       rewrite -H_dec' H_eq in H2.
@@ -1289,7 +1293,7 @@ end; simpl.
       exact: IHrefl_trans_1n_trace1.
     + exact: IHrefl_trans_1n_trace1.
   * move: H12.
-    rewrite /update2 /update /=.
+    rewrite /update2 /update' /=.
     case (sumbool_and _ _ _ _) => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       move => H_in.
@@ -1314,7 +1318,7 @@ end; simpl.
   find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases.
   * move: H3.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; last exact: IHrefl_trans_1n_trace1.
     move => H_in.
     case: d H6 H7 H8 H5 => /= local0 aggregate0 adjacent0 sent0 received0.
@@ -1323,7 +1327,7 @@ end; simpl.
     move: H_in.
     exact: IHrefl_trans_1n_trace1.
   * move: H3.
-    rewrite /= /update2 /update.
+    rewrite /= /update2 /update'.
     case sumbool_and => H_dec; case name_eq_dec => H_dec'.
     + move: H_dec => [H_eq H_eq'].
       rewrite H_eq' H_dec' in H1.
@@ -1344,19 +1348,19 @@ end; simpl.
       exact: IHrefl_trans_1n_trace1.
     + exact: IHrefl_trans_1n_trace1.
   * move: H3.
-    rewrite /= /update.
+    rewrite /= /update'.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
   * move: H3.
-    rewrite /= /update.
+    rewrite /= /update'.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
   * move: H3.
-    rewrite /= /update.
+    rewrite /= /update'.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
   * move: H6.
-    rewrite /= /update.
+    rewrite /= /update'.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
 - move => n0 H_in_f n' m5 H_in {H1}.
@@ -1369,10 +1373,10 @@ end; simpl.
   rewrite H_dec {h H_dec H_in_f} in H_in H_neq H2.
   case (adjacent_to_dec n' n0) => H_dec; last first.
     move: H_in.
-    rewrite collate_msg_for_not_adjacent //.
+    rewrite collate_map_pair_not_related //.
     exact: IHrefl_trans_1n_trace1.
   move: H_in.
-  rewrite collate_msg_for_live_adjacent //.
+  rewrite collate_map_pair_live_related //.
   * move => H_in.
     apply in_app_or in H_in.
     case: H_in => H_in; last by case: H_in => H_in.
@@ -1507,7 +1511,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite -H_dec in H H2 H4 H5 H6 H7 H8 H0 H1.
       rewrite -H_dec /update2 /= {H_dec to H'_step2}.
@@ -1536,7 +1540,7 @@ end; simpl.
     rewrite H_dec' {from H_dec' H'_step2} in H H8 H0.
     rewrite H_dec'' {H_dec'' to} in H H1 H2 H4 H5 H6 H7 H8 H0.
     exact: (recv_aggregate_neq_other_some H'_step1 _ H_dec H H0).
-  * rewrite /update.
+  * rewrite /update'.
     case (name_eq_dec _ _) => H_dec.
       rewrite -H_dec in H H0.
       rewrite -H_dec.
@@ -1555,7 +1559,7 @@ end; simpl.
     have H_ins := Aggregation_aggregate_msg_dst_adjacent_src H'_step1 _ H1 _ _ H_in.
     have [m5 H_snt] := Aggregation_in_set_exists_find_received H'_step1 _ H1 H_ins.
     by rewrite H_snt in H2.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite -H_dec.
       rewrite -H_dec in H H0 H4 H5 H6 H7 H8 H9.
@@ -1587,7 +1591,7 @@ end; simpl.
     have H_f := Aggregation_not_failed_no_fail H'_step1 _ n' H_in_f.
     rewrite H0 in H_f.
     by case: H_f; left.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite -H_dec.
       rewrite -H_dec in H H0 H5.
@@ -1608,7 +1612,7 @@ end; simpl.
     have H_f := Aggregation_not_failed_no_fail H'_step1 _ n' H_in_f.
     rewrite H0 in H_f.
     by case: H_f; left.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite -H_dec in H0.
       rewrite /update2 /=.
@@ -1632,7 +1636,7 @@ end; simpl.
    exact: H.               
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {h H_dec H'_step2} in H3 H4 H5 H6 H0.
     case: d H3 H4 H5 H6 => /=.
@@ -1640,7 +1644,7 @@ end; simpl.
     move => H3 H4 H5 H6.
     rewrite H3 H4 H5 H6 {aggregate0 adjacent0 sent0 receive0 H3 H4 H5 H6}.
     exact: (recv_local _ H'_step1).
-  * rewrite /update /= /update2.
+  * rewrite /update' /= /update2.
     case name_eq_dec => H_dec.
       rewrite -H_dec.
       rewrite -H_dec {h H_dec H'_step2} in H0 H1 H3 H4 H5 H6 H7 H8 H9.
@@ -1668,13 +1672,13 @@ end; simpl.
     case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
     by rewrite H_dec' in H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
 - move => H_in.
   have H_neq: h <> n by move => H_eq; case: H_in; left.
@@ -1827,7 +1831,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //.   
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite -H_dec in H H1 H4 H5 H6 H7 H8 H0.
       rewrite -H_dec /update2 /= {H_dec to H'_step2}.
@@ -1861,7 +1865,7 @@ end; simpl.
       move: H_dec => [H_eq H_eq'].
       rewrite H_eq H_eq' in H0 H H4 H5 H6 H7 H8.
       case (In_dec name_eq_dec n' failed) => H_in.
-        rewrite /update /=.
+        rewrite /update' /=.
         case name_eq_dec => H_dec; last by rewrite H_eq' in H_dec.
         rewrite -H_dec H_eq in H9.
         have H_neq: n <> n' by move => H_eq_n; rewrite -H_eq_n in H_in.
@@ -1873,7 +1877,7 @@ end; simpl.
       have H_inl := Aggregation_not_failed_no_fail H'_step1 _ n H_in.
       rewrite H0 in H_inl.
       by case: H_inl; left.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec'; last exact: H2.
     rewrite -H_dec' in H_dec.
     case: H_dec => H_dec //.
@@ -1898,14 +1902,14 @@ end; simpl.
 - move {H'_step2}.
   find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {h H_dec} in H0 H3 H4 H1 H5 H6.
     case: d H3 H4 H5 H6 => /= local0 aggregate0 adjacent0 sent0 receive0.
     move => H3 H4 H5 H6.
     rewrite H3 H4 H5 H6 {aggregate0 adjacent0 sent0 receive0 H3 H4 H5 H6}.
     exact: (recv_local _ H'_step1).
-  - rewrite /update /=.
+  - rewrite /update' /=.
     case name_eq_dec => H_dec.
       rewrite /update2 /=.
       case (sumbool_and _ _ _ _) => H_dec'.
@@ -1935,11 +1939,11 @@ end; simpl.
     exact: (recv_send_aggregate_neq H'_step1).
   * have [m' H_snt] := Aggregation_in_set_exists_find_sent H'_step1 _ H0 H.
     by rewrite H_snt in H4.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
-  * rewrite /update /=.
+  * rewrite /update' /=.
     by case name_eq_dec => H_dec; first by rewrite -H_dec.
 - move => H_in_f {H'_step2}.
   have H_neq: h <> n by move => H_neq'; case: H_in_f; left.
@@ -1949,8 +1953,8 @@ end; simpl.
   case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
   rewrite H_dec.
   rewrite H_dec {H_dec h H_in_f} in H0 H_neq.
-  case (adjacent_to_dec n' n) => H_dec; last by rewrite collate_msg_for_not_adjacent.
-  rewrite collate_msg_for_live_adjacent //.
+  case (adjacent_to_dec n' n) => H_dec; last by rewrite collate_map_pair_not_related.
+  rewrite collate_map_pair_live_related //.
   * exact: (fail_adjacent H'_step1).
   * exact: all_names_nodes.
   * exact: no_dup_nodes.
@@ -1970,7 +1974,7 @@ Instance AggregationData_Data : AggregationData Data :=
 Instance AggregationMsg_Aggregation : AggregationMsg :=
   {
     aggr_msg := msg ;
-    aggr_msg_eq_dec := msg_eq_dec ;
+    aggr_msg_EqDec_eq := EqDec_eq_msg ;
     aggr_fail := Fail ;
     aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
   }.
@@ -2001,7 +2005,7 @@ end; simpl.
   net_handler_cases => //=.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
     rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {H_dec to H3} in H1 H5 H6 H7 H8 H9 H2.
     case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
@@ -2021,7 +2025,7 @@ end; simpl.
     by rewrite H_rcd in H1.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
     rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {H_dec to H3} in H1 H5 H6 H7 H8 H9 H10 H2.
     case: d H6 H7 H8 H9 H10 => /= local0 aggregate0 adjacent0 sent0 received0.
@@ -2048,7 +2052,7 @@ end; simpl.
   io_handler_cases => //.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
     rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {h H_dec} in H5 H2 H6 H7 H4.
     case: d H5 H6 H7 H4 => /= local0 aggregate0 adjacent0 sent0 received0.
@@ -2061,7 +2065,7 @@ end; simpl.
     by aac_reflexivity.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
     rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     rewrite -H_dec {h H_dec} in H1 H2 H4 H5 H6 H8 H9 H10.
     case: d H7 H6 H8 H9 H10 => /= local0 aggregate0 adjacent0 sent0 received0.
@@ -2073,15 +2077,15 @@ end; simpl.
     by rewrite H_rcd in H5.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
     rewrite /= in IH.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     by rewrite -H_dec.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     by rewrite -H_dec.
   * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     by rewrite -H_dec.
 - move => H_in_f.
@@ -2264,7 +2268,7 @@ rewrite /m1 /m2 {m1 m2}.
 elim: ns => //.
 move => n' ns IH.
 rewrite /= IH.
-suff H_suff: update2 f from to ms n' n = f n' n by rewrite H_suff.
+suff H_suff: @update2 _ Aggregation_EqDec_eq_name _ f from to ms n' n = f n' n by rewrite H_suff.
 rewrite /update2 /=.
 case (sumbool_and _ _ _ _) => H_dec //.
 move: H_dec => [H_eq H_eq'].
@@ -2304,10 +2308,10 @@ by aac_reflexivity.
 Qed.
 
 Lemma fold_right_update_id :
-forall ns h state,
+forall (ns : list name) h state,
 fold_right 
   (fun (n : name) (l' : list Data) =>
-     update state h (state h) n :: l') [] ns =
+     update' state h (state h) n :: l') [] ns =
 fold_right 
   (fun (n : name) (l' : list Data) =>
      (state n) :: l') [] ns.
@@ -2315,7 +2319,7 @@ Proof.
 elim => //.
 move => n l IH h state.
 rewrite /= IH.
-rewrite /update /=.
+rewrite /update' /=.
 case name_eq_dec => H_dec //.
 by rewrite H_dec.
 Qed.
@@ -2443,7 +2447,7 @@ Qed.
 Lemma sum_fail_sent_incoming_active_not_in_eq_alt :
 forall ns1 ns0 packets state h d,
   ~ In h ns1 ->
-  sum_fail_sent_incoming_active ns0 ns1 packets (update state h d) =
+  sum_fail_sent_incoming_active ns0 ns1 packets (update' state h d) =
   sum_fail_sent_incoming_active ns0 ns1 packets state.
 Proof.
 elim => //=.
@@ -2451,7 +2455,7 @@ move => n ns1 IH ns0 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_not_in: ~ In h ns1 by move => H_in'; case: H_in; right.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 by case (name_eq_dec _ _) => H_dec.
 Qed.
 
@@ -2477,7 +2481,7 @@ Qed.
 Lemma sum_fail_received_incoming_active_not_in_eq_alt :
 forall ns packets state h d,
   ~ In h ns ->
-  sum_fail_received_incoming_active nodes ns packets (update state h d) =
+  sum_fail_received_incoming_active nodes ns packets (update' state h d) =
   sum_fail_received_incoming_active nodes ns packets state.
 Proof.
 elim => //=.
@@ -2485,7 +2489,7 @@ move => n ns IH packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_not_in: ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 by case (name_eq_dec _ _) => H_dec.
 Qed.
 
@@ -2928,14 +2932,14 @@ Qed.
 Lemma Nodes_data_not_in_eq :
   forall ns (state : name -> Data) to d,
     ~ In to ns ->
-    Nodes_data ns (update state to d) =
+    Nodes_data ns (update' state to d) =
     Nodes_data ns state.
 Proof.
 elim => //.
 move => n ns IH state to d H_in.
 rewrite /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite {1}/update /=.
+rewrite {1}/update' /=.
 case name_eq_dec => H_dec //.
 rewrite IH //.
 move => H_in'.
@@ -2948,14 +2952,14 @@ Lemma sum_fail_map_incoming_sent_neq_eq_alt :
   n <> to ->
   n <> h ->
   sum_fail_map_incoming ns (update2 packets from to ms) n
-    (adjacent (update state h d n))
-    (sent (update state h d n)) =
+    (adjacent (update' state h d n))
+    (sent (update' state h d n)) =
   sum_fail_map_incoming ns packets n (adjacent (state n)) (sent (state n)).
 Proof.
 elim => //=.
 move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 case (name_eq_dec _ _) => H_dec //=.
 rewrite /update2 /=.
 case (sumbool_and _ _ _ _) => H_dec' //.
@@ -2989,14 +2993,14 @@ Lemma sum_fail_map_incoming_received_neq_eq_alt :
   n <> to ->
   n <> h ->
   sum_fail_map_incoming ns (update2 packets from to ms) n
-    (adjacent (update state h d n))
-    (received (update state h d n)) =
+    (adjacent (update' state h d n))
+    (received (update' state h d n)) =
   sum_fail_map_incoming ns packets n (adjacent (state n)) (received (state n)).
 Proof.
 elim => //=.
 move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 case (name_eq_dec _ _) => H_dec //=.
 rewrite /update2 /=.
 case (sumbool_and _ _ _ _) => H_dec' //.
@@ -3157,7 +3161,7 @@ Qed.
 Lemma sum_fail_sent_incoming_active_update_not_in_eq :
   forall ns0 ns1 packets state h d,
     ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 packets (update state h d) =
+    sum_fail_sent_incoming_active ns1 ns0 packets (update' state h d) =
     sum_fail_sent_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
@@ -3165,14 +3169,14 @@ move => n ns IH ns1 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_in': ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 by case (name_eq_dec _ _) => H_dec.
 Qed.
 
 Lemma sum_fail_received_incoming_active_update_not_in_eq :
   forall ns0 ns1 packets state h d,
     ~ In h ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 packets (update state h d) =
+    sum_fail_received_incoming_active ns1 ns0 packets (update' state h d) =
     sum_fail_received_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
@@ -3180,7 +3184,7 @@ move => n ns IH ns1 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_in': ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
-rewrite /update.
+rewrite /update'.
 by case (name_eq_dec _ _) => H_dec.
 Qed.
 
@@ -3466,7 +3470,7 @@ Lemma sum_aggregate_msg_incoming_active_singleton_neq_collate_eq :
   forall ns f h n,
   h <> n ->
   sum_aggregate_msg_incoming_active [n] ns f =  
-  sum_aggregate_msg_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))).
+  sum_aggregate_msg_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))).
 Proof.
 elim => //=.
 move => n' ns IH f h n H_neq.
@@ -3517,7 +3521,7 @@ Lemma sum_fail_sent_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
   sum_fail_sent_incoming_active [n] ns f g = 
-  sum_fail_sent_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))) g.
+  sum_fail_sent_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -3548,7 +3552,7 @@ Lemma sum_fail_received_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
   sum_fail_received_incoming_active [n] ns f g =
-  sum_fail_received_incoming_active [n] ns (collate h f (msg_for Fail (adjacent_to_node h ns))) g.
+  sum_fail_received_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -3564,7 +3568,7 @@ Qed.
 Lemma sum_fail_map_incoming_not_adjacent_collate_eq :
   forall ns ns' f h n adj map,
   ~ adjacent_to h n ->
-  sum_fail_map_incoming ns (collate h f (msg_for Fail (adjacent_to_node h ns'))) n adj map =
+  sum_fail_map_incoming ns (collate h f (map_pair Fail (filter_rel h ns'))) n adj map =
   sum_fail_map_incoming ns f n adj map.
 Proof.
 elim => //=.
@@ -3572,13 +3576,13 @@ move => n' ns IH ns' f h n adj map H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams _ _ _ _ _ H_adj).
+by rewrite collate_map_pair_not_related.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_not_adjacent_collate_eq :
   forall ns ns' f h n,
   ~ adjacent_to h n ->
-  sum_aggregate_msg_incoming ns (collate h f (msg_for Fail (adjacent_to_node h ns'))) n =
+  sum_aggregate_msg_incoming ns (collate h f (map_pair Fail (filter_rel h ns'))) n =
   sum_aggregate_msg_incoming ns f n.
 Proof.
 elim => //=.
@@ -3586,7 +3590,7 @@ move => n' ns IH ns' f h n H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams).
+by rewrite collate_map_pair_not_related.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_active_eq_not_in_eq :
@@ -3616,7 +3620,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (collate_f_eq _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by case in_dec => /= H_dec; rewrite IH.
 Qed.
@@ -3637,7 +3641,7 @@ Qed.
 
 Lemma sum_aggregate_msg_collate_fail_eq :
   forall l f h n n',
-    sum_aggregate_msg (collate h f (msg_for Fail l) n' n) =
+    sum_aggregate_msg (collate h f (map_pair Fail l) n' n) =
     sum_aggregate_msg (f n' n).
 Proof.
 elim => //=.
@@ -3653,7 +3657,7 @@ Qed.
 Lemma sum_aggregate_msg_incoming_collate_msg_for_notin_eq :
   forall ns ns' h n f,
   ~ In n ns' ->
-  sum_aggregate_msg_incoming ns (collate h f (msg_for Fail (adjacent_to_node h ns'))) n =
+  sum_aggregate_msg_incoming ns (collate h f (map_pair Fail (filter_rel h ns'))) n =
   sum_aggregate_msg_incoming ns f n.
 Proof.
 elim => //=.
@@ -3664,7 +3668,7 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
   case: H_dec'.
   rewrite -H_eq.
   rewrite -H_eq {H_eq} in H_dec.
-  by apply (@in_collate_in _ _ Aggregation_NameOverlayParams) in H_dec.
+  by apply in_collate_in in H_dec.
 - case: H_dec.
   exact: collate_in_in.
 - rewrite IH //.
@@ -3693,11 +3697,11 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
 - case: H_dec.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
+  by rewrite (collate_f_eq _ _ _ _ _ _ H_eq_f).
 - rewrite IH //.
   set up2 := update2 _ _ _ _.
   have H_eq_f: up2 n0 n = f n0 n by rewrite /up2 /update2; case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
-  by rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq_f).
+  by rewrite (collate_f_eq _ _ _ _ _ _ H_eq_f).
 Qed.
 
 Lemma sum_fail_map_incoming_collate_update2_eq :
@@ -3713,7 +3717,7 @@ have H_eq: f1 n0 n' = f n0 n'.
   rewrite /f1.
   rewrite /update2.
   by case sumbool_and => /= H_and; first by move: H_and => [H_eq H_eq']; rewrite H_eq' in H_neq.
-rewrite (@collate_f_eq _ Aggregation_MultiParams _ _ _ _ _ _ H_eq) {H_eq}.
+rewrite (collate_f_eq _ _ _ _ _ _ H_eq) {H_eq}.
 rewrite /f1 {f1}.
 by rewrite IH.
 Qed.
@@ -3829,7 +3833,7 @@ end; simpl.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => /=.
   * move: H4 H5 H6 H7 H.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite H11 -H_dec'.
       move => H_ins.
@@ -3873,7 +3877,7 @@ end; simpl.
     apply: H_agg.
     by left.
   * move: H4 H5 H6 H7.
-    rewrite /update.
+    rewrite /update'.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite H12 -H_dec'.
       move => H_ins.
@@ -3931,7 +3935,7 @@ end; simpl.
   io_handler_cases.
   * rewrite /=.
     move: H3 H4 H5 H6.
-    rewrite /update.
+    rewrite /update'.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite H9 -H_dec'.
       move => H_ins.
@@ -3945,7 +3949,7 @@ end; simpl.
     + exact: IHH_st1.
   * rewrite /=.
     move: H3 H4 H5 H6.
-    rewrite /update.
+    rewrite /update'.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite H12 -H_dec'.
       move => H_ins.
@@ -3985,7 +3989,7 @@ end; simpl.
     by rewrite H_ex in H9.
   * rewrite /=.
     move: H3 H4 H5 H6.
-    rewrite /update.
+    rewrite /update'.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite H_dec'.
       move => H_ins.
@@ -3998,7 +4002,7 @@ end; simpl.
       exact: IHH_st1.
     + exact: IHH_st1.
   * move: H3 H4 H5 H6.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite -H_dec'.
       move => H_ins.
@@ -4011,7 +4015,7 @@ end; simpl.
       exact: IHH_st1.
     + exact: IHH_st1.
   * move: H6 H7 H8 H9.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite -H_dec'.
       move => H_ins.
@@ -4032,6 +4036,26 @@ end; simpl.
   exact: IHH_st1.
 Qed.
 
+Lemma update'_nop :
+  forall (sigma : name -> data) x y,
+    update' sigma x (sigma x) y = sigma y.
+Proof.
+  unfold update'.
+  intros. break_if; congruence.
+Qed.
+
+Require Import FunctionalExtensionality.
+
+Lemma update'_nop_ext :
+  forall (sigma : name -> data) h,
+    update' sigma h (sigma h) = sigma.
+Proof.
+  intros.
+  apply functional_extensionality.
+  intros.
+  apply update'_nop.
+Qed.
+
 Lemma Aggregation_conserves_network_mass : 
   forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr ->
@@ -4043,11 +4067,19 @@ have H_cons := Aggregation_conserves_node_mass_all H_step.
 apply global_conservation in H_cons.
 rewrite /conserves_mass_globally in H_cons.
 rewrite H_cons {H_cons}.
-suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)) * (@sum_received _ AggregationData_Data (Nodes_data (exclude failed nodes) onet.(onwState)))^-1 =
-             @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (exclude failed nodes) onet.(onwPackets) *
-             @sum_fail_sent_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState) *
-             (@sum_fail_received_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (exclude failed nodes) onet.(onwPackets) onet.(onwState))^-1
- by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
+suff H_suff: @sum_sent _ AggregationData_Data (Nodes_data (@exclude _ Aggregation_EqDec_eq_name failed nodes) onet.(onwState)) * (@sum_received _ AggregationData_Data (Nodes_data (@exclude _ Aggregation_EqDec_eq_name failed nodes) onet.(onwState)))^-1 =
+             @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (@exclude _ Aggregation_EqDec_eq_name failed nodes) onet.(onwPackets) *
+             @sum_fail_sent_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (@exclude _ Aggregation_EqDec_eq_name failed nodes) onet.(onwPackets) onet.(onwState) *
+             (@sum_fail_received_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (@exclude _ Aggregation_EqDec_eq_name failed nodes) onet.(onwPackets) onet.(onwState))^-1.
+  move: H_suff.
+  set ss1 := sum_sent _.
+  set sr1 := sum_received _. 
+  set sai1 := sum_aggregate_msg_incoming_active _ _ _.
+  set sfsia := sum_fail_sent_incoming_active _ _ _ _.
+  set sfria := sum_fail_received_incoming_active _ _ _ _.
+  set sa := sum_aggregate _.
+  move => H_suff.
+  by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
 remember step_o_f_init as y in *.
 have ->: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
@@ -4074,7 +4106,7 @@ end; simpl.
     exact: In_n_exclude _ _ _ H1 H_inn.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].  
-  have H_nd := nodup_exclude failed0 no_dup_nodes.
+  have H_nd := @nodup_exclude _ Aggregation_EqDec_eq_name _ failed0 no_dup_nodes.
   rewrite H_inn in H_nd.
   have H_nin := nodup_notin _ _ _ H_nd.
   have H_to_nin: ~ In to ns0 by move => H_in; case: H_nin; apply in_or_app; left.
@@ -4082,7 +4114,7 @@ end; simpl.
   move: IHH_step1.
   rewrite H_inn.
   rewrite 2!Nodes_data_split /=.
-  rewrite {2 5}/update.
+  rewrite {2 5}/update'.
   case (name_eq_dec _ _) => H_dec {H_dec} //.
   rewrite Nodes_data_not_in_eq //.
   rewrite Nodes_data_not_in_eq //.  
@@ -4105,7 +4137,7 @@ end; simpl.
     rewrite (sum_fail_sent_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
     rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
     rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
-    rewrite /update.
+    rewrite /update'.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
     rewrite H5 H6 H7 {H3 H4 H5 H6 H7}.
     case (In_dec Msg_eq_dec Fail (net.(onwPackets) from to)) => H_in_fail.
@@ -4143,7 +4175,7 @@ end; simpl.
     rewrite (sum_fail_received_incoming_active_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
     have H_bef := Aggregation_in_after_all_fail_aggregate H_step1 _ H1 from.
     rewrite (sum_aggregate_msg_incoming_fail_update2_eq _ _ _ H_bef _ no_dup_nodes) //.
-    rewrite /update.
+    rewrite /update'.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
     rewrite H6 H7 H8.
     rewrite (sum_fail_map_incoming_fail_remove_eq _ _ _ no_dup_nodes H_ins _ H_in' H) //.
@@ -4167,7 +4199,7 @@ end; simpl.
     exact: In_n_exclude _ _ _ H0 H_inn.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].  
-  have H_nd := nodup_exclude failed0 no_dup_nodes.
+  have H_nd := @nodup_exclude _ Aggregation_EqDec_eq_name _ failed0 no_dup_nodes.
   rewrite H_inn in H_nd.
   have H_nin := nodup_notin _ _ _ H_nd.
   have H_h_nin: ~ In h ns0 by move => H_in; case: H_nin; apply in_or_app; left.
@@ -4175,7 +4207,7 @@ end; simpl.
   move: IHH_step1.
   rewrite H_inn.
   rewrite 2!Nodes_data_split /=.
-  rewrite {2 5}/update.
+  rewrite {2 5}/update'.
   case (name_eq_dec _ _) => H_dec {H_dec} //.
   rewrite Nodes_data_not_in_eq //.
   rewrite Nodes_data_not_in_eq //.  
@@ -4190,7 +4222,7 @@ end; simpl.
     rewrite sum_fail_sent_incoming_active_not_in_eq_alt //.
     rewrite sum_fail_received_incoming_active_not_in_eq_alt //.
     rewrite sum_fail_received_incoming_active_not_in_eq_alt //.
-    rewrite /update.
+    rewrite /update'.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
     by rewrite H3 H4 H5.
   * have H_x_Nodes: In x nodes by exact: all_names_nodes.
@@ -4200,7 +4232,7 @@ end; simpl.
     aac_rewrite IH.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_neq_eq //.
-    rewrite {5 6 7 8}/update /=.
+    rewrite {5 6 7 8}/update' /=.
     case (name_eq_dec _ _) => H_dec {H_dec} //.
     rewrite H6 H8.
     case (In_dec name_eq_dec x failed0) => H_dec.
@@ -4215,7 +4247,7 @@ end; simpl.
       rewrite sum_fail_sent_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_received_incoming_active_not_in_eq_alt2 //.
       rewrite sum_fail_received_incoming_active_not_in_eq_alt2 //.
-      rewrite /update /=.
+      rewrite /update' /=.
       case name_eq_dec => H_eq //.
       rewrite H6 H7.
       rewrite (sum_fail_map_incoming_add_aggregate_eq _ _ _ _ no_dup_nodes) //.
@@ -4233,7 +4265,7 @@ end; simpl.
     rewrite sum_fail_sent_incoming_active_update2_app_eq //.
     rewrite sum_fail_received_incoming_active_update2_app_eq //.
     rewrite sum_fail_received_incoming_active_update2_app_eq //.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_eq //.
     rewrite H6 H7.
     rewrite (sum_fail_map_incoming_not_in_fail_add_update2_eq _ _ _ _ _ _ _ no_dup_nodes) //.    
@@ -4267,9 +4299,9 @@ end; simpl.
     by aac_reflexivity.
   * have [m' H_snt] := Aggregation_in_set_exists_find_sent H_step1 _ H0 H.
     by rewrite H_snt in H3.
-  * by rewrite update_nop update_nop_ext.
-  * by rewrite update_nop update_nop_ext.
-  * by rewrite update_nop update_nop_ext.
+  * by rewrite update'_nop update'_nop_ext.
+  * by rewrite update'_nop update'_nop_ext.
+  * by rewrite update'_nop update'_nop_ext.
 - move {H_step2}.
   have H_in_from : In h nodes by exact: all_names_nodes.
   rewrite /= in IHH_step1.
@@ -4278,7 +4310,7 @@ end; simpl.
     exact: In_n_exclude _ _ _ H0 H_inn.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].
-  have H_nd := nodup_exclude failed0 no_dup_nodes.
+  have H_nd := @nodup_exclude _ Aggregation_EqDec_eq_name _ failed0 no_dup_nodes.
   rewrite H_inn in H_nd.
   have H_nin := nodup_notin _ _ _ H_nd.
   have H_to_nin: ~ In h ns0 by move => H_in; case: H_nin; apply in_or_app; left.
@@ -4296,7 +4328,7 @@ end; simpl.
   rewrite 2!sum_fail_received_incoming_active_split /=.
   gsimpl.
   move => IH.
-  rewrite adjacent_to_node_self_eq.
+  rewrite filter_rel_self_eq.
   set l := collate _ _ _.
   have H_eq: sum_sent (Nodes_data ns0 (onwState net)) * 
    sum_sent (Nodes_data ns1 (onwState net)) *
@@ -4550,9 +4582,9 @@ end; simpl.
       case: H_Adj'.
       move: H_ins'.
       exact: (Aggregation_in_adj_adjacent_to H_step1).
-    case in_dec => /= H_dec; first by rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams) // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
+    case in_dec => /= H_dec; first by rewrite collate_map_pair_not_related // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
     move {H_dec}.
-    rewrite (@collate_msg_for_not_adjacent _ _ Aggregation_NameOverlayParams _ _ _ _ _ H_Adj).
+    rewrite (collate_map_pair_not_related _ _ _ _ _ H_Adj).
     rewrite (collate_neq _ _ _ H_neq) //.
     rewrite (Aggregation_self_channel_empty H_step1) //=.
     rewrite {3 6}/sum_fail_map /=.
@@ -4632,13 +4664,13 @@ end; simpl.
   have H_in_n: ~ In n ns.
     move => H_in_n.
     rewrite -H_ex' in H_in_n.
-    by apply (@exclude_in _ Aggregation_MultiParams) in H_in_n.
+    by apply exclude_in in H_in_n.
   case in_dec => /= H_dec_f; last first.
     case: H_dec_f.
-    have H_a := @collate_msg_for_live_adjacent_alt _ _ Aggregation_NameOverlayParams Fail _ _ _ _ H_Adj H_in_n.
+    have H_a := @collate_map_pair_live_related_alt _ Aggregation_EqDec_eq_name _ Aggregation_RelDec_adjacent_to _ Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
-    case adjacent_to_dec => /= H_dec // {H_dec}.
+    case rel_dec => /= H_dec // {H_dec}.
     rewrite /=.
     move => H_a.
     by rewrite H_a; first by apply in_or_app; right; left.
@@ -4701,7 +4733,7 @@ end; simpl.
   case in_dec => /= H_dec; last first.
     case: H_dec.
     rewrite /cl /u2.
-    have H_a := @collate_msg_for_live_adjacent_alt _ _ Aggregation_NameOverlayParams Fail _ _ _ _ H_Adj H_in_n.
+    have H_a := @collate_map_pair_live_related_alt _ Aggregation_EqDec_eq_name _ Aggregation_RelDec_adjacent_to _ Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
     case adjacent_to_dec => /= H_dec // {H_dec}.
@@ -4751,6 +4783,19 @@ end; simpl.
   rewrite sum_fail_sent_incoming_active_not_in_eq_alt_alt //.
   rewrite sum_fail_received_incoming_active_not_in_eq_alt_alt //.
   rewrite /cl {u2 cl}.
+  set s1 := sum_fail_map_incoming _ _ _ _ _.
+  set s2 := sum_fail_received_incoming_active _ _ _ _.
+  set s3 := sum_fail_received_incoming_active _ _ _ _.
+  set s4 := sum_fail_received_incoming_active _ _ _ _.
+  set s5 := sum_aggregate_msg_incoming_active _ _ _.
+  set s6 := sum_aggregate_msg_incoming _ _ _.
+  set s7 := sum_aggregate_msg _.
+  set s8 := sum_fail_sent_incoming_active _ _ _ _.
+  set s9 := sum_fail_map_incoming _ _ _ _ _.
+  set s10 := sum_fail_sent_incoming_active _ _ _ _.
+  set s11 := sum_fail_sent_incoming_active _ _ _ _.
+  set s12 := sum_aggregate_msg_incoming_active _ _ _.
+  set s13 := sum_aggregate_msg_incoming_active _ _ _.  
   by aac_reflexivity.
 Qed.
 

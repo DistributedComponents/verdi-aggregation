@@ -173,8 +173,8 @@ match goal with
 | [ H : step_o_f _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - find_apply_lem_hyp net_handlers_NetHandler.
-  rewrite /update /=.
-  case name_eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
+  rewrite /update' /=.
+  case eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
   rewrite -H_dec in H3.
   net_handler_cases.
   apply NSet.remove_spec in H0.
@@ -306,7 +306,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec //.
   rewrite -H_dec {H_dec H'_step2 to} in H0 H1 H5.
   case: d H5 => /=.
@@ -383,7 +383,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     rewrite -H_dec /update2 /= {H_dec to H'_step2}.
@@ -504,7 +504,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     have H_neq: n <> from.
@@ -539,12 +539,12 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
-      rewrite collate_msg_for_live_adjacent //.
+      rewrite collate_map_pair_live_related //.
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: all_names_nodes.
       * exact: no_dup_nodes.
-    rewrite collate_msg_for_not_adjacent //.
+    rewrite collate_map_pair_not_related //.
     exact: IHH'_step1.
   rewrite collate_neq //.
   exact: IHH'_step1.
@@ -633,7 +633,7 @@ end; simpl.
   move => H_in_f H_in_f'.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec_n.
     rewrite -H_dec_n.
     rewrite -H_dec_n {H_dec_n to} in H5 H6 H1 H0.
@@ -752,7 +752,7 @@ rewrite -/(P_curr _).
 apply: (P_inv_n H_st); rewrite /P_curr //= {P_curr net tr H_st failed H_f}.
 - move => H_ins.
   apply adjacent_to_node_adjacency in H_ins.
-  apply adjacent_to_node_adjacent_to in H_ins.
+  apply filter_rel_related in H_ins.
   move: H_ins => [H_in H_adj].
   by apply adjacent_to_symmetric in H_adj.
 - move => net failed tr n0 H_st H_in_f IH H_adj.
@@ -792,14 +792,14 @@ end; simpl.
     rewrite H_eq H_eq' {H_eq H_eq' to from} in H7 H_ins H3 H2.
     rewrite /= in IHrefl_trans_1n_trace1.
     move: H_ins.
-    rewrite /update /=.
+    rewrite /update' /=.
     case name_eq_dec => H_dec //.
     move => H_ins.
     case: d H7 H_ins => /= adjacent0 H_eq H_adj.
     rewrite H_eq in H_adj.
     by apply NSetFacts.remove_1 in H_adj.
   move: H_ins.
-  rewrite /update /=.
+  rewrite /update' /=.
   case name_eq_dec => H_dec'.
     case: H_dec => H_dec; last by rewrite H_dec' in H_dec.
     case: d H7 => /= adjacent0 H_eq.
@@ -829,7 +829,7 @@ end; simpl.
     split; first by left.
     rewrite H_dec in H2.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
-    rewrite collate_msg_for_live_adjacent //.
+    rewrite collate_map_pair_live_related //.
     * apply in_or_app.
       by right; left.
     * exact: all_names_nodes.
@@ -892,7 +892,7 @@ rewrite -/(P_curr _ (onet.(onwState) n') (onet.(onwPackets) n n')
 apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_f H_f'}.
 - move => H_adj.
   apply adjacent_to_node_adjacency.
-  apply adjacent_to_adjacent_to_node; first exact: all_names_nodes.
+  apply related_filter_rel; first exact: all_names_nodes.
   exact: adjacent_to_symmetric.
 - move => onet failed tr from ms H_st H_eq H_in_f H_eq' H_neq H_adj H_adj_to.
   rewrite H_eq in H_adj_to.

@@ -1,5 +1,5 @@
 Require Import Verdi.
-Require Import HandlerMonad.
+Require Import OrderedLemmas.
 Require Import StructTact.Fin.
 
 Require Import OrderedType.
@@ -143,59 +143,34 @@ Module Adjacency (Import NT : NameType)
 
 Definition NS := NSet.t.
 
-Definition adjacent_to_node (n : name) := filter (fun n' => if adjacent_to_dec n n' then true else false).
+Instance RelDec_adjacent_to_adjacency : RelDec adjacent_to := adjacent_to_dec.
+
+Definition adjacency (n : name) (ns : list name) : NS :=
+  fold_right (fun n' fs => NSet.add n' fs) NSet.empty (filter_rel n ns).
 
 Require Import mathcomp.ssreflect.ssreflect.
 
-Lemma adjacent_to_node_adjacent_to : 
-  forall n n' ns,
-  In n' (adjacent_to_node n ns) -> In n' ns /\ adjacent_to n n'.
-Proof.
-move => n n' ns H_in.
-rewrite /adjacent_to_node in H_in.
-apply filter_In in H_in.
-move: H_in => [H_in H_eq].
-split => //.
-move: H_eq.
-by case adjacent_to_dec.
-Qed.
-
-Lemma adjacent_to_adjacent_to_node : 
-  forall n n' ns,
-    In n' ns -> 
-    adjacent_to n n' ->
-    In n' (adjacent_to_node n ns).
-Proof.
-move => n n' ns H_in H_adj.
-apply filter_In.
-split => //.
-by case adjacent_to_dec.
-Qed.
-
-Definition adjacency (n : name) (ns : list name) : NS :=
-  fold_right (fun n' fs => NSet.add n' fs) NSet.empty (adjacent_to_node n ns).
-
 Lemma adjacent_to_node_adjacency : 
   forall n n' ns, 
-    In n' (adjacent_to_node n ns) <-> NSet.In n' (adjacency n ns).
+    In n' (filter_rel n ns) <-> NSet.In n' (adjacency n ns).
 Proof.
 move => n n' ns.
 split.
-elim: ns => //=.
-move => n0 ns IH.
-rewrite /adjacency /=.
-case adjacent_to_dec => H_dec /= H_in; last exact: IH.
-case: H_in => H_in.
-  rewrite H_in.
+  elim: ns => //=.
+  move => n0 ns IH.
+  rewrite /adjacency /=.
+  case rel_dec => H_dec; case rel_dec => H_dec' //= H_in.
+  case: H_in => H_in.
+    rewrite H_in.
+    apply NSet.add_spec.
+    by left.  
   apply NSet.add_spec.
-  by left.
-apply NSet.add_spec.
-right.
-exact: IH.
+  right.
+  exact: IH.
 elim: ns => //=; first by rewrite /adjacency /=; exact: NSet.empty_spec.
 move => n0 ns IH.
 rewrite /adjacency /=.
-case adjacent_to_dec => H_dec /= H_ins; last exact: IH.
+case rel_dec => H_dec; case rel_dec => H_dec' //= H_ins.
 apply NSet.add_spec in H_ins.
 case: H_ins => H_ins; first by left.
 right.
@@ -207,7 +182,7 @@ Lemma not_adjacent_self :
 Proof.
 move => n ns H_ins.
 apply adjacent_to_node_adjacency in H_ins.
-apply adjacent_to_node_adjacent_to in H_ins.
+apply filter_rel_related in H_ins.
 move: H_ins => [H_in H_adj].
 contradict H_adj.
 exact: adjacent_to_irreflexive.
@@ -222,13 +197,16 @@ Proof.
 move => n n' ns H_in H_ins.
 apply adjacent_to_node_adjacency.
 apply adjacent_to_node_adjacency in H_ins.
-apply adjacent_to_node_adjacent_to in H_ins.
+apply filter_rel_related in H_ins.
 move: H_ins => [H_in' H_adj].
 apply adjacent_to_symmetric in H_adj.
-exact: adjacent_to_adjacent_to_node.
+exact: related_filter_rel.
 Qed.
 
-Lemma adjacency_mutual : forall (n n' : name), NSet.In n (adjacency n' nodes) -> NSet.In n' (adjacency n nodes).
+Lemma adjacency_mutual : 
+  forall (n n' : name), 
+    NSet.In n (adjacency n' nodes) -> 
+    NSet.In n' (adjacency n nodes).
 Proof.
 move => n n' H_ins.
 have H_in: In n' nodes by exact: all_names_nodes.

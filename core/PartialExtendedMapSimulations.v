@@ -670,13 +670,13 @@ Lemma pt_ext_map_in_snd :
                match pt_ext_map_msg (snd nm) with
                | Some m0 => (tot_map_name (fst nm), m0) :: l
                | None => l
-               end) [] (msg_for m' (adjacent_to_node h ns))) ->
+               end) [] (map_pair m' (filter_rel h ns))) ->
    snd nm = m.
 Proof.
 move => m m' h.
 elim => //=.
 move => n ns IH.
-case (adjacent_to_dec _ _) => H_dec /=.
+case (rel_dec _ _) => H_dec /=.
   case => n' m0 H_eq.
   case H_eq': (pt_ext_map_msg m') => [m1|]; last by rewrite H_eq' in H_eq.
   rewrite H_eq' in H_eq.
@@ -728,16 +728,16 @@ Qed.
 Context {overlay_map_congr : NameOverlayParamsTotalMapCongruency overlay_fst overlay_snd name_map}.
 
 Lemma pt_ext_in_msg_for_adjacent_to :
-  forall m ns failed h n,
-    In (tot_map_name_inv n, m) (msg_for m (adjacent_to_node h (exclude failed ns))) ->
-    In (tot_map_name_inv n) (adjacent_to_node h (exclude failed ns)).
+  forall (m : @msg _ multi_fst) ns failed h n,
+    In (tot_map_name_inv n, m) (map_pair m (filter_rel h (exclude failed ns))) ->
+    In (tot_map_name_inv n) (filter_rel h (exclude failed ns)).
 Proof.
 move => m.
 elim => //=.
 move => n l IH failed h n'. 
 case (in_dec _ _ _) => H_dec; first exact: IH.
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec' /=.
+case (rel_dec _ _) => H_dec' /=.
   move => H_in.
   case: H_in => H_in.
     inversion H_in.
@@ -749,7 +749,7 @@ Qed.
 
 Lemma pt_ext_in_adjacent_exclude_in_exlude :
   forall ns failed n h,
-    In (tot_map_name_inv n) (adjacent_to_node h (exclude failed ns)) ->
+    In (tot_map_name_inv n) (filter_rel h (exclude failed ns)) ->
     In (tot_map_name_inv n) (exclude failed ns) /\ adjacent_to h (tot_map_name_inv n).
 Proof.
 elim => //=.
@@ -757,7 +757,7 @@ move => n l IH failed n' h.
 case (in_dec _ _ _) => /= H_dec.
   move => H_in.
   exact: IH.
-case (adjacent_to_dec _ _) => /= H_dec'.
+case (rel_dec _ _) => /= H_dec'.
   move => H_in.
   case: H_in => H_in.
     rewrite {1}H_in -{4}H_in.
@@ -799,13 +799,13 @@ by right.
 Qed.
 
 Lemma pt_ext_in_in_adj_msg_for :
-  forall m ns failed n h,
+  forall (m : msg) ns failed n h,
     In n ns ->
     ~ In n (map tot_map_name failed) ->
     adjacent_to h n ->
     In (n, m)
-     (msg_for m
-        (adjacent_to_node h
+     (map_pair m
+        (filter_rel h
            (exclude (map tot_map_name failed) ns))).
 Proof.
 move => m.
@@ -817,11 +817,11 @@ case (in_dec _ _ _) => H_dec.
 case: H_in => H_in.
   rewrite H_in.
   rewrite /=.
-  case (adjacent_to_dec _ _) => H_dec' //.
+  case (rel_dec _ _) => H_dec' //.
   rewrite /=.
   by left.
 rewrite /=.
-case (adjacent_to_dec _ _) => H_dec'.
+case (rel_dec _ _) => H_dec'.
   rewrite /=.
   right.
   exact: IH.
@@ -913,15 +913,15 @@ by right.
 Qed.
 
 Lemma pt_ext_adjacent_in_in :
-  forall m ns n h,
+  forall (m : @msg _ multi_fst) ns n h,
     adjacent_to h (tot_map_name_inv n) ->
     In (tot_map_name_inv n) ns ->
-    In (tot_map_name_inv n, m) (msg_for m (adjacent_to_node h ns)).
+    In (tot_map_name_inv n, m) (map_pair m (filter_rel h ns)).
 Proof.
 move => m.
 elim => //=.
 move => n ns IH n' h H_adj H_in.
-case (adjacent_to_dec _ _) => H_dec; case: H_in => H_in.
+case (rel_dec _ _) => H_dec; case: H_in => H_in.
 - rewrite /=.
   left.
   by rewrite H_in.
@@ -958,16 +958,16 @@ Lemma pt_ext_map_msg_for_eq :
                match pt_ext_map_msg (snd nm) with
                | Some m0 => (tot_map_name (fst nm), m0) :: l
                | None => l
-               end) [] (msg_for m (adjacent_to_node h (exclude failed nodes))))
-    (msg_for m' (adjacent_to_node (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
+               end) [] (map_pair m (filter_rel h (exclude failed nodes))))
+    (map_pair m' (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
 Proof.
 move => m m' h failed H_eq.
 apply NoDup_Permutation; last split.
 - apply (@nodup_pt_ext_map m); first exact: in_for_msg.
-  apply nodup_msg_for.
+  apply nodup_map_pair.
   apply nodup_exclude.
   exact: no_dup_nodes.
-- apply nodup_msg_for.
+- apply nodup_map_pair.
   apply nodup_exclude.
   exact: no_dup_nodes.
 - case: x => n m0 H_in.
@@ -994,7 +994,7 @@ apply NoDup_Permutation; last split.
   rewrite /= in H_eq'.
   rewrite H_eq'.
   rewrite H_eq' in H_in.
-  apply in_msg_for_adjacent_in in H_in.
+  apply in_map_pair_related_in in H_in.
   move: H_in => [H_adj H_in].
   rewrite -(tot_map_name_inverse_inv n) in H_adj.
   apply tot_adjacent_to_fst_snd in H_adj.
@@ -1086,13 +1086,13 @@ invcs H_step.
   by rewrite H_eq_n.
 - left.
   rewrite /pt_ext_map_onet /=.  
-  set l := msg_for _ _.
+  set l := map_pair _ _.
   have H_nd: NoDup (map (fun nm => fst nm) (pt_ext_map_name_msgs l)).
     rewrite /pt_ext_map_name_msgs /=.
     rewrite /l {l}.
     apply nodup_snd_fst.
       apply (@nodup_pt_ext_map msg_fail); first exact: in_for_msg.
-      apply nodup_msg_for.
+      apply nodup_map_pair.
       apply nodup_exclude.
       exact: no_dup_nodes.
     move => nm nm' H_in H_in'.

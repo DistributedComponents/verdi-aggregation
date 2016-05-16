@@ -40,7 +40,7 @@ Proof.
 apply: (Build_Unit eq mulg 1) => x. 
 - by rewrite mul1g.
 - by rewrite mulg1.
-Defined.
+Qed.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
@@ -843,7 +843,7 @@ End AggregationProps.
 Class AggregationMsg :=
   {
     aggr_msg : Type ;
-    aggr_msg_eq_dec : forall x y : aggr_msg, {x = y} + {x <> y} ;
+    aggr_msg_EqDec_eq : EqDec_eq aggr_msg ;
     aggr_fail : aggr_msg ;
     aggr_of : aggr_msg -> m ;    
   }.
@@ -854,6 +854,8 @@ Context {am : AggregationMsg}.
 
 Context {data} {ad : AggregationData data}.
 
+Instance aggr_msg_EqDec_eq_msg : EqDec_eq aggr_msg := aggr_msg_EqDec_eq.
+
 Definition aggregate_sum_fold (mg : aggr_msg) (partial : m) : m :=
 partial * aggr_of mg.
 
@@ -862,14 +864,14 @@ Definition sum_aggregate_msg := fold_right aggregate_sum_fold 1.
 (* given n, sum aggregate messages for all its incoming channels *)
 Definition sum_aggregate_msg_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) : m := 
 fold_right (fun (n' : name) (partial : m) => 
-  partial * if In_dec aggr_msg_eq_dec aggr_fail (packets n' n) then 1 else sum_aggregate_msg (packets n' n)) 1 ns.
+  partial * if In_dec eq_dec aggr_fail (packets n' n) then 1 else sum_aggregate_msg (packets n' n)) 1 ns.
 
 (* given list of active names and all names, sum all incoming channels for all active *)
 Definition sum_aggregate_msg_incoming_active (allns : list name) (actns : list name)  (packets : name -> name -> list aggr_msg) : m :=
 fold_right (fun (n : name) (partial : m) => partial * sum_aggregate_msg_incoming allns packets n) 1 actns.
 
 Definition sum_fail_map (l : list aggr_msg) (from : name) (adj : NS) (map : NM) : m :=
-if In_dec aggr_msg_eq_dec aggr_fail l && NSet.mem from adj then sum_fold map from 1 else 1.
+if In_dec eq_dec aggr_fail l && NSet.mem from adj then sum_fold map from 1 else 1.
 
 Definition sum_fail_map_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) (adj : NS) (map : NM) : m :=
 fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (packets n' n) n' adj map) 1 ns.
