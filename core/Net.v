@@ -40,13 +40,17 @@ Class FailureParams `(P : MultiParams) :=
     reboot : data -> data
   }.
 
+Class RelDec {A : Type} (R : relation A) := rel_dec : forall (x y : A), {R x y} + {~ R x y}.
+
 Class NameOverlayParams `(P : MultiParams) :=
   {
-    adjacent_to : relation name;
-    adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y};
-    adjacent_to_symmetric : Symmetric adjacent_to;
+    adjacent_to : relation name ;
+    adjacent_to_dec : RelDec adjacent_to ;
+    adjacent_to_symmetric : Symmetric adjacent_to ;
     adjacent_to_irreflexive : Irreflexive adjacent_to
   }.
+
+Instance RelDec_adjacent_to `{params : NameOverlayParams} : RelDec adjacent_to := adjacent_to_dec.
 
 Class FailMsgParams `(P : MultiParams) :=
   {
@@ -60,13 +64,9 @@ Class NewMsgParams `(P : MultiParams) :=
 
 Class EqDec_eq (A : Type) := eq_dec : forall (x y : A), {x = y} + {x <> y}.
 
-Class RelDec {A : Type} (R : relation A) := rel_dec : forall (x y : A), {R x y} + {~ R x y}.
-
 Instance EqDec_eq_name `{params : MultiParams} : EqDec_eq name := name_eq_dec.
 
 Instance EqDec_eq_msg `{params : MultiParams} : EqDec_eq msg := msg_eq_dec.
-
-Instance RelDec_adjacent_to `{params : NameOverlayParams} : RelDec adjacent_to := adjacent_to_dec.
 
 Section DecDefs.
   Context {A : Type}.

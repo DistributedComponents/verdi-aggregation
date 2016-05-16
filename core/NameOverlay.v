@@ -90,7 +90,7 @@ End FinRootNameType.
 
 Module Type AdjacentNameType (Import NT : NameType).
 Parameter adjacent_to : relation name.
-Parameter adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y}.
+Parameter adjacent_to_dec : RelDec adjacent_to.
 Parameter adjacent_to_symmetric : Symmetric adjacent_to.
 Parameter adjacent_to_irreflexive : Irreflexive adjacent_to.
 End AdjacentNameType.
@@ -98,7 +98,8 @@ End AdjacentNameType.
 Inductive fin_complete (n : nat) : fin n -> fin n -> Prop :=
 | fin_complete_neq : forall x y, x <> y -> fin_complete n x y.
 
-Definition fin_complete_dec : forall n (x y : fin n), {fin_complete n x y} + {~ fin_complete n x y }.
+Definition fin_complete_RelDec : forall n, RelDec (fin_complete n).
+unfold RelDec.
 intros n x y.
 case (fin_eq_dec n x y); intro H_eq.
 - rewrite H_eq.
@@ -132,7 +133,7 @@ Qed.
 
 Module FinCompleteAdjacentNameType (Import N : NatValue) (FN : FinNameType N) <: AdjacentNameType FN.
 Definition adjacent_to := fin_complete n.
-Definition adjacent_to_dec := fin_complete_dec n.
+Definition adjacent_to_dec := fin_complete_RelDec n.
 Definition adjacent_to_symmetric := fin_complete_Symmetric n.
 Definition adjacent_to_irreflexive := fin_complete_Irreflexive n.
 End FinCompleteAdjacentNameType.
