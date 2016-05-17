@@ -24,6 +24,7 @@ Require Import MSetProperties.
 
 Require Import AAC_tactics.AAC.
 
+Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import AggregationStatic.
 
@@ -41,7 +42,7 @@ Module A := Adjacency NT NOT NSet ANT.
 Import A.
 
 Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
-Import AG.AX.
+Import AG.AX.AD.
 
 Module TR := Tree NT NOT NSet NOTC NMap RNT ANT.
 Import TR.AX.

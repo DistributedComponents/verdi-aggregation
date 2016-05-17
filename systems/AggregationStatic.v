@@ -46,6 +46,7 @@ Require Import Sorting.Permutation.
 Require Import AAC_tactics.AAC.
 
 Require Import OrderedLemmas.
+Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import FailureRecorderStatic.
 
@@ -61,7 +62,8 @@ Import A.
 
 Module FR := FailureRecorder NT NOT NSet ANT.
 
-Module AX := AAux NT NOT NSet NOTC NMap CFG.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
+Import AX.AD.
 Import AX.
 
 Import GroupScope.

@@ -21,6 +21,7 @@ Require Import MSetProperties.
 Require Import Sorting.Permutation.
 
 Require Import OrderedLemmas.
+Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import FailureRecorderDynamic.
 
@@ -36,7 +37,8 @@ Import A.
 
 Module FR := FailureRecorder NT NOT NSet ANT.
 
-Module AX := AAux NT NOT NSet NOTC NMap CFG.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
+Import AX.AD.
 Import AX.
 
 Import GroupScope.
