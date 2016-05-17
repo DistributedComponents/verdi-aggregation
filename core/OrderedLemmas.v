@@ -59,6 +59,92 @@ Proof.
   apply update'_nop.
 Qed.
 
+Lemma nodup_notin : 
+  forall (a : A) (l l' : list A),
+    NoDup (l ++ a :: l') ->
+    ~ In a (l ++ l').
+Proof.
+move => a.
+elim => /=; first by move => l' H_nd; inversion H_nd; subst.
+move => a' l IH l' H_nd.
+inversion H_nd; subst.
+move => H_in.
+case: H_in => H_in.
+  case: H1.
+  apply in_or_app.
+  by right; left.
+contradict H_in.
+exact: IH.
+Qed.
+
+Lemma permutation_split : 
+  forall (ns ns' : list A) (n : A),
+  Permutation (n :: ns) ns' ->
+  exists ns0, exists ns1, ns' = ns0 ++ n :: ns1.
+Proof.
+move => ns ns' n H_pm.
+have H_in: In n (n :: ns) by left. 
+have H_in': In n ns'.
+  move: H_pm H_in. 
+  exact: Permutation_in.
+by apply In_split in H_in'.
+Qed.
+
+Lemma nodup_app_split_right : 
+  forall (ns0 ns1 : list A), 
+    NoDup (ns0 ++ ns1) -> NoDup ns1.
+Proof.
+elim => [|n ns0 IH] ns1 H_nd //.
+inversion H_nd => {l H0 x H}.
+exact: IH.
+Qed.
+
+Lemma nodup_in_not_in_right : 
+  forall (ns0 ns1 : list A) (x : A),
+    NoDup (ns0 ++ ns1) -> In x ns0 -> ~ In x ns1.
+Proof.
+elim => //=.
+move => n ns0 IH ns1 x H_nd H_in.
+inversion H_nd => {l H0 x0 H}.
+case: H_in => H_in; last exact: IH.
+rewrite H_in in H1.
+move => H_in'.
+case: H1.
+apply in_or_app.
+by right.
+Qed.
+
+Lemma nodup_in_not_in_left : 
+  forall (ns0 ns1 : list A) (x : A),
+    NoDup (ns0 ++ ns1) -> In x ns1 -> ~ In x ns0.
+Proof.
+elim => [|n ns0 IH] ns1 x H_nd H_in //.
+inversion H_nd => {l H0 x0 H}.
+move => H_in'.
+case: H_in' => H_in'.
+  rewrite H_in' in H1.
+  case: H1.
+  apply in_or_app.
+  by right.
+contradict H_in'.
+exact: (IH _ _ H2).
+Qed.
+
+Lemma nodup_app_split_left : 
+  forall (ns0 ns1 : list A), 
+    NoDup (ns0 ++ ns1) -> NoDup ns0.
+Proof.
+elim => [|n ns0 IH] ns1 H_nd; first exact: NoDup_nil.
+inversion H_nd => {l H0 x H}.
+apply NoDup_cons.
+  move => H_in.
+  case: H1.
+  apply in_or_app.
+  by left.
+move: H2.
+exact: IH.
+Qed.
+
 Lemma count_occ_app_split : 
   forall l l' (a : A),
     count_occ eq_dec (l ++ l') a = count_occ eq_dec l a + count_occ eq_dec l' a.

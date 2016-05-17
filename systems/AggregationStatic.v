@@ -2154,23 +2154,6 @@ Qed.
 
 (* with failed nodes - don't add their incoming messages, but add their outgoing channels to non-failed nodes *)
 
-Lemma fold_right_update_id :
-forall (ns : list name) h state,
-fold_right 
-  (fun (n : name) (l' : list Data) =>
-     update' state h (state h) n :: l') [] ns =
-fold_right 
-  (fun (n : name) (l' : list Data) =>
-     (state n) :: l') [] ns.
-Proof.
-elim => //.
-move => n l IH h state.
-rewrite /= IH.
-rewrite /update' /=.
-case name_eq_dec => H_dec //.
-by rewrite H_dec.
-Qed.
-
 Lemma sum_aggregate_msg_incoming_update2_aggregate : 
   forall ns f from to ms m',
     In from ns ->
@@ -2216,43 +2199,6 @@ case (in_dec _ _) => H_dec; case (in_dec _ _) => H_dec' //=.
 - rewrite /update2 /=.
   case (sumbool_and _ _ _ _) => H_dec0; first by move: H_dec0 => [H_eq0 H_eq1]; rewrite H_eq0 in H_neq.
   by aac_reflexivity.
-Qed.
-
-Lemma sum_fail_sent_incoming_active_not_in_eq :
-  forall ns0 ns1 packets state from to ms d,
-    ~ In to ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 
-      (update2 packets from to ms) 
-      (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //.
-move => n ns IH ns1 packets state from to ms d H_in.
-rewrite /sum_fail_sent_incoming_active /=.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite (@sum_fail_map_incoming_sent_neq_eq AggregationMsg_Aggregation _ AggregationData_Data) //=.
-have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-have IH' := IH ns1 packets state from to ms d H_in'.
-rewrite /sum_fail_sent_incoming_active in IH'.
-by rewrite IH' /=.
-Qed.
-
-Lemma sum_fail_received_incoming_active_not_in_eq :
-  forall ns0 ns1 packets state from to ms d,
-    ~ In to ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 (update2 packets from to ms)
-     (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
-    sum_fail_received_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //.
-move => n ns IH ns1 packets state from to ms d H_in.
-rewrite /sum_fail_received_incoming_active /=.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite (@sum_fail_map_incoming_received_neq_eq AggregationMsg_Aggregation _ AggregationData_Data) //=.
-have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-have IH' := IH ns1 packets state from to ms d H_in'.
-rewrite /sum_fail_received_incoming_active in IH'.
-by rewrite IH'.
 Qed.
 
 Lemma no_fail_sum_fail_map_incoming_eq :
@@ -2616,26 +2562,6 @@ case (in_dec _ _ _) => /= H_dec; case (in_dec _ _ _) => /= H_dec' //.
   by move: H_s => [H_eq' H_eq''].
 Qed.
 
-Lemma sum_fail_sent_incoming_active_not_in_eq_alt2 :
-  forall ns0 ns1 packets state from to ms h d,
-    ~ In to ns0 ->
-    ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 (update2 packets from to ms) (update' state h d) =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //.
-move => n ns IH ns1 packets state from to ms h d H_in H_in'.
-rewrite /sum_fail_sent_incoming_active /=.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-have H_neq': n <> h by move => H_eq; case: H_in'; left.
-rewrite (@sum_fail_map_incoming_sent_neq_eq_alt  AggregationMsg_Aggregation _ AggregationData_Data) //=.
-have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
-have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
-have IH' := IH ns1 packets state from to ms h d H_inn H_inn'.
-rewrite /sum_fail_sent_incoming_active in IH'.
-by rewrite IH'.
-Qed.
-
 Lemma sum_fail_map_incoming_add_aggregate_eq :
   forall ns f x h x0 m' adj map,
     h <> x ->
@@ -2993,105 +2919,6 @@ apply: In_n_exclude; last exact: all_names_nodes.
 apply H_ex_nd in H_ins.
 case: H_ins => H_ins //.
 by move: H_ins => [H_ins H_ins'].
-Qed.
-
-Lemma sum_aggregate_msg_incoming_active_singleton_neq_collate_eq :
-  forall ns f h n,
-  h <> n ->
-  sum_aggregate_msg_incoming_active [n] ns f =  
-  sum_aggregate_msg_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))).
-Proof.
-elim => //=.
-move => n' ns IH f h n H_neq.
-gsimpl.
-case in_dec => /= H_dec; case adjacent_to_dec => H_dec'.
-- case in_dec => /= H_in.
-    rewrite collate_neq // in H_in.
-    rewrite -IH //.
-    gsimpl.
-    by rewrite -sum_aggregate_msg_incoming_active_singleton_neq_update2_eq.
-  case: H_in.
-  rewrite collate_neq //.
-  rewrite /update2.
-  by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
-- case in_dec => /= H_dec''; first by rewrite -IH.
-  case: H_dec''.
-  by rewrite collate_neq.
-- case in_dec => /= H_dec''.
-    rewrite collate_neq // in H_dec''.
-    contradict H_dec''.
-    rewrite /update2.
-    by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
-  rewrite collate_neq //.
-  rewrite -IH //.
-  rewrite {2}/update2.
-  case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
-  by rewrite -sum_aggregate_msg_incoming_active_singleton_neq_update2_eq.
-- case in_dec => /= H_dec''; first by contradict H_dec''; rewrite collate_neq.
-  rewrite collate_neq //.
-  by rewrite -IH.
-Qed.
-
-Lemma sum_fail_sent_incoming_active_singleton_neq_collate_eq :
-  forall ns f g h n,
-  h <> n ->
-  sum_fail_sent_incoming_active [n] ns f g = 
-  sum_fail_sent_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))) g.
-Proof.
-elim => //=.
-move => n' ns IH f g h n H_neq.
-gsimpl.
-case adjacent_to_dec => H_dec.
-  rewrite -IH //.
-  rewrite collate_neq //.
-  by rewrite -sum_fail_sent_incoming_active_singleton_neq_update2_eq.
-rewrite -IH //.
-by rewrite collate_neq.
-Qed.
-
-Lemma sum_fail_received_incoming_active_singleton_neq_collate_eq :
-  forall ns f g h n,
-  h <> n ->
-  sum_fail_received_incoming_active [n] ns f g =
-  sum_fail_received_incoming_active [n] ns (collate h f (map_pair Fail (filter_rel h ns))) g.
-Proof.
-elim => //=.
-move => n' ns IH f g h n H_neq.
-gsimpl.
-case adjacent_to_dec => H_dec.
-  rewrite -IH //.
-  rewrite collate_neq //.
-  by rewrite -sum_fail_received_incoming_active_singleton_neq_update2_eq.
-rewrite -IH //.
-by rewrite collate_neq.
-Qed.
-
-Lemma sum_fail_map_incoming_not_adjacent_collate_eq :
-  forall ns ns' f h n adj map,
-  ~ adjacent_to h n ->
-  sum_fail_map_incoming ns (collate h f (map_pair Fail (filter_rel h ns'))) n adj map =
-  sum_fail_map_incoming ns f n adj map.
-Proof.
-elim => //=.
-move => n' ns IH ns' f h n adj map H_adj.
-rewrite IH //.
-case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
-rewrite -H_dec.
-by rewrite collate_map_pair_not_related.
-Qed.
-
-Lemma sum_aggregate_msg_incoming_not_adjacent_collate_eq :
-  forall ns ns' f h n,
-  ~ adjacent_to h n ->
-  sum_aggregate_msg_incoming ns (collate h f (map_pair Fail (filter_rel h ns'))) n =
-  sum_aggregate_msg_incoming ns f n.
-Proof.
-elim => //=.
-move => n' ns IH ns' f h n H_adj.
-rewrite IH //.
-case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
-rewrite -H_dec.
-by rewrite collate_map_pair_not_related.
 Qed.
 
 Lemma sum_aggregate_msg_collate_fail_eq :
