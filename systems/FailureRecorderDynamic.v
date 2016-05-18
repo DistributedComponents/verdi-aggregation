@@ -236,9 +236,6 @@ Module FailureRecorder (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (Import ANT : AdjacentNameType NT).
 
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
-
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
@@ -262,6 +259,8 @@ Inductive Output : Set := .
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
 decide equality.
 Defined.
+
+Definition NS := NSet.t.
 
 Record Data := mkData { adjacent : NS }.
 
@@ -710,6 +709,7 @@ Hypothesis after_adjacent :
   forall onet failed tr,
   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
+  ~ In n' onet.(odnwNodes) ->
   ~ In n failed ->
   forall d, onet.(odnwState) n = Some d ->
   P d [] ->
@@ -723,7 +723,7 @@ Hypothesis recv_fail_from_eq :
   In n' onet.(odnwNodes) ->
   In n' failed ->
   n' <> n ->
-  adjacent_to n n' ->
+  (*adjacent_to n n' ->*)
   onet.(odnwPackets) n' n = Fail :: ms ->
   forall d, onet.(odnwState) n = Some d ->
   P d (onet.(odnwPackets) n n') ->
@@ -743,32 +743,45 @@ Hypothesis recv_fail_from_neq :
   P d (onet.(odnwPackets) n n') ->
   P (mkData (NSet.remove from d.(adjacent))) (onet.(odnwPackets) n n').
 
-Hypothesis recv_new_eq_from :
+Hypothesis recv_new_from_eq :
   forall onet failed tr ms,
   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
   n' <> n ->
-  adjacent_to n n' ->
+  (*adjacent_to n n' ->*)
   onet.(odnwPackets) n' n = New :: ms ->
   forall d, onet.(odnwState) n = Some d ->
   P d (onet.(odnwPackets) n n') ->
   P (mkData (NSet.add n' d.(adjacent))) (onet.(odnwPackets) n n').
 
-Hypothesis recv_new_neq_from :
+Hypothesis recv_new_from_neq :
   forall onet failed tr from ms,
   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In from onet.(odnwNodes) ->
-  In from failed ->  
   from <> n ->
   from <> n' ->
   onet.(odnwPackets) from n = New :: ms ->
   forall d, onet.(odnwState) n = Some d ->
   P d (onet.(odnwPackets) n n') ->
-  P (mkData (NSet.remove from d.(adjacent))) (onet.(odnwPackets) n n').
+  P (mkData (NSet.add from d.(adjacent))) (onet.(odnwPackets) n n').
+
+Hypothesis recv_new_from_out_eq :
+  forall onet failed tr ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  ~ In n' failed ->
+  n <> n' ->
+  (*adjacent_to n n' ->*)
+  onet.(odnwPackets) n n' = New :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n n') ->
+  P d ms.
 
 Theorem P_inv_n_out : forall d, onet.(odnwState) n = Some d -> P d (onet.(odnwPackets) n n').
 Proof.
@@ -825,11 +838,311 @@ end; simpl in *.
     by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
   * apply: related_filter_rel => //.
     exact: In_n_exclude.
-Admitted.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => /=.
+  * case (in_dec name_eq_dec from (odnwNodes net)) => H_from_nodes; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) in H3.
+    case (in_dec name_eq_dec from failed0) => H_from_failed; last first.
+      have H_f := Failure_not_failed_no_fail s1 _ H_from_nodes H_from_failed to.
+      rewrite H3 in H_f.
+      by case: H_f; left.
+    have H_neq: from <> to by move => H_eq; rewrite H_eq in H_from_failed.      
+    move: H6.
+    rewrite /update_opt.
+    break_if => H_eq.
+      find_inversion.
+      destruct d0.
+      simpl in *.
+      rewrite H7.
+      rewrite /update2.
+      break_if; first by break_and.
+      case: o => H_eq; case (name_eq_dec from n') => H_eq'.
+      + rewrite H_eq'.
+        rewrite H_eq' in H_from_nodes H_from_failed H_eq H3.
+        apply (@recv_fail_from_eq _ failed0 tr1 ms) => //.
+        exact: H8.
+      + apply (@recv_fail_from_neq _ failed0 tr1 _ ms) => //.
+        exact: H8.
+      + rewrite H_eq'.
+        rewrite H_eq' in H_from_nodes H_from_failed H_eq H3.
+        apply (@recv_fail_from_eq _ failed0 tr1 ms) => //.
+          move => H_eq''.
+          by rewrite H_eq'' in H_eq.
+        exact: H8.
+      + apply (@recv_fail_from_neq _ failed0 tr1 _ ms) => //.
+        exact: H8.    
+    rewrite /update2.
+    break_if.
+      break_and.
+      by rewrite H in H_from_failed.
+    exact: H8.
+  * case (in_dec name_eq_dec from (odnwNodes net)) => H_from_nodes; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) in H3.
+    have H_neq: from <> to.
+      move => H_eq.
+      by rewrite H_eq (Failure_self_channel_empty s1) in H3.      
+    move: H6.
+    rewrite /update_opt.
+    break_if => H_eq.
+      find_inversion.
+      destruct d0.
+      simpl in *.
+      rewrite H7.
+      rewrite /update2.
+      break_if; first by break_and.
+      case: o => H_eq; case (name_eq_dec from n') => H_eq'.
+      * rewrite H_eq'.
+        rewrite H_eq' in H_from_nodes H_eq H3.
+        apply (@recv_new_from_eq _ failed0 tr1 ms) => //.
+        exact: H8.
+      * apply (@recv_new_from_neq _ failed0 tr1 _ ms) => //.
+        exact: H8.
+      + rewrite H_eq'.
+        rewrite H_eq' in H_from_nodes H_eq H3.
+        apply (@recv_new_from_eq _ failed0 tr1 ms) => //.
+          move => H_eq''.
+          by rewrite H_eq'' in H_eq.
+        exact: H8.
+      + apply (@recv_new_from_neq _ failed0 tr1 _ ms) => //.
+        exact: H8.
+    rewrite /update2.
+    break_if.
+      break_and.
+      rewrite H H4 in H3 H_neq H_from_nodes H0 H1.
+      have H_p := H8 d0 H_eq.
+      move: H_p.
+      exact: (@recv_new_from_out_eq _ failed0 tr1 ms).
+    exact: H8.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  by io_handler_cases.
+- move => H_in_nodes H_in_failed d H_eq_d.
+  have H_neq: h <> n by auto.
+  have H_not_in: ~ In n failed0 by auto.
+  rewrite collate_neq //.
+  exact: IHs1.
+Qed.
 
 End SingleNodeInvOut.
 
-(*
+Section SingleNodeInvIn.
+
+Variable onet : ordered_dynamic_network.
+
+Variable failed : list name.
+
+Variable tr : list (name * (input + list output)).
+
+Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+
+Variable n n' : name.
+
+Hypothesis active : In n (odnwNodes onet).
+
+Hypothesis not_failed : ~ In n failed.
+
+Variable P : Data -> list msg -> Prop.
+
+Hypothesis after_init : P (InitData n) [].
+
+Hypothesis after_init_new : P (InitData n) [New].
+
+Hypothesis after_adjacent :
+  forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  ~ In n' onet.(odnwNodes) ->  
+  forall d, onet.(odnwState) n = Some d ->
+  P d [] ->
+  P d [New].
+
+Hypothesis recv_fail_from_eq :
+  forall onet failed tr ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  In n' failed ->
+  n' <> n ->
+  onet.(odnwPackets) n' n = Fail :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P (mkData (NSet.remove n' d.(adjacent))) ms.
+
+Hypothesis recv_fail_from_neq :
+  forall onet failed tr from ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In from onet.(odnwNodes) ->
+  In from failed ->
+  from <> n ->
+  from <> n' ->
+  onet.(odnwPackets) from n = Fail :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P (mkData (NSet.remove from d.(adjacent))) (onet.(odnwPackets) n' n).
+
+Hypothesis recv_new_from_eq :
+  forall onet failed tr ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  n' <> n ->
+  onet.(odnwPackets) n' n = New :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P (mkData (NSet.add n' d.(adjacent))) ms.
+
+Hypothesis recv_new_from_neq :
+  forall onet failed tr from ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In from onet.(odnwNodes) ->
+  from <> n ->
+  from <> n' ->
+  onet.(odnwPackets) from n = New :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P (mkData (NSet.add from d.(adjacent))) (onet.(odnwPackets) n' n).
+
+Hypothesis send_fail : 
+  forall onet failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n onet.(odnwNodes) ->
+    ~ In n failed ->
+    In n' onet.(odnwNodes) ->
+    ~ In n' failed ->
+    adjacent_to n' n ->
+    n' <> n ->    
+    forall d, onet.(odnwState) n = Some d ->
+     P d (onet.(odnwPackets) n' n) ->
+     P d (odnwPackets onet n' n ++ [Fail]).
+
+Theorem P_inv_n_in : forall d, onet.(odnwState) n = Some d -> P d (onet.(odnwPackets) n' n).
+Proof.
+move: onet failed tr H_step active not_failed.
+clear onet failed tr H_step active not_failed.
+move => onet failed tr H_step.
+have H_eq_f: failed = fst (failed, onet) by [].
+have H_eq_o: onet = snd (failed, onet) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {1 3 4}H_eq_o {H_eq_o}.
+remember step_o_d_f_init as y in H_step.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_o_d_init /= => H_in_f.
+repeat concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => H_a H_f d.
+  rewrite /update_opt /=.
+  case name_eq_dec => H_dec H_eq.
+    repeat find_rewrite.
+    find_injection.
+    case (name_eq_dec h n') => H_dec.
+      repeat find_reverse_rewrite.
+      rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
+      rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+      by rewrite (Failure_self_channel_empty s1).
+    case (In_dec name_eq_dec n' (odnwNodes net)) => H_a'; last first.
+      rewrite collate_ls_not_in_related; last exact: not_in_exclude.
+      rewrite collate_neq //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
+    case (In_dec name_eq_dec n' failed0) => H_f'.
+      rewrite collate_ls_in_excluded //.
+      rewrite collate_neq //.
+      by rewrite (Failure_inactive_no_incoming s1).
+    case (adjacent_to_dec h n') => H_dec'; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Failure_inactive_no_incoming s1).
+    rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite collate_neq //.
+    by rewrite (Failure_inactive_no_incoming s1).
+  have H_neq: h <> n by auto.
+  rewrite collate_ls_neq_to //.
+  break_or_hyp => //.
+  case (name_eq_dec h n') => H_dec'; last by rewrite collate_neq //; exact: IHs1.
+  rewrite -H_dec'.
+  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_map_pair_not_related //; rewrite H_dec'; exact: IHs1.
+  rewrite collate_map_pair_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+  have IH := IHs1 H H_f _ H_eq.
+  move: IH.
+  rewrite -H_dec'.
+  rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) //=.
+  rewrite H_dec' in H0.
+  exact: (after_adjacent s1).
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => /=.
+  * case (in_dec name_eq_dec from (odnwNodes net)) => H_from_nodes; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) in H3.
+    case (in_dec name_eq_dec from failed0) => H_from_failed; last first.
+      have H_f := Failure_not_failed_no_fail s1 _ H_from_nodes H_from_failed to.
+      rewrite H3 in H_f.
+      by case: H_f; left.
+    have H_neq: from <> to by move => H_eq; rewrite H_eq in H_from_failed.
+    move: H6.
+    rewrite /update_opt.
+    break_if => H_eq.
+      find_inversion.
+      destruct d0.
+      simpl in *.
+      rewrite H7.
+      rewrite /update2.
+      break_if.
+        break_and.
+        rewrite H.
+        rewrite H in H_neq H_from_nodes H_from_failed H3.
+        apply (recv_fail_from_eq s1) => //.
+        exact: H8.
+      break_or_hyp => //.
+      apply (@recv_fail_from_neq _ _ _ _ ms s1) => //.
+      exact: H8.
+    rewrite /update2.
+    break_if; first by break_and; find_rewrite.
+    exact: H8.
+  * case (in_dec name_eq_dec from (odnwNodes net)) => H_from_nodes; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) in H3.
+    have H_neq: from <> to.
+      move => H_eq.
+      by rewrite H_eq (Failure_self_channel_empty s1) in H3.
+    move: H6.
+    rewrite /update_opt.
+    break_if => H_eq.
+      find_inversion.
+      destruct d0.
+      simpl in *.
+      rewrite H7.
+      rewrite /update2.
+      break_if.
+        break_and.
+        rewrite H.
+        rewrite H in H_neq H3 H_from_nodes.
+        apply (recv_new_from_eq s1) => //.
+        exact: H8.
+      break_or_hyp => //.
+      apply (@recv_new_from_neq _ _ _ _ ms s1) => //.
+      exact: H8.
+    rewrite /update2.
+    break_if; first by break_and; find_rewrite.
+    exact: H8.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  by io_handler_cases.
+- move => H_in_nodes H_in_failed d H_eq_d.
+  have H_neq: h <> n by auto.
+  have H_not_in: ~ In n failed0 by auto.
+  case (name_eq_dec h n') => H_dec.
+    rewrite H_dec.
+    case (adjacent_to_dec n' n) => H_dec'; last by rewrite collate_map_pair_not_related //; exact: IHs1.
+    rewrite collate_map_pair_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite H_dec in H_neq H0 H1.
+    apply (send_fail s1) => //.
+    exact: IHs1.
+  rewrite collate_neq //.
+  exact: IHs1.
+Qed.
+      
+End SingleNodeInvIn.
+
 Lemma Failure_in_after_all_fail_new : 
 forall net failed tr,
    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
@@ -837,8 +1150,199 @@ forall net failed tr,
         ~ In n failed ->
         forall (n' : name), In_all_before New Fail (net.(odnwPackets) n' n).
 Proof.
-
+move => net failed tr H_st.
+move => n H_n H_f n'.
+have [d H_d] := ordered_dynamic_initialized_state H_st _ H_n.
+pose P_curr (d : Data) (l : list Msg) :=
+  In_all_before New Fail l.
+rewrite -/(P_curr d _ ).
+move: H_d; generalize d => {d}.
+apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
+- by auto.
+- by auto.
+- move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
+  rewrite H_eq in H_bef.
+  apply head_before_all_not_in in H_bef => //.
+  exact: not_in_all_before.
+- move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
+  rewrite H_eq in H_bef.
+  rewrite /= in H_bef.
+  break_or_hyp; last by break_and.
+  exact: not_in_all_before.
+- move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
+  exact: append_neq_before_all.
 Qed.
+
+Lemma Failure_le_one_new : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) -> ~ In n failed ->
+   forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) New <= 1.
+Proof.
+move => net failed tr H_st.
+move => n H_n H_f n'.
+have [d H_d] := ordered_dynamic_initialized_state H_st _ H_n.
+pose P_curr (d : Data) (l : list Msg) :=
+  count_occ Msg_eq_dec l New <= 1.
+rewrite -/(P_curr d _ ).
+move: H_d; generalize d => {d}.
+apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
+- by auto.
+- move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
+  by rewrite H_eq /= in H_bef.
+- move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
+  rewrite H_eq /= in H_bef.
+  by auto with arith.
+- move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
+  rewrite count_occ_app_split /=.
+  by ring_simplify.
+Qed.
+
+Lemma Failure_le_one_fail : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) -> ~ In n failed ->
+   forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) Fail <= 1.
+Proof.
+move => net failed tr H_st.
+move => n H_n H_f n'.
+have [d H_d] := ordered_dynamic_initialized_state H_st _ H_n.
+pose P_curr (d : Data) (l : list Msg) :=
+  count_occ Msg_eq_dec l Fail <= 1.
+rewrite -/(P_curr d _ ).
+move: H_d; generalize d => {d}.
+apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
+- by auto.
+- by auto.
+- move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
+  rewrite H_eq /= in H_bef.
+  by auto with arith.
+- move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
+  by rewrite H_eq /= in H_bef.
+- move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
+  rewrite count_occ_app_split /=.
+  have H_not_in := Failure_not_failed_no_fail H_st _ H_in' H_f' n.
+  have H_cnt := @count_occ_not_In _ Msg_eq_dec.
+  apply H_cnt in H_not_in.
+  rewrite H_not_in.
+  by auto with arith.
+Qed.
+
+(*
+Lemma Failure_in_adj_or_incoming_fail :
+forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  forall n n', In n (odnwNodes onet) -> ~ In n failed ->
+       forall d, onet.(odnwState) n = Some d ->
+            NSet.In n' d.(adjacent) ->
+            (In n' (odnwNodes onet) /\ ~ In n' failed) \/ (In n (odnwNodes onet) /\ In n' failed /\ In Fail (onet.(odnwPackets) n' n)).
+Proof.
+move => onet failed tr H.
+have H_eq_f: failed = fst (failed, onet) by [].
+have H_eq_o: onet = snd (failed, onet) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {2 5}H_eq_o {H_eq_o}.
+remember step_o_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => /= H_init.
+  rewrite H_init /= {H_init}.
+  move => n n' H_ins.
+  by left.
+concludes.
+match goal with
+| [ H : step_o_f _ _ _ |- _ ] => invc H
+end; simpl.
+- move => n n' H_in_f H_ins.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases.  
+  rewrite /= /update2 {H1}.
+  case (sumbool_and _ _ _ _) => H_dec.
+    move: H_dec => [H_eq H_eq'].
+    rewrite H_eq H_eq' {H_eq H_eq' to from} in H7 H_ins H3 H2.
+    rewrite /= in IHrefl_trans_1n_trace1.
+    move: H_ins.
+    rewrite /update' /=.
+    case name_eq_dec => H_dec //.
+    move => H_ins.
+    case: d H7 H_ins => /= adjacent0 H_eq H_adj.
+    rewrite H_eq in H_adj.
+    by apply NSetFacts.remove_1 in H_adj.
+  move: H_ins.
+  rewrite /update' /=.
+  case name_eq_dec => H_dec'.
+    case: H_dec => H_dec; last by rewrite H_dec' in H_dec.
+    case: d H7 => /= adjacent0 H_eq.
+    move => H_ins.
+    rewrite H_eq {adjacent0 H_eq} in H_ins.
+    rewrite -H_dec' {to H_dec'} in H2 H3 H_ins.
+    apply NSetFacts.remove_3 in H_ins.
+    exact: IHrefl_trans_1n_trace1.
+  move => H_ins.
+  exact: IHrefl_trans_1n_trace1.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  by io_handler_cases.
+- move => n n' H_in_f H_ins.
+  rewrite /= in IHrefl_trans_1n_trace1.
+  have H_neq: h <> n.
+    move => H_eq.
+    case: H_in_f.
+    by left.
+  have H_in_f': ~ In n failed0.
+    move => H_in.
+    case: H_in_f.
+    by right.  
+  have IH := IHrefl_trans_1n_trace1 _ _ H_in_f' H_ins.
+  case (name_eq_dec h n') => H_dec.
+    rewrite H_dec.
+    right.
+    split; first by left.
+    rewrite H_dec in H2.
+    have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
+    rewrite collate_map_pair_live_related //.
+    * apply in_or_app.
+      by right; left.
+    * exact: all_names_nodes.
+    * exact: no_dup_nodes.
+  case: IH => IH.
+    left.
+    move => H_or.
+    by case: H_or => H_or.
+  move: IH => [H_in H_fail].
+  right.
+  split; first by right.
+  by rewrite collate_neq.
+Qed.
+
+
+Lemma Failure_new_incoming_not_in_adj :
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) ->
+        ~ In n failed ->        
+        forall (n' : name), In New (net.(odnwPackets) n' n) ->
+                       forall d, net.(odnwState) n = Some d ->
+                            ~ NSet.In n' d.(adjacent).
+Proof.
+move => net failed tr H_st.
+move => n H_n H_f n' H_in d0 H_eq.
+move: H_in.
+pose P_curr (d : Data) (l : list Msg) :=
+  In New l -> ~ NSet.In n' d.(adjacent).
+rewrite -/(P_curr _ _ ).
+move: H_eq; generalize d0 => {d0}.
+apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
+- move => H_or.
+  exact: NSetFacts.empty_1.
+- move => onet failed tr H_st H_in H_f H_in' d H_eq H_bef H_or.
+  
+  apply: H_bef.
+
+
+Lemma in_queue_not_in_adj_churn : forall (S5 : S), churn_net_ok S5 -> 
+  forall (s5 : s), In s5 S5 -> 
+  forall (j : i), 
+  In_queue (msg_new j) (churn_mbox s5) -> 
+  ~ ISet.In j (churn_adj s5).
 *)
 
 End FailureRecorder.

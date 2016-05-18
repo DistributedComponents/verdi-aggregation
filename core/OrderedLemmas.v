@@ -1098,4 +1098,21 @@ apply: not_in_not_in_filter_rel.
 exact: not_in_exclude.
 Qed.
 
+Lemma collate_ls_in_excluded :
+  forall B mg n h ns (f : A -> A -> list B) failed,
+    In n failed ->
+    collate_ls (filter_rel h (exclude failed ns)) f h mg n h = f n h.
+Proof.
+move => B mg n h ns f failed H_in.
+move: f.
+elim: ns => //=.
+move => n' ns IH f.
+case in_dec => H_in' //=.
+case rel_dec => H_dec //=.
+have H_neq: n' <> n by move => H_eq; rewrite H_eq in H_in'.
+rewrite IH.
+rewrite /update2.
+by break_if; first by break_and.
+Qed.
+
 End OrderedProps.
