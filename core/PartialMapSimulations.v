@@ -101,6 +101,15 @@ Class MultiParamsPartialMapCongruency
         pt_map_name_msgs ps = [] /\ pt_map_outputs out = []
   }.
 
+Class FailureParamsPartialMapCongruency
+  (B0 : BaseParams) (B1 : BaseParams)
+  (P0 : MultiParams B0) (P1 : MultiParams B1)
+  (F0 : FailureParams P0) (F1 : FailureParams P1)
+  (B : BaseParamsPartialMap B0 B1) :=
+  {
+    pt_reboot_eq : forall d, pt_map_data (reboot d) = reboot (pt_map_data d)
+  }.
+
 Class FailMsgParamsPartialMapCongruency 
   (B0 : BaseParams) (B1 : BaseParams)
   (P0 : MultiParams B0) (P1 : MultiParams B1)

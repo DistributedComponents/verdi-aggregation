@@ -570,6 +570,7 @@ Hypothesis not_failed_n' : ~ In n' failed.
 
 Variable P : Data -> Data -> list msg -> list msg -> Prop.
 
+(* FIXME *)
 Hypothesis after_init : P (InitData n) (InitData n') [] [].
 
 Hypothesis recv_fail_self :

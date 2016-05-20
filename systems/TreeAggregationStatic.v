@@ -924,11 +924,6 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
       | AggregateRequest => (Some AG.AggregateRequest)
       | _ => None
       end ;
-    pt_ext_map_output := fun o => 
-      match o with 
-      | AggregateResponse m => Some (AG.AggregateResponse m) 
-      | _ => None 
-      end ;
     pt_ext_map_msg := fun m => 
       match m with 
       | Aggregate m' => Some (AG.Aggregate m')
@@ -968,13 +963,11 @@ Proof.
     rewrite /pt_ext_map_msg /=.
     rewrite /pt_ext_mapped_net_handlers /=.
     repeat break_let.
-    move => H_eq.
-    inversion H_eq.
+    move => out st' ps H_eq.
+    inversion H_eq => {H_eq}.
     rewrite /id /=.
     apply net_handlers_NetHandler in Heqp.
     net_handler_cases => //.
-      injection H1 => H_eqx.
-      rewrite H_eqx.
       monad_unfold.
       repeat break_let.
       rewrite /=.
@@ -983,14 +976,15 @@ Proof.
       monad_unfold.
       break_let.
       move: Heqp2.
-      case H_find: NMap.find => /= [m0|]; last by rewrite H in H_find.
-      rewrite H in H_find.
+      case H_find: NMap.find => /= [m0|]; last by rewrite H1 in H_find.
+      rewrite H1 in H_find.
       injection H_find => H_eq_m.
       rewrite H_eq_m.
       repeat break_let.
       move => Heqp Heqp'.      
       rewrite Heqp' in Heqp.
-      by inversion Heqp.
+      repeat tuple_inversion.
+      by inversion H2.
     rewrite /=.
     monad_unfold.
     repeat break_let.
@@ -999,18 +993,17 @@ Proof.
     monad_unfold.
     break_let.
     move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; first by rewrite H in H_find.
+    case H_find: NMap.find => /= [m0|]; first by rewrite H1 in H_find.
     repeat break_let.
     move => Heqp Heqp'.
     rewrite Heqp' in Heqp.
-    by inversion Heqp.
+    by repeat tuple_inversion.
   move => st.
   case => //.
   rewrite /pt_ext_map_msg /=.
   rewrite /pt_ext_mapped_net_handlers /=.
   repeat break_let.
-  move => H_eq.
-  inversion H_eq.
+  move => out st' ps H_eq => {H_eq}.
   rewrite /id /=.
   apply net_handlers_NetHandler in Heqp.
   net_handler_cases => //.
@@ -1022,18 +1015,18 @@ Proof.
     monad_unfold.
     break_let.
     move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-    rewrite H2 in H_find.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H3 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H2 in H_find'.
+    rewrite H3 in H_find.
     injection H_find => H_eq_m.
     rewrite H_eq_m.
-    rewrite H1 in H_find'.
+    rewrite H2 in H_find'.
     injection H_find' => H_eq'_m.
     rewrite H_eq'_m.
     repeat break_let.
     move => Heqp Heqp'.
     rewrite Heqp' in Heqp.
-    by inversion Heqp.
+    by repeat tuple_inversion.
   * monad_unfold.
     repeat break_let.
     rewrite /=.
@@ -1042,18 +1035,18 @@ Proof.
     monad_unfold.
     break_let.
     move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-    rewrite H2 in H_find.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H3 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H2 in H_find'.
+    rewrite H3 in H_find.
     injection H_find => H_eq_m.
     rewrite H_eq_m.
-    rewrite H1 in H_find'.
+    rewrite H2 in H_find'.
     injection H_find' => H_eq'_m.
     rewrite H_eq'_m.
     repeat break_let.
     move => Heqp Heqp'.
     rewrite Heqp' in Heqp.
-    by inversion Heqp.
+    by repeat tuple_inversion.
   * monad_unfold.
     repeat break_let.
     rewrite /=.
@@ -1062,18 +1055,18 @@ Proof.
     monad_unfold.
     break_let.
     move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; last by rewrite H2 in H_find.
-    case H_find': NMap.find => /= [m1|]; last by rewrite H1 in H_find'.
-    rewrite H2 in H_find.
+    case H_find: NMap.find => /= [m0|]; last by rewrite H3 in H_find.
+    case H_find': NMap.find => /= [m1|]; last by rewrite H2 in H_find'.
+    rewrite H3 in H_find.
     injection H_find => H_eq_m.
     rewrite H_eq_m.
-    rewrite H1 in H_find'.
+    rewrite H2 in H_find'.
     injection H_find' => H_eq'_m.
     rewrite H_eq'_m.
     repeat break_let.
     move => Heqp Heqp'.
     rewrite Heqp' in Heqp.
-    by inversion Heqp.
+    by repeat tuple_inversion.
   * rewrite /=.
     monad_unfold.
     repeat break_let.
@@ -1082,44 +1075,11 @@ Proof.
     monad_unfold.
     break_let.
     move: Heqp2.
-    case H_find: NMap.find => /= [m0|]; first by rewrite H_find in H10.
+    case H_find: NMap.find => /= [m0|]; first by rewrite H_find in H11.
     repeat break_let.
     move => Heqp Heqp'.      
     rewrite Heqp' in Heqp.
-    by inversion Heqp.
-  * rewrite /=.
-    monad_unfold.
-    repeat break_let.
-    move: Heqp.
-    rewrite /AG.NetHandler /=.
-    monad_unfold.
-    break_let.
-    move: Heqp2.
-    rewrite /=.
-    case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H10 in H_find'.
-    case H_find: NMap.find => /= [m0|].
-      repeat break_let.
-      move => Heqp Heqp'.      
-      rewrite Heqp' in Heqp.
-      by inversion Heqp.
-    repeat break_let.
-    move => Heqp Heqp'.      
-    rewrite Heqp' in Heqp.
-    by inversion Heqp.
-  * rewrite /=.
-    monad_unfold.
-    repeat break_let.
-    move: Heqp.
-    rewrite /AG.NetHandler /=.
-    monad_unfold.
-    break_let.
-    move: Heqp2.
-    rewrite /=.
-    case H_find': (NMap.find _  st.(sent)) => /= [m1|]; first by rewrite H11 in H_find'.
-    repeat break_let.
-    move => H_eq' H_eq''.
-    inversion H_eq'; subst.
-    by inversion H_eq''.
+    by repeat tuple_inversion.
   * rewrite /=.
     monad_unfold.
     repeat break_let.
@@ -1130,15 +1090,15 @@ Proof.
     move: Heqp2.
     rewrite /=.
     case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
-    case H_find: NMap.find => [m0|].
+    case H_find: NMap.find => /= [m0|].
       repeat break_let.
-      move => H_eq' H_eq''.
-      inversion H_eq'; subst.
-      by inversion H_eq''.
+      move => Heqp Heqp'.      
+      rewrite Heqp' in Heqp.
+      by repeat tuple_inversion.
     repeat break_let.
-    move => H_eq' H_eq''.
-    inversion H_eq'; subst.
-    by inversion H_eq''.
+    move => Heqp Heqp'.      
+    rewrite Heqp' in Heqp.
+    by repeat tuple_inversion.
   * rewrite /=.
     monad_unfold.
     repeat break_let.
@@ -1148,11 +1108,11 @@ Proof.
     break_let.
     move: Heqp2.
     rewrite /=.
-    case H_find: NMap.find => [m0|]; first by rewrite H11 in H_find.
+    case H_find': (NMap.find _  st.(sent)) => /= [m1|]; first by rewrite H12 in H_find'.
     repeat break_let.
     move => H_eq' H_eq''.
     inversion H_eq'; subst.
-    by inversion H_eq''.
+    by repeat tuple_inversion.
   * rewrite /=.
     monad_unfold.
     repeat break_let.
@@ -1162,16 +1122,49 @@ Proof.
     break_let.
     move: Heqp2.
     rewrite /=.
-    case H_find': (NMap.find _ st.(received)) => /= [m1|]; first by rewrite H11 in H_find'.
+    case H_find': (NMap.find _  st.(received)) => /= [m1|]; first by rewrite H12 in H_find'.
     case H_find: NMap.find => [m0|].
       repeat break_let.
       move => H_eq' H_eq''.
       inversion H_eq'; subst.
-      by inversion H_eq''.
+      by repeat tuple_inversion.
     repeat break_let.
     move => H_eq' H_eq''.
     inversion H_eq'; subst.
-    by inversion H_eq''.
+    by repeat tuple_inversion.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find: NMap.find => [m0|]; first by rewrite H12 in H_find.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by repeat tuple_inversion.
+  * rewrite /=.
+    monad_unfold.
+    repeat break_let.
+    move: Heqp.
+    rewrite /AG.NetHandler /=.
+    monad_unfold.
+    break_let.
+    move: Heqp2.
+    rewrite /=.
+    case H_find': (NMap.find _ st.(received)) => /= [m1|]; first by rewrite H12 in H_find'.
+    case H_find: NMap.find => [m0|].
+      repeat break_let.
+      move => H_eq' H_eq''.
+      inversion H_eq'; subst.
+      by repeat tuple_inversion.
+    repeat break_let.
+    move => H_eq' H_eq''.
+    inversion H_eq'; subst.
+    by repeat tuple_inversion.
 - move => me src.
   case => //.
   move => m' d out d' ps H_eq H_eq'.
@@ -1197,7 +1190,7 @@ Proof.
   case => //.
   * move => m' st.
     case => //=.
-    move => m'' H_eq.
+    move => m'' out st' ps H_eq.
     injection H_eq => H_eq'.
     rewrite H_eq' {H_eq H_eq'}.
     rewrite /pt_ext_mapped_input_handlers.
@@ -1208,18 +1201,18 @@ Proof.
     monad_unfold.
     repeat break_let.
     move: Heqp.
-    injection H0 => H_eq_m.
-    rewrite -H_eq_m {H_eq_m H0}.
+    injection H1 => H_eq_m.
+    rewrite -H_eq_m {H_eq_m H1}.
     rewrite /AG.IOHandler.
     monad_unfold.
     rewrite /=.
     move => Heqp.
-    by inversion Heqp.
+    by repeat tuple_inversion.
   * move => st.
     case => //=; first by move => m'; case root_dec => H_dec //=; case: parent.
       move => dst.
       case root_dec => H_dec //=.
-      case H_p: parent => [dst'|] H_eq //=.
+      case H_p: parent => [dst'|] out st' ps H_eq //=.
       rewrite /id /=.
       injection H_eq => H_eq'.
       rewrite -H_eq' {H_eq H_eq'}.
@@ -1240,8 +1233,8 @@ Proof.
       move {H_eq' H_eq dst'}.
       io_handler_cases => //=.
       + rewrite /id /=.
-        injection H7 => H_eq.
-        rewrite -H_eq in H6.
+        injection H8 => H_eq.
+        rewrite -H_eq in H7.
         rewrite -H_eq.
         monad_unfold.
         repeat break_let.
@@ -1255,16 +1248,15 @@ Proof.
         case sumbool_not => //= H_not.
         repeat break_let.
         move: Heqp2.
-        case H_find: NMap.find => [m0|]; last by rewrite H_find in H6.
-        rewrite H_find in H6.
-        injection H6 => H_eq'.
+        case H_find: NMap.find => [m0|]; last by rewrite H_find in H7.
+        rewrite H_find in H7.
+        injection H7 => H_eq'.
         rewrite H_eq'.
         move => H_eq_p H_eq'_p H_eq''_p.
         inversion H_eq''_p.
         subst.
         inversion H_eq'_p; subst.
-        rewrite -2!app_nil_end.
-        by inversion H_eq_p.
+        by repeat tuple_inversion.
       + monad_unfold.
         repeat break_let.
         move: Heqp.      
@@ -1276,9 +1268,9 @@ Proof.
         case sumbool_not => //= H_not.
         move => H_eq H_eq'.
         rewrite H_eq' in H_eq.
-        by inversion H_eq.
-      + injection H7 => H_eq.
-        rewrite -H_eq in H6.
+        by repeat tuple_inversion.
+      + injection H8 => H_eq.
+        rewrite -H_eq in H7.
         monad_unfold.
         repeat break_let.
         move: Heqp.
@@ -1290,20 +1282,27 @@ Proof.
         case sumbool_not => //= H_not.
         repeat break_let.
         move: Heqp2.
-        case H_find: NMap.find => [m0|]; first by rewrite H_find in H6.
+        case H_find: NMap.find => [m0|]; first by rewrite H_find in H7.
         rewrite -2!app_nil_end.
         move => H_eq_1 H_eq_2 H_eq3.
         inversion H_eq3; subst.
         inversion H_eq_2; subst.
-        by inversion H_eq_1.
+        by repeat tuple_inversion.
       + by case root_dec => //= H_dec; case: parent.
   * move => st.
     case => //.
+    move => out st' ps.
     rewrite /pt_ext_map_input /= => H_eq.
     rewrite /pt_ext_mapped_input_handlers.
-    repeat break_let.  
     rewrite /id /=.
-    apply input_handlers_IOHandler in Heqp.
+    monad_unfold.
+    repeat break_let.
+    move => H_eq'.
+    repeat tuple_inversion.
+    rewrite /AG.IOHandler in Heqp.
+    monad_unfold.
+    rewrite /= in Heqp.
+    repeat tuple_inversion.
     by io_handler_cases.
 - move => me.
   case => //=.
