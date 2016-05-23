@@ -2277,7 +2277,6 @@ case: H_bef => H_bef.
 by break_and.
 Qed.
 
-(*
 Lemma Failure_failed_adjacent_fail :
   forall net failed tr,
    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
@@ -2287,13 +2286,12 @@ Lemma Failure_failed_adjacent_fail :
       (NSet.In n' d0.(adjacent) \/ In New (net.(odnwPackets) n' n)) ->
       In Fail (net.(odnwPackets) n' n).
 Proof.
-Admitted.
-*)
-
-(* Lemma in_not_exists_fail_in_queue_churn : forall (S5 : S), churn_net_ok S5 ->
-  forall (s5 : s), In s5 S5 ->
-  forall (j : i), ident_adjacent j s5 ->
-  ~ (exists s', In s' S5 /\ churn_ident s' = j) ->
-  In_queue (msg_fail j) (churn_mbox s5). *)
+move => net failed tr H_st.
+move => n H_in_n H_in_f n' H_in_f' d0 H_eq_d0 H_or.
+case: H_or => H_or.
+  have H_c := Failure_in_adj_or_incoming_fail H_st _ H_in_n H_in_f H_eq_d0 H_or.
+  by case: H_c => H_c; break_and.
+exact: (Failure_in_new_failed_incoming_fail H_st _ H_in_n H_in_f _ H_in_f' H_or).
+Qed.
 
 End FailureRecorder.

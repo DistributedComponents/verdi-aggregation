@@ -23,7 +23,6 @@ Require Import NameOverlay.
 
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
-Require Import PartialExtendedMapSimulations.
 
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
@@ -159,6 +158,8 @@ match i with
          adjacent := st.(adjacent) ;
          sent := st.(sent) ;
          received := st.(received) |}
+| AggregateRequest =>
+  write_output (AggregateResponse st.(aggregate))
 | SendAggregate dst => 
   when (NSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match NMap.find dst st.(sent) with
@@ -171,8 +172,6 @@ match i with
             received := st.(received) |} ;; 
      send (dst, (Aggregate st.(aggregate)))
    end)
-| Query =>
-  write_output (AggregateResponse st.(aggregate))
 end.
 
 Instance Aggregation_BaseParams : BaseParams :=

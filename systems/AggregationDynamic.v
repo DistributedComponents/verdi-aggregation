@@ -2,6 +2,9 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import NameOverlay.
 
+Require Import TotalMapSimulations.
+Require Import PartialMapSimulations.
+
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
@@ -18,8 +21,6 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 
-Require Import Sorting.Permutation.
-
 Require Import OrderedLemmas.
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
@@ -31,9 +32,6 @@ Module Aggregation (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
-
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
 
 Module FR := FailureRecorder NT NOT NSet ANT.
 
@@ -90,9 +88,9 @@ Record Data := mkData {
 Definition InitData (n : name) := 
   {| local := 1 ;
      aggregate := 1 ;
-     adjacent := adjacency n nodes ;
-     sent := init_map (adjacency n nodes) ;
-     received := init_map (adjacency n nodes) |}.
+     adjacent := NSet.empty ;
+     sent := NMap.empty m ;
+     received := NMap.empty m |}.
 
 Definition Handler (S : Type) := GenHandler (name * Msg) S Output unit.
 
@@ -142,6 +140,8 @@ match i with
          adjacent := st.(adjacent) ;
          sent := st.(sent) ;
          received := st.(received) |}
+| AggregateRequest =>
+  write_output (AggregateResponse st.(aggregate))
 | SendAggregate dst => 
   when (NSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match NMap.find dst st.(sent) with
@@ -154,8 +154,6 @@ match i with
             received := st.(received) |} ;; 
      send (dst, (Aggregate st.(aggregate)))
    end)
-| Query =>
-  write_output (AggregateResponse st.(aggregate))
 end.
 
 Instance Aggregation_BaseParams : BaseParams :=
@@ -357,5 +355,105 @@ Ltac io_handler_cases :=
   intuition idtac; try break_exists; 
   intuition idtac; subst; 
   repeat find_rewrite.
+
+Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
+  {
+    pt_map_data := fun d => FR.mkData d.(adjacent) ;
+    pt_map_input := fun _ => None ;
+    pt_map_output := fun _ => None
+  }.
+
+Instance Aggregation_FailureRecorder_name_tot_map : MultiParamsNameTotalMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
+  {
+    tot_map_name := id ;
+    tot_map_name_inv := id ;
+  }.
+
+Instance Aggregation_FailureRecorder_name_tot_map_bijective : MultiParamsNameTotalMapBijective Aggregation_FailureRecorder_name_tot_map :=
+  {
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
+  }.
+
+Instance Aggregation_FailureRecorder_multi_params_pt_map : MultiParamsMsgPartialMap Aggregation_MultiParams FR.FailureRecorder_MultiParams :=
+  {
+    pt_map_msg := fun m => 
+                   match m with 
+                   | Fail => Some FR.Fail 
+                   | New => Some FR.New
+                   | _ => None 
+                   end ;
+  }.
+
+Instance Aggregation_FailureRecorder_multi_params_pt_map_congruency : MultiParamsPartialMapCongruency Aggregation_FailureRecorder_base_params_pt_map Aggregation_FailureRecorder_name_tot_map Aggregation_FailureRecorder_multi_params_pt_map :=
+  {
+    pt_init_handlers_eq := fun _ => Logic.eq_refl ;
+    pt_net_handlers_some := _ ;
+    pt_net_handlers_none := _ ;
+    pt_input_handlers_some := _ ;
+    pt_input_handlers_none := _
+  }.
+Proof.
+- move => me src.
+  case => //= d; last by case.
+  case => H_eq //=. 
+  rewrite /pt_mapped_net_handlers.
+  repeat break_let.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //.
+  * by rewrite /= /runGenHandler_ignore /=; find_rewrite.
+  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
+  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
+- move => me src.
+  case => //.
+  move => m' d out d' ps H_eq H_eq'.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //.
+  by rewrite /=; find_rewrite.
+- by [].
+- move => me.
+  case.
+  * move => m' d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    io_handler_cases => //.
+    by rewrite /=; find_rewrite.
+  * move => src d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    io_handler_cases => //.
+    by rewrite /=; find_rewrite.
+  * move => d out d' ps H_eq H_inp.
+    find_apply_lem_hyp input_handlers_IOHandler.
+    by io_handler_cases.
+Qed.
+
+Instance Aggregation_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Aggregation_FailMsgParams FR.FailureRecorder_FailMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
+  {
+    pt_fail_msg_fst_snd := Logic.eq_refl
+  }.
+
+Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency Aggregation_NameOverlayParams FR.FailureRecorder_NameOverlayParams Aggregation_FailureRecorder_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
+
+(*
+Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgParamsPartialMapCongruency Aggregation_NewMsgParams FR.FailureRecorder_NewMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
+  {
+    pt_new_msg_fst_snd := Logic.eq_refl
+  }.
+
+Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
+forall net failed tr,
+    @step_o_d_f_star _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
+    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_d_init (failed, pt_map_onet net) tr' /\
+    pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
+Proof.
+move => onet failed tr H_st.
+apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+move: H_st => [tr' [H_st H_eq]].
+rewrite map_id in H_st.
+by exists tr'.
+Qed.
+*)
 
 End Aggregation.
