@@ -114,6 +114,28 @@ Class FailMsgParamsTotalMapCongruency
     tot_fail_msg_fst_snd : msg_fail = tot_map_msg msg_fail
   }.
 
+Class MultiOneNodeParamsTotalMap
+  (B0 : BaseParams) (P0 : MultiParams B0) (B1 : BaseParams) :=
+  {
+    tot_one_map_data : @data B0 -> @data B1 ;
+    tot_one_map_input : name -> @input B0 -> @input B1 ;
+    tot_one_map_msg : name -> name -> msg -> @input B1
+  }.
+
+Class MultiOneNodeParamsTotalMapCongruency
+ (B0 : BaseParams) (B1 : BaseParams)
+ (P0 : MultiParams B0) (P1 : OneNodeParams B1)
+ (P : MultiOneNodeParamsTotalMap P0 B1) :=
+ {
+   tot_init_eq : forall n, tot_one_map_data (init_handlers n) = init ;
+   tot_net_handlers_handler_eq : forall me src m st out st' ps out',
+     net_handlers me src m st = (out, st', ps) ->
+     handler (tot_one_map_msg me src m) (tot_one_map_data st) = (out', tot_one_map_data st') ;
+   tot_input_handlers_handler_eq : forall me inp st out st' ps out',
+     input_handlers me inp st = (out, st', ps) ->
+     handler (tot_one_map_input me inp) (tot_one_map_data st) = (out', tot_one_map_data st')
+ }.
+
 Section TotalMapBijective.
 
 Context `{MB : MultiParamsNameTotalMapBijective}.
@@ -1397,5 +1419,156 @@ invcs H_step.
     rewrite /l collate_tot_map_eq /tot_map_name_msgs.
     by rewrite H_eq.
 Qed.
+
+Context {one_snd : OneNodeParams base_snd}.
+Context {multi_fst_snd : MultiOneNodeParamsTotalMap multi_fst base_snd}.
+Context {multi_one : MultiOneNodeParamsTotalMapCongruency one_snd multi_fst_snd}.
+
+Theorem step_m_tot_one_mapped_simulation_1 :
+  forall net net' tr,
+    @step_m _ multi_fst net net' tr ->
+    forall n, net.(nwState) n = net'.(nwState) n \/
+    exists tr', @step_1 _ one_snd (tot_one_map_data (net.(nwState) n)) (tot_one_map_data (net'.(nwState) n)) tr'.
+Proof.
+move => net net' tr.
+case => {net net' tr}.
+- move => net net' p ms ms' out d l H_eq H_hnd H_eq' n.
+  rewrite H_eq' /= /update.
+  break_if; last by left.
+  right.
+  rewrite -e in H_hnd.
+  case H_h: (handler (tot_one_map_msg (pDst p) (pSrc p) (pBody p)) (tot_one_map_data (nwState net (pDst p)))) => [out' st'].
+  apply (tot_net_handlers_handler_eq _ _ _ _ out') in H_hnd.
+  exists [(tot_one_map_msg (pDst p) (pSrc p) (pBody p), out')].
+  apply: S1T_deliver => //.
+  by rewrite -H_hnd e.
+- move => h net net' out inp d ps H_hnd H_eq n.
+  rewrite H_eq /= /update.
+  break_if; last by left.
+  right.
+  rewrite e.
+  case (handler (tot_one_map_input h inp) (tot_one_map_data (nwState net h))) => [out' st'].
+  apply (tot_input_handlers_handler_eq _ _ _ out') in H_hnd.
+  exists [((tot_one_map_input h inp), out')].
+  exact: S1T_deliver.
+Qed.
+
+Corollary step_m_tot_one_mapped_simulation_star_1 :
+  forall net tr,
+    @step_m_star _ multi_fst step_m_init net tr ->
+    forall n, exists tr', @step_1_star _ one_snd init (tot_one_map_data (net.(nwState) n)) tr'.
+Proof.
+move => net tr H_st.
+remember step_m_init as y in *.
+move: Heqy.
+induction H_st using refl_trans_1n_trace_n1_ind => H_init /=.
+  move => n.
+  rewrite H_init /step_m_init /=.
+  rewrite tot_init_eq.
+  exists [].
+  exact: RT1nTBase.
+concludes.
+repeat find_rewrite.
+move => n.
+have H_st' := step_m_tot_one_mapped_simulation_1 H n.
+have [tr' H_st] := IHH_st1 n.
+case: H_st' => H_st'.
+  rewrite -H_st'.
+  by exists tr'.
+move: H_st' => [tr'' H_st'].
+exists (tr' ++ tr'').
+have H_trans := refl_trans_1n_trace_trans H_st.
+apply: H_trans.
+have ->: tr'' = tr'' ++ [] by rewrite -app_nil_end.
+apply: (@RT1nTStep _ _ _ _ (tot_one_map_data (nwState x'' n))) => //.
+exact: RT1nTBase.
+Qed.
+
+Theorem step_o_f_tot_one_mapped_simulation_1 :
+  forall net net' failed failed' tr,
+    @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    forall n, net.(onwState) n = net'.(onwState) n \/
+    exists tr', @step_1 _ one_snd (tot_one_map_data (net.(onwState) n)) (tot_one_map_data (net'.(onwState) n)) tr'.
+Proof.
+move => net net' failed failed' tr H_step n.
+invcs H_step.
+- rewrite /update'.
+  break_if; last by left.
+  right.
+  rewrite -e in H6.
+  case H_h: (handler (tot_one_map_msg to from m) (tot_one_map_data (onwState net n))) => [out' st'].
+  apply (tot_net_handlers_handler_eq _ _ _ _ out') in H6.
+  exists [(tot_one_map_msg to from m, out')].
+  apply: S1T_deliver => //.
+  by rewrite -H6 e.
+- rewrite /update'.
+  break_if; last by left.
+  right.
+  rewrite e.
+  case (handler (tot_one_map_input h inp) (tot_one_map_data (onwState net h))) => [out' st'].
+  apply (tot_input_handlers_handler_eq _ _ _ out') in H5.
+  exists [((tot_one_map_input h inp), out')].
+  exact: S1T_deliver.
+- by left.
+Qed.
+
+Corollary step_o_f_tot_one_mapped_simulation_star_1 :
+  forall net failed tr,
+    @step_o_f_star _ _ overlay_fst fail_msg_fst step_o_f_init (failed, net) tr ->
+    forall n, exists tr', @step_1_star _ one_snd init (tot_one_map_data (net.(onwState) n)) tr'.
+Proof.
+move => net failed tr H_st.
+remember step_o_f_init as y in *.
+have H_eq_n: net = snd (failed, net) by [].
+rewrite H_eq_n {H_eq_n}.
+move: Heqy.
+induction H_st using refl_trans_1n_trace_n1_ind => H_init /=.
+  rewrite H_init /=.
+  move => n.
+  exists [].
+  rewrite tot_init_eq.
+  exact: RT1nTBase.
+concludes.
+rewrite H_init {H_init x} in H_st1 H_st2.
+case: x' H IHH_st1 H_st1 => failed' net'.
+case: x'' H_st2 => failed'' net''.
+rewrite /=.
+move => H_step2 H IHH_step1 H_step1 n.
+have H_stt := step_o_f_tot_one_mapped_simulation_1 H n.
+case: H_stt => H_stt.
+  rewrite -H_stt.
+  have [tr' H_star] := IHH_step1 n.
+  by exists tr'.
+have [tr' H_star] := IHH_step1 n.
+have [tr'' H_step] := H_stt.
+exists (tr' ++ tr'').
+have H_trans := refl_trans_1n_trace_trans H_star.
+apply: H_trans.
+have ->: tr'' = tr'' ++ [] by rewrite -app_nil_end.
+apply RT1nTStep with (x' := (tot_one_map_data (onwState net'' n))) => //.
+exact: RT1nTBase.
+Qed.
+
+(*
+Context {new_msg_fst : NewMsgParams multi_fst}.
+Context {new_msg_snd : NewMsgParams multi_snd}.
+
+Theorem step_o_d_f_tot_one_mapped_simulation_1 :
+  forall net net' failed failed' tr,
+    @step_o_d_f _ _ overlay_fst new_msg_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    forall n, In n net.(odnwNodes) ->
+    forall d, net.(odnwState) n = Some d ->
+    forall d', net'.(odnwState) n = Some d' ->
+    d = d' \/ exists tr', @step_1 _ one_snd (tot_one_map_data d) (tot_one_map_data d') tr'.
+Proof.
+Admitted.
+
+Corollary step_o_d_f_tot_one_mapped_simulation_star_1 :
+  forall net failed tr,
+    @step_o_d_f_star _ _ overlay_fst new_msg_fst fail_msg_fst step_o_f_init (failed, net) tr ->
+    forall n, In n net.(odnwNodes) ->
+    exists tr', @step_1_star _ one_snd init (tot_one_map_data (net.(onwState) n)) tr'.
+Proof.
+*)
 
 End TotalMapSimulations.
