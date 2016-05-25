@@ -46,7 +46,7 @@ Require Import AAC_tactics.AAC.
 
 Require Import OrderedLemmas.
 Require Import AggregationDefinitions.
-Require Import AggregationAux.
+Require Import AggregatorStatic.
 Require Import FailureRecorderStatic.
 
 Set Implicit Arguments.
@@ -56,14 +56,14 @@ Module Aggregation (Import NT : NameType)
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
+Module OA := OneAggregator NT NOT NSet NOTC NMap CFG ANT.
+
+(* FIXME *)
+Import OA.A.
+Import OA.AX.AD.
+Import OA.AX.
 
 Module FR := FailureRecorder NT NOT NSet ANT.
-
-Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
-Import AX.AD.
-Import AX.
 
 Import GroupScope.
 
@@ -397,36 +397,37 @@ Instance Aggregation_FailureRecorder_multi_params_pt_map_congruency : MultiParam
     pt_input_handlers_none := _
   }.
 Proof.
-- move => me src.
-  case => // d.
-  case => H_eq.
+- move => me src mg st mg' H_eq.
   rewrite /pt_mapped_net_handlers.
   repeat break_let.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  * by rewrite /= /runGenHandler_ignore /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-- move => me src.
-  case => //.
-  move => m' d out d' ps H_eq H_eq'.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  by rewrite /=; find_rewrite.
-- by [].
-- move => me.
-  case.
-  * move => m' d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    io_handler_cases => //.
-    by rewrite /=; find_rewrite.
-  * move => src d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    io_handler_cases => //.
-    by rewrite /=; find_rewrite.
-  * move => d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    by io_handler_cases.
+  case H_n: net_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_n.
+  repeat break_let.
+  repeat tuple_inversion.
+  unfold id in *.  
+  destruct u, u0, st'.
+  by net_handler_cases; FR.net_handler_cases; simpl in *; congruence.
+- move => me src mg st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, st'.
+  by net_handler_cases; simpl in *; congruence.
+- move => me inp st inp' H_eq.
+  rewrite /pt_mapped_input_handlers.
+  repeat break_let.
+  case H_i: input_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_i.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  by io_handler_cases.
+- move => me inp st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.  
+  repeat tuple_inversion.
+  destruct u, st'.
+  by io_handler_cases; simpl in *; congruence.
 Qed.
 
 Instance Aggregation_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Aggregation_FailMsgParams FR.FailureRecorder_FailMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
@@ -451,6 +452,22 @@ move: H_st => [tr' [H_st H_eq]].
 rewrite map_id in H_st.
 by exists tr'.
 Qed.
+
+Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
+  {
+    tot_one_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+    tot_one_map_input := fun n i => 
+                        match i with
+                        | Local m_inp => OA.Local m_inp
+                        | AggregateRequest => OA.AggregateRequest
+                        | SendAggregate dst => OA.SendAggregate dst
+                        end ;
+    tot_one_map_msg := fun dst src m =>
+                        match m with
+                        | Fail => OA.Fail src
+                        | Aggregate m_msg => OA.Aggregate src m_msg
+                        end
+  }.
 
 (* FIXME *)
 Lemma in_msg_pt_map_msgs :
@@ -1963,6 +1980,115 @@ Qed.
 
 End SingleNodeInvIn.
 
+Theorem step_o_f_tot_one_mapped_simulation_1 :
+  forall n net net' failed failed' tr tr',
+    step_o_f_star step_o_f_init (failed, net) tr ->
+    step_o_f (failed, net) (failed', net') tr' ->
+    net.(onwState) n = net'.(onwState) n \/
+    exists tr'', @step_1 OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams n) (tot_one_map_data (net.(onwState) n)) (tot_one_map_data (net'.(onwState) n)) tr''.
+Proof.
+move => n net net' failed failed' tr tr' H_star H_step.
+invcs H_step.
+- rewrite /update'.
+  break_if; last by left.
+  right.
+  rewrite -e /= in H6.
+  rewrite /runGenHandler_ignore /= in H6.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams to) (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0) (tot_one_map_data (onwState net to))) => [out' st'].
+  exists [(@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0, out')].
+  apply: S1T_deliver.
+  suff H_suff: {|
+   OA.local := local d;
+   OA.aggregate := aggregate d;
+   OA.adjacent := adjacent d;
+   OA.sent := sent d;
+   OA.received := received d |} = st'.
+    rewrite H_suff.
+    by rewrite -H_h.
+  destruct st'.
+  net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
+  * case: H0.
+    apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 _ x1).
+    find_rewrite.
+    by left.
+  * case: H0.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
+    by congruence.
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
+    by congruence.
+  * case: H.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
+    by congruence.
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
+    by congruence.
+  * case: H.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+- rewrite /update'.
+  break_if; last by left.
+  right.
+  rewrite -e /= in H5.
+  rewrite /runGenHandler_ignore /= in H5.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
+  exists [(@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp, out')].
+  apply: S1T_deliver.
+  suff H_suff: {|
+   OA.local := local d;
+   OA.aggregate := aggregate d;
+   OA.adjacent := adjacent d;
+   OA.sent := sent d;
+   OA.received := received d |} = st'.
+    rewrite H_suff.
+    by rewrite -H_h.
+  destruct st'.
+  by io_handler_cases; OA.io_handler_cases; simpl in *; congruence.
+- by left.
+Qed.
+
+Lemma Aggregation_step_o_f_tot_one_mapped_simulation_star_1 :
+  forall n net failed tr,
+    step_o_f_star step_o_f_init (failed, net) tr ->
+    exists tr', @step_1_star _ (OA.Aggregator_OneNodeParams n) (@init _ (OA.Aggregator_OneNodeParams n)) (tot_one_map_data (net.(onwState) n)) tr'.
+Proof.
+move => n.
+move => net failed tr H_st.
+have ->: net = snd (failed, net) by [].
+remember step_o_f_init as y in *.
+move: Heqy.
+induction H_st using refl_trans_1n_trace_n1_ind => /= H_init.
+  rewrite H_init /=.
+  exists [].
+  exact: RT1nTBase.
+concludes.
+rewrite H_init {H_init x} in H_st1 H_st2.
+case: x' H IHH_st1 H_st1 => failed' net'.
+case: x'' H_st2 => failed'' net''.
+rewrite /=.
+move => H_step2 H IHH_step1 H_step1.
+have [tr' H_star] := IHH_step1.
+have H_st := step_o_f_tot_one_mapped_simulation_1 n H_step1 H.
+case: H_st => H_st; first by rewrite -H_st; exists tr'.
+have [tr'' H_st'] := H_st.
+exists (tr' ++ tr'').
+apply: (refl_trans_1n_trace_trans H_star).
+have ->: tr'' = tr'' ++ [] by rewrite -app_nil_end.
+apply RT1nTStep with (x' := (tot_one_map_data (onwState net'' n))) => //.
+exact: RT1nTBase.
+Qed.
+
 Instance AggregationData_Data : AggregationData Data :=
   {
     aggr_local := local ;
@@ -1985,113 +2111,11 @@ forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
  forall n, ~ In n failed -> conserves_node_mass (onet.(onwState) n).
 Proof.
-move => onet failed tr H.
-have H_eq_f: failed = fst (failed, onet) by [].
-have H_eq_o: onet = snd (failed, onet) by [].
-rewrite H_eq_f {H_eq_f}.
-rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
-move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init.
-  move => n.
-  rewrite H_init /conserves_node_mass /InitData /= => H_in.
-  by rewrite sumM_init_map_1; gsimpl.
-move => n.
-concludes.
-match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
-end; simpl.
-- move {H1}.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //=.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    rewrite -H_dec {H_dec to H3} in H1 H5 H6 H7 H8 H9 H2.
-    case: d H5 H6 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 received0.
-    move => H5 H6 H7 H8 H9.
-    rewrite H5 H6 H7 H8 H9 {H5 H6 H7 H8 H9 local0 aggregate0 adjacent0 sent0 received0}.
-    rewrite /conserves_node_mass /=.
-    have H_ins: NSet.In from (net.(onwState) n).(adjacent).
-      have H_in: In (Aggregate x) (net.(onwPackets) from n) by rewrite H2; left.
-      exact: Aggregation_aggregate_msg_dst_adjacent_src H _ H0 _ _ H_in.
-    rewrite IH sumM_add_map //; gsimpl.
-    suff H_eq: (net.(onwState) n).(aggregate) * x * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * x^-1 * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1 = 
-     (net.(onwState) n).(aggregate) * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1 * (x * x^-1) by rewrite H_eq; gsimpl.
-    by aac_reflexivity.
-  * have H_in: In (Aggregate x) (onwPackets net from to) by rewrite H2; left.
-    have H_ins := Aggregation_aggregate_msg_dst_adjacent_src H _ H3 _ _ H_in.
-    have [m5 H_rcd] := Aggregation_in_set_exists_find_received H _ H3 H_ins.
-    by rewrite H_rcd in H1.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    rewrite -H_dec {H_dec to H3} in H1 H5 H6 H7 H8 H9 H10 H2.
-    case: d H6 H7 H8 H9 H10 => /= local0 aggregate0 adjacent0 sent0 received0.
-    move => H6 H7 H8 H9 H10.
-    rewrite H6 H7 H8 H9 H10 {H6 H7 H8 H9 H10 local0 aggregate0 adjacent0 sent0 received0}.
-    rewrite /conserves_node_mass /= IH.
-    have H_in: In Fail (net.(onwPackets) from n) by rewrite H2; left.
-    have H_ins := Aggregation_in_queue_fail_then_adjacent H _ _ H0 H_in.
-    rewrite (sumM_remove_remove H_ins H1) (sumM_remove_remove H_ins H5); gsimpl.
-    suff H_eq: 
-      (net.(onwState) n).(aggregate) * x * x0^-1 * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * x^-1 * x0 * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1 = 
-      (net.(onwState) n).(aggregate) * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1 * (x * x^-1) * (x0 * x0^-1) by rewrite H_eq; gsimpl.
-    by aac_reflexivity.
-  * have H_in: In Fail (net.(onwPackets) from to) by rewrite H2; left.
-    have H_ins := Aggregation_in_queue_fail_then_adjacent H _ _ H3 H_in.
-    have [m5 H_rcd] := Aggregation_in_set_exists_find_sent H _ H3 H_ins.
-    by rewrite H_rcd in H11.
-  * have H_in: In Fail (net.(onwPackets) from to) by rewrite H2; left.
-    have H_ins := Aggregation_in_queue_fail_then_adjacent H _ _ H3 H_in.
-    have [m5 H_rcd] := Aggregation_in_set_exists_find_received H _ H3 H_ins.
-    by rewrite H_rcd in H11.
-- move {H1}.
-  find_apply_lem_hyp input_handlers_IOHandler.
-  io_handler_cases => //.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    rewrite -H_dec {h H_dec} in H5 H2 H6 H7 H4.
-    case: d H5 H6 H7 H4 => /= local0 aggregate0 adjacent0 sent0 received0.
-    move => H5 H6 H7 H4.
-    rewrite /conserves_node_mass /= H5 H6 H7 H4 {H5 H6 H7 H4 aggregate0 adjacent0 sent0 received0}.
-    rewrite IH; gsimpl.
-    suff H_eq: 
-        (net.(onwState) n).(aggregate) * local0 * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent))^-1 * (net.(onwState) n).(aggregate)^-1 * sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1 = 
-        local0 * ((net.(onwState) n).(aggregate) * (net.(onwState) n).(aggregate)^-1) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(sent))^-1) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received) * (sumM (net.(onwState) n).(adjacent) (net.(onwState) n).(received))^-1) by rewrite H_eq; gsimpl.
-    by aac_reflexivity.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /conserves_node_mass /= {IHrefl_trans_1n_trace1} in IH.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    rewrite -H_dec {h H_dec} in H1 H2 H4 H5 H6 H8 H9 H10.
-    case: d H7 H6 H8 H9 H10 => /= local0 aggregate0 adjacent0 sent0 received0.
-    move => H7 H6 H8 H9 H10.
-    rewrite /conserves_node_mass /= H7 H6 H8 H9 H10 {H7 H6 H8 H9 H10 aggregate0 adjacent0 sent0 received0}.
-    rewrite IH sumM_add_map; gsimpl.
-    by aac_reflexivity.
-  * have [m5 H_rcd] := Aggregation_in_set_exists_find_sent H _ H2 H1.
-    by rewrite H_rcd in H5.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /= in IH.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    by rewrite -H_dec.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    by rewrite -H_dec.
-  * have IH := IHrefl_trans_1n_trace1 _ H0.
-    rewrite /update' /=.
-    case name_eq_dec => H_dec //.
-    by rewrite -H_dec.
-- move => H_in_f.
-  have H_in_f': ~ In n failed0 by move => H_in; case: H_in_f; right.
-  exact: IHrefl_trans_1n_trace1.
+move => onet failed tr H n H_f.
+apply (Aggregation_step_o_f_tot_one_mapped_simulation_star_1 n) in H.
+move: H => [tr' H_st].
+apply OA.Aggregator_conserves_node_mass in H_st.
+by rewrite /= /conserves_node_mass /= in H_st.
 Qed.
 
 Lemma Aggregation_conserves_node_mass_all : 
@@ -3945,3 +3969,46 @@ end; simpl.
 Qed.
 
 End Aggregation.
+
+(*
+Require StateMachineHandlerMonad.
+
+Lemma 
+
+Instance Aggregation_Aggregator_congruence : forall n, MultiOneNodeParamsTotalMapCongruency (OA.Aggregator_OneNodeParams n) Aggregation_Aggregator_multi_one_map n :=
+  {
+    tot_init_eq := Logic.eq_refl ;
+    tot_net_handlers_handler_eq := _ ;
+    tot_input_handlers_handler_eq := _     
+  }.
+Proof.
+- move => src.
+  move => mg st out st' ps out' H_eq.
+  find_apply_lem_hyp net_handlers_NetHandler.w
+  net_handler_cases.
+  * rewrite /= /StateMachineHandlerMonad.runGenHandler1 /OA.IOHandler /=.
+    StateMachineHandlerMonad.monad_unfold.
+    repeat break_let.
+    repeat tuple_inversion.
+    break_if; repeat break_let; repeat break_match; repeat tuple_inversion; simpl in *.
+      
+      
+      simpl in *.
+
+    rewrite /StateMachineHandlerMonad.bind.
+  
+    
+
+  case => [m_msg|] st out st' ps out'.
+  * rewrite /= /runGenHandler_ignore /=.
+    repeat break_let.
+    
+
+  rewrite /=.
+  rewrite /net_handlers /=.
+
+  try repeat (match goal with
+       | H: NMap.find ?N ?S = _, H': NMap.find ?N ?S = _ |- _ => rewrite H in H'; invc H'
+       end);
+  try by [].
+*)

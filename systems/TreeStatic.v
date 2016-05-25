@@ -567,57 +567,50 @@ Instance Tree_FailureRecorder_multi_params_pt_map_congruency : MultiParamsPartia
     pt_input_handlers_none := _
   }.
 Proof.
-- move => n.
-  rewrite /= /InitData /=.
-  by case root_dec => /= H_dec.
-- move => me src.
-  case => // d.
-  case => H_eq.
+- by move => n; rewrite /= /InitData /=; break_if.
+- move => me src mg st mg' H_eq.
   rewrite /pt_mapped_net_handlers.
   repeat break_let.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  * by rewrite /= /runGenHandler_ignore /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-- move => me src.
-  case => //.
-  move => olv d out d' ps H_eq H_eq'.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  * case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_add.
-    by rewrite H_eq'.
-  * case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_add.
-    by rewrite H_eq'.
-  * case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_add.
-    by rewrite H_eq'.
-  * case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_add.
-    by rewrite H_eq'.
-- by [].
-- move => me.
-  case.
-  * move => d out d' ps H_eq H_inp.
-    apply input_handlers_IOHandler in H_inp.
-    by io_handler_cases.
-  * move => d out d' ps H_eq H_inp.
-    apply input_handlers_IOHandler in H_inp.
-    io_handler_cases => //.
-    + case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_eq_l.
-      by rewrite H_eq'.
-    + rewrite /level_adjacent NSet.fold_spec /flip /=.
-      elim: NSet.elements => //=.
-      move => n l IH.
-      rewrite /flip /= /level_fold.
-      rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-      by rewrite pt_map_name_msgs_app_distr /= IH.
-    + case: d' H2 H3 H4 => /= adjacent0 broadcast0 levels0 H_eq' H_eq'' H_eq_l.
-      by rewrite H_eq'.
-    + rewrite /level_adjacent NSet.fold_spec /flip /=.
-      elim: NSet.elements => //=.
-      move => n l IH.
-      rewrite /flip /= /level_fold.
-      rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-      by rewrite pt_map_name_msgs_app_distr /= IH.
+  case H_n: net_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_n.
+  repeat break_let.
+  repeat tuple_inversion.
+  unfold id in *.  
+  destruct u, u0, st'.
+  by net_handler_cases; FR.net_handler_cases; simpl in *; congruence.
+- move => me src mg st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, st'.
+  by net_handler_cases; simpl in *; congruence.
+- move => me inp st inp' H_eq.
+  rewrite /pt_mapped_input_handlers.
+  repeat break_let.
+  case H_i: input_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_i.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  by io_handler_cases.
+- move => me inp st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, st'.
+  io_handler_cases; simpl in *; try congruence.
+    rewrite /level_adjacent NSet.fold_spec /flip /=.
+    elim: NSet.elements => //=.
+    move => n l IH.
+    rewrite /flip /= /level_fold.
+    rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
+    by rewrite pt_map_name_msgs_app_distr /= IH.
+  rewrite /level_adjacent NSet.fold_spec /flip /=.
+  elim: NSet.elements => //=.
+  move => n l IH.
+  rewrite /flip /= /level_fold.
+  rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
+  by rewrite pt_map_name_msgs_app_distr /= IH.
 Qed.
 
 Instance Tree_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Tree_FailMsgParams FR.FailureRecorder_FailMsgParams Tree_FailureRecorder_multi_params_pt_map := 
