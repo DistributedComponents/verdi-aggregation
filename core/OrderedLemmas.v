@@ -382,6 +382,7 @@ move => H.
 by rewrite H.
 Qed.
 
+(* FIXME: obsolete by functional extensionality? *)
 Lemma collate_f_eq :
   forall B (f : A -> A -> list B) g h n n' l,
   f n n' = g n n' ->
@@ -1030,6 +1031,7 @@ split; first exact: In_n_exclude.
 by case rel_dec.
 Qed.
 
+(* FIXME: obsolete through functional extensionality? *)
 Lemma collate_ls_f_eq :
   forall B ns (f : A -> A -> list B) g h mg n n',
   f n n' = g n n' ->
@@ -1113,6 +1115,97 @@ have H_neq: n' <> n by move => H_eq; rewrite H_eq in H_in'.
 rewrite IH.
 rewrite /update2.
 by break_if; first by break_and.
+Qed.
+
+Lemma collate_ls_app :
+  forall B l1 l2 (f : A -> A -> list B) h m,
+  collate_ls (l1 ++ l2) f h m = collate_ls l2 (collate_ls l1 f h m) h m.
+Proof. by move => B; elim => /=. Qed.
+
+Lemma collate_ls_split_eq :
+  forall B l1 l2 (f : A -> A -> list B) h m from to,
+  h <> from -> 
+  collate_ls (l1 ++ h :: l2) f to m from to =
+  collate_ls (l1 ++ l2) f to m from to.
+Proof.
+move => B.
+elim => //=.
+  move => l2 f h m from to H_neq.
+  apply: collate_ls_f_eq.
+  rewrite /update2.
+  by break_if; first by break_and.
+move => h' l1 IH l2 f h m from to H_neq.
+by rewrite IH.
+Qed.
+
+Lemma collate_ls_not_in_mid :
+ forall B h h' l1 l2 (f : A -> A -> list B) m,
+   ~ In h' (l1 ++ l2) ->
+   collate_ls (l1 ++ l2) (update2 f h' h (f h' h ++ [m])) h m = collate_ls (l1 ++ h' :: l2) f h m.
+Proof.
+move => B h h' l1 l2 f m H_in.
+apply functional_extensionality => from.
+apply functional_extensionality => to.
+case (eq_dec h' from) => H_dec; case (eq_dec h to) => H_dec'.
+- rewrite -H_dec -H_dec'.
+  rewrite collate_ls_not_in //.
+  rewrite collate_ls_app /=.
+  set f' := collate_ls l1 _ _ _.
+  rewrite collate_ls_not_in; last first.
+    move => H_in'.
+    case: H_in.
+    apply in_or_app.
+    by right.
+  rewrite {2}/update2.
+  break_if; last by break_or_hyp.
+  rewrite /f'.
+  rewrite collate_ls_not_in; last first.
+    move => H_in'.
+    case: H_in.
+    apply in_or_app.
+    by left.
+  rewrite /update2.
+  by break_if; last by break_or_hyp.
+- rewrite collate_ls_neq_to //.
+  rewrite collate_ls_neq_to //.
+  rewrite /update2.
+  by break_if; first by break_and.
+- rewrite H_dec' collate_ls_neq_update2 //.
+  by rewrite collate_ls_split_eq.
+- rewrite collate_ls_neq_to //.
+  rewrite collate_ls_neq_to //.
+  rewrite /update2.
+  by break_if; first by break_and.
+Qed.
+
+Lemma nodup_perm_collate_ls_eq :
+  forall B l (f : A -> A -> list B) h m l',
+    NoDup l ->
+    Permutation l l' ->
+    collate_ls l f h m = collate_ls l' f h m.
+Proof.
+move => B l f h m l'.
+elim: l f l'.
+  move => f l' H_nd H_pm.
+  apply Permutation_nil in H_pm.
+  by rewrite H_pm.
+move => a l IH f l' H_nd H_pm.
+inversion H_nd; subst_max.
+rewrite /=.
+have H_in: In a (a :: l) by left.
+have H_pm' := Permutation_in _ H_pm H_in.
+find_apply_lem_hyp in_split.
+break_exists.
+subst_max.
+apply Permutation_cons_app_inv in H_pm.
+set f' := update2 _ _ _ _.
+rewrite (IH f' _ _ H_pm) //.
+rewrite collate_ls_not_in_mid //.
+move => H_in'.
+case: H1.
+move: H_in'.
+apply Permutation_in.
+exact: Permutation_sym.
 Qed.
 
 End OrderedProps.

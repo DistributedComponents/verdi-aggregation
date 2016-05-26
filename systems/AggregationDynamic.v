@@ -394,36 +394,37 @@ Instance Aggregation_FailureRecorder_multi_params_pt_map_congruency : MultiParam
     pt_input_handlers_none := _
   }.
 Proof.
-- move => me src.
-  case => //= d; last by case.
-  case => H_eq //=. 
+- move => me src mg st mg' H_eq.
   rewrite /pt_mapped_net_handlers.
   repeat break_let.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  * by rewrite /= /runGenHandler_ignore /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-  * by rewrite /= /runGenHandler_ignore /id /=; find_rewrite.
-- move => me src.
-  case => //.
-  move => m' d out d' ps H_eq H_eq'.
-  find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //.
-  by rewrite /=; find_rewrite.
-- by [].
-- move => me.
-  case.
-  * move => m' d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    io_handler_cases => //.
-    by rewrite /=; find_rewrite.
-  * move => src d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    io_handler_cases => //.
-    by rewrite /=; find_rewrite.
-  * move => d out d' ps H_eq H_inp.
-    find_apply_lem_hyp input_handlers_IOHandler.
-    by io_handler_cases.
+  case H_n: net_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_n.
+  repeat break_let.
+  repeat tuple_inversion.
+  unfold id in *.  
+  destruct u, u0, st'.
+  by net_handler_cases; FR.net_handler_cases; simpl in *; congruence.
+- move => me src mg st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, st'.
+  by net_handler_cases; simpl in *; congruence.
+- move => me inp st inp' H_eq.
+  rewrite /pt_mapped_input_handlers.
+  repeat break_let.
+  case H_i: input_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= in Heqp H_i.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  by io_handler_cases.
+- move => me inp st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.  
+  repeat tuple_inversion.
+  destruct u, st'.
+  by io_handler_cases; simpl in *; congruence.
 Qed.
 
 Instance Aggregation_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Aggregation_FailMsgParams FR.FailureRecorder_FailMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
@@ -445,7 +446,7 @@ Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgPa
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_d_f_star _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_d_init (failed, pt_map_onet net) tr' /\
+    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_o_d_init (failed, pt_map_onet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => onet failed tr H_st.
