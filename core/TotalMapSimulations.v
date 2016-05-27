@@ -1312,18 +1312,6 @@ apply NoDup_Permutation; last split.
   exact: not_in_failed_in_exclude.
 Qed.
 
-Lemma map_map_pair_eq_nodup : 
-  forall h m failed ns ns',
-  NoDup ns ->
-  Permutation (map tot_map_name ns) ns' ->
-  Permutation 
-    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_pair m (filter_rel h (exclude failed ns)))) 
-    (map_pair (tot_map_msg m) (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) ns'))).
-Proof.
-move => h m failed ns ns' H_nd H_pm.
-exact: nodup_perm_map_map_pair_perm.
-Qed.
-
 Lemma map_map_pair_eq :
   forall h m failed,
   Permutation 
@@ -1331,7 +1319,7 @@ Lemma map_map_pair_eq :
     (map_pair (tot_map_msg m) (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
 Proof.
 move => h m failed.
-apply map_map_pair_eq_nodup; first exact: no_dup_nodes.
+apply nodup_perm_map_map_pair_perm; first exact: no_dup_nodes.
 apply Permutation_sym.
 exact: permutation_nodes.
 Qed.
@@ -1350,7 +1338,7 @@ Lemma map_msg_fail_eq_nodup :
 Proof.
 move => h failed.
 rewrite tot_fail_msg_fst_snd.
-exact: map_map_pair_eq_nodup.
+exact: nodup_perm_map_map_pair_perm.
 Qed.
 
 Lemma map_msg_fail_eq :
@@ -1680,7 +1668,6 @@ invcs H_step.
     by rewrite H_eq.
 Qed.
 
-(*
 Corollary step_o_d_f_tot_mapped_simulation_star_1 :
   forall net failed tr,
     @step_o_d_f_star _ _ overlay_fst new_msg_fst fail_msg_fst step_o_d_f_init (failed, net) tr ->
@@ -1707,8 +1694,8 @@ find_apply_lem_hyp step_o_d_f_tot_mapped_simulation_1.
   rewrite (app_nil_end (map tot_map_trace_occ _)).
   apply (@RT1nTStep _ _ _ _ (map tot_map_name l0, tot_map_odnet o0)) => //.
   exact: RT1nTBase.
-by admit.
-Admitted.
-*)
+move: H_step1.
+exact: ordered_dynamic_nodes_no_dup.
+Qed.
 
 End TotalMapSimulations.
