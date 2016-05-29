@@ -1036,7 +1036,7 @@ by right.
 Qed.
 
 Lemma in_map_pair_adjacent_to :
-  forall (m : msg) ns failed h n,
+  forall (m : @msg _ multi_fst) ns failed h n,
     In (tot_map_name_inv n, m) (map_pair m (filter_rel h (exclude failed ns))) ->
     In (tot_map_name_inv n) (filter_rel h (exclude failed ns)).
 Proof.

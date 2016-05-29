@@ -469,41 +469,6 @@ Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggre
                         end
   }.
 
-(* FIXME *)
-Lemma in_msg_pt_map_msgs :
-  forall l m' m0,
-    pt_map_msg m0 = Some m' ->
-    In m0 l ->
-    In m' (pt_map_msgs l).
-Proof.
-elim => //.
-move => m1 l IH.
-case.
-case => //.
-case: m1 => [m5|] H_eq H_in; last by left.
-case: H_in => H_in //.
-rewrite /=.
-move: H_in.
-exact: IH.
-Qed.
-
-(* FIXME *)
-Lemma in_pt_map_msgs_in_msg :
-  forall l m' m0,
-    pt_map_msg m0 = Some m' ->
-    In m' (pt_map_msgs l) ->
-    In m0 l.
-Proof.
-elim => //.
-move => m1 l IH.
-case.
-case => //.
-case: m1 => [m5|] /= H_eq H_in; last by left.
-right.
-move: H_in.
-exact: IH.
-Qed.
-
 Lemma Aggregation_node_not_adjacent_self : 
 forall net failed tr n, 
  step_o_f_star step_o_f_init (failed, net) tr ->
@@ -561,7 +526,8 @@ right.
 move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
-exact: in_pt_map_msgs_in_msg.
+apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+by case => [m0|]; case => [m1|] H_eq.
 Qed.
 
 Lemma count_occ_pt_map_msgs_eq :
