@@ -934,6 +934,17 @@ Instance TreeAggregation_Aggregation_name_tot_map_bijective : MultiParamsNameTot
     tot_map_name_inverse_inv := fun _ => Logic.eq_refl
   }.
 
+Instance TreeAggregation_Aggregation_params_pt_msg_map : MultiParamsMsgPartialMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
+  {
+    pt_map_msg := fun m =>
+      match m with
+      | Aggregate m' => Some (AG.Aggregate m')
+      | Fail => Some AG.Fail
+      | New  => Some AG.New
+      | Level _ => None
+      end    
+  }.
+
 Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     pt_ext_map_data := fun d _ =>
@@ -949,19 +960,12 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
           end
       | AggregateRequest => (Some AG.AggregateRequest)
       | _ => None
-      end ;
-    pt_ext_map_msg := fun m =>
-      match m with
-      | Aggregate m' => Some (AG.Aggregate m')
-      | Fail => Some AG.Fail
-      | New  => Some AG.New
-      | Level _ => None
       end
   }.
 
 Lemma pt_ext_map_name_msgs_level_adjacent_empty :
   forall fs lvo,
-  pt_ext_map_name_msgs (level_adjacent lvo fs) = [].
+  pt_map_name_msgs (level_adjacent lvo fs) = [].
 Proof.
 move => fs lvo.
 rewrite /level_adjacent NSet.fold_spec.
@@ -969,10 +973,10 @@ elim: NSet.elements => //=.
 move => n ns IH.
 rewrite {2}/level_fold /=.
 rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) /=.
-by rewrite pt_ext_map_name_msgs_app_distr /= -app_nil_end IH.
+by rewrite pt_map_name_msgs_app_distr /= -app_nil_end IH.
 Qed.
 
-Instance TreeAggregation_Aggregation_multi_params_pt_ext_map_congruency : MultiParamsPartialExtendedMapCongruency TreeAggregation_Aggregation_name_tot_map TreeAggregation_Aggregation_params_pt_ext_map :=
+Instance TreeAggregation_Aggregation_multi_params_pt_ext_map_congruency : MultiParamsPartialExtendedMapCongruency TreeAggregation_Aggregation_name_tot_map TreeAggregation_Aggregation_params_pt_msg_map TreeAggregation_Aggregation_params_pt_ext_map :=
   {
     pt_ext_init_handlers_eq := _ ;
     pt_ext_net_handlers_some := _ ;
@@ -1042,14 +1046,14 @@ Proof.
   * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
 Qed.
 
-Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialExtendedMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_ext_map := 
+Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_msg_map := 
   {
-    pt_ext_fail_msg_fst_snd := Logic.eq_refl
+    pt_fail_msg_fst_snd := Logic.eq_refl
   }.
 
-Instance TreeAggregation_Aggregation_new_msg_params_pt_ext_map_congruency : NewMsgParamsPartialExtendedMapCongruency TreeAggregation_NewMsgParams AG.Aggregation_NewMsgParams TreeAggregation_Aggregation_params_pt_ext_map := 
+Instance TreeAggregation_Aggregation_new_msg_params_pt_ext_map_congruency : NewMsgParamsPartialMapCongruency TreeAggregation_NewMsgParams AG.Aggregation_NewMsgParams TreeAggregation_Aggregation_params_pt_msg_map := 
   {
-    pt_ext_new_msg_fst_snd := Logic.eq_refl
+    pt_new_msg_fst_snd := Logic.eq_refl
   }.
 
 Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams TreeAggregation_Aggregation_name_tot_map := 

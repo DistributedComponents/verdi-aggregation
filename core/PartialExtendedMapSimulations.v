@@ -10,6 +10,7 @@ Require Import HandlerMonad.
 Require Import Net.
 Require Import StructTact.Util.
 Require Import TotalMapSimulations.
+Require Import PartialMapSimulations.
 
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
@@ -27,9 +28,8 @@ Class MultiParamsPartialExtendedMap
  (B0 : BaseParams) (B1 : BaseParams) 
  (P0 : MultiParams B0) (P1 : MultiParams B1) :=
 {
-  pt_ext_map_data : @data B0 -> @name _ P0 -> @data B1 ;
-  pt_ext_map_input : @input B0 -> @name _ P0 -> @data B0 -> option (@input B1) ;
-  pt_ext_map_msg : @msg _ P0 -> option (@msg _ P1) ;
+  pt_ext_map_data : @data B0 -> @name B0 P0 -> @data B1 ;
+  pt_ext_map_input : @input B0 -> @name B0 P0 -> @data B0 -> option (@input B1) 
 }.
 
 Section PartialExtendedMapDefs.
@@ -39,22 +39,16 @@ Context {base_snd : BaseParams}.
 Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {msg_map : MultiParamsMsgPartialMap multi_fst multi_snd}.
 Context {multi_map : MultiParamsPartialExtendedMap multi_fst multi_snd}.
-
-Definition pt_ext_map_name_msgs :=
-  fold_right (fun nm l => 
-                match pt_ext_map_msg (snd nm) with
-                | Some m => (tot_map_name (fst nm), m) :: l
-                | None => l
-                end) [].
 
 Definition pt_ext_mapped_net_handlers me src m st :=
   let '(_, st', ps) := net_handlers me src m st in
-  (pt_ext_map_data st' me, pt_ext_map_name_msgs ps).
+  (pt_ext_map_data st' me, pt_map_name_msgs (name_map := name_map) (msg_map := msg_map) ps).
 
 Definition pt_ext_mapped_input_handlers me inp st :=
   let '(_, st', ps) := input_handlers me inp st in
-  (pt_ext_map_data st' me, pt_ext_map_name_msgs ps).
+  (pt_ext_map_data st' me, pt_map_name_msgs (name_map := name_map) (msg_map := msg_map) ps).
 
 End PartialExtendedMapDefs.
 
@@ -62,18 +56,19 @@ Class MultiParamsPartialExtendedMapCongruency
   (B0 : BaseParams) (B1 : BaseParams)
   (P0 : MultiParams B0) (P1 : MultiParams B1)
   (N : MultiParamsNameTotalMap P0 P1)
+  (P : MultiParamsMsgPartialMap P0 P1)
   (P : MultiParamsPartialExtendedMap P0 P1) :=
   {
     pt_ext_init_handlers_eq : forall n,
       pt_ext_map_data (init_handlers n) n = init_handlers (tot_map_name n) ;
     pt_ext_net_handlers_some : forall me src m st m' out st' ps,
-      pt_ext_map_msg m = Some m' ->
+      pt_map_msg m = Some m' ->
       net_handlers (tot_map_name me) (tot_map_name src) m' (pt_ext_map_data st me) = (out, st', ps) ->
       pt_ext_mapped_net_handlers me src m st = (st', ps) ;
     pt_ext_net_handlers_none : forall me src m st out st' ps,
-      pt_ext_map_msg m = None ->
+      pt_map_msg m = None ->
       net_handlers me src m st = (out, st', ps) ->
-      pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_ext_map_name_msgs ps = [] ;
+      pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_map_name_msgs ps = [] ;
     pt_ext_input_handlers_some : forall me inp st inp' out st' ps,
       pt_ext_map_input inp me st = Some inp' ->
       input_handlers (tot_map_name me) inp' (pt_ext_map_data st me) = (out, st', ps) ->
@@ -81,7 +76,7 @@ Class MultiParamsPartialExtendedMapCongruency
     pt_ext_input_handlers_none : forall me inp st out st' ps,
       pt_ext_map_input inp me st = None ->
       input_handlers me inp st = (out, st', ps) ->
-      pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_ext_map_name_msgs ps = []
+      pt_ext_map_data st' me = pt_ext_map_data st me /\ pt_map_name_msgs ps = []
   }.
 
 Class FailureParamsPartialExtendedMapCongruency
@@ -94,24 +89,6 @@ Class FailureParamsPartialExtendedMapCongruency
       pt_ext_map_data (reboot d) me = reboot (pt_ext_map_data d me)
   }.
 
-Class FailMsgParamsPartialExtendedMapCongruency 
-  (B0 : BaseParams) (B1 : BaseParams)
-  (P0 : MultiParams B0) (P1 : MultiParams B1)
-  (F0 : FailMsgParams P0) (F1 : FailMsgParams P1)
-  (P : MultiParamsPartialExtendedMap P0 P1) :=
-  {
-    pt_ext_fail_msg_fst_snd : pt_ext_map_msg msg_fail = Some (msg_fail)
-  }.
-
-Class NewMsgParamsPartialExtendedMapCongruency 
-  (B0 : BaseParams) (B1 : BaseParams)
-  (P0 : MultiParams B0) (P1 : MultiParams B1)
-  (F0 : NewMsgParams P0) (F1 : NewMsgParams P1)
-  (P : MultiParamsPartialExtendedMap P0 P1) :=
-  {
-    pt_ext_new_msg_fst_snd : pt_ext_map_msg msg_new = Some (msg_new)
-  }.
-
 Section PartialExtendedMapSimulations.
 
 Context {base_fst : BaseParams}.
@@ -119,9 +96,10 @@ Context {base_snd : BaseParams}.
 Context {multi_fst : MultiParams base_fst}.
 Context {multi_snd : MultiParams base_snd}.
 Context {name_map : MultiParamsNameTotalMap multi_fst multi_snd}.
+Context {msg_map : MultiParamsMsgPartialMap multi_fst multi_snd}.
 Context {multi_map : MultiParamsPartialExtendedMap multi_fst multi_snd}.
 Context {name_map_bijective : MultiParamsNameTotalMapBijective name_map}.
-Context {multi_map_congr : MultiParamsPartialExtendedMapCongruency name_map multi_map}.
+Context {multi_map_congr : MultiParamsPartialExtendedMapCongruency name_map msg_map multi_map}.
 
 Lemma pt_ext_init_handlers_fun_eq : 
   init_handlers = fun n : name => pt_ext_map_data (init_handlers (tot_map_name_inv n)) (tot_map_name_inv n).
@@ -132,70 +110,9 @@ rewrite H_eq {H_eq}.
 by rewrite tot_map_name_inverse_inv.
 Qed.
 
-Definition pt_ext_map_packet (p : @packet _ multi_fst)  :=
-match p with
-| mkPacket src dst m =>
-  match pt_ext_map_msg m with
-  | Some m' => Some (mkPacket (tot_map_name src) (tot_map_name dst) m')
-  | None => None
-  end
-end.
-
-Definition pt_ext_map_packets :=
-fold_right (fun p l =>
-            match pt_ext_map_packet p with
-            | Some p' => p' :: l
-            | None => l
-            end) [].
-
-Lemma pt_ext_map_packets_app_distr : 
-  forall l l',
-  pt_ext_map_packets (l ++ l') = pt_ext_map_packets l ++ pt_ext_map_packets l'.
-Proof.
-elim => //=.
-move => n l IH l'.
-rewrite /= IH.
-by case pt_ext_map_packet.
-Qed.
-
 Definition pt_ext_map_net (net : @network  _ multi_fst) : @network _ multi_snd :=
-  {| nwPackets := pt_ext_map_packets net.(nwPackets) ;
+  {| nwPackets := pt_map_packets net.(nwPackets) ;
      nwState := fun n => pt_ext_map_data (net.(nwState) (tot_map_name_inv n)) (tot_map_name_inv n) |}.
-
-Lemma pt_ext_map_name_msgs_app_distr : 
-  forall l l',
-  pt_ext_map_name_msgs (l ++ l') = pt_ext_map_name_msgs l ++ pt_ext_map_name_msgs l'.
-Proof.
-elim => //=.
-case => n m l IH l'.
-rewrite /= IH.
-by case (pt_ext_map_msg _) => [m'|].
-Qed.
-
-Lemma pt_ext_map_packet_map_eq :
-  forall l h,
-    pt_ext_map_packets (map (fun m : name * msg => {| pSrc := h; pDst := fst m; pBody := snd m |}) l) = 
-    map (fun m : name * msg => {| pSrc := tot_map_name h; pDst := fst m; pBody := snd m |}) (pt_ext_map_name_msgs l).
-Proof.
-move => l h.
-elim: l => //=.
-case => n m l IH.
-case (pt_ext_map_msg _) => [m'|] //.
-by rewrite IH.
-Qed.
-
-Lemma pt_ext_map_packet_eq_some :
-  forall l p p',
-    pt_ext_map_packet p = Some p' ->
-    pt_ext_map_packets (map (fun m : name * msg => {| pSrc := pDst p; pDst := fst m; pBody := snd m |}) l) = 
-    map (fun m : name * msg => {| pSrc := pDst p'; pDst := fst m; pBody := snd m |}) (pt_ext_map_name_msgs l).
-Proof.
-move => l; case => /= src dst m p.
-case H_m: (pt_ext_map_msg m) => [m'|] // H_eq.
-injection H_eq => H_eq_p.
-rewrite -H_eq_p /=.
-exact: pt_ext_map_packet_map_eq.
-Qed.
 
 Lemma pt_ext_map_update_eq :
 forall f h d,
@@ -217,29 +134,17 @@ Qed.
 
 Lemma pt_ext_map_update_eq_some :
   forall net d p p',
-    pt_ext_map_packet p = Some p' ->
+    pt_map_packet p = Some p' ->
     (fun n : name => pt_ext_map_data (update (nwState net) (pDst p) d (tot_map_name_inv n)) (tot_map_name_inv n)) =
     update (fun n : name => pt_ext_map_data (nwState net (tot_map_name_inv n)) (tot_map_name_inv n)) (pDst p') (pt_ext_map_data d (pDst p)).
 Proof.
 move => net d p p'.
 case: p => src dst m.
 case: p' => src' dst' m' /=.
-case H_eq: (pt_ext_map_msg _) => [m0|] // H_eq'.
+case H_eq: (pt_map_msg _) => [m0|] // H_eq'.
 inversion H_eq'; subst.
 move {H_eq H_eq'}.
 exact: pt_ext_map_update_eq.
-Qed.
-
-Lemma pt_ext_map_name_msgs_empty_eq :
-  forall l dst,
-  pt_ext_map_name_msgs l = [] ->
-  pt_ext_map_packets (map (fun m0 : name * msg => {| pSrc := dst; pDst := fst m0; pBody := snd m0 |}) l) = [].
-Proof.
-elim => //=.
-case => n m l IH dst.
-case H_m: (pt_ext_map_msg _) => [m'|] //=.
-move => H_eq.
-by rewrite IH.
 Qed.
 
 Theorem step_m_pt_ext_mapped_simulation_1 :
@@ -250,44 +155,44 @@ Proof.
 move => net net' tr.
 case => {net net' tr}.
 - move => net net' p ms ms' out d l H_eq H_hnd H_eq'.
-  case H_m: (pt_ext_map_packet p) => [p'|].
+  case H_m: (pt_map_packet p) => [p'|].
     left.
     rewrite H_eq' /= /pt_ext_map_net /=.
     have H_eq_dst: tot_map_name (pDst p) = pDst p'.
       case: p H_eq H_hnd H_eq' H_m => /= src dst m H_eq H_hnd H_eq'.
-      case (pt_ext_map_msg m) => //= m' H_m.
+      case (pt_map_msg m) => //= m' H_m.
       by inversion H_m.
     case H_n: (net_handlers (pDst p') (pSrc p') (pBody p') (pt_ext_map_data (nwState net (pDst p)) (pDst p))) => [[out' d'] ps].
     exists [(pDst p', inr out')].
-    apply SM_deliver with (xs := pt_ext_map_packets ms) (ys := pt_ext_map_packets ms') (d0 := pt_ext_map_data d (pDst p)) (l0 := pt_ext_map_name_msgs l).
-    * rewrite /= H_eq pt_ext_map_packets_app_distr /=.
-      case H_p: (pt_ext_map_packet _) => [p0|]; last by rewrite H_p in H_m.
+    apply SM_deliver with (xs := pt_map_packets ms) (ys := pt_map_packets ms') (d0 := pt_ext_map_data d (pDst p)) (l0 := pt_map_name_msgs l).
+    * rewrite /= H_eq pt_map_packets_app_distr /=.
+      case H_p: (pt_map_packet _) => [p0|]; last by rewrite H_p in H_m.
       by rewrite H_p in H_m; injection H_m => H_eq_p; rewrite H_eq_p.
     * rewrite /=.
       rewrite -{2}H_eq_dst tot_map_name_inv_inverse.
       case: p H_eq H_hnd H_eq' H_m H_eq_dst H_n => /= src dst mg H_eq H_hnd H_eq'.
-      case H_m: (pt_ext_map_msg mg) => [mg'|] //.
+      case H_m: (pt_map_msg mg) => [mg'|] //.
       case: p' H_eq' => src' dst' m0 H_eq' H_eq_p.
       inversion H_eq_p; subst.
       move => H_eq_dst H_eq_n {H_eq_p H_eq_dst}.
       simpl in *.
-      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ multi_map_congr dst src mg (nwState net dst) _ _ _ _ H_m H_eq_n.
+      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ _ multi_map_congr dst src mg (nwState net dst) _ _ _ _ H_m H_eq_n.
       rewrite /pt_ext_mapped_net_handlers in H_q.
       rewrite H_hnd in H_q.
       find_inversion.
       by rewrite tot_map_name_inv_inverse.
-    * rewrite /= /pt_ext_map_net /= 2!pt_ext_map_packets_app_distr.
-      rewrite (pt_ext_map_packet_eq_some _ _ H_m).
+    * rewrite /= /pt_ext_map_net /= 2!pt_map_packets_app_distr.
+      rewrite (pt_map_packet_map_eq_some _ _ H_m).
       by rewrite (pt_ext_map_update_eq_some _ _ _ H_m).
   right.
   rewrite H_eq' /= {H_eq'}.
   rewrite /pt_ext_map_net /=.
   case: p H_eq H_hnd H_m => /= src dst m H_eq H_hnd.
-  case H_m: (pt_ext_map_msg _) => [m'|] // H_eq' {H_eq'}.
-  rewrite 2!pt_ext_map_packets_app_distr H_eq pt_ext_map_packets_app_distr /=.
-  case H_m': (pt_ext_map_msg _) => [m'|]; first by rewrite H_m' in H_m.
+  case H_m: (pt_map_msg _) => [m'|] // H_eq' {H_eq'}.
+  rewrite 2!pt_map_packets_app_distr H_eq pt_map_packets_app_distr /=.
+  case H_m': (pt_map_msg _) => [m'|]; first by rewrite H_m' in H_m.
   have [H_d H_l] := pt_ext_net_handlers_none _ _ _ _ H_m H_hnd.
-  rewrite (pt_ext_map_name_msgs_empty_eq _ dst H_l) /=.
+  rewrite (pt_map_name_msgs_empty_eq _ dst H_l) /=.
   set nwS1 := fun _ => _.
   set nwS2 := fun _ => _.
   have H_eq_s: nwS1 = nwS2.
@@ -302,20 +207,20 @@ case => {net net' tr}.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (nwState net h) h)) => [[out' d'] ps].
     exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SM_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_name_msgs l)).
+    apply (@SM_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)).
       rewrite /=.
-      have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ multi_map_congr h inp (nwState net h) _ _ _ _ H_i H_h.
+      have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (nwState net h) _ _ _ _ H_i H_h.
       rewrite /pt_ext_mapped_input_handlers /= in H_q.
       rewrite H_hnd in H_q.
       find_inversion.
       by rewrite tot_map_name_inv_inverse.
-    rewrite /= H_eq /= /pt_ext_map_net /= pt_ext_map_packets_app_distr pt_ext_map_packet_map_eq.
+    rewrite /= H_eq /= /pt_ext_map_net /= pt_map_packets_app_distr pt_map_packet_map_eq.
     by rewrite -pt_ext_map_update_eq.
   right.
   rewrite H_eq /pt_ext_map_net /=.
   have [H_d H_l] := pt_ext_input_handlers_none _ _ _ H_i H_hnd.
-  rewrite pt_ext_map_packets_app_distr.
-  rewrite (pt_ext_map_name_msgs_empty_eq _ h H_l) /=.
+  rewrite pt_map_packets_app_distr.
+  rewrite (pt_map_name_msgs_empty_eq _ h H_l) /=.
   set nwS1 := fun _ => _.
   set nwS2 := fun _ => _.
   have H_eq_s: nwS1 = nwS2.
@@ -360,107 +265,9 @@ rewrite /pt_ext_map_net.
 by rewrite H_eq H_eq'.
 Qed.
 
-Definition pt_ext_map_msgs :=
-fold_right (fun m l =>
-            match pt_ext_map_msg m with
-            | Some m' => m' :: l
-            | None => l
-            end) [].
-
 Definition pt_ext_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network _ multi_snd :=
-mkONetwork (fun src dst => pt_ext_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
+mkONetwork (fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
            (fun n => pt_ext_map_data (onet.(onwState) (tot_map_name_inv n)) (tot_map_name_inv n)).
-
-Lemma pt_ext_map_msg_update2 : 
-  forall f ms to from,
-    (fun src dst => pt_ext_map_msgs (update2 f from to ms (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    update2 (fun src0 dst0 : name => pt_ext_map_msgs (f (tot_map_name_inv src0) (tot_map_name_inv dst0)))
-        (tot_map_name from) (tot_map_name to) (pt_ext_map_msgs ms).
-Proof.
-move => f ms to from.
-apply functional_extensionality => src.
-apply functional_extensionality => dst.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec; case (sumbool_and _ _ _ _) => H_dec' //.
-  move: H_dec => [H_eq H_eq'].
-  case: H_dec' => H_dec'.
-    rewrite H_eq in H_dec'.
-    by rewrite tot_map_name_inverse_inv in H_dec'.
-  rewrite H_eq' in H_dec'.
-  by rewrite tot_map_name_inverse_inv in H_dec'.
-move: H_dec' => [H_eq H_eq'].
-case: H_dec => H_dec.
-  rewrite -H_eq in H_dec.
-  by rewrite tot_map_name_inv_inverse in H_dec.
-rewrite -H_eq' in H_dec.
-by rewrite tot_map_name_inv_inverse in H_dec.
-Qed.
-
-Lemma pt_ext_map_msgs_app_distr : 
-  forall ms ms',
-  pt_ext_map_msgs (ms ++ ms') = pt_ext_map_msgs ms ++ pt_ext_map_msgs ms'.
-Proof.
-elim => //=.
-move => m ms IH ms'.
-rewrite /= IH.
-by case (pt_ext_map_msg _) => [m'|].
-Qed.
-
-Lemma collate_pt_ext_map_eq :
-  forall f h l,
-    (fun src dst => pt_ext_map_msgs (collate h f l (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate (tot_map_name h) (fun src dst => pt_ext_map_msgs (f (tot_map_name_inv src) (tot_map_name_inv dst))) (pt_ext_map_name_msgs l).
-Proof.
-move => f h l.
-elim: l h f => //.
-case => n m l IH h f.
-rewrite /= IH /=.
-case H_m: (pt_ext_map_msg _) => [m'|] /=.
-  rewrite 2!tot_map_name_inv_inverse /=.
-  set f1 := fun _ _ => _.
-  set f2 := update2 _ _ _ _.
-  have H_eq_f: f1 = f2.
-    rewrite /f1 /f2 {f1 f2}.
-    have H_eq := pt_ext_map_msg_update2 f (f h n ++ [m]) n h.
-    move: H_eq.
-    rewrite pt_ext_map_msgs_app_distr /=.
-    case H_m': (pt_ext_map_msg _) => [m0|]; last by rewrite H_m' in H_m.
-    rewrite H_m' in H_m.
-    by inversion H_m.
-  by rewrite H_eq_f.
-rewrite pt_ext_map_msg_update2 /=.
-rewrite pt_ext_map_msgs_app_distr /=.
-case H_m': (pt_ext_map_msg _) => [m'|]; first by rewrite H_m' in H_m.
-rewrite -app_nil_end.
-set f1 := update2 _ _ _ _.
-set f2 := fun _ _ => _.
-have H_eq_f: f1 = f2.
-  rewrite /f1 /f2 {f1 f2}.
-  apply functional_extensionality => src.
-  apply functional_extensionality => dst.
-  rewrite /update2 /=.
-  case (sumbool_and _ _ _ _) => H_dec //.
-  move: H_dec => [H_eq H_eq'].
-  by rewrite -H_eq -H_eq' 2!tot_map_name_inv_inverse.
-by rewrite H_eq_f.
-Qed.
-
-Lemma collate_pt_ext_map_update2_eq :
-  forall f from to ms l,
-    (fun src dst => pt_ext_map_msgs
-            (collate to (update2 f from to ms) l
-               (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate (tot_map_name to)
-            (update2
-               (fun src dst : name =>
-                pt_ext_map_msgs
-                  (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name from)
-               (tot_map_name to) (pt_ext_map_msgs ms)) (pt_ext_map_name_msgs l).
-Proof.
-move => f from to ms l.
-rewrite -pt_ext_map_msg_update2.
-by rewrite collate_pt_ext_map_eq.
-Qed.
 
 Theorem step_o_pt_ext_mapped_simulation_1 :
   forall net net' tr,
@@ -470,26 +277,26 @@ Proof.
 move => net net' tr.
 case => {net net' tr}.
 - move => net net' m ms out d l from to H_eq H_hnd H_eq'.
-  case H_m: (pt_ext_map_msg m) => [m'|].
+  case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
     exists [(tot_map_name to, inr out')].
     rewrite H_eq' /= /pt_ext_map_onet /=.
-    apply (@SO_deliver _ _ _ _ m' (pt_ext_map_msgs ms) _ (pt_ext_map_data d to) (pt_ext_map_name_msgs l) (tot_map_name from)).
+    apply (@SO_deliver _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from)).
     * rewrite /= 2!tot_map_name_inv_inverse H_eq /=.
-      case H_m0: pt_ext_map_msg => [m0|]; last by rewrite H_m0 in H_m.
+      case H_m0: pt_map_msg => [m0|]; last by rewrite H_m0 in H_m.
       rewrite H_m0 in H_m.
       by inversion H_m.
     * rewrite /= tot_map_name_inv_inverse.
-      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
+      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
       rewrite /pt_ext_mapped_net_handlers /= in H_q.
       by repeat break_let; repeat tuple_inversion.
-    * by rewrite /= pt_ext_map_update_eq collate_pt_ext_map_update2_eq.
+    * by rewrite /= pt_ext_map_update_eq collate_pt_map_update2_eq.
   right.
   have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H_hnd.
   rewrite H_eq' /pt_ext_map_onet /=.
   rewrite pt_ext_map_update_eq /= H_eq_d.
-  rewrite collate_pt_ext_map_eq H_ms /=.
+  rewrite collate_pt_map_eq H_ms /=.
   set nwS1 := update _ _ _.
   set nwS2 := fun n => pt_ext_map_data _ _.
   set nwP1 := fun _ _ => _. 
@@ -508,7 +315,7 @@ case => {net net' tr}.
     case (sumbool_and _ _ _ _) => H_dec //.
     move: H_dec => [H_eq_from H_eq_to].
     rewrite -H_eq_from -H_eq_to H_eq /=.
-    case H_m': (pt_ext_map_msg _) => [m'|] //.
+    case H_m': (pt_map_msg _) => [m'|] //.
     by rewrite H_m' in H_m.
   by rewrite H_eq_s H_eq_p.
 - move => h net net' out inp d l H_hnd H_eq.
@@ -516,9 +323,9 @@ case => {net net' tr}.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
     exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SO_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_name_msgs l)); last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_ext_map_eq.
+    apply (@SO_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)); last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
     rewrite /=.
-    have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
+    have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
     rewrite /pt_ext_mapped_input_handlers /= in H_q.
     rewrite tot_map_name_inv_inverse.
     by repeat break_let; repeat tuple_inversion.
@@ -527,7 +334,7 @@ case => {net net' tr}.
   have [H_d H_l] := pt_ext_input_handlers_none h inp (onwState net h) H_i H_hnd.
   rewrite H_eq /= /pt_ext_map_onet /=.
   rewrite pt_ext_map_update_eq /= H_d.
-  rewrite collate_pt_ext_map_eq H_l /=.
+  rewrite collate_pt_map_eq H_l /=.
   set nwS1 := update _ _ _.
   set nwS2 := fun n => pt_ext_map_data _ _.
   have H_eq_n: nwS1 = nwS2.
@@ -571,282 +378,13 @@ exists tr'.
 by rewrite /pt_ext_map_onet H_eq H_eq'.
 Qed.
 
-Lemma pt_ext_map_in_in :
-  forall m m0 n l,
-  (forall nm, In nm l -> snd nm = m) ->
-  ~ In (n, m) l ->  
-  ~ In (tot_map_name n, m0) (fold_right 
-        (fun nm l' => 
-         match pt_ext_map_msg (snd nm) with
-         | Some m0 => (tot_map_name (fst nm), m0) :: l'
-         | None => l'
-         end) [] l).
-Proof.
-move => m m0 n.
-elim => //=.
-case => /= n' m' l IH H_fail H_in.
-case H_m: (pt_ext_map_msg _) => [m1|].
-  move => H_in'.
-  case: H_in' => H_in'.
-    inversion H_in'.
-    have H_nm := H_fail (n', m').
-    rewrite /= in H_nm.
-    case: H_in.
-    left.
-    apply tot_map_name_injective in H0.
-    rewrite H0.
-    rewrite H_nm //.
-    by left.
-  contradict H_in'.
-  apply: IH.
-    move => nm H_in_nm.
-    apply: H_fail.
-    by right.
-  move => H_in_nm.
-  case: H_in.
-  by right.
-apply: IH.
-  move => nm H_in'.
-  apply: H_fail => //.
-  by right.
-move => H_in'.
-case: H_in.
-by right.
-Qed.
-
-Lemma nodup_pt_ext_map :
-  forall m nms,
-  (forall nm, In nm nms -> snd nm = m) ->
-  NoDup nms ->
-  NoDup (fold_right 
-         (fun nm l => 
-         match pt_ext_map_msg (snd nm) with
-         | Some m => (tot_map_name (fst nm), m) :: l
-         | None => l
-         end) [] nms).
-Proof.
-move => m.
-elim => /=.
-  move => H_m H_nd.
-  exact: NoDup_nil.
-case => n m0 l IH H_m H_nd.
-inversion H_nd.
-rewrite /=.
-have H_m0 := H_m (n, m0) (or_introl (eq_refl _)).
-rewrite /= in H_m0.
-rewrite H_m0.
-rewrite H_m0 {m0 H_m0} in H_m H_nd H1 H.
-case H_m': (pt_ext_map_msg _) => [m'|].
-  apply NoDup_cons.
-    apply: (@pt_ext_map_in_in m) => //.
-    move => nm H_in.
-    by apply: H_m; right.
-  apply: IH => //.
-  move => nm H_in.
-  by apply: H_m; right.
-apply: IH => //.
-move => nm H_in.
-by apply: H_m; right.
-Qed.
-
 Context {overlay_fst : NameOverlayParams multi_fst}.
 Context {overlay_snd : NameOverlayParams multi_snd}.
-
-Lemma pt_ext_map_in_snd :
-   forall m m' h ns nm,
-   pt_ext_map_msg m' = Some m ->
-   In nm
-      (fold_right
-              (fun (nm : name * msg) (l : list (name * msg)) =>
-               match pt_ext_map_msg (snd nm) with
-               | Some m0 => (tot_map_name (fst nm), m0) :: l
-               | None => l
-               end) [] (map_pair m' (filter_rel h ns))) ->
-   snd nm = m.
-Proof.
-move => m m' h.
-elim => //=.
-move => n ns IH.
-case (rel_dec _ _) => H_dec /=.
-  case => n' m0 H_eq.
-  case H_eq': (pt_ext_map_msg m') => [m1|]; last by rewrite H_eq' in H_eq.
-  rewrite H_eq' in H_eq.
-  inversion H_eq.
-  rewrite H0 in H_eq'.
-  move {H_eq H0 m1}.
-  move => H_in.
-  case: H_in => H_in; first by inversion H_in.
-  exact: IH.
-exact: IH.
-Qed.
-
-Lemma ext_in_tot_map_name :
-forall m m' l n,
-pt_ext_map_msg m = Some m' ->
-(forall nm, In nm l -> snd nm = m) ->
-In (n, m') (fold_right
-              (fun (nm : name * msg) (l : list (name * msg)) =>
-               match pt_ext_map_msg (snd nm) with
-               | Some m0 => (tot_map_name (fst nm), m0) :: l
-               | None => l
-               end) [] l) ->
-In (tot_map_name_inv n, m) l.
-Proof.
-move => m m'.
-elim => //=.
-case => /= n m0 l IH n' H_eq H_in.
-case H_m: (pt_ext_map_msg _) => [m1|].
-  move => H_in'.
-  case: H_in' => H_in'.
-    inversion H_in'.
-    rewrite tot_map_name_inv_inverse.
-    have H_nm := H_in (n, m0).
-    rewrite -H_nm /=; first by left.
-    by left.
-  right.
-  apply: IH => //.
-  move => nm H_inn.
-  apply: H_in.
-  by right.
-move => H_in'.
-right.
-apply: IH => //.
-move => nm H_inn.
-apply: H_in.
-by right.
-Qed.
-
 Context {overlay_map_congr : NameOverlayParamsTotalMapCongruency overlay_fst overlay_snd name_map}.
-
-Lemma in_pt_ext_map_msg_for :
-  forall m m' l n,
-    pt_ext_map_msg m = Some m' ->
-    (forall nm, In nm l -> snd nm = m) ->
-    In (tot_map_name_inv n, m) l ->
-    In (n, m') (fold_right
-                 (fun (nm : name * msg) (l : list (name * msg)) =>
-                  match pt_ext_map_msg (snd nm) with
-                  | Some m0 => (tot_map_name (fst nm), m0) :: l
-                  | None => l
-                  end) [] l).
-Proof.
-move => m m'.
-elim => //=.
-case => n m0 /= l IH n' H_eq H_in.
-case H_m: (pt_ext_map_msg m0) => [m1|].
-  move => H_in'.
-  case: H_in' => H_in'.
-    inversion H_in'.
-    rewrite H1 in H_m.
-    rewrite H_m in H_eq.
-    inversion H_eq.
-    left.
-    by rewrite tot_map_name_inverse_inv.
-  right.
-  apply: IH => //.
-  move => nm H_inn.
-  apply: H_in.
-  by right.
-move => H_in'.
-case: H_in' => H_in'.
-  inversion H_in'.
-  rewrite H1 in H_m.
-  by rewrite H_m in H_eq.
-apply: IH => //.
-move => nm H_inn.
-apply: H_in.
-by right.
-Qed.
-
-Lemma pt_ext_nodup_perm_map_map_pair_perm :
-  forall m m' h failed ns ns',
-  NoDup ns ->
-  Permutation (map tot_map_name ns) ns' ->
-  pt_ext_map_msg m = Some m' ->
-  Permutation 
-    (fold_right
-              (fun (nm : name * msg) (l : list (name * msg)) =>
-               match pt_ext_map_msg (snd nm) with
-               | Some m0 => (tot_map_name (fst nm), m0) :: l
-               | None => l
-               end) [] (map_pair m (filter_rel h (exclude failed ns))))
-    (map_pair m' (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) ns'))).
-Proof.
-move => m m' h failed ns ns' H_nd H_pm H_eq.
-apply NoDup_Permutation; last split.
-- apply (@nodup_pt_ext_map m); first exact: in_for_msg.
-  apply nodup_map_pair.
-  exact: nodup_exclude.
-- apply nodup_map_pair.
-  apply nodup_exclude.
-  move: H_pm.
-  apply: NoDup_Permutation_NoDup.
-  exact: nodup_to_map_name.
-- case: x => n m0 H_in.
-  have H_eq' := pt_ext_map_in_snd _ _ _ _ H_eq H_in.
-  rewrite /= in H_eq'.
-  rewrite H_eq' in H_in.
-  rewrite H_eq' {H_eq' m0}.
-  apply (@ext_in_tot_map_name m) in H_in => //.
-    apply in_map_pair_adjacent_to in H_in.
-    apply in_adjacent_exclude_in_exlude in H_in.
-    move: H_in => [H_in H_adj].
-    apply in_failed_exclude in H_in.
-    move: H_in => [H_in H_in'].
-    have H_nin: ~ In n (map tot_map_name failed).
-      rewrite -(tot_map_name_inverse_inv n).
-      exact: not_in_failed_not_in.
-    apply tot_adjacent_to_fst_snd in H_adj.
-    rewrite tot_map_name_inverse_inv in H_adj.
-    have H_inn: In n ns'.
-      apply (Permutation_in n) in H_pm => //.
-      rewrite -(tot_map_name_inverse_inv n).
-      exact: in_failed_in.
-    exact: in_in_adj_map_pair.
-  exact: in_for_msg.
-- case: x => n m0 H_in.
-  have H_eq' := in_for_msg _ _ _ _ H_in.
-  rewrite /= in H_eq'.
-  rewrite H_eq'.
-  rewrite H_eq' in H_in.
-  apply in_map_pair_related_in in H_in.
-  move: H_in => [H_adj H_in].
-  rewrite -(tot_map_name_inverse_inv n) in H_adj.
-  apply tot_adjacent_to_fst_snd in H_adj.
-  apply in_exclude_not_in_failed_map in H_in.
-  move: H_in => [H_in_f H_in].
-  apply not_in_map_not_in_failed in H_in_f.
-  have H_in_n: In (tot_map_name_inv n) ns.
-    apply Permutation_sym in H_pm.
-    apply (Permutation_in n) in H_pm => //.
-    apply: tot_map_name_in.
-    by rewrite tot_map_name_inverse_inv.
-  apply: (@in_pt_ext_map_msg_for m) => //; first by move => nm; apply in_for_msg.
-  apply adjacent_in_in_msg => //.
-  exact: not_in_failed_in_exclude.
-Qed.
-
-Lemma pt_ext_map_msg_for_eq :
-  forall m m' h failed,
-  pt_ext_map_msg m = Some m' ->
-  Permutation 
-    (fold_right
-              (fun (nm : name * msg) (l : list (name * msg)) =>
-               match pt_ext_map_msg (snd nm) with
-               | Some m0 => (tot_map_name (fst nm), m0) :: l
-               | None => l
-               end) [] (map_pair m (filter_rel h (exclude failed nodes))))
-    (map_pair m' (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
-Proof.
-move => m m' h failed H_eq.
-apply pt_ext_nodup_perm_map_map_pair_perm => //; first exact: no_dup_nodes.
-apply Permutation_sym.
-exact: permutation_nodes.
-Qed.
 
 Context {fail_msg_fst : FailMsgParams multi_fst}.
 Context {fail_msg_snd : FailMsgParams multi_snd}.
-Context {fail_msg_map_congr : FailMsgParamsPartialExtendedMapCongruency fail_msg_fst fail_msg_snd multi_map}.
+Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fail_msg_snd msg_map}.
 
 Theorem step_o_f_pt_ext_mapped_simulation_1 :
   forall net net' failed failed' tr,
@@ -855,26 +393,26 @@ Theorem step_o_f_pt_ext_mapped_simulation_1 :
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
-- case H_m: (pt_ext_map_msg m) => [m'|].
+- case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
     exists [(tot_map_name to, inr out')].
     rewrite /pt_ext_map_onet /=.
-    apply (@SOF_deliver _ _ _ _ _ _ _ m' (pt_ext_map_msgs ms) _ (pt_ext_map_data d to) (pt_ext_map_name_msgs l) (tot_map_name from)).
+    apply (@SOF_deliver _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from)).
     * rewrite /= 2!tot_map_name_inv_inverse /= H3 /=.
-      case H_m0: (pt_ext_map_msg _) => [m0|]; last by rewrite H_m in H_m0.
+      case H_m0: (pt_map_msg _) => [m0|]; last by rewrite H_m in H_m0.
       rewrite H_m in H_m0.
       by inversion H_m0.
     * exact: not_in_failed_not_in.
     * rewrite /= tot_map_name_inv_inverse.
-      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
+      have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
       rewrite /pt_ext_mapped_net_handlers /= in H_q.
       by repeat break_let; repeat tuple_inversion.
-    * by rewrite /= pt_ext_map_update_eq collate_pt_ext_map_update2_eq.
+    * by rewrite /= pt_ext_map_update_eq collate_pt_map_update2_eq.
   right.
   split => //.
   have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H6.
-  rewrite /pt_ext_map_onet /= pt_ext_map_update_eq H_eq_d collate_pt_ext_map_update2_eq H_ms /=.
+  rewrite /pt_ext_map_onet /= pt_ext_map_update_eq H_eq_d collate_pt_map_update2_eq H_ms /=.
   set nwP1 := update2 _ _ _ _.
   set nwS1 := update _ _ _.
   set nwP2 := fun _ _ => _.
@@ -893,26 +431,26 @@ invcs H_step.
     case (sumbool_and _ _ _ _) => H_dec //.
     move: H_dec => [H_eq_from H_eq_to].
     rewrite -H_eq_from -H_eq_to /= 2!tot_map_name_inv_inverse H3 /=.
-    case H_m': (pt_ext_map_msg _) => [m'|] //.
+    case H_m': (pt_map_msg _) => [m'|] //.
     by rewrite H_m' in H_m.
   by rewrite H_eq_s H_eq_p.
 - case H_i: (pt_ext_map_input inp h (onwState net h)) => [inp'|].
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
     exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_name_msgs l)).
+    apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)).
     * exact: not_in_failed_not_in.
     * rewrite /= tot_map_name_inv_inverse.
-      have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
+      have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
       rewrite /pt_ext_mapped_input_handlers /= in H_q.
       by repeat break_let; repeat tuple_inversion.
-    * by rewrite /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_ext_map_eq.
+    * by rewrite /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
   right.
   rewrite /= /pt_ext_map_onet /=.
   have [H_d H_l] := pt_ext_input_handlers_none h inp (onwState net h) H_i H5.
   split => //.
   rewrite pt_ext_map_update_eq /= H_d.
-  rewrite collate_pt_ext_map_eq H_l /=.
+  rewrite collate_pt_map_eq H_l /=.
   set nwS1 := update _ _ _.
   set nwS2 := fun n => pt_ext_map_data _ _.
   have H_eq_n: nwS1 = nwS2.
@@ -925,22 +463,22 @@ invcs H_step.
 - left.
   rewrite /pt_ext_map_onet /=.  
   set l := map_pair _ _.
-  have H_nd: NoDup (map (fun nm => fst nm) (pt_ext_map_name_msgs l)).
-    rewrite /pt_ext_map_name_msgs /=.
+  have H_nd: NoDup (map (fun nm => fst nm) (pt_map_name_msgs l)).
+    rewrite /pt_map_name_msgs /=.
     rewrite /l {l}.
     apply nodup_snd_fst.
-      apply (@nodup_pt_ext_map msg_fail); first exact: in_for_msg.
+      apply (@nodup_pt_map _ _ _ _ _ _ _ msg_fail); first exact: in_for_msg.
       apply nodup_map_pair.
       apply nodup_exclude.
       exact: no_dup_nodes.
     move => nm nm' H_in H_in'.
-    by rewrite (pt_ext_map_in_snd _ _ _ _ pt_ext_fail_msg_fst_snd H_in) (pt_ext_map_in_snd _ _ _ _ pt_ext_fail_msg_fst_snd H_in').
+    by rewrite (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in) (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in').
   exists [].
   apply: SOF_fail => //.
   * exact: not_in_failed_not_in.
   * rewrite /=.
-    rewrite /l collate_pt_ext_map_eq /pt_ext_map_name_msgs.
-    by rewrite (nodup_perm_collate_eq _ _ H_nd (pt_ext_map_msg_for_eq msg_fail h failed pt_ext_fail_msg_fst_snd)).
+    rewrite /l collate_pt_map_eq /pt_map_name_msgs.
+    by rewrite (nodup_perm_collate_eq _ _ H_nd (pt_map_map_pair_eq msg_fail h failed pt_fail_msg_fst_snd)).
 Qed.
 
 Corollary step_o_f_pt_ext_mapped_simulation_star_1 :
@@ -983,33 +521,13 @@ move: IHH_step1 => [tr' H_star].
 by exists tr'.
 Qed.
 
-Lemma collate_ls_pt_ext_map_eq :
-  forall ns f h m m',
-    pt_ext_map_msg m = Some m' ->
-    (fun src dst => pt_ext_map_msgs (collate_ls ns f h m (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate_ls (map tot_map_name ns) (fun src dst => pt_ext_map_msgs (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name h) m'.
-Proof.
-elim => //=.
-move => n ns IH f h m m' H_eq.
-rewrite /= (IH _ _ _  m') //=.
-rewrite 2!tot_map_name_inv_inverse /=.
-set f1 := fun _ _ => _.
-set f2 := update2 _ _ _ _.
-have H_eq_f: f1 = f2.
-  rewrite /f1 /f2 {f1 f2}.
-  have H_eq' := pt_ext_map_msg_update2 f (f n h ++ [m]) h n.
-  rewrite pt_ext_map_msgs_app_distr in H_eq'.
-  by rewrite H_eq' /= H_eq.
-by rewrite H_eq_f.
-Qed.
-
 Context {new_msg_fst : NewMsgParams multi_fst}.
 Context {new_msg_snd : NewMsgParams multi_snd}.
-Context {new_msg_map_congr : NewMsgParamsPartialExtendedMapCongruency new_msg_fst new_msg_snd multi_map}.
+Context {new_msg_map_congr : NewMsgParamsPartialMapCongruency new_msg_fst new_msg_snd msg_map}.
 
 Definition pt_ext_map_odnet (net : @ordered_dynamic_network _ multi_fst) : @ordered_dynamic_network _ multi_snd :=
 {| odnwNodes := map tot_map_name net.(odnwNodes) ;
-   odnwPackets := fun src dst => pt_ext_map_msgs (net.(odnwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)) ;
+   odnwPackets := fun src dst => pt_map_msgs (net.(odnwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)) ;
    odnwState := fun n => match net.(odnwState) (tot_map_name_inv n) with
                          | None => None
                          | Some d => Some (pt_ext_map_data d (tot_map_name_inv n))
@@ -1045,8 +563,8 @@ invcs H_step.
   rewrite H_eq_s /s2 {s1 s2 H_eq_s}.
   have H_eq_p: p1 = p2.
     rewrite /p1 /p2 {p1 p2}.    
-    rewrite (collate_ls_pt_ext_map_eq _ _ _ _ pt_ext_new_msg_fst_snd) /=.
-    rewrite collate_pt_ext_map_eq.
+    rewrite (collate_ls_pt_map_eq _ _ _ _ pt_new_msg_fst_snd) /=.
+    rewrite collate_pt_map_eq.
     set f1 := fun _ _ => _.    
     set c1 := collate _ _ _.
     set c2 := collate _ _ _.
@@ -1055,17 +573,17 @@ invcs H_step.
     have H_c: c1 = c2.
       rewrite /c1 /c2 {c1 c2}.
       apply: nodup_perm_collate_eq; last first.
-        rewrite /pt_ext_map_name_msgs.
-        apply: pt_ext_nodup_perm_map_map_pair_perm => //.
-        by rewrite pt_ext_new_msg_fst_snd.
-      rewrite /pt_ext_map_name_msgs /=.
+        rewrite /pt_map_name_msgs.
+        apply: pt_nodup_perm_map_map_pair_perm => //.
+        by rewrite pt_new_msg_fst_snd.
+      rewrite /pt_map_name_msgs /=.
       apply: nodup_snd_fst => //.
-        apply (@nodup_pt_ext_map msg_new); first exact: in_for_msg.
+        apply (@nodup_pt_map _ _ _ _  _ _ _ msg_new); first exact: in_for_msg.
         apply: nodup_map_pair.
         exact: nodup_exclude.
       move => nm nm' H_in H_in'.
-      apply (@pt_ext_map_in_snd msg_new _ _ _ _ pt_ext_new_msg_fst_snd) in H_in.
-      apply (@pt_ext_map_in_snd msg_new _ _ _ _ pt_ext_new_msg_fst_snd) in H_in'.
+      apply (@pt_map_in_snd _ _ _ _ _ _ _ msg_new _ _ _ _ pt_new_msg_fst_snd) in H_in.
+      apply (@pt_map_in_snd _ _ _ _ _ _ _ msg_new _ _ _ _ pt_new_msg_fst_snd) in H_in'.
       by rewrite H_in H_in'.
     rewrite H_c {H_c}.
     suff H_suff: f'1 = f'2 by rewrite H_suff.
@@ -1080,25 +598,25 @@ invcs H_step.
     * case: n0.
       exact: in_failed_in.  
   by rewrite H_eq_p.
-- case H_m: (pt_ext_map_msg m) => [m'|].
+- case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data d to)) => [[out' d''] ps].
     exists [(tot_map_name to, inr out')].
     rewrite /pt_ext_map_onet /=.
-    apply (@SODF_deliver _ _ _ _ _ _ _ _ m' (pt_ext_map_msgs ms) _ (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_ext_map_name_msgs l) (tot_map_name from)).
+    apply (@SODF_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_map_name_msgs l) (tot_map_name from)).
     * exact: not_in_failed_not_in.
     * exact: in_failed_in.
     * by rewrite /= tot_map_name_inv_inverse /= H5.
     * rewrite /= 2!tot_map_name_inv_inverse /=.
       find_rewrite.
       by rewrite /= H_m.
-    * have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
+    * have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
       rewrite /pt_ext_mapped_net_handlers /= in H_q.
       by repeat break_let; repeat tuple_inversion.
     * rewrite /= /pt_ext_map_odnet /=.
       set u1 := fun _ => match _ with | _ => _ end.
       set u2 := update_opt _ _ _.
-      rewrite collate_pt_ext_map_update2_eq.
+      rewrite collate_pt_map_update2_eq.
       suff H_suff: u1 = u2 by rewrite H_suff.
       rewrite /u1 /u2 /update_opt /=.
       apply functional_extensionality => n.
@@ -1110,7 +628,7 @@ invcs H_step.
   right.
   split => //.
   have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H8.
-  rewrite /pt_ext_map_odnet /= collate_pt_ext_map_update2_eq H_ms /=.
+  rewrite /pt_ext_map_odnet /= collate_pt_map_update2_eq H_ms /=.
   set nwP1 := update2 _ _ _ _.
   set nwS1 := fun _ => match _ with _ => _ end.
   set nwP2 := fun _ _ => _.
@@ -1136,15 +654,15 @@ invcs H_step.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data d h)) => [[out' d''] ps].
     exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SODF_input _ _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_ext_map_name_msgs l)).
+    apply (@SODF_input _ _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_map_name_msgs l)).
     * exact: not_in_failed_not_in.
     * exact: in_failed_in. 
     * by rewrite /pt_ext_map_odnet /= tot_map_name_inv_inverse H5.
-    * have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ multi_map_congr h inp d _ _ _ _ H_i H_h.
+    * have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp d _ _ _ _ H_i H_h.
       rewrite /pt_ext_mapped_input_handlers /= in H_q.
       rewrite H7 in H_q.
       by repeat tuple_inversion.
-    * rewrite /= /pt_ext_map_odnet /= collate_pt_ext_map_eq.
+    * rewrite /= /pt_ext_map_odnet /= collate_pt_map_eq.
       set u1 := fun _ => match _ with | _ => _ end.
       set u2 := update_opt _ _ _.
       suff H_suff: u1 = u2 by rewrite H_suff.
@@ -1159,7 +677,7 @@ invcs H_step.
   rewrite /= /pt_ext_map_odnet /=.
   have [H_d H_l] := pt_ext_input_handlers_none h inp d H_i H7.
   split => //=.
-  rewrite collate_pt_ext_map_eq H_l /=.
+  rewrite collate_pt_map_eq H_l /=.
   set nwS1 := fun n : name => match _ with | _ => _ end.
   set nwS2 := fun n : name => match _ with | _ => _ end.
   have H_eq_n: nwS1 = nwS2.
@@ -1172,23 +690,23 @@ invcs H_step.
 - left.
   rewrite /pt_ext_map_odnet /=.
   set l := map_pair _ _.
-  have H_nd': NoDup (map (fun nm => fst nm) (pt_ext_map_name_msgs l)).
-    rewrite /pt_ext_map_name_msgs /=.
+  have H_nd': NoDup (map (fun nm => fst nm) (pt_map_name_msgs l)).
+    rewrite /pt_map_name_msgs /=.
     rewrite /l {l}.
     apply nodup_snd_fst.
-      apply (@nodup_pt_ext_map msg_fail); first exact: in_for_msg.
+      apply (@nodup_pt_map _ _ _ _ _  _ _ msg_fail); first exact: in_for_msg.
       apply nodup_map_pair.
       exact: nodup_exclude.
     move => nm nm' H_in H_in'.
-    by rewrite (pt_ext_map_in_snd  _ _ _ _ pt_ext_fail_msg_fst_snd H_in) (pt_ext_map_in_snd _ _ _ _ pt_ext_fail_msg_fst_snd H_in').
+    by rewrite (pt_map_in_snd  _ _ _ _ pt_fail_msg_fst_snd H_in) (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in').
   exists [].
   apply: SODF_fail => //.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in.
   * rewrite /=.
-    rewrite /l collate_pt_ext_map_eq.
-    have H_pm := pt_ext_nodup_perm_map_map_pair_perm _ h failed H_nd (Permutation_refl (map tot_map_name (odnwNodes net))) pt_ext_fail_msg_fst_snd.
-    have H_pm' := H_pm _ _ fail_msg_map_congr.
+    rewrite /l collate_pt_map_eq.
+    have H_pm := pt_nodup_perm_map_map_pair_perm _ h failed H_nd (Permutation_refl (map tot_map_name (odnwNodes net))) pt_fail_msg_fst_snd.
+    have H_pm' := H_pm _ _ _ _ name_map_bijective _ _ overlay_map_congr _ _ fail_msg_map_congr.
     have H_eq := nodup_perm_collate_eq  _ _ H_nd' H_pm'.
     by rewrite H_eq.
 Qed.
