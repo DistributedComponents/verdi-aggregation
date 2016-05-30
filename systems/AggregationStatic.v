@@ -510,6 +510,13 @@ have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 exact (FR.Failure_in_adj_adjacent_to H_st' n H_in_f H_ins).
 Qed.
 
+Lemma Aggregation_pt_map_msg_injective : 
+  forall m0 m1 m2 : msg,
+   pt_map_msg m0 = Some m2 -> pt_map_msg m1 = Some m2 -> m0 = m1.
+Proof.
+by case => [m0|]; case => [m1|] H_eq.
+Qed.
+
 Lemma Aggregation_in_adj_or_incoming_fail :
 forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr -> 
@@ -527,22 +534,7 @@ move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
 apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
-by case => [m0|]; case => [m1|] H_eq.
-Qed.
-
-Lemma count_occ_pt_map_msgs_eq :
-  forall l m' m0,
-  pt_map_msg m0 = Some m' ->
-  count_occ msg_eq_dec (pt_map_msgs l) m' = count_occ Msg_eq_dec l m0.
-Proof.
-elim => //.
-case => [m5|] l IH.
-  case.
-  case => //= H_eq.
-  by rewrite (IH _ Fail).
-case.
-case => //= H_eq.
-by rewrite (IH _ Fail).
+exact: Aggregation_pt_map_msg_injective.
 Qed.
 
 Lemma Aggregation_le_one_fail : 
@@ -556,7 +548,13 @@ move => onet failed tr H_st n n' H_in_f.
 have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_le_one_fail H_st' _ n' H_in_f.
 rewrite /= /id /= in H_inv'.
-by rewrite (count_occ_pt_map_msgs_eq _ Fail) in H_inv'.
+move: H_inv'.
+set c1 := count_occ _ _ _.
+set c2 := count_occ _ _ _.
+suff H_suff: c1 = c2 by rewrite -H_suff.
+rewrite /c1 /c2 {c1 c2}.
+apply: count_occ_pt_map_msgs_eq => //.
+exact: Aggregation_pt_map_msg_injective.
 Qed.
 
 Lemma Aggregation_adjacent_to_in_adj :
@@ -588,16 +586,6 @@ apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
 exact: in_msg_pt_map_msgs.
-Qed.
-
-Lemma hd_error_pt_map_msgs :
-  forall l m' m0,
-  pt_map_msg m0 = Some m' ->
-  hd_error l = Some m0 ->
-  hd_error (pt_map_msgs l) = Some m'.
-Proof.
-elim => //.
-by case => [m5|] l IH; case; case.
 Qed.
 
 Lemma Aggregation_first_fail_in_adj : 
@@ -3935,46 +3923,3 @@ end; simpl.
 Qed.
 
 End Aggregation.
-
-(*
-Require StateMachineHandlerMonad.
-
-Lemma 
-
-Instance Aggregation_Aggregator_congruence : forall n, MultiOneNodeParamsTotalMapCongruency (OA.Aggregator_OneNodeParams n) Aggregation_Aggregator_multi_one_map n :=
-  {
-    tot_init_eq := Logic.eq_refl ;
-    tot_net_handlers_handler_eq := _ ;
-    tot_input_handlers_handler_eq := _     
-  }.
-Proof.
-- move => src.
-  move => mg st out st' ps out' H_eq.
-  find_apply_lem_hyp net_handlers_NetHandler.w
-  net_handler_cases.
-  * rewrite /= /StateMachineHandlerMonad.runGenHandler1 /OA.IOHandler /=.
-    StateMachineHandlerMonad.monad_unfold.
-    repeat break_let.
-    repeat tuple_inversion.
-    break_if; repeat break_let; repeat break_match; repeat tuple_inversion; simpl in *.
-      
-      
-      simpl in *.
-
-    rewrite /StateMachineHandlerMonad.bind.
-  
-    
-
-  case => [m_msg|] st out st' ps out'.
-  * rewrite /= /runGenHandler_ignore /=.
-    repeat break_let.
-    
-
-  rewrite /=.
-  rewrite /net_handlers /=.
-
-  try repeat (match goal with
-       | H: NMap.find ?N ?S = _, H': NMap.find ?N ?S = _ |- _ => rewrite H in H'; invc H'
-       end);
-  try by [].
-*)

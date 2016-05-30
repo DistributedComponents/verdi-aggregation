@@ -23,7 +23,7 @@ Require Import MSetProperties.
 
 Require Import OrderedLemmas.
 Require Import AggregationDefinitions.
-Require Import AggregationAux.
+Require Import AggregatorDynamic.
 Require Import FailureRecorderDynamic.
 
 Set Implicit Arguments.
@@ -33,11 +33,13 @@ Module Aggregation (Import NT : NameType)
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module FR := FailureRecorder NT NOT NSet ANT.
+Module OA := OneAggregator NT NOT NSet NOTC NMap CFG ANT.
 
-Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
-Import AX.AD.
-Import AX.
+(* FIXME *)
+Import OA.AX.AD.
+Import OA.AX.
+
+Module FR := FailureRecorder NT NOT NSet ANT.
 
 Import GroupScope.
 
@@ -437,7 +439,6 @@ Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : Na
     tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
   }.
 
-(*
 Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgParamsPartialMapCongruency Aggregation_NewMsgParams FR.FailureRecorder_NewMsgParams Aggregation_FailureRecorder_multi_params_pt_map := 
   {
     pt_new_msg_fst_snd := Logic.eq_refl
@@ -445,15 +446,523 @@ Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgPa
 
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_d_f_star _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_o_d_init (failed, pt_map_onet net) tr' /\
+    @step_o_d_f_star _ _ _ Aggregation_NewMsgParams Aggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
+    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_o_d_f_init (failed, pt_map_odnet net) tr' /\
     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => onet failed tr H_st.
-apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+apply step_o_d_f_pt_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' [H_st H_eq]].
 rewrite map_id in H_st.
 by exists tr'.
+Qed.
+
+Lemma Aggregation_node_not_adjacent_self : 
+forall net failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, In n (odnwNodes net) ->
+ ~ In n failed ->
+ forall d, odnwState net n = Some d ->
+ ~ NSet.In n d.(adjacent).
+Proof.
+move => net failed tr H_st n H_n H_f d H_eq.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_node_not_adjacent_self _ _ _ H_st' n.
+rewrite /= /id /= map_id H_eq in H_inv'.
+have IH_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
+rewrite /= in IH_inv''.
+exact: IH_inv''.
+Qed.
+
+Lemma Aggregation_not_failed_no_fail :
+forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  forall n, In n (odnwNodes onet) -> ~ In n failed ->
+  forall n', ~ In Fail (onet.(odnwPackets) n n').
+Proof.
+move => net failed tr H_st n H_n H_f n'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have IH := FR.Failure_not_failed_no_fail H_st'.
+rewrite /= map_id /id /= in IH.
+have IH' := IH _ H_n H_f n'.
+move => H_in.
+case: IH'.
+move: H_in.
+apply: in_msg_pt_map_msgs.
+exact: pt_fail_msg_fst_snd.
+Qed.
+
+Lemma Aggregation_in_after_all_fail_new : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) ->
+        ~ In n failed ->
+        forall (n' : name), In_all_before New Fail (net.(odnwPackets) n' n).
+Proof.
+move => net failed tr H_st n H_n H_f n'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have IH := FR.Failure_in_after_all_fail_new H_st'.
+rewrite /= map_id /id /= in IH.
+have IH' := IH _ H_n H_f n'.
+move: IH'.
+exact: in_all_before_pt_map_msg.
+Qed.
+
+Lemma Aggregation_pt_map_msg_injective : 
+  forall m0 m1 m2 : msg,
+   pt_map_msg m0 = Some m2 -> pt_map_msg m1 = Some m2 -> m0 = m1.
+Proof.
+by case => [m'||]; case => [m''||] => //=; case.
+Qed.
+
+Lemma Aggregation_le_one_new : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) -> ~ In n failed ->
+   forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) New <= 1.
+Proof.
+move => net failed tr H_st n H_n H_f n'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have IH := FR.Failure_le_one_new H_st'.
+rewrite /= map_id /id /= in IH.
+have IH' := IH _ H_n H_f n'.
+move: IH'.
+set c1 := count_occ _ _ _.
+set c2 := count_occ _ _ _.
+suff H_suff: c1 = c2 by rewrite H_suff.
+rewrite /c1 /c2 {c1 c2}.
+apply: count_occ_pt_map_msgs_eq => //.
+exact: Aggregation_pt_map_msg_injective.
+Qed.
+
+Lemma Aggregation_le_one_fail : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) -> ~ In n failed ->
+   forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) Fail <= 1.
+Proof.
+move => net failed tr H_st n H_n H_f n'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have IH := FR.Failure_le_one_fail H_st'.
+rewrite /= map_id /id /= in IH.
+have IH' := IH _ H_n H_f n'.
+move: IH'.
+set c1 := count_occ _ _ _.
+set c2 := count_occ _ _ _.
+suff H_suff: c1 = c2 by rewrite H_suff.
+rewrite /c1 /c2 {c1 c2}.
+apply: count_occ_pt_map_msgs_eq => //.
+exact: Aggregation_pt_map_msg_injective.
+Qed.
+
+Lemma Failure_in_new_failed_incoming_fail : 
+  forall onet failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+    forall n, In n (odnwNodes onet) -> ~ In n failed ->
+         forall n', In n' failed ->
+               In New (onet.(odnwPackets) n' n) ->
+               In Fail (onet.(odnwPackets) n' n).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_f' H_in.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_in_new_failed_incoming_fail H_st'.
+rewrite /= map_id /id /= in H_inv'.
+have IH := H_inv' _ H_n H_f _ H_f'.
+move: IH.
+set in_pt := In FR.Fail _.
+move => IH.
+suff H_suff: in_pt.
+  move: H_suff.
+  apply: in_pt_map_msgs_in_msg => //.
+  exact: Aggregation_pt_map_msg_injective.
+apply: IH.
+move: H_in.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Aggreation_in_adj_adjacent_to :
+forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  forall n n', In n (odnwNodes onet) -> ~ In n failed ->
+          forall d, onet.(odnwState) n = Some d ->
+               NSet.In n' d.(adjacent) ->
+               adjacent_to n' n.
+Proof.
+move => net failed tr H_st n n' H_n H_f d H_eq.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_in_adj_adjacent_to _ _ _ H_st' n n'.
+rewrite /= map_id /id /= H_eq in H_inv'.
+have H_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
+exact: H_inv''.
+Qed.
+
+Lemma Aggregation_in_adj_or_incoming_fail :
+forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  forall n n', In n (odnwNodes onet) -> ~ In n failed ->
+       forall d, onet.(odnwState) n = Some d ->
+            NSet.In n' d.(adjacent) ->
+            (In n' (odnwNodes onet) /\ ~ In n' failed) \/ (In n' (odnwNodes onet) /\ In n' failed /\ In Fail (onet.(odnwPackets) n' n)).
+Proof.
+move => net failed tr H_st n n' H_n H_f d H_eq.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_in_adj_or_incoming_fail  _ _ _ H_st' n n'.
+rewrite /= map_id /id /= H_eq in H_inv'.
+have H_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
+rewrite /= in H_inv''.
+move => H_ins.
+case (H_inv'' (Logic.eq_refl _) H_ins) => H_in.
+  break_and.
+  by left.
+break_and.
+right.
+split => //.
+split => //.
+move: H1.
+apply: in_pt_map_msgs_in_msg => //.
+exact: Aggregation_pt_map_msg_injective.
+Qed.
+
+Lemma Aggregation_new_incoming_not_in_adj :
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n (odnwNodes net) ->
+        ~ In n failed ->        
+        forall (n' : name), In New (net.(odnwPackets) n' n) ->
+                       forall d, net.(odnwState) n = Some d ->
+                            ~ NSet.In n' d.(adjacent).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_in d H_eq.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_new_incoming_not_in_adj _ _ _ H_st' n _ _ n' _ {| FR.adjacent := d.(adjacent) |}.
+rewrite /= map_id /id /= H_eq in H_inv'.
+apply: H_inv' => //.
+move: H_in.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_adjacent_to_no_incoming_new_n_adjacent :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n n', 
+        In n net.(odnwNodes) -> ~ In n failed ->
+        In n' net.(odnwNodes) -> ~ In n' failed ->
+        adjacent_to n' n ->
+        forall d, odnwState net n = Some d ->
+         ~ In New (odnwPackets net n' n) ->
+         NSet.In n' (adjacent d).
+Proof.
+move => net failed tr H_st n n' H_n H_f H_n' H_f' H_adj d H_eq H_in.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_adjacent_to_no_incoming_new_n_adjacent _ _ _ H_st' n n'.
+rewrite /= map_id /id /= H_eq in H_inv'.
+have H_inv'' := H_inv' H_n H_f H_n' H_f' H_adj {| FR.adjacent := d.(adjacent) |}.
+apply: H_inv'' => //.
+move => H_in'.
+case: H_in.
+apply: in_pt_map_msgs_in_msg => //.
+exact: Aggregation_pt_map_msg_injective.
+Qed.
+
+Lemma Aggregation_incoming_fail_then_incoming_new_or_in_adjacent : 
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n, In n net.(odnwNodes) -> ~ In n failed ->
+      forall n', In Fail (net.(odnwPackets) n' n) ->
+      forall d, net.(odnwState) n = Some d ->
+      (In New (net.(odnwPackets) n' n) /\ ~ NSet.In n' d.(adjacent)) \/ (~ In New (net.(odnwPackets) n' n) /\ NSet.In n' d.(adjacent)).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_in d H_eq. 
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_incoming_fail_then_incoming_new_or_in_adjacent _ _ _ H_st' n.
+rewrite /= map_id /id /= H_eq in H_inv'.
+have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
+move: H_inv''.
+set f_in := In FR.Fail _.
+move => H_inv''.
+suff H_suff: f_in.
+  concludes.
+  case: H_inv'' => H_inv''.
+    break_and.
+    left.
+    split => //.
+    move: H.
+    apply: in_pt_map_msgs_in_msg => //.
+    exact: Aggregation_pt_map_msg_injective.
+  break_and.
+  right.
+  split => //.
+  move => H_in'.
+  case: H.
+  move: H_in'.
+  exact: in_msg_pt_map_msgs.
+rewrite /f_in.
+move: H_in.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_incoming_fail_then_new_or_adjacent :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n, In n net.(odnwNodes) -> ~ In n failed ->
+      forall n', In Fail (net.(odnwPackets) n' n) ->
+      forall d, net.(odnwState) n = Some d ->
+       In New (net.(odnwPackets) n' n) \/ NSet.In n' (adjacent d).
+Proof.
+move => net failed tr H_st.
+move => n H_in_n H_in_f n' H_in d H_eq.
+have H_or := Aggregation_incoming_fail_then_incoming_new_or_in_adjacent H_st _ H_in_n H_in_f _ H_in H_eq.
+break_or_hyp; break_and; first by left.
+by right.
+Qed.
+
+Lemma Aggregation_head_fail_then_adjacent :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall n', head (net.(odnwPackets) n' n) = Some Fail ->
+   forall d, net.(odnwState) n = Some d -> 
+   NSet.In n' d.(adjacent).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_eq d H_eq'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_head_fail_then_adjacent _ _ _ H_st' n.
+rewrite /= map_id /id /= H_eq' in H_inv'.
+have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
+apply: H_inv''.
+move: H_eq.
+exact: hd_error_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_adjacent_or_incoming_new_reciprocal :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n n', 
+        In n net.(odnwNodes) -> ~ In n failed ->
+        In n' net.(odnwNodes) -> ~ In n' failed ->
+        forall d0, odnwState net n = Some d0 ->
+        forall d1, odnwState net n' = Some d1 ->
+        (NSet.In n' d0.(adjacent) \/ In New (net.(odnwPackets) n' n)) ->
+        NSet.In n d1.(adjacent) \/ In New (net.(odnwPackets) n n').
+Proof.
+move => net failed tr H_st n n' H_n H_f H_n' H_f' d H_eq d' H_eq'.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_adjacent_or_incoming_new_reciprocal _ _ _ H_st' n n'.
+rewrite /= map_id /id /= H_eq H_eq' in H_inv'.
+have H_inv'' := H_inv' H_n H_f H_n' H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _) {| FR.adjacent := d'.(adjacent) |} (Logic.eq_refl _).
+rewrite /= in H_inv''.
+move => H_in.
+move: H_inv''.
+set inn := In FR.New _.
+set inn' := In FR.New _.
+move => H_inv''.
+case: H_in => H_in.
+  have H_or: NSet.In n' d.(adjacent) \/ inn by left.
+  concludes.
+  case: H_inv'' => H_inv''; first by left.
+  right.
+  move: H_inv''.
+  apply: in_pt_map_msgs_in_msg => //.
+  exact: Aggregation_pt_map_msg_injective.
+suff H_suff: inn.
+  have H_or: NSet.In n' (adjacent d) \/ inn by right.
+  concludes.
+  case: H_inv'' => H_inv''; first by left.
+  right.
+  move: H_inv''.
+  apply: in_pt_map_msgs_in_msg => //.
+  exact: Aggregation_pt_map_msg_injective.
+move: H_in.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_adjacent_then_adjacent_or_new_incoming :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n n', 
+        In n net.(odnwNodes) -> ~ In n failed ->
+        In n' net.(odnwNodes) -> ~ In n' failed ->
+        forall d0, odnwState net n = Some d0 ->
+        forall d1, odnwState net n' = Some d1 ->
+        NSet.In n' d0.(adjacent) ->
+        NSet.In n d1.(adjacent) \/ In New (net.(odnwPackets) n n').
+Proof.
+move => net failed tr H_st n n' H_n H_f H_n' H_f' d H_eq d' H_eq' H_ins.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_adjacent_then_adjacent_or_new_incoming _ _ _ H_st' n n'.
+rewrite /= map_id /id /= H_eq H_eq' in H_inv'.
+have H_inv'' := H_inv' H_n H_f H_n' H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _) {| FR.adjacent := d'.(adjacent) |} (Logic.eq_refl _).
+rewrite /= in H_inv''.
+concludes.
+break_or_hyp; first by left.
+right.
+move: H.
+apply: in_pt_map_msgs_in_msg => //.
+exact: Aggregation_pt_map_msg_injective.
+Qed.
+
+Lemma Aggregation_fail_head_no_new :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n, In n net.(odnwNodes) -> ~ In n failed ->
+        forall n', head (net.(odnwPackets) n' n) = Some Fail ->
+        ~ In New (net.(odnwPackets) n' n).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_eq.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_fail_head_no_new _ _ _ H_st' n.
+rewrite /= map_id /id /= in H_inv'.
+have H_inv'' := H_inv' H_n H_f n'.
+move => H_in.
+move: H_inv''.
+set hde := hd_error _ = _.
+move => H_inv''.
+suff H_suff: hde.
+  concludes.
+  case: H_inv''.
+  move: H_in.
+  exact: in_msg_pt_map_msgs.
+move: H_eq.
+exact: hd_error_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_failed_adjacent_fail :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n, In n net.(odnwNodes) -> ~ In n failed ->
+      forall n', In n' failed ->
+      forall d0, odnwState net n = Some d0 ->
+      (NSet.In n' d0.(adjacent) \/ In New (net.(odnwPackets) n' n)) ->
+      In Fail (net.(odnwPackets) n' n).
+Proof.
+move => net failed tr H_st n H_n H_f n' H_f' d H_eq H_or.
+have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_failed_adjacent_fail _ _ _ H_st' n.
+rewrite /= map_id /id /= H_eq in H_inv'.
+have H_inv'' := H_inv' H_n H_f _ H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
+rewrite /= in H_inv''.
+move: H_inv''.
+set inn := In FR.Fail _.
+move => H_inv''.
+suff H_suff: inn.
+  move: H_suff.
+  apply: in_pt_map_msgs_in_msg => //.
+  exact: Aggregation_pt_map_msg_injective.
+apply: H_inv''.
+case: H_or => H_or; first by left.
+right.
+move: H_or.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
+  {
+    tot_one_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+    tot_one_map_input := fun n i => 
+                        match i with
+                        | Local m_inp => OA.Local m_inp
+                        | AggregateRequest => OA.AggregateRequest
+                        | SendAggregate dst => OA.SendAggregate dst
+                        end ;
+    tot_one_map_msg := fun dst src m =>
+                        match m with
+                        | Fail => OA.Fail src
+                        | New => OA.New src
+                        | Aggregate m_msg => OA.Aggregate src m_msg
+                        end
+  }.
+
+(*
+Theorem step_o_f_tot_one_mapped_simulation_1 :
+  forall n net net' failed failed' tr tr',
+    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+    step_o_d_f (failed, net) (failed', net') tr' ->
+    forall d, net.(odnwState) n = Some d ->
+    forall d', net'.(odnwState) n = Some d' ->
+    d = d' \/ exists tr'', @step_1 OA.Aggregator_BaseParams OA.Aggregator_OneNodeParams (tot_one_map_data d) (tot_one_map_data d') tr''.
+Proof.
+move => n net net' failed failed' tr tr' H_star H_step d H_eq d' H_eq'.
+invcs H_step.
+- left.
+  have H_neq: h <> n.
+    move => H_n.
+    rewrite -H_n in H_eq.
+    have H_eq_n := ordered_dynamic_uninitialized_state H_star _ H4.
+    by congruence.
+  move: H_eq'.
+  rewrite /update_opt.
+  break_if; first by find_rewrite.
+  by congruence.
+- move: H_eq'.
+  rewrite /update_opt.
+  break_if => H_eq'; last by left; congruence.    
+  right.
+  rewrite -e /= in H8.
+  rewrite /runGenHandler_ignore /= in H8.
+  repeat break_let.
+  repeat tuple_inversion.
+  find_rewrite.
+  repeat find_injection.
+  destruct u.
+  case H_h: (@handler OA.Aggregator_BaseParams OA.Aggregator_OneNodeParams (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0) (@tot_one_map_data _ _ _ Aggregation_Aggregator_multi_one_map d)) => [out' st'].
+  exists [(@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0, out')].
+  apply: S1T_deliver.
+  suff H_suff: {|
+   OA.local := local d';
+   OA.aggregate := aggregate d';
+   OA.adjacent := adjacent d';
+   OA.sent := sent d';
+   OA.received := received d' |} = st'.
+    rewrite H_suff.
+    by rewrite -H_h.
+  destruct st'.
+  net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
+  * case: H0.
+    apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 _ x1).
+    find_rewrite.
+    by left.
+  * case: H0.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
+    by congruence.
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
+    by congruence.
+  * case: H.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
+    by congruence.
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
+    by congruence.
+  * case: H.
+    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
+    find_rewrite.
+    by left.
+- rewrite /update'.
+  break_if; last by left.
+  right.
+  rewrite -e /= in H5.
+  rewrite /runGenHandler_ignore /= in H5.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
+  exists [(@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp, out')].
+  apply: S1T_deliver.
+  suff H_suff: {|
+   OA.local := local d;
+   OA.aggregate := aggregate d;
+   OA.adjacent := adjacent d;
+   OA.sent := sent d;
+   OA.received := received d |} = st'.
+    rewrite H_suff.
+    by rewrite -H_h.
+  destruct st'.
+  by io_handler_cases; OA.io_handler_cases; simpl in *; congruence.
+- by left.
 Qed.
 *)
 

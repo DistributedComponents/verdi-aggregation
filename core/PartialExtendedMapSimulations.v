@@ -1193,7 +1193,7 @@ invcs H_step.
     by rewrite H_eq.
 Qed.
 
-Corollary step_o_d_f_pt_mapped_simulation_star_1 :
+Corollary step_o_d_f_pt_ext_mapped_simulation_star_1 :
   forall net failed tr,
     @step_o_d_f_star _ _ overlay_fst new_msg_fst fail_msg_fst step_o_d_f_init (failed, net) tr ->
     exists tr', @step_o_d_f_star _ _ overlay_snd new_msg_snd fail_msg_snd step_o_d_f_init (map tot_map_name failed, pt_ext_map_odnet net) tr'.

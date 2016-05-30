@@ -917,7 +917,6 @@ apply NoDup_Permutation; last split.
   rewrite /= in H_eq'.
   rewrite H_eq' in H_in.
   rewrite H_eq' {H_eq' m0}.
-  Check in_tot_map_name.
   apply (@pt_in_tot_map_name m) in H_in => //.
     apply in_map_pair_adjacent_to in H_in.
     apply in_adjacent_exclude_in_exlude in H_in.
@@ -1385,14 +1384,15 @@ rewrite /=.
 by break_match; first by right.
 Qed.
 
+Hypothesis pt_map_msg_injective : 
+  forall m0 m1 m, pt_map_msg m0 = Some m -> pt_map_msg m1 = Some m -> m0 = m1.
+
 Lemma in_pt_map_msgs_in_msg :
-  (forall m0 m1 m, pt_map_msg m0 = Some m -> pt_map_msg m1 = Some m -> m0 = m1) ->
   forall l m0 m1,
     pt_map_msg m0 = Some m1 ->
     In m1 (pt_map_msgs l) ->
     In m0 l.
 Proof.
-move => H_inj.
 elim => //=.
 move => m0 l IH.
 move => m1 m2 H_eq H_in.
@@ -1407,18 +1407,18 @@ case: H_in => H_in; last first.
 rewrite H_in in IH'' Heqo.
 left.
 move: Heqo H_eq.
-exact: H_inj.
+exact: pt_map_msg_injective.
 Qed.
 
 Lemma in_all_before_pt_map_msg :
   forall l m0 m1 m'0 m'1,
-    In_all_before m'0 m'1 (pt_map_msgs l) ->
     pt_map_msg m0 = Some m'0 ->
     pt_map_msg m1 = Some m'1 ->
+    In_all_before m'0 m'1 (pt_map_msgs l) ->
     In_all_before m0 m1 l.
 Proof.
 elim => //=.
-move => m l IH m0 m1 m'0 m'1 H_bef H_eq H_eq'.
+move => m l IH m0 m1 m'0 m'1 H_eq H_eq' H_bef.
 break_match; simpl in *.
   case: H_bef => H_bef.
     left.
@@ -1429,7 +1429,7 @@ break_match; simpl in *.
   break_and.
   right.
   split; last first.
-    move: H_eq H_eq'.
+    move: H0.
     exact: IH.
   move => H_eq_m.
   rewrite H_eq_m in H_eq'.
@@ -1437,9 +1437,45 @@ break_match; simpl in *.
   by find_injection.
 right.
 split; last first.
-  move: H_eq H_eq'.
+  move: H_bef.
   exact: IH.
 by congruence.
+Qed.
+
+Lemma count_occ_pt_map_msgs_eq :
+  forall l m' m0,
+  pt_map_msg m0 = Some m' ->
+  count_occ msg_eq_dec (pt_map_msgs l) m' = count_occ msg_eq_dec l m0.
+Proof.
+elim => //=.
+move => m l IH m' m0 H_eq.
+break_if.
+  repeat find_rewrite.
+  rewrite /=.
+  break_if => //.
+  have IH' := IH _ _ H_eq.
+  by rewrite IH'.
+have IH' := IH _ _ H_eq.
+rewrite -IH'.
+break_match => //.
+rewrite /=.
+break_if => //.
+case: n.
+find_rewrite.
+move: Heqo H_eq.
+exact: pt_map_msg_injective.
+Qed.
+
+Lemma hd_error_pt_map_msgs :
+  forall l m' m0,
+  pt_map_msg m0 = Some m' ->
+  hd_error l = Some m0 ->
+  hd_error (pt_map_msgs l) = Some m'.
+Proof.
+case => //=.
+move => m l m' m0 H_eq H_eq'.
+find_injection.
+by break_match.
 Qed.
 
 End PartialMapSimulations.

@@ -2,6 +2,10 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import NameOverlay.
 
+Require Import TotalMapSimulations.
+Require Import PartialMapSimulations.
+Require Import PartialExtendedMapSimulations.
+
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
@@ -31,11 +35,8 @@ Module TreeAggregation (Import NT : NameType)
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import RNT : RootNameType NT) (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
-
 Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
-Import AG.AX.AD.
+Import AG.OA.AX.AD.
 
 Module TR := Tree NT NOT NSet NOTC NMap RNT ANT.
 Import TR.AX.
@@ -110,17 +111,17 @@ Definition InitData (n : name) :=
 if root_dec n then
   {| local := 1 ;
      aggregate := 1 ;
-     adjacent := adjacency n nodes ;
-     sent := init_map (adjacency n nodes) ;
-     received := init_map (adjacency n nodes) ;
+     adjacent := NSet.empty ;
+     sent := NMap.empty m ;
+     received := NMap.empty m ;
      broadcast := true ;
      levels := NMap.empty lv |}
 else
   {| local := 1 ;
      aggregate := 1 ;
-     adjacent := adjacency n nodes ;
-     sent := init_map (adjacency n nodes) ;
-     received := init_map (adjacency n nodes) ;
+     adjacent := NSet.empty ;
+     sent := NMap.empty m ;
+     received := NMap.empty m ;
      broadcast := false ;
      levels := NMap.empty lv |}.
 
@@ -668,7 +669,7 @@ Instance TreeAggregation_TreeMsg : TreeMsg :=
     tree_level := Level
   }.
 
-Lemma send_level_adjacent_fst_eq : 
+Lemma send_level_adjacent_fst_eq :
 forall fs olv st,
   snd (send_level_adjacent olv fs st) = level_adjacent olv fs.
 Proof.
@@ -920,5 +921,152 @@ Ltac io_handler_cases :=
   intuition idtac; try break_exists; 
   intuition idtac; subst; 
   repeat find_rewrite.
+
+Instance TreeAggregation_Aggregation_name_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
+  {
+    tot_map_name := id ;
+    tot_map_name_inv := id ;
+  }.
+
+Instance TreeAggregation_Aggregation_name_tot_map_bijective : MultiParamsNameTotalMapBijective TreeAggregation_Aggregation_name_tot_map :=
+  {
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
+  }.
+
+Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
+  {
+    pt_ext_map_data := fun d _ =>
+      AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+    pt_ext_map_input := fun i n d =>
+      match i with
+      | Local m => Some (AG.Local m)
+      | SendAggregate =>
+        if root_dec n then None else
+          match parent d.(adjacent) d.(levels) with
+          | Some p => Some (AG.SendAggregate p)
+          | None => None
+          end
+      | AggregateRequest => (Some AG.AggregateRequest)
+      | _ => None
+      end ;
+    pt_ext_map_msg := fun m =>
+      match m with
+      | Aggregate m' => Some (AG.Aggregate m')
+      | Fail => Some AG.Fail
+      | New  => Some AG.New
+      | Level _ => None
+      end
+  }.
+
+Lemma pt_ext_map_name_msgs_level_adjacent_empty :
+  forall fs lvo,
+  pt_ext_map_name_msgs (level_adjacent lvo fs) = [].
+Proof.
+move => fs lvo.
+rewrite /level_adjacent NSet.fold_spec.
+elim: NSet.elements => //=.
+move => n ns IH.
+rewrite {2}/level_fold /=.
+rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) /=.
+by rewrite pt_ext_map_name_msgs_app_distr /= -app_nil_end IH.
+Qed.
+
+Instance TreeAggregation_Aggregation_multi_params_pt_ext_map_congruency : MultiParamsPartialExtendedMapCongruency TreeAggregation_Aggregation_name_tot_map TreeAggregation_Aggregation_params_pt_ext_map :=
+  {
+    pt_ext_init_handlers_eq := _ ;
+    pt_ext_net_handlers_some := _ ;
+    pt_ext_net_handlers_none := _ ;
+    pt_ext_input_handlers_some := _ ;
+    pt_ext_input_handlers_none := _
+  }.
+Proof.
+- by move => n; rewrite /= /InitData /=; break_if.
+- move => me src mg st mg' out st' ps H_eq H_eq'.
+  rewrite /pt_ext_mapped_net_handlers.
+  repeat break_let.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  rewrite /= /runGenHandler_ignore /= in Heqp.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, u0.
+  unfold id in *.
+  destruct st'.
+  by net_handler_cases; AG.net_handler_cases; simpl in *; congruence.
+- move => me src mg st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  destruct st'.
+  by net_handler_cases; simpl in *; congruence.
+- move => me inp st inp' out st' ps H_eq H_eq'.
+  rewrite /pt_ext_mapped_input_handlers.
+  repeat break_let.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  rewrite /= /runGenHandler_ignore /= in Heqp.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u, u0.
+  unfold id in *.
+  have H_eq_inp: inp = SendAggregate \/ inp <> SendAggregate by destruct inp; (try by right); left.
+  case: H_eq_inp => H_eq_inp.
+    subst_max.
+    rewrite /= in H_eq.
+    move: H_eq.
+    case H_p: (parent st.(adjacent) st.(levels)) => [dst|].
+      have H_p' := H_p.
+      rewrite /parent in H_p'.
+      break_match_hyp => //.
+      destruct s.
+      simpl in *.
+      find_injection.
+      inversion m0.
+      inversion H.
+      destruct st'.
+      io_handler_cases; AG.io_handler_cases; simpl in *; repeat break_match; repeat find_injection; unfold id in *; try congruence.
+      move: Heqb.
+      by case root_dec.
+    by io_handler_cases; AG.io_handler_cases; simpl in *; repeat break_match; repeat find_injection; congruence.
+  destruct st'.
+  simpl in *.
+  by io_handler_cases; AG.io_handler_cases; simpl in *; repeat break_match; repeat find_injection; congruence.
+- move => me inp st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct u.
+  destruct st'.
+  io_handler_cases; simpl in *; unfold is_left in *; repeat break_if; try break_match; try congruence.
+  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
+  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
+Qed.
+
+Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialExtendedMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_ext_map := 
+  {
+    pt_ext_fail_msg_fst_snd := Logic.eq_refl
+  }.
+
+Instance TreeAggregation_Aggregation_new_msg_params_pt_ext_map_congruency : NewMsgParamsPartialExtendedMapCongruency TreeAggregation_NewMsgParams AG.Aggregation_NewMsgParams TreeAggregation_Aggregation_params_pt_ext_map := 
+  {
+    pt_ext_new_msg_fst_snd := Logic.eq_refl
+  }.
+
+Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams TreeAggregation_Aggregation_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
+
+Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
+forall net failed tr,
+    @step_o_d_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
+    exists tr', @step_o_d_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_NewMsgParams AG.Aggregation_FailMsgParams step_o_d_f_init (failed, pt_ext_map_odnet net) tr'.
+Proof.
+move => net failed tr H_st.
+apply step_o_d_f_pt_ext_mapped_simulation_star_1 in H_st.
+move: H_st => [tr' H_st].
+rewrite map_id in H_st.
+by exists tr'.
+Qed.
 
 End TreeAggregation.

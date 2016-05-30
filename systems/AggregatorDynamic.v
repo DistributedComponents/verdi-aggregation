@@ -19,16 +19,19 @@ Require Import MSetProperties.
 Require Import Sumbool.
 
 Require Import AggregationDefinitions.
+Require Import AggregationAux.
 
 Require Import AAC_tactics.AAC.
 
+(* FIXME: ANT not needed *)
 Module OneAggregator (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import CFG : CommutativeFinGroup).
+ (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module AD := ADefs NT NOT NSet NOTC NMap CFG.
-Import AD.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
+Import AX.AD.
+Import AX.
 
 Import GroupScope.
 
