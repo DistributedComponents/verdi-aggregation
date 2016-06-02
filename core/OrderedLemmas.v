@@ -382,7 +382,6 @@ move => H.
 by rewrite H.
 Qed.
 
-(* FIXME: obsolete by functional extensionality? *)
 Lemma collate_f_eq :
   forall B (f : A -> A -> list B) g h n n' l,
   f n n' = g n n' ->
@@ -1031,7 +1030,6 @@ split; first exact: In_n_exclude.
 by case rel_dec.
 Qed.
 
-(* FIXME: obsolete through functional extensionality? *)
 Lemma collate_ls_f_eq :
   forall B ns (f : A -> A -> list B) g h mg n n',
   f n n' = g n n' ->

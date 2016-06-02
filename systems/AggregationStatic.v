@@ -1690,11 +1690,12 @@ Hypothesis recv_aggregate :
   P (mkData (onet.(onwState) n).(local) ((onet.(onwState) n).(aggregate) * m') (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (NMap.add n' (m0 * m') (onet.(onwState) n).(received))) ms.
 
 Hypothesis recv_aggregate_other : 
-  forall onet failed tr m' from m0,
+  forall onet failed tr m' from m0 ms,
   step_o_f_star step_o_f_init (failed, onet) tr ->
   ~ In n failed ->
   from <> n' ->
   NMap.find from (onwState onet n).(received) = Some m0 ->
+  onet.(onwPackets) from n = Aggregate m' :: ms ->
   P (onet.(onwState) n) (onet.(onwPackets) n' n) ->
   P (mkData (onet.(onwState) n).(local) ((onet.(onwState) n).(aggregate) * m') (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (NMap.add from (m0 * m') (onet.(onwState) n).(received))) (onet.(onwPackets) n' n).
 
@@ -1730,21 +1731,22 @@ Hypothesis recv_local :
     P (mkData m_local ((onet.(onwState) n).(aggregate) * m_local * (onet.(onwState) n).(local)^-1) (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (onet.(onwState) n).(received)) (onet.(onwPackets) n' n).
 
 Hypothesis recv_send_aggregate : 
-  forall onet failed tr n0 m',
+  forall onet failed tr m',
     step_o_f_star step_o_f_init (failed, onet) tr ->
     ~ In n failed ->
     n <> n' ->
-    NSet.In n0 (onet.(onwState) n).(adjacent) ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
     (onwState onet n).(aggregate) <> 1 ->
-    NMap.find n0 (onwState onet n).(sent) = Some m' ->
+    NMap.find n' (onwState onet n).(sent) = Some m' ->
     P (onet.(onwState) n) (onet.(onwPackets) n' n) ->
-    P (mkData (onwState onet n).(local) 1 (onwState onet n).(adjacent) (NMap.add n0 (m' * (onwState onet n).(aggregate)) (onwState onet n).(sent)) (onwState onet n).(received)) (onet.(onwPackets) n' n).
+    P (mkData (onwState onet n).(local) 1 (onwState onet n).(adjacent) (NMap.add n' (m' * (onwState onet n).(aggregate)) (onwState onet n).(sent)) (onwState onet n).(received)) (onet.(onwPackets) n' n).
 
 Hypothesis recv_send_aggregate_other : 
   forall onet failed tr to m',
     step_o_f_star step_o_f_init (failed, onet) tr ->
     ~ In n failed ->
     to <> n ->
+    to <> n' ->
     NSet.In to (onet.(onwState) n).(adjacent) ->
     (onet.(onwState) n).(aggregate) <> 1 ->
     NMap.find to (onwState onet n).(sent) = Some m' ->
@@ -1755,6 +1757,7 @@ Hypothesis recv_send_aggregate_neq :
   forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr ->
   ~ In n failed ->
+  ~ In n' failed ->
   n <> n' ->
   (onet.(onwState) n').(aggregate) <> 1 ->
   NSet.In n (onet.(onwState) n').(adjacent) ->
@@ -1823,7 +1826,7 @@ end; simpl.
       move => local0 aggregate0 adjacent0 sent0 receive0.
       move => H4 H5 H6 H7 H8.
       rewrite H4 H5 H6 H7 H8 {local0 aggregate0 adjacent0 sent0 receive0 H4 H5 H6 H7 H8}.
-      exact: (recv_aggregate_other _ H'_step1).
+      exact: (recv_aggregate_other H'_step1 _ _ _ H0).
     rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
@@ -1895,12 +1898,24 @@ end; simpl.
         case: d H6 H5 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 receive0.
         move => H6 H5 H7 H8 H9.
         rewrite H6 H5 H7 H8 H9 {local0 aggregate0 adjacent0 sent0 receive0 H6 H5 H7 H8 H9}.
-        exact: (recv_send_aggregate H'_step1).
+        case (name_eq_dec n' x) => H_eq.
+          subst_max.
+          exact: (recv_send_aggregate H'_step1).
+        apply:(recv_send_aggregate_other H'_step1) => //; last by auto.
+        move => H_eq'.
+        rewrite H_eq' in H1.
+        contradict H1.
+        exact: (Aggregation_node_not_adjacent_self H'_step1).
       rewrite -H_dec {H_dec h} in H1 H0 H3 H4 H5 H7 H8 H9.
       case: d H6 H5 H7 H8 H9 => /= local0 aggregate0 adjacent0 sent0 receive0.
       move => H6 H5 H7 H8 H9.
       rewrite H6 H5 H7 H8 H9 {H6 H5 H7 H8 H9 local0 aggregate0 adjacent0 sent0 receive0}.
-      exact: (recv_send_aggregate_other H'_step1).
+      case (name_eq_dec n' x) => H_eq.
+        subst_max.
+        apply: (recv_send_aggregate H'_step1) => //.
+        by auto.
+      apply: (recv_send_aggregate_other H'_step1) => //.
+      by auto.
     rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec' //.
     move: H_dec' => [H_dec' H_dec''].
