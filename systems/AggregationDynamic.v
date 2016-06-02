@@ -855,6 +855,673 @@ move: H_or.
 exact: in_msg_pt_map_msgs.
 Qed.
 
+Lemma Aggregation_self_channel_empty : 
+forall onet failed tr, 
+ step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+ forall n, onet.(odnwPackets) n n = [].
+Proof.
+move => net failed tr H.
+change net with (snd (failed, net)).
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; rewrite /=.
+- move => n.
+  case (name_eq_dec h n) => H_dec; last first.
+    rewrite collate_ls_neq_to //.
+    by rewrite collate_neq.
+  find_reverse_rewrite.
+  rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+  rewrite collate_map_pair_notin; last exact: not_in_exclude.
+  by find_higher_order_rewrite.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+  * rewrite /update2 /=.
+    break_if; last by find_higher_order_rewrite.
+    break_and; repeat find_rewrite.
+    by find_higher_order_rewrite.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=.
+  rewrite /update2 /=.
+  break_if => //=.
+  break_and; repeat find_rewrite.
+  by have H_not := Aggregation_node_not_adjacent_self H H3 H2 H4.
+- move => n.  
+  case (name_eq_dec h n) => H_dec; last by rewrite collate_neq; first by find_higher_order_rewrite.
+  find_reverse_rewrite.
+  rewrite collate_map_pair_not_related //.
+  exact: adjacent_to_irreflexive.
+Qed.
+
+Lemma Aggregation_inactive_no_incoming :
+forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  forall n, ~ In n (odnwNodes onet) ->
+  forall n', onet.(odnwPackets) n' n = [].
+Proof.
+move => net failed tr H.
+change net with (snd (failed, net)).
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; rewrite /=.
+- move => n H_in n'.
+  have H_neq: h <> n by auto.
+  have H_not_in: ~ In n net0.(odnwNodes) by auto.
+  rewrite collate_ls_neq_to //.
+  case (name_eq_dec h n') => H_dec.
+    rewrite -H_dec.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
+    by auto.
+  rewrite collate_neq //.
+  by auto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by eauto.
+    by repeat find_rewrite; eauto.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=.
+  * by auto.
+  * rewrite /update2 /=.
+    break_if; break_and; last by auto.
+    subst_max.
+    have H_adj := Aggregation_in_adj_or_incoming_fail H _ H3 H2 H4 H5.
+    by break_or_hyp; break_and.
+  * by auto.
+  * by auto.
+  * by auto.
+  * by auto.
+- move => n H_in n'.
+  have H_neq: h <> n by move => H_eq; rewrite -H_eq in H_in.
+  case (name_eq_dec h n') => H_dec.
+    rewrite -H_dec.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
+    by auto.
+  rewrite collate_neq //.
+  by auto.
+Qed.
+
+Lemma Aggregation_in_set_exists_find_sent : 
+forall net failed tr, 
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, In n net.(odnwNodes) -> ~ In n failed ->
+ forall d, net.(odnwState) n = Some d ->
+ forall n', NSet.In n' d.(adjacent) -> 
+       exists m5 : m, NMap.find n' d.(sent) = Some m5.
+Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_in H_f d.
+  rewrite /update_opt.
+  break_if => H_eq.
+    find_injection.
+    unfold InitData in *.
+    by find_apply_lem_hyp NSetFacts.empty_1.
+  break_or_hyp => //.
+  by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update_opt in *; break_if; try by eauto.
+  * find_injection.    
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    by eauto.
+  * find_injection.
+    have H_neq: n' <> from.
+      move => H_eq.
+      repeat find_rewrite.
+      by find_apply_lem_hyp NSetFacts.remove_1.
+    repeat find_rewrite.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    have IH := IHrefl_trans_1n_trace1 _ H3 H7 _ H4 _ H9.
+    break_exists.
+    exists x1.
+    apply NMapFacts.find_mapsto_iff.
+    apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq.
+    by apply NMapFacts.find_mapsto_iff.
+  * find_injection.
+    have H_neq: n' <> from.
+      move => H_eq.
+      repeat find_rewrite.
+      by find_apply_lem_hyp NSetFacts.remove_1.
+    repeat find_rewrite.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    by eauto.
+  * find_injection.
+    have H_neq: n' <> from.
+      move => H_eq.
+      repeat find_rewrite.
+      by find_apply_lem_hyp NSetFacts.remove_1.
+    repeat find_rewrite.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    case (name_eq_dec n' from) => H_dec.
+      exists 1.
+      rewrite H_dec.
+      exact: NMapFacts.add_eq_o.
+    find_apply_lem_hyp NSetFacts.add_3; last by auto.
+    rewrite NMapFacts.add_neq_o; last by auto.
+    by eauto.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; unfold update_opt in *; break_if; try by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    case (name_eq_dec n' x) => H_dec.
+      rewrite H_dec.
+      exists (x0 * d.(aggregate)).
+      by rewrite NMapFacts.add_eq_o.
+    rewrite NMapFacts.add_neq_o; last by auto.
+    by eauto.
+  * repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    by eauto.
+  * find_injection.
+    by eauto.
+  * find_injection.
+    by eauto.
+- by eauto.
+Qed.
+
+Lemma Aggregation_in_set_exists_find_received : 
+forall net failed tr, 
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, In n net.(odnwNodes) -> ~ In n failed ->
+ forall d, net.(odnwState) n = Some d ->
+ forall n', NSet.In n' d.(adjacent) -> 
+       exists m5 : m, NMap.find n' d.(received) = Some m5.
+Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_in H_f d.
+  rewrite /update_opt.
+  break_if => H_eq.
+    find_injection.
+    unfold InitData in *.
+    by find_apply_lem_hyp NSetFacts.empty_1.
+  break_or_hyp => //.
+  by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update_opt in *; break_if; try by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    case (name_eq_dec n' from) => H_dec.
+      exists (x0 * x).
+      rewrite H_dec.
+      exact: NMapFacts.add_eq_o.
+    rewrite NMapFacts.add_neq_o; last by auto.
+    by eauto.
+  * find_injection.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    have H_neq: n' <> from.
+      move => H_eq.
+      find_rewrite.
+      by find_apply_lem_hyp NSetFacts.remove_1.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H4 _ H9.
+    break_exists.
+    exists x1.
+    apply NMapFacts.find_mapsto_iff.
+    apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq.
+    by apply NMapFacts.find_mapsto_iff.
+  * find_injection.
+    repeat find_rewrite.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    case (name_eq_dec n' from) => H_dec.
+      exists 1.
+      rewrite H_dec.
+      exact: NMapFacts.add_eq_o.
+    find_apply_lem_hyp NSetFacts.add_3; last by auto.
+    rewrite NMapFacts.add_neq_o; last by auto.
+    by eauto.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; unfold update_opt in *; break_if; try by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+  * find_injection.
+    repeat find_rewrite.
+    by eauto.
+- by eauto.
+Qed.
+
+Lemma Aggregation_in_after_all_fail_aggregate : 
+forall net failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, In n net.(odnwNodes) -> ~ In n failed ->
+ forall n', In n' net.(odnwNodes) ->
+ forall m', In_all_before (Aggregate m') Fail (net.(odnwPackets) n' n).
+Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 4.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f n' H_n' m'.
+  break_or_hyp; break_or_hyp.
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
+    by rewrite (Aggregation_self_channel_empty H).
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+    case (adjacent_to_dec n' n) => H_dec; last first.
+      rewrite collate_map_pair_not_related //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H).
+    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+    rewrite collate_map_pair_live_related //.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H) //=.
+    by left.
+  * have H_neq: n <> n' by move => H_eq; find_reverse_rewrite.
+    case (adjacent_to_dec n n') => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming H).
+    case (in_dec name_eq_dec n' failed) => H_dec'; last first.      
+      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+      rewrite collate_ls_live_related //.
+      rewrite collate_neq //.
+      rewrite (Aggregation_inactive_no_incoming H) //=.
+      by left.
+    rewrite collate_ls_in_excluded //.
+    rewrite collate_neq //.
+    by rewrite (Aggregation_inactive_no_incoming H).
+  * have H_neq: h <> n by move => H_eq; find_reverse_rewrite.
+    have H_neq': h <> n' by move => H_eq; repeat find_rewrite.
+    rewrite collate_ls_neq_to //.
+    rewrite collate_neq //.
+    by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
+  * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; try by eauto.
+  rewrite /update2.
+  break_if; break_and; subst_max; last by eauto.
+  apply: append_before_all_not_in.
+  exact: (Aggregation_not_failed_no_fail H).
+- move => n H_n H_f n' H_n' m'.
+  have H_neq: h <> n by auto.
+  have H_f': ~ In n failed by auto.
+  case (name_eq_dec h n') => H_dec; last first.
+    rewrite collate_neq //.
+    by eauto.
+  subst_max.
+  case (adjacent_to_dec n' n) => H_dec; last first.
+    rewrite collate_map_pair_not_related //.
+    by eauto.
+  rewrite collate_map_pair_live_related //.
+    apply: append_neq_before_all => //.
+    by eauto.
+  exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+Qed.
+
+Lemma Aggregation_aggregate_msg_dst_adjacent_src : 
+  forall net failed tr, 
+    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+    forall n, In n net.(odnwNodes) -> ~ In n failed ->
+    forall n', In n' net.(odnwNodes) ->
+    forall m5, In (Aggregate m5) (net.(odnwPackets) n' n) ->
+    forall d, net.(odnwState) n = Some d ->
+     In New (net.(odnwPackets) n' n) \/ NSet.In n' d.(adjacent).
+Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 4 5 6.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f n' H_n' m' H_in d H_eq.
+  unfold update_opt in *.
+  have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+  break_if.
+    find_injection.
+    move {H_n}.
+    contradict H_in.
+    break_or_hyp.
+      rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+      rewrite collate_map_pair_notin; last exact: not_in_exclude.
+      by rewrite (Aggregation_self_channel_empty H).
+    have H_neq: h <> n' by move => H_eq; find_reverse_rewrite.
+    case (adjacent_to_dec h n') => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming H).
+    case (in_dec name_eq_dec n' failed) => H_dec'.
+      rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: in_not_in_exclude.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming H).
+    rewrite collate_ls_live_related //.
+    rewrite collate_neq //.
+    rewrite (Aggregation_inactive_no_incoming H) //=.
+    move => H_or.
+    by break_or_hyp.
+  case: H_n => H_n; first by find_rewrite.
+  move: H_in.
+  rewrite collate_ls_neq_to; last by auto.
+  break_or_hyp; last first.
+    have H_neq: h <> n' by move => H_eq'; find_reverse_rewrite.
+    rewrite collate_neq //.
+    by eauto.
+  case (adjacent_to_dec n' n) => H_dec; last first.
+    rewrite collate_map_pair_not_related //.
+    by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H).
+  rewrite collate_map_pair_live_related //.
+  rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H) //=.
+  by auto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update2, update_opt in *; simpl in *; repeat break_if; break_and; subst_max; try find_injection; try by eauto.
+  * have H_in: In (Aggregate x) (odnwPackets net0 n' n) by repeat find_rewrite; left.
+    have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 _ H_in _ H4.
+    find_rewrite.
+    break_or_hyp; last by right; find_reverse_rewrite.
+    simpl in *.
+    break_or_hyp => //.
+    by left.
+  * break_or_hyp => //.
+    find_rewrite.
+    by eauto.
+  * have H_in: In (Aggregate x) (odnwPackets net0 n' to) by repeat find_rewrite; left.
+    have IH := IHrefl_trans_1n_trace1 _ H0 H7 _ H8 _ H_in _ H4.
+    find_rewrite.
+    break_or_hyp; last by right.
+    simpl in *.
+    break_or_hyp => //.
+    by left.
+  * contradict H9.
+    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H6 H2 _ H8 m5.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp => //.
+    by break_and.
+  * break_or_hyp => //.
+    find_rewrite.
+    have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 _ H9 _ H4.
+    break_or_hyp; first by left.
+    right.
+    exact: NSetFacts.remove_2.
+  * contradict H17.
+    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H6 H2 _ H16 m5.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp => //.
+    by break_and.
+  * find_rewrite.
+    break_or_hyp => //.
+    have IH := IHrefl_trans_1n_trace1 _ H6 H15 _ H16 _ H17 _ H4.
+    break_or_hyp; first by left.
+    right.
+    exact: NSetFacts.remove_2.
+  * contradict H17.
+    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H6 H2 _ H16 m5.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp => //.
+    by break_and.
+  * break_or_hyp => //.
+    have IH := IHrefl_trans_1n_trace1 _ H6 H15 _ H16 _ H17 _ H4.
+    break_or_hyp; first by left.
+    right.
+    find_rewrite.
+    exact: NSetFacts.remove_2.
+  * find_rewrite.
+    right.
+    exact: NSetFacts.add_1.
+  * break_or_hyp => //.
+    find_rewrite.
+    have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 _ H16 _ H4.
+    break_or_hyp; first by left.
+    right.
+    exact: NSetFacts.add_2.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; unfold update_opt in *; simpl in *; break_if; break_and; subst_max; try find_injection; try by eauto.
+  * find_rewrite.
+    by eauto.
+  * unfold update2 in *.
+    by break_if; break_and; repeat find_rewrite; eauto.
+  * unfold update2 in *.
+    break_if; break_and; subst_max; last by eauto.
+    have H_adj := Aggregation_adjacent_then_adjacent_or_new_incoming H _ H3 H2 H0 H6 H4 H9 H5.
+    break_or_hyp; first by right.
+    left.
+    apply in_or_app.
+    by left.
+- move => n H_n H_f n' H_n' m' H_in d H_eq.
+  have H_neq: h <> n by auto.
+  have H_f': ~ In n failed by auto.
+  case (name_eq_dec h n') => H_dec; last first.
+    move: H_in.
+    rewrite collate_neq //.
+    by eauto.
+  subst_max.
+  case (adjacent_to_dec n' n) => H_dec; last first.
+    move: H_in.
+    rewrite collate_map_pair_not_related //.
+    by eauto.
+  move: H_in.
+  have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+  rewrite collate_map_pair_live_related //.
+  move => H_in.
+  find_apply_lem_hyp in_app_or.
+  break_or_hyp; last by simpl in *; break_or_hyp.
+  suff H_suff: In New (odnwPackets net0 n' n) \/ NSet.In n' (adjacent d); last by eauto.
+  break_or_hyp; last by right.
+  left.
+  apply in_or_app.
+  by left.
+Qed.
+
+Lemma Aggregation_in_after_all_aggregate_new : 
+forall net failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, In n net.(odnwNodes) -> ~ In n failed ->
+ forall n', In n' net.(odnwNodes) ->
+ forall m', In_all_before New (Aggregate m') (net.(odnwPackets) n' n).
+Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 4.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f n' H_n' m'.
+  break_or_hyp; break_or_hyp.
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+    rewrite collate_map_pair_notin; last exact: not_in_exclude.
+    by rewrite (Aggregation_self_channel_empty H).
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; apply: not_in_exclude.
+    case (adjacent_to_dec n' n) => H_dec; last first.
+      rewrite collate_map_pair_not_related //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H).
+    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+    rewrite collate_map_pair_live_related //.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H) //=.
+    by left.
+  * have H_neq: n <> n' by move => H_eq; find_reverse_rewrite.
+    case (adjacent_to_dec n n') => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming H).
+    case (in_dec name_eq_dec n' failed) => H_dec'; last first.      
+      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+      rewrite collate_ls_live_related //.
+      rewrite collate_neq //.
+      rewrite (Aggregation_inactive_no_incoming H) //=.
+      by left.
+    rewrite collate_ls_in_excluded //.
+    rewrite collate_neq //.
+    by rewrite (Aggregation_inactive_no_incoming H).
+  * have H_neq: h <> n by move => H_eq; find_reverse_rewrite.
+    have H_neq': h <> n' by move => H_eq; repeat find_rewrite.
+    rewrite collate_ls_neq_to //.
+    rewrite collate_neq //.
+    by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try find_injection; try by eauto.
+  * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
+    find_rewrite.
+    case: IH => IH; first exact: not_in_all_before.
+    by break_and.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; try by eauto.
+  rewrite /update2.
+  break_if; break_and; subst_max; last by eauto.  
+  apply: append_neq_before_all => //.
+  by eauto.
+- move => n H_n H_f n' H_n' m'.
+  have H_neq: h <> n by auto.
+  have H_f': ~ In n failed by auto.
+  case (name_eq_dec h n') => H_dec; last first.
+    rewrite collate_neq //.
+    by eauto.
+  subst_max.
+  case (adjacent_to_dec n' n) => H_dec; last first.
+    rewrite collate_map_pair_not_related //.
+    by eauto.
+  rewrite collate_map_pair_live_related //.
+    apply: append_neq_before_all => //.
+    by eauto.
+  exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
+Qed.
+
 Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
   {
     tot_one_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
@@ -872,8 +1539,7 @@ Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggre
                         end
   }.
 
-(*
-Theorem step_o_f_tot_one_mapped_simulation_1 :
+Theorem step_o_d_f_tot_one_mapped_simulation_1 :
   forall n net net' failed failed' tr tr',
     step_o_d_f_star step_o_d_f_init (failed, net) tr ->
     step_o_d_f (failed, net) (failed', net') tr' ->
@@ -918,52 +1584,519 @@ invcs H_step.
   destruct st'.
   net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
   * case: H0.
-    apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 _ x1).
-    find_rewrite.
-    by left.
+    case (in_dec name_eq_dec x2 net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) in H6.
+    have H_in: In (Aggregate x1) (odnwPackets net x2 to) by find_rewrite; left.
+    have H_or := Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 H3 _ H_dec _ H_in H5.
+    break_or_hyp => //.
+    have H_bef := Aggregation_in_after_all_aggregate_new H_star _ H4 H3 _ H_dec x1.
+    repeat find_rewrite.
+    simpl in *.
+    break_or_hyp; break_or_hyp => //.
+    by break_and.    
   * case: H0.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
+    have H_hd: head (odnwPackets net x1 to) = Some Fail by find_rewrite.
+    exact: (Aggregation_head_fail_then_adjacent H_star _ H4 H3 _ H_hd H5).
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H3 H5 H.
     by congruence.
-  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
-    by congruence.
-  * case: H.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
-    by congruence.
-  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
+  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H3 H5 H.
     by congruence.
   * case: H.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-- rewrite /update'.
-  break_if; last by left.
+    have H_hd: head (odnwPackets net x to) = Some Fail by find_rewrite.
+    exact: (Aggregation_head_fail_then_adjacent H_star _ H4 H3 _ H_hd H5).
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H3 H5 H.
+    by congruence.
+  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H3 H5 H.
+    by congruence.
+  * case: H.
+    have H_hd: head (odnwPackets net x to) = Some Fail by find_rewrite.
+    exact: (Aggregation_head_fail_then_adjacent H_star _ H4 H3 _ H_hd H5).
+  * have H_in: In New (odnwPackets net x to) by find_rewrite; left.
+    by have H_ins := Aggregation_new_incoming_not_in_adj H_star _ H4 H3 H_in H5.
+- move: H_eq'.
+  rewrite  /update_opt.
+  break_if => H_eq'; last by find_rewrite; find_injection; left.
   right.
-  rewrite -e /= in H5.
-  rewrite /runGenHandler_ignore /= in H5.
+  find_injection.
+  find_rewrite.
+  find_injection.
+  unfold runGenHandler_ignore in *.
   repeat break_let.
   repeat tuple_inversion.
   destruct u.
-  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
+  case H_h: (@handler OA.Aggregator_BaseParams OA.Aggregator_OneNodeParams (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (@tot_one_map_data _ _ _ Aggregation_Aggregator_multi_one_map d)) => [out' d0].
   exists [(@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp, out')].
   apply: S1T_deliver.
   suff H_suff: {|
-   OA.local := local d;
-   OA.aggregate := aggregate d;
-   OA.adjacent := adjacent d;
-   OA.sent := sent d;
-   OA.received := received d |} = st'.
+   OA.local := local d';
+   OA.aggregate := aggregate d';
+   OA.adjacent := adjacent d';
+   OA.sent := sent d';
+   OA.received := received d' |} = d0.
     rewrite H_suff.
     by rewrite -H_h.
-  destruct st'.
+  destruct d0.
   by io_handler_cases; OA.io_handler_cases; simpl in *; congruence.
-- by left.
+- find_rewrite.
+  find_injection.
+  by left.
 Qed.
-*)
+
+Lemma step_o_d_f_tot_one_mapped_simulation_1_init :
+  forall n net net' failed failed' tr,
+    step_o_d_f (failed, net) (failed', net') tr ->
+    net.(odnwState) n = None ->
+    forall d, net'.(odnwState) n = Some d ->
+    tot_one_map_data d = @init _ OA.Aggregator_OneNodeParams.
+Proof.
+move => n net net' failed failed' tr H_st H_eq d H_eq'.
+by invcs H_st => //=; unfold update_opt, OA.InitData in *; try break_if; try find_injection; try by congruence.
+Qed.
+
+Lemma Aggregation_step_o_d_f_tot_one_mapped_simulation_star_1 :
+  forall n net failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+    forall d, net.(odnwState) n = Some d ->
+    exists tr', @step_1_star _ OA.Aggregator_OneNodeParams (@init _ OA.Aggregator_OneNodeParams) (tot_one_map_data d) tr'.
+Proof.
+move => n.
+move => net failed tr H_st.
+have ->: net = snd (failed, net) by [].
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H_st using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
+concludes.
+rewrite H_init {H_init x} in H_st1 H_st2.
+case: x' H IHH_st1 H_st1 => failed' net'.
+case: x'' H_st2 => failed'' net''.
+rewrite /=.
+move => H_step2 H IHH_step1 H_step1 d H_eq.
+case H_eq': (odnwState net' n) => [d'|]; last first.
+  exists [].
+  have H_eq_i := step_o_d_f_tot_one_mapped_simulation_1_init _ H H_eq' H_eq.
+  rewrite /tot_one_map_data /= in H_eq_i.
+  rewrite H_eq_i.
+  exact: RT1nTBase.
+have [tr' H_star] := IHH_step1 _ H_eq'.
+have H_st := step_o_d_f_tot_one_mapped_simulation_1 n H_step1 H H_eq' H_eq.
+case: H_st => H_st; first by rewrite -H_st; exists tr'.
+have [tr'' H_st'] := H_st.
+exists (tr' ++ tr'').
+apply: (refl_trans_1n_trace_trans H_star).
+have ->: tr'' = tr'' ++ [] by rewrite -app_nil_end.
+Check @tot_one_map_data.
+apply RT1nTStep with (x' := (@tot_one_map_data _ _ _ Aggregation_Aggregator_multi_one_map d)) => //.
+exact: RT1nTBase.
+Qed.
+
+Instance AggregationData_Data : AggregationData Data :=
+  {
+    aggr_local := local ;
+    aggr_aggregate := aggregate ;
+    aggr_adjacent := adjacent ;
+    aggr_sent := sent ;
+    aggr_received := received
+  }.
+
+Instance AggregationMsg_Aggregation : AggregationMsg :=
+  {
+    aggr_msg := msg ;
+    aggr_msg_eq_dec := msg_eq_dec ;
+    aggr_fail := Fail ;
+    aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
+  }.
+
+Lemma Aggregation_conserves_node_mass : 
+forall net failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ forall n, ~ In n failed -> 
+ forall d, net.(odnwState) n = Some d ->
+      conserves_node_mass d.
+Proof.
+move => onet failed tr H n H_f d H_eq.
+have H_st := Aggregation_step_o_d_f_tot_one_mapped_simulation_star_1 _ H H_eq.
+move: H_st => [tr' H_st].
+apply OA.Aggregator_conserves_node_mass in H_st.
+by rewrite /= /conserves_node_mass /= in H_st.
+Qed.
+
+Section SingleNodeInvIn.
+
+Variable onet : ordered_dynamic_network.
+
+Variable failed : list name.
+
+Variable tr : list (name * (input + list output)).
+
+Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+
+Variable n n' : name.
+
+Hypothesis active : In n (odnwNodes onet).
+
+Hypothesis not_failed : ~ In n failed.
+
+Variable P : Data -> list msg -> Prop.
+
+Hypothesis after_init : P (InitData n) [].
+
+Hypothesis after_init_new :
+  forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  ~ In n onet.(odnwNodes) ->
+  In n' onet.(odnwNodes) ->
+  ~ In n' failed ->
+  adjacent_to n' n ->  
+  P (InitData n) [New].
+
+Hypothesis after_adjacent :
+  forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  ~ In n' onet.(odnwNodes) ->  
+  adjacent_to n' n ->  
+  forall d, onet.(odnwState) n = Some d ->
+  P d [] ->
+  P d [New].
+
+Hypothesis recv_fail_from_eq :
+  forall onet failed tr ms m0 m1,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  In n' failed ->
+  n' <> n ->
+  onet.(odnwPackets) n' n = Fail :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  NMap.find n' d.(sent) = Some m0 ->
+  NMap.find n' d.(received) = Some m1 ->
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) * m0 * m1^-1 ;
+       adjacent := NSet.remove n' d.(adjacent) ;
+       sent := NMap.remove n' d.(sent) ;
+       received := NMap.remove n' d.(received)     
+    |} ms.
+
+Hypothesis recv_fail_from_neq :
+  forall onet failed tr from ms m0 m1,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In from onet.(odnwNodes) ->
+  In from failed ->
+  from <> n ->
+  from <> n' ->
+  onet.(odnwPackets) from n = Fail :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  NMap.find from d.(sent) = Some m0 ->
+  NMap.find from d.(received) = Some m1 ->
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) * m0 * m1^-1 ;
+       adjacent := NSet.remove from d.(adjacent) ;
+       sent := NMap.remove from d.(sent) ;
+       received := NMap.remove from d.(received)
+    |} (onet.(odnwPackets) n' n).
+
+Hypothesis recv_new_from_eq :
+  forall onet failed tr ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  n' <> n ->
+  onet.(odnwPackets) n' n = New :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) ;
+       adjacent := NSet.add n' d.(adjacent) ;
+       sent := NMap.add n' 1 d.(sent) ;
+       received := NMap.add n' 1 d.(received)
+    |} ms.
+
+Hypothesis recv_new_from_neq :
+  forall onet failed tr from ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In from onet.(odnwNodes) ->
+  from <> n ->
+  from <> n' ->
+  onet.(odnwPackets) from n = New :: ms ->
+  forall d, onet.(odnwState) n = Some d ->
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) ;       
+       adjacent := NSet.add from d.(adjacent) ;
+       sent := NMap.add from 1 d.(sent) ;
+       received := NMap.add from 1 d.(received)
+     |} (onet.(odnwPackets) n' n).
+
+Hypothesis recv_aggregate_eq : 
+  forall onet failed tr m' m0 ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  n <> n' ->
+  onet.(odnwPackets) n' n = Aggregate m' :: ms ->
+  forall d, onet.(odnwState) n = Some d -> 
+  NMap.find n' d.(received) = Some m0 ->
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) * m' ;
+       adjacent := d.(adjacent) ;
+       sent := d.(sent) ;
+       received := NMap.add n' (m0 * m') d.(received)
+    |} ms.
+
+Hypothesis recv_aggregate_other : 
+  forall onet failed tr m' from m0 ms,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In from onet.(odnwNodes) ->
+  from <> n ->
+  from <> n' ->
+  onet.(odnwPackets) from n = Aggregate m' :: ms ->
+  forall d, onet.(odnwState) n = Some d -> 
+  NMap.find from d.(received) = Some m0 ->  
+  P d (onet.(odnwPackets) n' n) ->
+  P {| local := d.(local) ;
+       aggregate := d.(aggregate) * m' ;
+       adjacent := d.(adjacent) ;
+       sent := d.(sent) ;
+       received := NMap.add from (m0 * m') d.(received)
+    |} (onet.(odnwPackets) n' n).
+
+Hypothesis recv_local : 
+  forall onet failed tr m_local,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n onet.(odnwNodes) ->
+    ~ In n failed ->
+    forall d, onet.(odnwState) n = Some d -> 
+    P d (onet.(odnwPackets) n' n) ->
+    P {| local := m_local ;
+         aggregate := d.(aggregate) * m_local * d.(local)^-1 ;
+         adjacent := d.(adjacent) ;
+         sent := d.(sent) ;
+         received := d.(received)
+      |} (onet.(odnwPackets) n' n).
+
+Hypothesis send_fail : 
+  forall onet failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n onet.(odnwNodes) ->
+    ~ In n failed ->
+    In n' onet.(odnwNodes) ->
+    ~ In n' failed ->
+    adjacent_to n' n ->
+    n' <> n ->    
+    forall d, onet.(odnwState) n = Some d ->
+     P d (onet.(odnwPackets) n' n) ->
+     P d (odnwPackets onet n' n ++ [Fail]).
+
+Hypothesis recv_send_aggregate : 
+  forall onet failed tr m',
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n onet.(odnwNodes) ->
+    ~ In n failed ->
+    In n' onet.(odnwNodes) ->
+    n <> n' ->
+    adjacent_to n' n ->
+    forall d, onet.(odnwState) n = Some d ->
+    NSet.In n' d.(adjacent) ->
+    d.(aggregate) <> 1 ->
+    NMap.find n' d.(sent) = Some m' ->
+    P d (onet.(odnwPackets) n' n) ->
+    P {| local := d.(local) ;
+         aggregate := 1 ;
+         adjacent := d.(adjacent) ;
+         sent := NMap.add n' (m' * d.(aggregate)) d.(sent) ;
+         received := d.(received) 
+      |} (onet.(odnwPackets) n' n).
+
+Hypothesis recv_send_aggregate_other : 
+  forall onet failed tr to m',
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n onet.(odnwNodes) ->
+    ~ In n failed ->
+    to <> n ->
+    to <> n' ->
+    In to onet.(odnwNodes) ->
+    adjacent_to to n ->
+    forall d, onet.(odnwState) n = Some d ->
+    NSet.In to d.(adjacent) ->
+    d.(aggregate) <> 1 ->
+    NMap.find to d.(sent) = Some m' ->
+    P d (onet.(odnwPackets) n' n) ->
+    P {| local := d.(local) ;
+         aggregate := 1 ;
+         adjacent := d.(adjacent) ;
+         sent := NMap.add to (m' * d.(aggregate)) d.(sent) ;
+         received := d.(received) 
+        |} (onet.(odnwPackets) n' n).
+
+Hypothesis recv_send_aggregate_sender :
+  forall onet failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  In n onet.(odnwNodes) ->
+  ~ In n failed ->
+  In n' onet.(odnwNodes) ->
+  ~ In n' failed ->
+  n <> n' ->
+  adjacent_to n' n ->
+  forall d, onet.(odnwState) n = Some d ->
+  forall d', onet.(odnwState) n' = Some d' ->
+  d'.(aggregate) <> 1 ->
+  NSet.In n d'.(adjacent) ->
+  P d (onet.(odnwPackets) n' n) ->
+  P d (onet.(odnwPackets) n' n ++ [Aggregate d'.(aggregate)]).
+
+Theorem P_inv_n_in : forall d, onet.(odnwState) n = Some d -> P d (onet.(odnwPackets) n' n).
+Proof.
+move: onet failed tr H_step active not_failed.
+clear onet failed tr H_step active not_failed.
+move => onet failed tr H_step.
+have H_eq_f: failed = fst (failed, onet) by [].
+have H_eq_o: onet = snd (failed, onet) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {1 3 4}H_eq_o {H_eq_o}.
+remember step_o_d_f_init as y in H_step.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_o_d_init /= => H_in_f.
+repeat concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => H_a H_f d.
+  rewrite /update_opt /=.
+  case name_eq_dec => H_dec H_eq.
+    repeat find_rewrite.
+    find_injection.
+    case (name_eq_dec h n') => H_dec.
+      repeat find_reverse_rewrite.
+      rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
+      rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+      by rewrite (Aggregation_self_channel_empty s1).
+    case (In_dec name_eq_dec n' (odnwNodes net)) => H_a'; last first.
+      rewrite collate_ls_not_in_related; last exact: not_in_exclude.
+      rewrite collate_neq //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1).
+    case (In_dec name_eq_dec n' failed0) => H_f'.
+      rewrite collate_ls_in_excluded //.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming s1).
+    case (adjacent_to_dec h n') => H_dec'; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Aggregation_inactive_no_incoming s1).
+    rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite collate_neq //.
+    rewrite (Aggregation_inactive_no_incoming s1) //=.
+    apply adjacent_to_symmetric in H_dec'.
+    apply: (after_init_new s1) => //.
+  have H_neq: h <> n by auto.
+  rewrite collate_ls_neq_to //.
+  break_or_hyp => //.
+  case (name_eq_dec h n') => H_dec'; last by rewrite collate_neq //; exact: IHs1.
+  rewrite -H_dec'.
+  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_map_pair_not_related //; rewrite H_dec'; exact: IHs1.
+  rewrite collate_map_pair_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+  have IH := IHs1 H H_f _ H_eq.
+  move: IH.
+  rewrite -H_dec'.
+  rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) //=.
+  rewrite H_dec' in H0 H_adj.
+  exact: (after_adjacent s1).
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=.
+  * case (in_dec name_eq_dec from (odnwNodes net)) => H_from_nodes; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
+    have H_neq: from <> to by move => H_eq; rewrite H_eq (Aggregation_self_channel_empty s1) in H3.
+    move: H4.
+    rewrite /update_opt.
+    break_if => H_eq.
+      find_injection.
+      destruct d0.
+      simpl in *.
+      rewrite H7 H8 H9 H10 H11.
+      rewrite /update2.
+      break_if.
+        break_and.
+        subst_max.
+        apply: (recv_aggregate_eq s1) => //; first by auto.
+        exact: H5.
+      break_or_hyp => //.
+      apply (@recv_aggregate_other _ _ _ _  _ _ ms s1) => //.
+      exact: H5.
+    rewrite /update2.
+    break_if; first by break_and; find_rewrite.
+    exact: H5.
+    fail.
+  * 
+Admitted.
+
+End SingleNodeInvIn.
+
+Lemma Aggregation_not_adjacent_no_incoming : 
+  forall onet failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+    forall n, In n (odnwNodes onet) -> ~ In n failed ->
+         forall n', ~ adjacent_to n n' ->
+               onet.(odnwPackets) n' n = [].
+Proof.
+Admitted.
+
+
+Lemma Aggregation_non_failed_or_incoming_fail : 
+  forall net failed tr, 
+    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+    forall n, In n net.(odnwNodes) -> ~ In n failed ->
+    forall n' m5, In (Aggregate m5) (net.(odnwPackets) n' n) ->
+    (In n' net.(odnwNodes) /\ ~ In n' failed) \/ In Fail (net.(odnwPackets) n' n).
+Proof.
+Admitted.
+
+Lemma Aggregation_aggregate_head_in_adjacent :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall n' m', head (net.(odnwPackets) n' n) = Some (Aggregate m') ->
+   forall d, net.(odnwState) n = Some d ->
+   NSet.In n' d.(adjacent).
+Proof.
+Admitted.
+
+Lemma Aggregation_send_aggregate_in : 
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
+   forall m', In (Aggregate m') (net.(odnwPackets) n n') ->
+   forall d, net.(odnwState) n = Some d ->
+   NSet.In n' d.(adjacent).
+Proof.
+Admitted.
+
+
+Lemma Aggregation_sent_received_eq : 
+  forall net failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+    forall n, In n net.(odnwNodes) -> ~ In n failed ->
+    forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
+    forall d, net.(odnwState) n = Some d ->
+    forall d', net.(odnwState) n' = Some d' ->
+    forall m0 m1,
+    NSet.In n' d.(adjacent) ->
+    NSet.In n d'.(adjacent) ->
+    NMap.find n d'.(sent) = Some m0 ->
+    NMap.find n' d.(received) = Some m1 ->
+    m0 = sum_aggregate_msg (net.(odnwPackets) n' n) * m1.
+Proof.
+Admitted.
+
 
 End Aggregation.
