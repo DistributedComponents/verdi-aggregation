@@ -2081,4 +2081,30 @@ case: H_or => H_or.
 exact: (Failure_in_new_failed_incoming_fail H_st _ H_in_n H_in_f _ H_in_f' H_or).
 Qed.
 
+Lemma Failure_in_new_then_adjacent :
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+      forall n, In n net.(odnwNodes) -> ~ In n failed ->
+      forall n', In New (odnwPackets net n' n) ->
+            adjacent_to n' n.
+Proof.
+move => net failed tr H_st.
+move => n H_n H_f n'.
+have [d H_d] := ordered_dynamic_initialized_state H_st _ H_n.
+pose P_curr (d : Data) (l : list Msg) :=
+  In New l -> adjacent_to n' n.
+rewrite -/(P_curr d _ ).
+move: H_d; generalize d => {d}.
+apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
+- move => onet failed tr ms H_st H_n H_f H_n' H_f' H_neq H_eq d H_eq' H_bef H_in.
+  have H_bef' := Failure_in_after_all_fail_new H_st _ H_n H_f n'.
+  rewrite H_eq /= in H_bef'.
+  by break_or_hyp; break_and.
+- move => net failed tr ms H_st H_n H_f H_n' H_neq H_eq d H_eq' H_bef H_in.
+  have H_cnt := Failure_le_one_new H_st _ H_n H_f n'.
+  rewrite H_eq /= in H_cnt.
+  apply (@count_occ_In _ Msg_eq_dec) in H_in .
+  by omega.
+Qed. 
+
 End FailureRecorder.
