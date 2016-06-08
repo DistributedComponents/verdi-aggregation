@@ -70,8 +70,8 @@ Section LabeledStepRelations.
   CoInductive lb_step_execution (step : lb_step_relation) : infseq event -> Prop :=
     Cons_lb_step_exec : forall (a a' : A) (l l' : L) (tr tr' : list trace) (s : infseq event),
       step a l a' tr ->
-      lb_step_execution step (Cons (a', l', tr ++ tr') s) ->
-      lb_step_execution step (Cons (a, l, tr') (Cons (a', l', tr ++ tr') s)).
+      lb_step_execution step (Cons (a', l', tr' ++ tr) s) ->
+      lb_step_execution step (Cons (a, l, tr') (Cons (a', l', tr' ++ tr) s)).
 
   Definition occurred (l : L) (e : event) : Prop :=
     l = l_of_event e.
@@ -110,9 +110,9 @@ Section LabeledStepRelations.
 
   Definition step_star_lb_step_reachable (lb_step : lb_step_relation) (step : step_relation A trace) (init : A) :=
     forall a l a' tr tr',
-     lb_step a l a' tr ->
      refl_trans_1n_trace step init a tr' ->
-     refl_trans_1n_trace step init a' (tr ++ tr').
+     lb_step a l a' tr ->
+     refl_trans_1n_trace step init a' (tr' ++ tr). 
 
   Lemma step_star_lb_step_execution :
     forall lb_step step init,
@@ -133,7 +133,7 @@ Section LabeledStepRelations.
     rewrite /event_step_star /a_of_event /=.
     rewrite /event_step_star /a_of_event /= in H_star.
     rewrite /step_star_lb_step_reachable in H_r.
-    exact: H_r _ _ _ _ _ H1 H_star.
+    exact: H_r _ _ _ _ _ H_star H1.
   move: H_exec'.
   exact: lb_step_execution_invar.
   Qed.
@@ -168,8 +168,26 @@ Section LabeledStepFailure.
   apply: step_star_lb_step_execution.
   rewrite /step_star_lb_step_reachable.
   case => failed net l.
-  case => failed' net' tr tr' H_st H_star.
-  Admitted.
+  case => failed' net' tr tr' H_star H_st.
+  invcs H_st.
+  - set net' := {| nwPackets := _ ; nwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(pDst p, inr out)] = [(pDst p, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: (@SF_deliver _ _ _ _ _ _ _ xs ys _ d l0) => //.
+    rewrite /net_handlers /= /unlabeled_net_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - set net' := {| nwPackets := _ ; nwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: SF_input => //.
+    rewrite /input_handlers /= /unlabeled_input_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - by have ->: tr' ++ [] = tr' by auto with datatypes.
+Qed.
 End LabeledStepFailure.
 
 Section LabeledStepOrder.
@@ -202,8 +220,26 @@ Section LabeledStepOrder.
   apply: step_star_lb_step_execution.
   rewrite /step_star_lb_step_reachable.
   case => failed net l.
-  case => failed' net' tr tr' H_st H_star.
-  Admitted.
+  case => failed' net' tr tr' H_star H_st.
+  invcs H_st.
+  - set net' := {| onwPackets := _ ; onwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(to, inr out)] = [(to, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: (SOF_deliver _ _ _ H3) => //.
+    rewrite /net_handlers /= /unlabeled_net_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - set net' := {| onwPackets := _ ; onwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: SOF_input => //.
+    rewrite /input_handlers /= /unlabeled_input_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - by have ->: tr' ++ [] = tr' by auto with datatypes.
+  Qed.
 End LabeledStepOrder.
 
 Section LabeledStepOrderDynamic.
@@ -243,6 +279,24 @@ Section LabeledStepOrderDynamic.
   apply: step_star_lb_step_execution.
   rewrite /step_star_lb_step_reachable.
   case => failed net l.
-  case => failed' net' tr tr' H_st H_star.
-  Admitted.
+  case => failed' net' tr tr' H_star H_st.
+  invcs H_st.
+  - set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(to, inr out)] = [(to, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: (SODF_deliver _ _ _ _ _ H5 H7) => //.
+    rewrite /net_handlers /= /unlabeled_net_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.
+    apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
+    have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].
+    apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
+    apply: (SODF_input _ _ _ _ _ H6) => //.
+    rewrite /input_handlers /= /unlabeled_input_handlers /=.
+    repeat break_let.
+    by tuple_inversion.
+  - by have ->: tr' ++ [] = tr' by auto with datatypes.
+  Qed.
 End LabeledStepOrderDynamic.
