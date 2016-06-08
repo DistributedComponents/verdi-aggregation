@@ -58,10 +58,11 @@ Section LabeledStepRelations.
   Definition enabled (step : lb_step_relation) (l : L) (a : A) : Prop :=
   exists a' tr, step a l a' tr.
 
-  Definition event := (A * L)%type.
+  Definition event := (A * L * list trace)%type.
 
-  Definition a_of_event : event -> A := fun x => fst x.
-  Definition l_of_event : event -> L := fun x => snd x.
+  Definition a_of_event : event -> A := fun x => fst (fst x).
+  Definition l_of_event : event -> L := fun x => snd (fst x).
+  Definition tr_of_event : event -> list trace := fun x => snd x.
 
   Definition l_enabled_for_event (step : lb_step_relation) (l : L) (e : event) : Prop :=
   enabled step l (a_of_event e).
@@ -69,8 +70,8 @@ Section LabeledStepRelations.
   CoInductive lb_step_execution (step : lb_step_relation) : infseq event -> Prop :=
     Cons_lb_step_exec : forall (a a' : A) (l l' : L) (tr tr' : list trace) (s : infseq event),
       step a l a' tr ->
-      lb_step_execution step (Cons (a', l') s) ->
-      lb_step_execution step (Cons (a, l) (Cons (a', l') s)).
+      lb_step_execution step (Cons (a', l', tr ++ tr') s) ->
+      lb_step_execution step (Cons (a, l, tr') (Cons (a', l', tr ++ tr') s)).
 
   Definition occurred (l : L) (e : event) : Prop :=
     l = l_of_event e.
@@ -105,7 +106,7 @@ Section LabeledStepRelations.
   Qed.
 
   Definition event_step_star (step : step_relation A trace) (init : A) (e : event) :=
-    exists tr, refl_trans_1n_trace step init (a_of_event e) tr.
+  refl_trans_1n_trace step init (a_of_event e) (tr_of_event e).
 
   Definition step_star_lb_step_reachable (lb_step : lb_step_relation) (step : step_relation A trace) (init : A) :=
     forall a l a' tr tr',
@@ -131,10 +132,8 @@ Section LabeledStepRelations.
     inversion H_exec'; subst_max.
     rewrite /event_step_star /a_of_event /=.
     rewrite /event_step_star /a_of_event /= in H_star.
-    break_exists.
     rewrite /step_star_lb_step_reachable in H_r.
-    have H_r' := H_r _ _ _ _ _ H1 H.
-    by exists (tr ++ x).
+    exact: H_r _ _ _ _ _ H1 H_star.
   move: H_exec'.
   exact: lb_step_execution_invar.
   Qed.
