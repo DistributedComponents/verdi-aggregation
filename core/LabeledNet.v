@@ -103,6 +103,41 @@ Section LabeledStepRelations.
     intros step x s e. change (lb_step_execution step (tl (Cons x s))). 
     destruct e; simpl. assumption. 
   Qed.
+
+  Definition event_step_star (step : step_relation A trace) (init : A) (e : event) :=
+    exists tr, refl_trans_1n_trace step init (a_of_event e) tr.
+
+  Definition step_star_lb_step_reachable (lb_step : lb_step_relation) (step : step_relation A trace) (init : A) :=
+    forall a l a' tr tr',
+     lb_step a l a' tr ->
+     refl_trans_1n_trace step init a tr' ->
+     refl_trans_1n_trace step init a' (tr ++ tr').
+
+  Lemma step_star_lb_step_execution :
+    forall lb_step step init,
+      step_star_lb_step_reachable lb_step step init ->
+      forall s, event_step_star step init (hd s) ->
+      lb_step_execution lb_step s ->
+      always (now (event_step_star step init)) s.
+  Proof.
+  move => lb_step step init H_r.
+  case => e s H_star.
+  move: e s H_star.
+  cofix cf.
+  move => e.
+  case => e' s H_star H_exec'.
+  constructor; first by [].
+  apply cf.
+    inversion H_exec'; subst_max.
+    rewrite /event_step_star /a_of_event /=.
+    rewrite /event_step_star /a_of_event /= in H_star.
+    break_exists.
+    rewrite /step_star_lb_step_reachable in H_r.
+    have H_r' := H_r _ _ _ _ _ H1 H.
+    by exists (tr ++ x).
+  move: H_exec'.
+  exact: lb_step_execution_invar.
+  Qed.
 End LabeledStepRelations.
 
 Section LabeledStepFailure.
@@ -126,41 +161,16 @@ Section LabeledStepFailure.
   
   Context {failure_params : FailureParams unlabeled_multi_params}.
 
-  Definition event_step_f_star (e : event (list name * network) label) :=
-    exists tr, step_f_star step_f_init (a_of_event e) tr.
-
-  Lemma step_f_star_lb_step_reachable_ex :
-    forall net l net' failed failed' tr tr',
-    lb_step_f (failed, net) l (failed', net') tr ->
-    step_f_star step_f_init (failed, net) tr' ->
-    exists tr0, step_f_star step_f_init (failed', net') tr0.
-  Proof.  
-  move => net l net' failed failed' tr tr' H_step H_star.
-  exists (tr ++ tr').
-  Admitted.
-
   Lemma step_f_star_lb_step_execution :
-    forall s, event_step_f_star (hd s) ->
+    forall s, event_step_star step_f step_f_init (hd s) ->
          lb_step_execution lb_step_f s ->
-         always (now event_step_f_star) s.
+         always (now (event_step_star step_f step_f_init)) s.
   Proof.
-  case => e s H_star.
-  move: e s H_star.
-  cofix cf.
-  move => e.
-  case => e' s H_star H_exec'.
-  constructor; first by [].
-  apply cf.
-    inversion H_exec'; subst_max.
-    rewrite /event_step_f_star /a_of_event /=.
-    rewrite /event_step_f_star /a_of_event /= in H_star.
-    break_exists.
-    move: H1 H.
-    destruct a, a'.
-    apply step_f_star_lb_step_reachable_ex.
-  move: H_exec'.
-  exact: lb_step_execution_invar.
-  Qed.
+  apply: step_star_lb_step_execution.
+  rewrite /step_star_lb_step_reachable.
+  case => failed net l.
+  case => failed' net' tr tr' H_st H_star.
+  Admitted.
 End LabeledStepFailure.
 
 Section LabeledStepOrder.
@@ -185,41 +195,16 @@ Section LabeledStepOrder.
   Context {overlay_params : NameOverlayParams unlabeled_multi_params}.
   Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
   
-  Definition event_step_o_f_star (e : event (list name * ordered_network) label) :=
-    exists tr, step_o_f_star step_o_f_init (a_of_event e) tr.
-
-  Lemma step_o_f_star_lb_step_reachable_ex :
-    forall net l net' failed failed' tr tr',
-    lb_step_o_f (failed, net) l (failed', net') tr ->
-    step_o_f_star step_o_f_init (failed, net) tr' ->
-    exists tr0, step_o_f_star step_o_f_init (failed', net') tr0.
-  Proof.
-  move => net l net' failed failed' tr tr' H_step H_star.
-  exists (tr ++ tr').
-  Admitted.
-
   Lemma step_o_f_star_lb_step_execution :
-    forall s, event_step_o_f_star (hd s) ->
+    forall s, event_step_star step_o_f step_o_f_init (hd s) ->
          lb_step_execution lb_step_o_f s ->
-         always (now event_step_o_f_star) s.
+         always (now (event_step_star step_o_f step_o_f_init)) s.
   Proof.
-  case => e s H_star.
-  move: e s H_star.
-  cofix cf.
-  move => e.
-  case => e' s H_star H_exec'.
-  constructor; first by [].
-  apply cf.
-    inversion H_exec'; subst_max.
-    rewrite /event_step_o_f_star /a_of_event /=.
-    rewrite /event_step_o_f_star /a_of_event /= in H_star.
-    break_exists.
-    move: H1 H.
-    destruct a, a'.
-    apply step_o_f_star_lb_step_reachable_ex.
-  move: H_exec'.
-  exact: lb_step_execution_invar.
-  Qed.
+  apply: step_star_lb_step_execution.
+  rewrite /step_star_lb_step_reachable.
+  case => failed net l.
+  case => failed' net' tr tr' H_st H_star.
+  Admitted.
 End LabeledStepOrder.
 
 Section LabeledStepOrderDynamic.
@@ -251,39 +236,14 @@ Section LabeledStepOrderDynamic.
   Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
   Context {new_msg_params : NewMsgParams unlabeled_multi_params}.
 
-  Definition event_step_o_d_f_star (e : event (list name * ordered_dynamic_network) label) :=
-    exists tr, step_o_d_f_star step_o_d_f_init (a_of_event e) tr.
-
-  Lemma step_o_d_f_star_lb_step_reachable_ex :
-    forall net l net' failed failed' tr tr',
-    lb_step_o_d_f (failed, net) l (failed', net') tr ->
-    step_o_d_f_star step_o_d_f_init (failed, net) tr' ->
-    exists tr0, step_o_d_f_star step_o_d_f_init (failed', net') tr0.
-  Proof.
-  move => net l net' failed failed' tr tr' H_step H_star.
-  exists (tr ++ tr').
-  Admitted.
-
   Lemma step_o_d_f_star_lb_step_execution :
-    forall s, event_step_o_d_f_star (hd s) ->
+    forall s, event_step_star step_o_d_f step_o_d_f_init (hd s) ->
          lb_step_execution lb_step_o_d_f s ->
-         always (now event_step_o_d_f_star) s.
+         always (now (event_step_star step_o_d_f step_o_d_f_init)) s.
   Proof.
-  case => e s H_star.
-  move: e s H_star.
-  cofix cf.
-  move => e.
-  case => e' s H_star H_exec'.
-  constructor; first by [].
-  apply cf.
-    inversion H_exec'; subst_max.
-    rewrite /event_step_o_d_f_star /a_of_event /=.
-    rewrite /event_step_o_d_f_star /a_of_event /= in H_star.
-    break_exists.
-    move: H1 H.
-    destruct a, a'.
-    apply step_o_d_f_star_lb_step_reachable_ex.
-  move: H_exec'.
-  exact: lb_step_execution_invar.
-  Qed.
+  apply: step_star_lb_step_execution.
+  rewrite /step_star_lb_step_reachable.
+  case => failed net l.
+  case => failed' net' tr tr' H_st H_star.
+  Admitted.
 End LabeledStepOrderDynamic.
