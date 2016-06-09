@@ -24,7 +24,7 @@ Class LabeledMultiParams (P : BaseParams) :=
 Section LabeledParams.
 
 Context {base_params : BaseParams}.
-Context {params : LabeledMultiParams base_params}.
+Context {labeled_multi_params : LabeledMultiParams base_params}.
 
 Definition unlabeled_net_handlers me src m st :=
 let '(lb, out, st', ps) := lb_net_handlers me src m st in (out, st', ps).
@@ -32,7 +32,7 @@ let '(lb, out, st', ps) := lb_net_handlers me src m st in (out, st', ps).
 Definition unlabeled_input_handlers me inp st :=
 let '(lb, out, st', ps) := lb_input_handlers me inp st in (out, st', ps).
 
-Global Instance unlabeled_multi_params : MultiParams base_params :=
+Global Instance multi_params : MultiParams base_params :=
   {
     name := lb_name ;
     msg := lb_msg ;
@@ -140,7 +140,7 @@ Section LabeledStepRelations.
 End LabeledStepRelations.
 
 Section LabeledStepFailure.
-  Context `{params : LabeledMultiParams}.
+  Context `{labeled_multi_params : LabeledMultiParams}.
 
   Inductive lb_step_f : lb_step_relation (list name * network) label (name * (input + list output)) :=
   | LSF_deliver : forall net net' failed p xs ys out d l lb,
@@ -158,7 +158,7 @@ Section LabeledStepFailure.
                   lb_step_f (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)]
   | LSF_stutter : forall net failed, lb_step_f (failed, net) label_silent (failed, net) [].
   
-  Context {failure_params : FailureParams unlabeled_multi_params}.
+  Context {failure_params : FailureParams multi_params}.
 
   Lemma step_f_star_lb_step_execution :
     forall s, event_step_star step_f step_f_init (hd s) ->
@@ -191,7 +191,7 @@ Qed.
 End LabeledStepFailure.
 
 Section LabeledStepOrder.
-  Context `{params : LabeledMultiParams}.
+  Context `{labeled_multi_params : LabeledMultiParams}.
 
   Inductive lb_step_o_f : lb_step_relation (list name * ordered_network) label (name * (input + list output)) :=
   | LSOF_deliver : forall net net' failed m ms out d l from to lb,
@@ -209,8 +209,8 @@ Section LabeledStepOrder.
                    lb_step_o_f (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)]
   | LSOF_stutter : forall net failed, lb_step_o_f (failed, net) label_silent (failed, net) [].
 
-  Context {overlay_params : NameOverlayParams unlabeled_multi_params}.
-  Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
+  Context {overlay_params : NameOverlayParams multi_params}.
+  Context {fail_msg_params : FailMsgParams multi_params}.
   
   Lemma step_o_f_star_lb_step_execution :
     forall s, event_step_star step_o_f step_o_f_init (hd s) ->
@@ -243,7 +243,7 @@ Section LabeledStepOrder.
 End LabeledStepOrder.
 
 Section LabeledStepOrderDynamic.
-  Context `{params : LabeledMultiParams}.
+  Context `{labeled_multi_params : LabeledMultiParams}.
 
   Inductive lb_step_o_d_f : lb_step_relation (list name * ordered_dynamic_network) label (name * (input + list output)) :=
   | LSODF_deliver : forall net net' failed m ms out d d' l from to lb,
@@ -267,9 +267,9 @@ Section LabeledStepOrderDynamic.
       lb_step_o_d_f (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)]
   | LSODF_stutter : forall net failed, lb_step_o_d_f (failed, net) label_silent (failed, net) [].
 
-  Context {overlay_params : NameOverlayParams unlabeled_multi_params}.
-  Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
-  Context {new_msg_params : NewMsgParams unlabeled_multi_params}.
+  Context {overlay_params : NameOverlayParams multi_params}.
+  Context {fail_msg_params : FailMsgParams multi_params}.
+  Context {new_msg_params : NewMsgParams multi_params}.
 
   Lemma step_o_d_f_star_lb_step_execution :
     forall s, event_step_star step_o_d_f step_o_d_f_init (hd s) ->
@@ -300,3 +300,5 @@ Section LabeledStepOrderDynamic.
   - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 End LabeledStepOrderDynamic.
+
+Hint Extern 4 (@MultiParams _) => apply multi_params : typeclass_instances.
