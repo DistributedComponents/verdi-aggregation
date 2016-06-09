@@ -3,6 +3,8 @@ Require Import HandlerMonad.
 Require Import NameOverlay.
 Require Import LabeledNet.
 Require Import infseq.
+Require Import infseq_aux.
+Require Import Classical.
 
 Require Import Sumbool.
 
@@ -1140,6 +1142,25 @@ break_exists.
 destruct x.
 move: H1 H H_eq.
 exact: Failure_lb_step_o_f_RecvFail_neq_dst_enabled.
+Qed.
+
+Lemma Failure_RecvFail_eventually_occurred :
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
+       strong_local_fairness lb_step_o_f s ->
+       forall src dst, l_enabled_for_event lb_step_o_f (RecvFail src dst) (hd s) ->
+                  eventually (now (occurred (RecvFail src dst))) s.
+Proof.
+move => s H_star H_exec H_fair src dst H_en.
+set P := eventually _.
+case (classic (P s)) => //.
+rewrite /P {P} => H_ev.
+suff H_suff: inf_occurred (RecvFail src dst) s by inversion H_suff.
+apply: H_fair.
+apply: always_always_eventually.
+move: H_ev.
+apply: until_always_or_eventually.
+exact: Failure_RecvFail_enabled_until_occurred.
 Qed.
 
 End FailureRecorder.
