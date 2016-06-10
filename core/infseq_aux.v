@@ -1,49 +1,50 @@
 Require Import infseq.
+
 Require Import Classical.
+
+Require Import StructTact.StructTactics.
 Require Import mathcomp.ssreflect.ssreflect.
 
 Section Aux.
 
 Context {T : Type}.
 
-Definition neg_tl (P : infseq T -> Prop) : infseq T -> Prop := fun s => ~ P s.
-
-Lemma P_or_neg_tl_P : forall (P : infseq T -> Prop) (s : infseq T),
-  P s \/ (neg_tl P) s.
+Lemma P_or_not_tl : forall (P : infseq T -> Prop) (s : infseq T),
+  P s \/ (~_ P) s.
 Proof.
 move => P s.
 exact: classic.
 Qed.
 
-Lemma neg_tl_neg : forall (P : infseq T -> Prop) (s : infseq T),
-  neg_tl P s -> ~ P s.
+Lemma not_tl_not : forall (P : infseq T -> Prop) (s : infseq T),
+  (~_ P) s -> ~ P s.
 Proof.
 move => P; case => e s.
-by move => H_neg H_p.
+by move => H_not H_p.
 Qed.
 
-Lemma not_eventually_neg_then_always : forall (P : infseq T -> Prop) (s : infseq T),
-  ~ eventually (neg_tl P) s ->
+Lemma not_eventually_not_then_always : forall (P : infseq T -> Prop) (s : infseq T),
+  ~ eventually (~_ P) s ->
   always P s.
 Proof.
 move => P.
 cofix c.
 case => e s H_al.
 apply: Always.
-  case (P_or_neg_tl_P P (Cons e s)) => H_or //.
-  by apply (E0 _ (neg_tl P)) in H_or.
+  case (P_or_not_tl P (Cons e s)) => H_or //.
+  by apply (E0 _ (~_ P)) in H_or.
 apply: c.
 move => /= H_ev.
 case: H_al.
 exact: E_next.
 Qed.
 
-Lemma eventually_always_two_both : forall (P Q : infseq T -> Prop) (s : infseq T),
-  eventually (always P) s ->
-  eventually (always Q) s ->
-  eventually (always (P /\_ Q)) s.
+Lemma continuously_both : forall (P Q : infseq T -> Prop) (s : infseq T),
+  continuously P s ->
+  continuously Q s ->
+  continuously (P /\_ Q) s.
 Proof.
-move => P q s.
+move => P Q s.
 elim => {s}.
   move => s H_al H_ev.
   elim: H_ev H_al => {s}.
@@ -68,27 +69,27 @@ inversion H; subst.
 exact: E0.
 Qed.
 
-Lemma not_always_then_eventually_neg : forall (P : infseq T -> Prop) (s : infseq T),
+Lemma not_always_then_eventually_not : forall (P : infseq T -> Prop) (s : infseq T),
   ~ (always P s) ->
-  eventually (neg_tl P) s.
+  eventually (~_ P) s.
 Proof.
 move => P s H_al.
 set Q := eventually _.
-case (P_or_neg_tl_P Q s) => //.
-rewrite /Q {Q} => H_neg.
-apply neg_tl_neg in H_neg.
-by apply not_eventually_neg_then_always in H_neg.
+case (P_or_not_tl Q s) => //.
+rewrite /Q {Q} => H_not.
+apply not_tl_not in H_not.
+by apply not_eventually_not_then_always in H_not.
 Qed.
 
-Lemma not_eventually_then_always_neg : forall (P : infseq T -> Prop) (s : infseq T),
+Lemma not_eventually_then_always_not : forall (P : infseq T -> Prop) (s : infseq T),
   ~ eventually P s ->
-  always (neg_tl P) s.
+  always (~_ P) s.
 Proof.
 move => P.
 cofix c.
 case => e s H_al.
 apply: Always.
-  case (P_or_neg_tl_P P (Cons e s)) => H_or //.
+  case (P_or_not_tl P (Cons e s)) => H_or //.
   by apply (E0 _ P) in H_or.
 apply: c.
 move => /= H_ev.
@@ -96,23 +97,23 @@ case: H_al.
 exact: E_next.
 Qed.
 
-Lemma not_always_eventually_then_eventually_always_not : forall (P : infseq T -> Prop) (s : infseq T),
-  ~ (always (eventually P) s) -> eventually (always (neg_tl P)) s.
+Lemma not_inf_often_then_continuously_not : forall (P : infseq T -> Prop) (s : infseq T),
+  ~ (inf_often P s) -> continuously (~_ P) s.
 Proof.
 move => P s H_al.
-apply not_always_then_eventually_neg in H_al.
+apply not_always_then_eventually_not in H_al.
 elim: H_al => {s}.
-  move => s H_neg.
-  apply neg_tl_neg in H_neg.
-  apply not_eventually_then_always_neg in H_neg.
+  move => s H_not.
+  apply not_tl_not in H_not.
+  apply not_eventually_then_always_not in H_not.
   exact: E0.
 move => e s H_ev H_ev'.
 exact: E_next.
 Qed.
 
 Lemma eventually_always_not_then_not_always_eventually : forall (P : infseq T -> Prop) (s : infseq T),
-  eventually (always (neg_tl P)) s ->
-  ~ (always (eventually P) s).
+  continuously (~_ P) s ->
+  ~ (inf_often P s).
 Proof.
 move => P s.
 elim => {s}.
@@ -127,65 +128,71 @@ move => e s H_al H_al' H_al''.
 by inversion H_al''.
 Qed.
 
-Lemma eventually_always_neg_and_or : forall (P Q : infseq T -> Prop) (s : infseq T),
-  eventually (always ((neg_tl P) /\_ (neg_tl Q))) s ->
-  eventually (always (neg_tl (P \/_ Q))) s.
+Lemma and_tl_comm : forall (P Q : infseq T -> Prop) (s : infseq T),
+  (P /\_ Q) s ->
+  (Q /\_ P) s.
 Proof.
-move => P Q.
-apply: eventually_monotonic_simple.
-apply: always_monotonic.
-move => s H_neg H_neg'.
-case: H_neg' => H_neg'.
-  by case: H_neg => H_neg1 H_neg2.
-by case: H_neg => H_neg1 H_neg2.
+move => P Q s.
+unfold and_tl.
+move => H_and.
+by break_and.
 Qed.
 
-Lemma eventually_always_neg_and_or_many : forall (P Q R : infseq T -> Prop) (s : infseq T),
-  eventually (always ((neg_tl P) /\_ (neg_tl Q) /\_ R)) s ->
-  eventually (always ((neg_tl (P \/_ Q)) /\_ R)) s.
+Lemma and_tl_assoc_left : forall (P Q R : infseq T -> Prop) (s : infseq T),
+  ((P /\_ Q) /\_ R) s ->
+  (P /\_ Q /\_ R) s.
 Proof.
-move => P Q R.
-apply: eventually_monotonic_simple.
-apply: always_monotonic.
-move => s H_neg.
-move: H_neg => [H_P [H_Q H_R]].
-split => //.
-move => H_neg.
-by case: H_neg.
+move => P Q R s.
+unfold and_tl.
+move => H_and.
+by break_and.
 Qed.
 
-Lemma eventually_always_and_comm : forall (P Q : infseq T -> Prop) (s : infseq T),
-  eventually (always (P /\_ Q)) s ->
-  eventually (always (Q /\_ P)) s.
+Lemma and_tl_assoc_right : forall (P Q R : infseq T -> Prop) (s : infseq T),
+  (P /\_ Q /\_ R) s ->
+  ((P /\_ Q) /\_ R) s.
 Proof.
-move => P Q.
-apply: eventually_monotonic_simple.
-apply: always_monotonic.
-move => s [H_P H_Q].
-by split.
+move => P Q R s.
+unfold and_tl.
+move => H_and.
+by break_and.
 Qed.
 
-Lemma eventually_always_and_assoc : forall (P Q R : infseq T -> Prop) (s : infseq T),
-  eventually (always ((P /\_ Q) /\_ R)) s <->
-  eventually (always (P /\_ Q /\_ R)) s.
+Lemma not_and_not_or_tl : forall (P Q : infseq T -> Prop) (s : infseq T),
+  ((~_ P) /\_ (~_ Q)) s ->
+  (~_ (P \/_ Q)) s.
 Proof.
-move => P Q R.
-split.
-  move: s.
-  apply: eventually_monotonic_simple.
-  apply: always_monotonic.
-  by move => s [[H_P H_Q] H_R].
-move: s.
-apply: eventually_monotonic_simple.
-apply: always_monotonic.
-by move => s [H_P [H_Q H_R]].
+move => P Q s.
+unfold not_tl, and_tl, or_tl.
+move => H_and H_or.
+break_and.
+by break_or_hyp.
 Qed.
 
-Lemma until_always_or_eventually : forall (s : infseq T) (J P : infseq T -> Prop),
+Lemma not_or_not_and_tl : forall (P Q : infseq T -> Prop) (s : infseq T),
+  (~_ (P \/_ Q)) s ->
+  ((~_ P) /\_ (~_ Q)) s.
+Proof.
+move => P Q s.
+unfold not_tl, and_tl, or_tl.
+move => H_not.
+by split; move => H_p; case: H_not; [left|right].
+Qed.
+
+Lemma continuously_monotonic : forall (P Q : infseq T -> Prop),
+  (forall s, P s -> Q s) ->
+  forall s, continuously P s -> continuously Q s.
+Proof.
+move => P Q H_i s.
+apply: eventually_monotonic_simple.
+exact: always_monotonic.
+Qed.
+
+Lemma until_always_or_eventually :
+  forall (J P : infseq T -> Prop) (s : infseq T),
   until J P s -> ~ eventually P s -> always J s.
 Proof.
-move => s J P.
-move: s.
+move => J P.
 cofix c.
 case => e s.
 move => H_un H_ev.
