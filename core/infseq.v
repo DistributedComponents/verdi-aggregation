@@ -146,12 +146,6 @@ Lemma map_Cons: forall (f:A->B) x s, map f (Cons x s) = Cons (f x) (map f s).
 intros. pattern (map f (Cons x s)). rewrite <- recons. simpl. reflexivity. 
 Qed.
 
-
-(* Doesn't work: infinitary version of = needed
-Lemma map_map : forall A B C (f:A->B) (g:B->C) (s: infseq A), map g (map f s) = map (fun x => g (f x)) s. 
-intros A B C f g. intros (x, s). repeat rewrite map_Cons. 
-*)
-
 End sec_map. 
 Implicit Arguments map [A B].
 Implicit Arguments map_Cons [A B].
@@ -201,6 +195,8 @@ Definition and_tl (P Q: infseq T -> Prop) : infseq T -> Prop :=
   fun s => P s /\ Q s. 
 Definition or_tl (P Q: infseq T -> Prop) : infseq T -> Prop :=
   fun s => P s \/ Q s. 
+Definition not_tl (P : infseq T -> Prop) : infseq T -> Prop := 
+  fun s => ~ P s.
 
 End sec_modal_op_defn.
 
@@ -214,14 +210,15 @@ Implicit Arguments until [T].
 Implicit Arguments inf_often [T].
 Implicit Arguments continuously [T].
 
-Implicit Arguments impl_tl [T]. 
-Implicit Arguments and_tl [T]. 
-Implicit Arguments or_tl [T]. 
+Implicit Arguments impl_tl [T].
+Implicit Arguments and_tl [T].
+Implicit Arguments or_tl [T].
+Implicit Arguments not_tl [T].
 
 Notation "A ->_ B" := (impl_tl A B) (right associativity, at level 90).
 Notation "A /\_ B" := (and_tl A B) (right associativity, at level 80).
 Notation "A \/_ B" := (or_tl A B) (right associativity, at level 85).
-
+Notation "~_ A" := (not_tl A) (right associativity, at level 90).
 
 
 (* *)
@@ -515,7 +512,6 @@ induction ev1 as [s1 ev1 | x1 s1 ev1 induc_hyp].
   intros (x2, s2) e. constructor 2. apply induc_hyp. 
     case (exteq_infseq_inversion e). trivial.  
 Qed.
-(* Implicit Arguments extensional_eventually [T P s1 s2]. *)
 
 Lemma extensional_always:
   forall (P: infseq T -> Prop),
@@ -526,7 +522,6 @@ intros (x1, s1) (x2, s2) e al1. case (always_Cons al1); intros Px1s1 als1. const
   eapply eP; eassumption. 
   simpl. apply cf with s1; try assumption. case (exteq_infseq_inversion e); trivial.
 Qed.
-(* Implicit Arguments extensional_always [T P s1 s2]. *)
 
 
 Lemma extensional_until:
@@ -816,13 +811,6 @@ Implicit Arguments eventually_now_map_conv [A B f P s].
 Section sec_subseq.
 Variable T: Type.
 
-(* horrible: x :: s is a suffix of s' *)
-(*
-Inductive suff_split (x : T) (s : infseq T) : infseq T -> Prop :=
-  | sp_eq : suff_split x s (Cons x s)
-  | sp_next : forall y s', suff_split x s s' -> suff_split x s (Cons y s').
-*)
-
 (* suff s s'  means  s is a suffix of s' *)
 Inductive suff (s : infseq T) : infseq T -> Prop :=
   | sp_eq : suff s s
@@ -900,11 +888,6 @@ Qed.
 
 (* Conversely : TODO *)
 
-(* corresponds to an older version of suff
-Inductive ex_suff (P: infseq T -> Prop) (s' : infseq T) : Prop :=
-  Esp : forall x s, suff x s s' -> P (Cons x s) -> ex_suff P s'.
-*)
-
 Inductive ex_suff (P: infseq T -> Prop) (s' : infseq T) : Prop :=
   Esp : forall s, suff s s' -> P s -> ex_suff P s'.
 
@@ -953,23 +936,3 @@ Qed.
 
 
 End sec_subseq. 
-
-
-(* DRAFT (correct but obsolete
-Lemma subseq_tl : forall s s', subseq s (tl s') -> subseq s s'.
-intros (x, s) (y, s') su. simpl in su.
-case su; clear su x s s'; intros x s s' s1 sf su. 
-exists s1. 
-  constructor 2. exact sf. 
-  exact su. 
-Qed.
-
-Lemma subseq_Cons_left : forall x s s', subseq (Cons x s) s' -> subseq s (tl s').
-intros x s s' su.
-change (subseq (tl (Cons x s)) (tl s'));
-case su; clear su x s s'; simpl; intros x s s' s1 sf. 
-genclear s. induction sf; simpl.
-  trivial.
-  intros s su; apply subseq_tl. exact (IHsp s su). 
-Qed.
-*) 
