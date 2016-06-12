@@ -111,7 +111,7 @@ Implicit Arguments exteq_trans [T].
 
 
 (* --------------------------------------------------------------------------- *)
-(* Zipping two infseqs: useful for map theory *)
+(* Zipping two infseqs: useful for Map theory *)
 Section sec_zip.
 
 Variable A B: Type.
@@ -137,18 +137,18 @@ Section sec_map.
 
 Variable A B: Type.
 
-CoFixpoint map (f: A->B) (s: infseq A): infseq B :=
+CoFixpoint Map (f: A->B) (s: infseq A): infseq B :=
   match s with
-   Cons x s => Cons (f x) (map f s)
+   Cons x s => Cons (f x) (Map f s)
   end.
 
-Lemma map_Cons: forall (f:A->B) x s, map f (Cons x s) = Cons (f x) (map f s).
-intros. pattern (map f (Cons x s)). rewrite <- recons. simpl. reflexivity. 
+Lemma Map_Cons: forall (f:A->B) x s, Map f (Cons x s) = Cons (f x) (Map f s).
+intros. pattern (Map f (Cons x s)). rewrite <- recons. simpl. reflexivity.
 Qed.
 
 End sec_map. 
-Implicit Arguments map [A B].
-Implicit Arguments map_Cons [A B].
+Implicit Arguments Map [A B].
+Implicit Arguments Map_Cons [A B].
 
 
 
@@ -548,156 +548,156 @@ Section sec_map_modalop.
 
 Variable A B: Type.
 
-Lemma and_map :
+Lemma and_Map :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, P s -> Q (map f s)) ->
-   (forall s, P' s -> Q' (map f s)) ->
+   (forall s, P s -> Q (Map f s)) ->
+   (forall s, P' s -> Q' (Map f s)) ->
    forall (s: infseq A),
-   (P /\_ P') s -> (Q /\_ Q') (map f s).
+   (P /\_ P') s -> (Q /\_ Q') (Map f s).
 Proof.
 unfold and_tl; intuition. 
 Qed.
 
-Lemma and_map_conv :
+Lemma and_Map_conv :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, Q (map f s) -> P s) ->
-   (forall s, Q' (map f s) -> P' s) ->
+   (forall s, Q (Map f s) -> P s) ->
+   (forall s, Q' (Map f s) -> P' s) ->
    forall (s: infseq A),
-   (Q /\_ Q') (map f s) -> (P /\_ P') s.
+   (Q /\_ Q') (Map f s) -> (P /\_ P') s.
 Proof.
 unfold and_tl; intuition. 
 Qed.
 
-Lemma or_map :
+Lemma or_Map :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, P s -> Q (map f s)) ->
-   (forall s, P' s -> Q' (map f s)) ->
+   (forall s, P s -> Q (Map f s)) ->
+   (forall s, P' s -> Q' (Map f s)) ->
    forall (s: infseq A),
-   (P \/_ P') s -> (Q \/_ Q') (map f s).
+   (P \/_ P') s -> (Q \/_ Q') (Map f s).
 Proof.
 unfold or_tl; intuition. 
 Qed.
 
-Lemma or_map_conv :
+Lemma or_Map_conv :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, Q (map f s) -> P s) ->
-   (forall s, Q' (map f s) -> P' s) ->
+   (forall s, Q (Map f s) -> P s) ->
+   (forall s, Q' (Map f s) -> P' s) ->
    forall (s: infseq A),
-   (Q \/_ Q') (map f s) -> (P \/_ P') s.
+   (Q \/_ Q') (Map f s) -> (P \/_ P') s.
 Proof.
 unfold or_tl; intuition. 
 Qed.
 
-Lemma impl_map :
+Lemma impl_Map :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, Q (map f s) -> P s) ->
-   (forall s, P' s -> Q' (map f s)) ->
+   (forall s, Q (Map f s) -> P s) ->
+   (forall s, P' s -> Q' (Map f s)) ->
    forall (s: infseq A),
-   (P ->_ P') s -> (Q ->_ Q') (map f s).
+   (P ->_ P') s -> (Q ->_ Q') (Map f s).
 Proof.
 unfold impl_tl; intuition. 
 Qed.
 
-Lemma impl_map_conv :
+Lemma impl_Map_conv :
    forall (f: A->B) (P P': infseq A->Prop) (Q Q': infseq B->Prop),
-   (forall s, P s -> Q (map f s)) ->
-   (forall s, Q' (map f s) -> P' s) ->
+   (forall s, P s -> Q (Map f s)) ->
+   (forall s, Q' (Map f s) -> P' s) ->
    forall (s: infseq A),
-   (Q ->_ Q') (map f s) -> (P ->_ P') s.
+   (Q ->_ Q') (Map f s) -> (P ->_ P') s.
 Proof.
 unfold impl_tl; intuition. 
 Qed.
 
 (* *)
 
-Lemma now_map :
+Lemma now_Map :
    forall (f: A->B) (P: B->Prop) (s: infseq A),
-   now (fun x => P (f x)) s -> now P (map f s).
+   now (fun x => P (f x)) s -> now P (Map f s).
 Proof.
 intros f P (x, s) nP; assumption. 
 Qed.
 
-Lemma now_map_conv :
+Lemma now_Map_conv :
    forall (f: A->B) (P: B->Prop) (s: infseq A),
-   now P (map f s) -> now (fun x => P (f x)) s.
+   now P (Map f s) -> now (fun x => P (f x)) s.
 Proof.
 intros f P (x, s) nP; assumption. 
 Qed.
 
-Lemma consecutive_map :
+Lemma consecutive_Map :
    forall (f: A->B) (P: B->B->Prop) (s: infseq A),
-   consecutive (fun x y => P (f x) (f y)) s -> consecutive P (map f s).
+   consecutive (fun x y => P (f x) (f y)) s -> consecutive P (Map f s).
 Proof.
 intros f P (x, (y, s)) nP; assumption. 
 Qed.
 
-Lemma consecutive_map_conv :
+Lemma consecutive_Map_conv :
    forall (f: A->B) (P: B->B->Prop) (s: infseq A),
-   consecutive P (map f s) -> consecutive (fun x y => P (f x) (f y)) s.
+   consecutive P (Map f s) -> consecutive (fun x y => P (f x) (f y)) s.
 Proof.
 intros f P (x, (y, s)) nP; assumption. 
 Qed.
 
-Lemma always_map :
+Lemma always_Map :
    forall (f: A->B) (P: infseq A->Prop) (Q: infseq B->Prop),
-   (forall s, P s -> Q (map f s)) ->
-   forall (s: infseq A), always P s -> always Q (map f s).
+   (forall s, P s -> Q (Map f s)) ->
+   forall (s: infseq A), always P s -> always Q (Map f s).
 Proof.
 intros f P Q PQ. cofix cf.
 intros (x, s) a. case (always_Cons a); intros a1 a2. constructor.
   apply PQ. assumption.
-  rewrite map_Cons; simpl. apply cf; assumption. 
+  rewrite Map_Cons; simpl. apply cf; assumption.
 Qed.
 
-Lemma always_map_conv :
+Lemma always_Map_conv :
    forall (f: A->B) (P: infseq A->Prop) (Q: infseq B->Prop),
-   (forall s, Q (map f s) -> P s) ->
-   forall (s: infseq A), always Q (map f s) -> always P s.
+   (forall s, Q (Map f s) -> P s) ->
+   forall (s: infseq A), always Q (Map f s) -> always P s.
 Proof.
 intros f P Q QP. cofix cf.
-intros (x, s) a. rewrite map_Cons in a. case (always_Cons a); intros a1 a2. constructor.
-  apply QP. rewrite map_Cons; assumption.
+intros (x, s) a. rewrite Map_Cons in a. case (always_Cons a); intros a1 a2. constructor.
+  apply QP. rewrite Map_Cons; assumption.
   simpl. apply cf; assumption. 
 Qed.
 
-Lemma until_map :
+Lemma until_Map :
    forall (f: A->B) (J P: infseq A->Prop) (K Q: infseq B->Prop),
-   (forall s, J s -> K (map f s)) ->
-   (forall s, P s -> Q (map f s)) ->
+   (forall s, J s -> K (Map f s)) ->
+   (forall s, P s -> Q (Map f s)) ->
    forall (s: infseq A),
-   (until J P) s -> (until K Q) (map f s).
+   (until J P) s -> (until K Q) (Map f s).
 Proof.
 intros f J P K Q JK PQ. cofix cf. 
 intros (x, s) un. case (until_Cons un); clear un.
   intro Pxs; constructor 1. apply PQ. assumption. 
-  intros (Jxs, un). rewrite map_Cons. constructor 2. 
-    rewrite <- map_Cons. auto. 
+  intros (Jxs, un). rewrite Map_Cons. constructor 2.
+    rewrite <- Map_Cons. auto.
     simpl. auto. 
 Qed.
 
-Lemma until_map_conv :
+Lemma until_Map_conv :
    forall (f: A->B) (J P: infseq A->Prop) (K Q: infseq B->Prop),
-   (forall s, K (map f s) -> J s) ->
-   (forall s, Q (map f s) -> P s) ->
+   (forall s, K (Map f s) -> J s) ->
+   (forall s, Q (Map f s) -> P s) ->
    forall (s: infseq A),
-   (until K Q) (map f s) -> (until J P) s.
+   (until K Q) (Map f s) -> (until J P) s.
 Proof.
-intros f J P K Q KJ QP. cofix cf. 
-intros (x, s) un. 
-rewrite map_Cons in un; case (until_Cons un); clear un; rewrite <- map_Cons. 
-  intro Qxs; constructor 1. apply QP. assumption. 
+intros f J P K Q KJ QP. cofix cf.
+intros (x, s) un.
+rewrite Map_Cons in un; case (until_Cons un); clear un; rewrite <- Map_Cons.
+  intro Qxs; constructor 1. apply QP. assumption.
   intros (Kxs, un). constructor 2; simpl; auto.
 Qed.
 
-Lemma eventually_map :
+Lemma eventually_Map :
    forall (f: A->B) (P: infseq A->Prop) (Q: infseq B->Prop),
-   (forall s, P s -> Q (map f s)) ->
-   forall s, eventually P s -> eventually Q (map f s).
+   (forall s, P s -> Q (Map f s)) ->
+   forall s, eventually P s -> eventually Q (Map f s).
 Proof.
-intros f P Q PQ s e. induction e as [s ok | x s e induc_hyp]. 
-  destruct s as (x, s); simpl in *. rewrite map_Cons. constructor 1. 
-    rewrite <- map_Cons. apply PQ. exact ok. 
-  rewrite map_Cons. constructor 2. exact induc_hyp.  
+intros f P Q PQ s e. induction e as [s ok | x s e induc_hyp].
+  destruct s as (x, s); simpl in *. rewrite Map_Cons. constructor 1.
+    rewrite <- Map_Cons. apply PQ. exact ok.
+  rewrite Map_Cons. constructor 2. exact induc_hyp.
 Qed.
 
 (* The converse seems to require much more work *)
@@ -705,63 +705,63 @@ Qed.
 Definition fstAB := fst (A:=A) (B:=B).
 
 Lemma exteq_fst_zip:
-  forall sA sB, exteq_infseq (map fstAB (zip sA sB)) sA.
+  forall sA sB, exteq_infseq (Map fstAB (zip sA sB)) sA.
 Proof.
 cofix cf. intros (a, sA) (b, sB). 
-rewrite zip_Cons. rewrite map_Cons. constructor. apply cf. 
+rewrite zip_Cons. rewrite Map_Cons. constructor. apply cf.
 Qed.
 
-Lemma exteq_zipmap :
+Lemma exteq_zip_Map :
    forall (f: A->B) (sA: infseq A) (sB: infseq B),
    always (now (fun c: A*B => let (x, y) := c in y = f x)) (zip sA sB) ->
-   exteq_infseq sB (map f (map fstAB (zip sA (map f sA)))).
+   exteq_infseq sB (Map f (Map fstAB (zip sA (Map f sA)))).
 Proof. 
 intros f. cofix cf. 
 intros (a, sA) (b, sB).
-repeat rewrite map_Cons; repeat rewrite zip_Cons; repeat rewrite map_Cons; simpl. 
+repeat rewrite Map_Cons; repeat rewrite zip_Cons; repeat rewrite Map_Cons; simpl. 
 intro al; case (always_Cons al); clear al; simpl. intros e al. case e. constructor. 
 apply cf. exact al. 
 Qed.
 
 
-Lemma eventually_map_conv_aux :
+Lemma eventually_Map_conv_aux :
    forall (f: A->B) (Q: infseq B->Prop), extensional Q ->
    forall (s: infseq A) (sB: infseq B),
    always (now (fun c: A*B => let (x, y) := c in y = f x)) (zip s sB) ->
    eventually Q sB ->
-   eventually (fun sc => Q (map f (map fstAB sc))) (zip s (map f s)).
+   eventually (fun sc => Q (Map f (Map fstAB sc))) (zip s (Map f s)).
 Proof.
 intros f Q extQ s sB al ev. genclear al; genclear s. 
 induction ev as [(b, sB) QbsB | b sB ev induc_hyp].
   intros (a, sA) al.
-  constructor 1. apply extQ with (Cons b sB); try assumption. 
-     apply exteq_zipmap. apply al. 
+  constructor 1. apply extQ with (Cons b sB); try assumption.
+     apply exteq_zip_Map. apply al.
 
-  intros (a, sA). repeat rewrite map_Cons. repeat rewrite zip_Cons.
+  intros (a, sA). repeat rewrite Map_Cons. repeat rewrite zip_Cons.
   intro al. case (always_Cons al); simpl. clear al; intros e al. 
   constructor 2. apply induc_hyp. exact al. 
 Qed.
 
 
-Lemma eventually_map_conv :
+Lemma eventually_Map_conv :
    forall (f: A->B) (P: infseq A->Prop) (Q: infseq B->Prop),
    extensional P -> extensional Q -> 
-   (forall s, Q (map f s) -> P s) ->
-   forall s, eventually Q (map f s) -> eventually P s.
+   (forall s, Q (Map f s) -> P s) ->
+   forall s, eventually Q (Map f s) -> eventually P s.
 Proof.
 intros f P Q extP extQ QP s ev.
-assert (efst: eventually P (map fstAB (zip s (map f s)))).
-   assert (evzip : eventually (fun sc => Q (map f (map fstAB sc))) (zip s (map f s))).
+assert (efst: eventually P (Map fstAB (zip s (Map f s)))).
+   assert (evzip : eventually (fun sc => Q (Map f (Map fstAB sc))) (zip s (Map f s))).
      clear extP QP P. 
-     assert (alzip : (always (now (fun c : A * B => let (x, y) := c in y = f x)) (zip s (map f s)))).
+     assert (alzip : (always (now (fun c : A * B => let (x, y) := c in y = f x)) (zip s (Map f s)))).
         clear ev extQ. generalize s; clear s. cofix cf. intros (x, s). constructor. 
           simpl. reflexivity. 
           simpl. apply cf. 
 
-     apply (eventually_map_conv_aux f Q extQ s (map f s) alzip ev). 
+     apply (eventually_Map_conv_aux f Q extQ s (Map f s) alzip ev). 
    clear ev. induction evzip as [((a, b), sAB) QabsAB | c sAB _ induc_hyp].
       constructor 1; simpl. apply QP. assumption. 
-      rewrite map_Cons. constructor 2. apply induc_hyp. 
+      rewrite Map_Cons. constructor 2. apply induc_hyp. 
 genclear efst. apply extensional_eventually.
   exact extP. 
   apply exteq_fst_zip.
@@ -770,38 +770,38 @@ Qed.
 
 (* Some corollaries *)
 
-Lemma eventually_now_map :
+Lemma eventually_now_Map :
    forall (f: A->B) (P: B->Prop) (s: infseq A),
-   eventually (now (fun x => P (f x))) s -> eventually (now P) (map f s).
+   eventually (now (fun x => P (f x))) s -> eventually (now P) (Map f s).
 Proof.
-intros f P. apply eventually_map. apply now_map.
+intros f P. apply eventually_Map. apply now_Map.
 Qed.
 
 
-Lemma eventually_now_map_conv :
+Lemma eventually_now_Map_conv :
    forall (f: A->B) (P: B->Prop) (s: infseq A),
-   eventually (now P) (map f s) -> eventually (now (fun x => P (f x))) s.
+   eventually (now P) (Map f s) -> eventually (now (fun x => P (f x))) s.
 Proof.
-intros f P s. apply eventually_map_conv.
+intros f P s. apply eventually_Map_conv.
   apply extensional_now. 
   apply extensional_now. 
-  clear s. intros (x, s). repeat rewrite map_Cons. simpl. trivial. 
+  clear s. intros (x, s). repeat rewrite Map_Cons. simpl. trivial.
 Qed.
 
-Lemma ev_map_now_eq : 
+Lemma ev_Map_now_eq :
   forall (f: A -> B) a s, eventually (now (eq a)) s -> 
-  eventually (now (eq (f a))) (map f s).
+  eventually (now (eq (f a))) (Map f s).
 Proof.
-intros f a. apply eventually_map. 
-intros s noa. apply now_map.
-genclear noa. monotony. apply f_equal. 
+intros f a. apply eventually_Map.
+intros s noa. apply now_Map.
+genclear noa. monotony. apply f_equal.
 Qed.
 
 End sec_map_modalop. 
 
 (* TODO: implicit arguments for others *)
-Implicit Arguments eventually_map_conv [A B f P s].
-Implicit Arguments eventually_now_map_conv [A B f P s].
+Implicit Arguments eventually_Map_conv [A B f P s].
+Implicit Arguments eventually_now_Map_conv [A B f P s].
 
 
 

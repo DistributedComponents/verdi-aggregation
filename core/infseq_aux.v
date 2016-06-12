@@ -7,7 +7,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 
 Section Aux.
 
-Context {T : Type}.
+Variable T : Type.
 
 Lemma P_or_not_tl : forall (P : infseq T -> Prop) (s : infseq T),
   P s \/ (~_ P) s.
@@ -23,7 +23,7 @@ move => P; case => e s.
 by move => H_not H_p.
 Qed.
 
-Lemma not_eventually_not_then_always : forall (P : infseq T -> Prop) (s : infseq T),
+Lemma not_eventually_not_always : forall (P : infseq T -> Prop) (s : infseq T),
   ~ eventually (~_ P) s ->
   always P s.
 Proof.
@@ -69,7 +69,7 @@ inversion H; subst.
 exact: E0.
 Qed.
 
-Lemma not_always_then_eventually_not : forall (P : infseq T -> Prop) (s : infseq T),
+Lemma not_always_eventually_not : forall (P : infseq T -> Prop) (s : infseq T),
   ~ (always P s) ->
   eventually (~_ P) s.
 Proof.
@@ -78,7 +78,7 @@ set Q := eventually _.
 case (P_or_not_tl Q s) => //.
 rewrite /Q {Q} => H_not.
 apply not_tl_not in H_not.
-by apply not_eventually_not_then_always in H_not.
+by apply not_eventually_not_always in H_not.
 Qed.
 
 Lemma not_eventually_then_always_not : forall (P : infseq T -> Prop) (s : infseq T),
@@ -101,7 +101,7 @@ Lemma not_inf_often_then_continuously_not : forall (P : infseq T -> Prop) (s : i
   ~ (inf_often P s) -> continuously (~_ P) s.
 Proof.
 move => P s H_al.
-apply not_always_then_eventually_not in H_al.
+apply not_always_eventually_not in H_al.
 elim: H_al => {s}.
   move => s H_not.
   apply not_tl_not in H_not.
@@ -138,7 +138,7 @@ move => H_and.
 by break_and.
 Qed.
 
-Lemma and_tl_assoc_left : forall (P Q R : infseq T -> Prop) (s : infseq T),
+Lemma and_tl_assoc_l : forall (P Q R : infseq T -> Prop) (s : infseq T),
   ((P /\_ Q) /\_ R) s ->
   (P /\_ Q /\_ R) s.
 Proof.
@@ -148,7 +148,7 @@ move => H_and.
 by break_and.
 Qed.
 
-Lemma and_tl_assoc_right : forall (P Q R : infseq T -> Prop) (s : infseq T),
+Lemma and_tl_assoc_r : forall (P Q R : infseq T -> Prop) (s : infseq T),
   (P /\_ Q /\_ R) s ->
   ((P /\_ Q) /\_ R) s.
 Proof.
@@ -188,7 +188,7 @@ apply: eventually_monotonic_simple.
 exact: always_monotonic.
 Qed.
 
-Lemma until_always_or_eventually :
+Lemma until_not_eventually_always :
   forall (J P : infseq T -> Prop) (s : infseq T),
   until J P s -> ~ eventually P s -> always J s.
 Proof.

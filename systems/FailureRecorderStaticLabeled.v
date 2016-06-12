@@ -96,9 +96,9 @@ Instance FailureRecorder_LabeledMultiParams : LabeledMultiParams FailureRecorder
     lb_input_handlers := fun nm msg s => runGenHandler s (IOHandler nm msg) ;
   }.
 
-Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams := multi_params.
+Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams := unlabeled_multi_params.
 
-Instance FailureRecorder_NameOverlayParams : NameOverlayParams multi_params :=
+Instance FailureRecorder_NameOverlayParams : NameOverlayParams FailureRecorder_MultiParams :=
   {
     adjacent_to := adjacent_to ;
     adjacent_to_dec := adjacent_to_dec ;
@@ -106,7 +106,7 @@ Instance FailureRecorder_NameOverlayParams : NameOverlayParams multi_params :=
     adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
 
-Instance FailureRecorder_FailMsgParams : FailMsgParams multi_params :=
+Instance FailureRecorder_FailMsgParams : FailMsgParams FailureRecorder_MultiParams :=
   {
     msg_fail := Fail
   }.
@@ -1159,8 +1159,23 @@ suff H_suff: inf_occurred (RecvFail src dst) s by inversion H_suff.
 apply: H_fair.
 apply: always_always_eventually.
 move: H_ev.
-apply: until_always_or_eventually.
+apply: until_not_eventually_always.
 exact: Failure_RecvFail_enabled_until_occurred.
+Qed.
+
+Lemma enabled_RecvFail_then_Fail_head :
+  forall e src dst,
+  l_enabled_for_event lb_step_o_f (RecvFail src dst) e ->
+  exists ms, onwPackets (snd (a_of_event e)) src dst = Fail :: ms.
+Proof.
+case; case; case => /= failed net lb tr src dst H_en.
+rewrite /l_enabled_for_event /enabled /a_of_event /= in H_en.
+break_exists.
+case: x H => failed' net' H.
+invcs H => //.
+net_handler_cases.
+find_injection.
+by exists ms.
 Qed.
 
 End FailureRecorder.
