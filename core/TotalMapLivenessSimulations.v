@@ -6,22 +6,14 @@ Require Import ZArith.
 Require Import Omega.
 
 Require Import StructTact.StructTactics.
-Require Import HandlerMonad.
 Require Import Net.
 Require Import LabeledNet.
 Require Import StructTact.Util.
 
 Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
 Require Import infseq.
 
-Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
-
-Require Import FunctionalExtensionality.
-Require Import Sumbool.
-Require Import Sorting.Permutation.
-Require Import OrderedLemmas.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
@@ -160,19 +152,44 @@ exact: c.
 Qed.
 
 Lemma tot_map_label_inf_often_occurred :
-  forall l l' s,
-    tot_map_label l = l' ->
+  forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred l')) (tot_map_infseq s).
+    inf_often (now (occurred (tot_map_label l))) (tot_map_infseq s).
 Proof.
-move => l l' s H_eq.
-move: s.
+move => l.
 apply: always_Map.
 apply: eventually_Map.
 case; case; case; case => failed net lb tr s.
 rewrite /= /tot_map_event /= /l_of_event /= /occurred /l_of_event /=.
-move => H_eq'.
-by rewrite -H_eq H_eq'.
+move => H_eq.
+by rewrite H_eq.
+Qed.
+
+Hypothesis tot_map_label_injective : 
+  forall l l', tot_map_label l = tot_map_label l' -> l = l'.
+
+Lemma tot_map_label_inf_often_occurred_conv :
+  forall l s,
+    inf_often (now (occurred (tot_map_label l))) (tot_map_infseq s) ->
+    inf_often (now (occurred l)) s.
+Proof.
+move => l.
+apply: always_Map_conv.
+apply: eventually_Map_conv.
+- rewrite /extensional /=.
+  case; case; case; case => failed net lb tr s1.
+  case; case; case; case => failed' net' lb' tr' s2.
+  move => H_eq.
+  by inversion H_eq; subst_max.
+- rewrite /extensional /=.
+  case; case; case; case => failed net lb tr s1.
+  case; case; case; case => failed' net' lb' tr' s2.
+  move => H_eq.
+  by inversion H_eq; subst_max.
+- case; case; case; case => failed net lb tr s.
+  rewrite /= /tot_map_event /= /l_of_event /= /occurred /l_of_event /=.
+  move => H_eq.
+  exact: tot_map_label_injective.
 Qed.
 
 Context {fail_fst : FailureParams (@unlabeled_multi_params _ labeled_multi_fst)}.
