@@ -15,6 +15,7 @@ Class LabeledMultiParams (P : BaseParams) :=
     lb_all_names_nodes : forall n, In n lb_nodes ;
     lb_no_dup_nodes : NoDup lb_nodes ;
     label : Type ;
+    label_eq_dec : forall x y : label, {x = y} + {x <> y} ;
     label_silent : label ;
     lb_init_handlers : lb_name -> data ;
     lb_net_handlers : lb_name -> lb_name -> lb_msg -> data -> label * (list output) * data * list (lb_name * lb_msg) ;
