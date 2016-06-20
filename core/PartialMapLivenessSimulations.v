@@ -220,32 +220,109 @@ invcs H_step => //=.
 - exact: LSF_stutter.
 Qed.
 
-Definition pt_map_event e : event _ _ _ := 
-((map tot_map_name (fst (a_of_event e)), pt_map_net (snd (a_of_event e))), tot_map_label (l_of_event e), pt_map_trace (tr_of_event e)).
+Definition pt_map_event_state e :=
+{| evt_r_a := (map tot_map_name (fst e.(evt_r_a)), pt_map_net (snd e.(evt_r_a))) ;
+   evt_r_l := tot_map_label e.(evt_r_l) |}.
+
+Lemma pt_map_event_state_Map_unfold : forall s,
+ Cons (pt_map_event_state (hd s)) (Map pt_map_event_state (tl s)) = Map pt_map_event_state s.
+Proof.
+by move => s; rewrite -Map_Cons /= -{3}(recons s).
+Qed.
+
+Lemma lb_step_execution_lb_step_f_pt_map_infseq : forall s,
+  lb_step_execution lb_step_f s ->
+  lb_step_execution lb_step_f (Map pt_map_event_state s).
+Proof.
+cofix c.
+move => s H_exec.
+rewrite -pt_map_event_state_Map_unfold {1}/pt_map_event_state /=.
+inversion H_exec; subst => /=.
+rewrite -pt_map_event_state_Map_unfold /= /pt_map_event_state /=.
+case (label_eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
+  apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ []) => /=.
+    rewrite H_eq.
+    move: H_eq H.
+    rewrite /=.
+    destruct e, e'.
+    destruct evt_r_a, evt_r_a0.
+    simpl in *.  
+    exact: lb_step_f_pt_mapped_simulation_1_silent.  
+  pose s' := Cons e' s0.
+  rewrite (pt_map_event_state_Map_unfold s').
+  exact: c.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (pt_map_trace tr)) => /=.
+  move: H_eq H.
+  destruct e, e'.
+  destruct evt_r_a, evt_r_a0.
+  simpl in *.
+  exact: lb_step_f_pt_mapped_simulation_1_non_silent.  
+pose s' := Cons e' s0.
+rewrite (pt_map_event_state_Map_unfold s').
+exact: c.
+Qed.
+
+Lemma tot_map_label_event_state_inf_often_occurred :
+  forall l s,
+    inf_often (now (occurred l)) s ->
+    inf_often (now (occurred (tot_map_label l))) (Map pt_map_event_state s).
+Proof.
+move => l.
+apply: always_Map.
+apply: eventually_Map.
+case => e s.
+rewrite /= /occurred /evt_l /=.
+move => H_eq.
+by rewrite H_eq.
+Qed.
+
+Hypothesis tot_map_label_injective : 
+  forall l l', tot_map_label l = tot_map_label l' -> l = l'.
+
+Lemma tot_map_label_event_state_inf_often_occurred_conv :
+  forall l s,
+    inf_often (now (occurred (tot_map_label l))) (Map pt_map_event_state s) ->
+    inf_often (now (occurred l)) s.
+Proof.
+move => l.
+apply: always_Map_conv.
+apply: eventually_Map_conv => //.
+- rewrite /extensional /=.
+  case => e s1.
+  case => e' s2.
+  move => H_eq.
+  by inversion H_eq; subst_max.
+- rewrite /extensional /=.
+  case => e s1.
+  case => e' s2.
+  move => H_eq.
+  by inversion H_eq; subst_max.
+- case => e s.
+  rewrite /= /occurred /=.
+  move => H_eq.
+  exact: tot_map_label_injective.
+Qed.
 
 (*
-Definition select lb 
- (tr : list (@name _ (@unlabeled_multi_params _ labeled_multi_fst) * (@input base_fst + list (@output base_fst)))) 
- (s : infseq (event (list (@name _ (@unlabeled_multi_params _ labeled_multi_fst)) * 
-                     (@network _ (@unlabeled_multi_params _ labeled_multi_fst))) (@label _ labeled_multi_fst) _)) :=
-if label_eq_dec (tot_map_label lb) label_silent then tr else tr_of_event (hd s).
+Context {fail_fst : FailureParams (@unlabeled_multi_params _ labeled_multi_fst)}.
+Context {fail_snd : FailureParams (@unlabeled_multi_params _ labeled_multi_snd)}.
+Context {fail_map_congr : FailureParamsPartialMapCongruency fail_fst fail_snd base_map}.
 
-CoFixpoint pt_map_infseq s tr :=
-match s with
-| Cons e s' => Cons (pt_map_event ((a_of_event e), (l_of_event e), tr)) (pt_map_infseq s' (select (l_of_event e) tr s'))
-end.
-
-Lemma pt_map_infseq_unfold : forall s tr,
-    Cons (pt_map_event (a_of_event (hd s), l_of_event (hd s), tr)) (pt_map_infseq (tl s) (select (l_of_event (hd s)) tr (tl s))) = 
-    pt_map_infseq s tr.
+Lemma pt_map_hd_step_f_star_ex_always : 
+  forall s, event_step_star_ex step_f step_f_init (hd s) ->
+       lb_step_execution lb_step_f s ->
+       always (now (event_step_star_ex step_f step_f_init)) (Map pt_map_event_state s).
 Proof.
-Admitted.
-
-Lemma lb_step_execution_lb_step_f_pt_map_infeq : forall s,
-  lb_step_execution lb_step_f s  ->
-  lb_step_execution lb_step_f (pt_map_infseq s (tr_of_event (hd s))).
-Proof.
-Admitted.
+case => e s H_star H_exec.
+apply: step_f_star_ex_lb_step_execution.
+  rewrite /= /tot_map_event_state /= /event_step_star_ex /=.
+  rewrite /= /tot_map_event_state /= /event_step_star_ex /= in H_star.
+  break_exists.
+  exists ((@pt_map_trace _ _ _ _ _ name_map) x).
+  apply: step_f_pt_mapped_simulation_star_1 => //.
+  by rewrite -prod_fst_snd_eq.  
+exact: lb_step_execution_lb_step_f_tot_map_infseq.
+Qed.
 *)
 
 End PartialMapLivenessSimulations.
