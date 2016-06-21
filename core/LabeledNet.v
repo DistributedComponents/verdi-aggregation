@@ -340,7 +340,7 @@ Section LabeledStepOrder.
     - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 
-  Lemma step_o_f_star_lb_step_state_execution :
+  Lemma step_o_f_star_ex_lb_step_state_execution :
     forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
          lb_step_state_execution lb_step_o_f s ->
          always (now (event_step_star_ex step_o_f step_o_f_init)) s.
@@ -414,7 +414,7 @@ Section LabeledStepOrderDynamic.
     - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 
-  Lemma step_o_d_f_star_lb_step_state_execution :
+  Lemma step_o_d_f_star_ex_lb_step_state_execution :
     forall s, event_step_star_ex step_o_d_f step_o_d_f_init (hd s) ->
          lb_step_state_execution lb_step_o_d_f s ->
          always (now (event_step_star_ex step_o_d_f step_o_d_f_init)) s.

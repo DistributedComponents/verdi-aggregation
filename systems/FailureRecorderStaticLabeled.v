@@ -1110,7 +1110,7 @@ case (name_eq_dec dst dst') => H_eq.
     have H_tls: hd (tl s') = {| evt_r_a := (failed', net') ; evt_r_l := lb |} by [].
     rewrite -H_tls.
     rewrite -H_hds in H_star.
-    have H_al := @step_o_f_star_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
+    have H_al := @step_o_f_star_ex_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
     find_apply_lem_hyp always_Cons.
     break_and.
     find_apply_lem_hyp always_Cons.
@@ -1133,7 +1133,7 @@ apply: c => //=.
   have H_tls: hd (tl s') = {| evt_r_a := (failed', net') ; evt_r_l := lb |} by [].
   rewrite -H_tls.
   rewrite -H_hds in H_star.
-  have H_al := @step_o_f_star_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
+  have H_al := @step_o_f_star_ex_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
   find_apply_lem_hyp always_Cons.
   break_and.
   find_apply_lem_hyp always_Cons.
