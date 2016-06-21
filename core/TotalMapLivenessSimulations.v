@@ -137,8 +137,8 @@ by destruct ab.
 Qed.
   
 Lemma lb_step_execution_lb_step_f_tot_map_infseq : forall s,
-  lb_step_execution lb_step_f s ->
-  lb_step_execution lb_step_f (Map tot_map_event_state s).
+  lb_step_state_execution lb_step_f s ->
+  lb_step_state_execution lb_step_f (Map tot_map_event_state s).
 Proof.
 cofix c.
 move => s H_exec.
@@ -208,8 +208,8 @@ by move => s; rewrite -Map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_trace_execution_lb_step_f_tot_map_infseq : forall s,
-  lb_step_trace_execution lb_step_f s ->
-  lb_step_trace_execution lb_step_f (Map tot_map_event_state_trace s).
+  lb_step_state_trace_execution lb_step_f s ->
+  lb_step_state_trace_execution lb_step_f (Map tot_map_event_state_trace s).
 Proof.
 cofix c.
 move => s H_exec.
@@ -219,8 +219,7 @@ rewrite -tot_map_event_state_trace_Map_unfold /= /tot_map_event_state_trace /=.
 apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
-- unfold evt_tr_trace in *.
-  simpl in *.
+- simpl in *.
   find_rewrite.
   by rewrite map_app.
 - set e0 := {| evt_tr_r_a := _ ; evt_tr_r_l := _ ; evt_tr_r_trace := _ |}.
@@ -274,11 +273,11 @@ Context {fail_map_congr : FailureParamsTotalMapCongruency fail_fst fail_snd base
 
 Lemma tot_map_hd_step_f_star_ex_always : 
   forall s, event_step_star_ex step_f step_f_init (hd s) ->
-       lb_step_execution lb_step_f s ->
+       lb_step_state_execution lb_step_f s ->
        always (now (event_step_star_ex step_f step_f_init)) (Map tot_map_event_state s).
 Proof.
 case => e s H_star H_exec.
-apply: step_f_star_ex_lb_step_execution.
+apply: step_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
@@ -290,11 +289,11 @@ Qed.
 
 Lemma tot_map_hd_step_f_star_always : 
   forall s, event_step_star step_f step_f_init (hd s) ->
-       lb_step_trace_execution lb_step_f s ->
+       lb_step_state_trace_execution lb_step_f s ->
        always (now (event_step_star step_f step_f_init)) (Map tot_map_event_state_trace s).
 Proof.
 case => e s H_star H_exec.
-apply: step_f_star_lb_step_trace_execution.
+apply: step_f_star_lb_step_state_trace_execution.
   rewrite /=.
   rewrite /tot_map_event_state_trace /= /event_step_star /=.
   apply: step_f_tot_mapped_simulation_star_1.

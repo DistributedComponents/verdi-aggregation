@@ -1072,7 +1072,7 @@ Qed.
 
 Lemma Failure_RecvFail_enabled_until_occurred :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
+       lb_step_state_execution lb_step_o_f s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
                   until (now (l_enabled lb_step_o_f (RecvFail src dst))) 
                         (now (occurred (RecvFail src dst))) s.
@@ -1110,7 +1110,7 @@ case (name_eq_dec dst dst') => H_eq.
     have H_tls: hd (tl s') = {| evt_r_a := (failed', net') ; evt_r_l := lb |} by [].
     rewrite -H_tls.
     rewrite -H_hds in H_star.
-    have H_al := @step_o_f_star_lb_step_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
+    have H_al := @step_o_f_star_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
     find_apply_lem_hyp always_Cons.
     break_and.
     find_apply_lem_hyp always_Cons.
@@ -1133,7 +1133,7 @@ apply: c => //=.
   have H_tls: hd (tl s') = {| evt_r_a := (failed', net') ; evt_r_l := lb |} by [].
   rewrite -H_tls.
   rewrite -H_hds in H_star.
-  have H_al := @step_o_f_star_lb_step_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
+  have H_al := @step_o_f_star_lb_step_state_execution _ FailureRecorder_LabeledMultiParams _ _ _ H_star H_exec.
   find_apply_lem_hyp always_Cons.
   break_and.
   find_apply_lem_hyp always_Cons.
@@ -1165,7 +1165,7 @@ Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
+       lb_step_state_execution lb_step_o_f s ->
        strong_local_fairness lb_step_o_f s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
                   eventually (now (occurred (RecvFail src dst))) s.

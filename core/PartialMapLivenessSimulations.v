@@ -231,8 +231,8 @@ by move => s; rewrite -Map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_execution_lb_step_f_pt_map_infseq : forall s,
-  lb_step_execution lb_step_f s ->
-  lb_step_execution lb_step_f (Map pt_map_event_state s).
+  lb_step_state_execution lb_step_f s ->
+  lb_step_state_execution lb_step_f (Map pt_map_event_state s).
 Proof.
 cofix c.
 move => s H_exec.
