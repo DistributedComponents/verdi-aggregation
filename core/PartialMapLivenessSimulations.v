@@ -545,7 +545,7 @@ Proof.
 by move => s; rewrite -Map_Cons /= -{3}(recons s).
 Qed.
 
-Lemma lb_step_execution_lb_step_f_pt_map_infseq : forall s,
+Lemma lb_step_state_execution_lb_step_f_pt_map_infseq : forall s,
   lb_step_state_execution lb_step_f s ->
   lb_step_state_execution lb_step_f (Map pt_map_net_event_state s).
 Proof.
@@ -618,27 +618,28 @@ apply: eventually_Map_conv => //.
   exact: tot_map_label_injective.
 Qed.
 
-(*
 Context {fail_fst : FailureParams (@unlabeled_multi_params _ labeled_multi_fst)}.
 Context {fail_snd : FailureParams (@unlabeled_multi_params _ labeled_multi_snd)}.
 Context {fail_map_congr : FailureParamsPartialMapCongruency fail_fst fail_snd base_map}.
 
 Lemma pt_map_hd_step_f_star_ex_always : 
   forall s, event_step_star_ex step_f step_f_init (hd s) ->
-       lb_step_execution lb_step_f s ->
-       always (now (event_step_star_ex step_f step_f_init)) (Map pt_map_event_state s).
+       lb_step_state_execution lb_step_f s ->
+       always (now (event_step_star_ex step_f step_f_init)) (Map pt_map_net_event_state s).
 Proof.
 case => e s H_star H_exec.
-apply: step_f_star_ex_lb_step_execution.
-  rewrite /= /tot_map_event_state /= /event_step_star_ex /=.
-  rewrite /= /tot_map_event_state /= /event_step_star_ex /= in H_star.
+apply: step_f_star_ex_lb_step_state_execution.
+  rewrite /= /tot_map_net_event_state /= /event_step_star_ex /=.
+  rewrite /= /tot_map_net_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists ((@pt_map_trace _ _ _ _ _ name_map) x).
-  apply: step_f_pt_mapped_simulation_star_1 => //.
-  by rewrite -prod_fst_snd_eq.  
-exact: lb_step_execution_lb_step_f_tot_map_infseq.
+  destruct e, evt_r_a.
+  simpl in *.
+  have H_ex := @step_f_pt_mapped_simulation_star_1  _ _ _ _ _ _ _ name_map_bijective multi_map_congr _ _ fail_map_congr _ _ _ H.
+  break_exists.
+  break_and.
+  by exists x0.
+exact: lb_step_state_execution_lb_step_f_pt_map_infseq.
 Qed.
-*)
 
 Definition pt_map_onet_event_state e :=
 {| evt_r_a := (map tot_map_name (fst e.(evt_r_a)), pt_map_onet (snd e.(evt_r_a))) ;

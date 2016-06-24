@@ -444,6 +444,180 @@ rewrite pt_map_trace_app_distr pt_trace_remove_empty_out_app_distr.
 by rewrite H_eq' -app_nil_end.
 Qed.
 
+Context {fail_fst : FailureParams multi_fst}.
+Context {fail_snd : FailureParams multi_snd}.
+Context {fail_map_congr : FailureParamsPartialMapCongruency fail_fst fail_snd base_map}.
+
+Theorem step_f_pt_mapped_simulation_1 :
+  forall net net' failed failed' tr,
+    @step_f _ _ fail_fst (failed, net) (failed', net') tr ->
+    @step_f _ _ fail_snd (map tot_map_name failed, pt_map_net net) (map tot_map_name failed', pt_map_net net') (pt_map_trace tr) \/ 
+    (pt_map_net net' = pt_map_net net /\ failed = failed' /\ pt_trace_remove_empty_out (pt_map_trace tr) = []).
+Proof.
+move => net net' failed failed' tr H_step.
+invcs H_step.
+- rewrite /pt_map_trace /=.
+  case H_m: (pt_map_packet p) => [p'|].
+    destruct p, p'.
+    simpl in *.
+    move: H_m.
+    case H_m: pt_map_msg => [m|] //.
+    move => H_eq.
+    find_inversion.
+    left.
+    rewrite /pt_map_net /= H3 pt_map_packets_app_distr /= H_m /= 2!pt_map_packets_app_distr {H3}.
+    set p' := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
+    have ->: tot_map_name pDst = Net.pDst p' by [].    
+    apply (@SF_deliver _ _ _ _ _ _ _ (pt_map_packets xs) (pt_map_packets ys) (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)) => //=.
+    * exact: not_in_failed_not_in.
+    * rewrite /= -(pt_net_handlers_some _ _ _ _ H_m)  /pt_mapped_net_handlers /= tot_map_name_inv_inverse.
+      repeat break_let.
+      by find_inversion.
+    * pose p := {| pSrc := pSrc ; pDst := pDst ; pBody := pBody |}.
+      have H_p: pt_map_packet p = Some p'.
+        rewrite /pt_map_packet.
+        break_match.
+        rewrite /p in Heqp0.
+        find_inversion.
+        by rewrite H_m.      
+      by rewrite (pt_map_packet_map_eq_some _ _ H_p) (pt_map_update_eq_some _ _ _ H_p).
+  right.
+  rewrite /pt_map_net /=.
+  destruct p.
+  simpl in *.
+  move: H_m.
+  case H_m: pt_map_msg => [m|] //.
+  move => H_eq.
+  have H_m' := @pt_net_handlers_none _ _ _ _ _ name_map msg_map multi_map_congr _ _ _ _ _ _ _ H_m H6.
+  break_and.
+  rewrite H3 3!pt_map_packets_app_distr H1.    
+  rewrite (pt_map_name_msgs_empty_eq _ pDst H0) /= H_m.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2.
+    rewrite /nwS1 /nwS2 /=.
+    apply functional_extensionality => n.
+    rewrite /update /=.
+    case (name_eq_dec _ _) => H_dec //.
+    by rewrite H_dec.
+  by rewrite H_eq_s.
+- rewrite /= /pt_map_net /=.
+  case H_i: pt_map_input => [inp'|].
+    left.
+    apply (@SF_input _ _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    * exact: not_in_failed_not_in.
+    * rewrite /= -(pt_input_handlers_some _ _ _ H_i)  /pt_mapped_input_handlers /= tot_map_name_inv_inverse.
+      repeat break_let.
+      by tuple_inversion.
+    * rewrite /= -pt_map_packet_map_eq -pt_map_packets_app_distr.
+      by rewrite pt_map_update_eq.
+  right.
+  rewrite /=.
+  have [H_d [H_l H_o]] := pt_input_handlers_none _ _ _ H_i H5.
+  rewrite H_o.
+  split => //.
+  rewrite pt_map_packets_app_distr.
+  rewrite (pt_map_name_msgs_empty_eq _ h H_l) /=.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  have H_eq_s: nwS1 = nwS2.
+    rewrite /nwS1 /nwS2 /=.
+    apply functional_extensionality => n.
+    rewrite /update /=.
+    case (name_eq_dec _ _) => H_dec //.
+    by rewrite H_dec H_d.
+  by rewrite H_eq_s.
+- case H_m: (pt_map_packet p) => [p'|].
+    left.
+    destruct p, p'.
+    simpl in *.
+    move: H_m.
+    case H_m: pt_map_msg => [m|] //.
+    move => H_eq.
+    find_inversion.
+    rewrite /pt_map_net /=.
+    find_rewrite.
+    rewrite pt_map_packets_app_distr /= H_m pt_map_packets_app_distr.
+    move: H4.
+    set p := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
+    move => H_eq.
+    set p' := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
+    exact: (@SF_drop _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
+  right.
+  split => //.
+  rewrite /pt_map_net /=.
+  find_rewrite.
+  by rewrite 2!pt_map_packets_app_distr /= H_m.
+- rewrite /pt_map_net /=.
+  find_rewrite.
+  case H_p: pt_map_packet => [p'|]; last by right.
+  left.
+  rewrite pt_map_packets_app_distr /= H_p.
+  exact: (@SF_dup _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
+- left.
+  exact: SF_fail.
+- rewrite remove_tot_map_eq /=.
+  left.
+  rewrite {2}/pt_map_net /=.
+  apply: (SF_reboot (tot_map_name h)) => //; first exact: in_failed_in.
+  set nwS1 := fun _ => _.
+  set nwS2 := fun _ => _.
+  suff H_suff: nwS1 = nwS2 by rewrite H_suff.
+  rewrite /nwS1 /nwS2.
+  apply functional_extensionality => n.
+  break_if; break_if => //.
+  * by rewrite /pt_map_net /= pt_reboot_eq.
+  * by rewrite -e tot_map_name_inverse_inv in n0.
+  * by rewrite e tot_map_name_inv_inverse in n0.
+Qed.
+
+Corollary step_f_pt_mapped_simulation_star_1 :
+  forall net failed tr,
+    @step_f_star _ _ fail_fst step_f_init (failed, net) tr ->
+    exists tr', @step_f_star _ _ fail_snd step_f_init (map tot_map_name failed, pt_map_net net) tr' /\ 
+     pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
+Proof.
+move => net failed tr H_step.
+remember step_f_init as y in *.
+have H_eq_f: failed = fst (failed, net) by [].
+have H_eq_n: net = snd (failed, net) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {2}H_eq_n {H_eq_n}.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
+  rewrite H_init.
+  rewrite /step_f_init /= /pt_map_net /=.
+  rewrite -pt_init_handlers_fun_eq.
+  exists [].
+  split => //.
+  exact: RT1nTBase.
+concludes.
+rewrite H_init {H_init x} in H_step2 H_step1.
+case: x' H IHH_step1 H_step1 => failed' net'.
+case: x'' H_step2 => failed'' net''.
+rewrite /=.
+move => H_step2 H IHH_step1 H_step1.
+apply step_f_pt_mapped_simulation_1 in H.
+case: H => H.
+  move: IHH_step1 => [tr' [H_star H_eq_tr]].
+  exists (tr' ++ pt_map_trace tr2).
+  split.
+  * have H_trans := refl_trans_1n_trace_trans H_star.
+    apply: H_trans.
+    rewrite (app_nil_end (pt_map_trace _)).
+    apply: (@RT1nTStep _ _ _ _ (map tot_map_name failed'', pt_map_net net'')) => //.
+    exact: RT1nTBase.
+  * rewrite pt_map_trace_app_distr pt_trace_remove_empty_out_app_distr H_eq_tr.
+    by rewrite pt_trace_remove_empty_out_app_distr.
+move: H => [H_eq_n [H_eq_f H_eq]].
+rewrite H_eq_n -H_eq_f.
+move: IHH_step1 => [tr' [H_star H_tr]].
+exists tr'.
+split => //.
+rewrite pt_map_trace_app_distr pt_trace_remove_empty_out_app_distr.
+by rewrite H_eq -app_nil_end.
+Qed.
+
 Definition pt_map_msgs :=
 fold_right (fun m l =>
             match pt_map_msg m with
