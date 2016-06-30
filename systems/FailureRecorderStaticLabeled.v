@@ -1136,7 +1136,7 @@ case (classic (P s)) => //.
 rewrite /P {P} => H_ev.
 suff H_suff: @inf_occurred _ _ _ event_state_event_state_r (RecvFail src dst) s by inversion H_suff. 
 apply: H_fair.
-apply: always_always_eventually.
+apply: always_inf_often.
 move: H_ev.
 apply: until_not_eventually_always.
 exact: Failure_RecvFail_enabled_until_occurred.
@@ -1354,5 +1354,38 @@ elim: H_ev.
   apply: IH; first by apply lb_step_state_execution_invar in H_exec.
   by apply strong_local_fairness_invar in H_fair.
 Qed.
+
+Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
+  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
+       lb_step_state_execution lb_step_o_f s ->
+       strong_local_fairness lb_step_o_f s ->
+       forall src dst,
+       ~ In dst (fst (hd s).(evt_a)) ->
+       continuously (now (fun e => event_step_star_ex step_o_f step_o_f_init e /\ ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
+Proof.
+move => s H_star H_exec H_fair src dst H_in_f.
+have H_al := step_o_f_star_ex_lb_step_state_execution H_star H_exec.
+apply always_continuously in H_al.
+have H_cny := Failure_lb_step_o_f_continuously_no_fail H_exec H_fair src _ H_in_f.
+have H_both := continuously_both _ _ _ _ H_al H_cny.
+move: H_both.
+apply continuously_monotonic.
+case => /= e s0 H_and.
+by find_apply_lem_hyp now_and_tl_and.
+Qed.
+
+Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
+  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
+       lb_step_state_execution lb_step_o_f s ->
+       strong_local_fairness lb_step_o_f s ->
+       forall n n',
+       ~ In n (fst (hd s).(evt_a)) ->
+       continuously (now (fun e => NSet.In n' ((snd e.(evt_a)).(onwState) n).(adjacent) -> ~ In n' (fst e.(evt_a)) /\ adjacent_to n' n)) s.
+Proof.
+move => s H_star H_exec H_fair n n' H_in_f.
+have H_cny := Failure_lb_step_o_f_no_fails_step_star_ex H_star H_exec H_fair n' _ H_in_f.
+move: H_cny.
+apply continuously_monotonic.
+Admitted.
 
 End FailureRecorder.

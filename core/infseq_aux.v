@@ -209,4 +209,21 @@ case: H_ev.
 by constructor 2.
 Qed.
 
+Lemma always_continuously :
+  forall (P : infseq T -> Prop) (s : infseq T),
+  always P s -> continuously P s.
+Proof.
+move => P s H_al.
+exact: E0.
+Qed.
+
+Lemma now_and_tl_and :
+  forall (P Q : T -> Prop) (s : infseq T),
+    ((now P) /\_ (now Q)) s ->
+    (now (fun x => P x /\ Q x)) s.
+Proof.
+move => P Q.
+by case => x s.
+Qed.
+
 End Aux.

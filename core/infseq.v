@@ -315,8 +315,8 @@ Qed.
 
 (* *)
 
-Lemma always_always_eventually :
-   forall (P: infseq T -> Prop) (s : infseq T), always P s -> always (eventually P) s.
+Lemma always_inf_often :
+   forall (P: infseq T -> Prop) (s : infseq T), always P s -> inf_often P s.
 Proof.
 intros P. cofix f. intros s a. destruct a. constructor. 
    constructor 1. assumption.
@@ -405,7 +405,6 @@ induction ev as [s Ps | x s ev induc_hyp].
   intros _ J_until_Q. cut (s = tl (Cons x s)); [idtac | reflexivity].
   case J_until_Q; clear J_until_Q x. 
     constructor 1; assumption.
-
     intros (x, s1) _ J_until_Q e; simpl in *.
     constructor 2. generalize e J_until_Q; clear e x. (* trick: keep J_until_Q!! *)
     case J_until_Q; clear J_until_Q s1.
