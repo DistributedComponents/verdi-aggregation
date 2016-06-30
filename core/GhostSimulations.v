@@ -205,12 +205,11 @@ Theorem ghost_simulation_2 :
       deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-have H_sim := @step_f_tot_mapped_simulation_2 _ _ _ _ _ _ _ refined_multi_params_name_tot_map_bijective refined_multi_params_map_congruency _ _ refined_failure_params_map_congruency.
-apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
+eapply step_f_tot_mapped_simulation_2 in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
-  split => //.
-  rewrite -H_eq_net {H_step H_eq_net}.
+  split; eauto.
+  rewrite -H_eq_net {H_eq_net H_step}.
   rewrite /deghost /tot_map_net /= /id /= /tot_map_packet /= /id /=.
   set nwPf1 := fun p : packet => _.
   set nwPf2 := fun p : packet => _.
@@ -533,11 +532,10 @@ Theorem mgv_ghost_simulation_2 :
       mgv_deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-have H_sim := @step_f_tot_mapped_simulation_2 _ _ _ _ _ _ _ mgv_refined_multi_params_name_tot_map_bijective mgv_refined_multi_params_map_congruency _ _ mgv_refined_failure_params_map_congruency.
-apply (H_sim _ _ _ _ _ gnet failed failed' out) in H_step.
+eapply step_f_tot_mapped_simulation_2 in H_step.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
-  split => //.
+  split; eauto.
   rewrite -H_eq_net {H_step H_eq_net}.
   rewrite /mgv_deghost /tot_map_net /= /id /= /tot_map_packet /= /id /=.
   set nwPf1 := fun p : packet => _.
