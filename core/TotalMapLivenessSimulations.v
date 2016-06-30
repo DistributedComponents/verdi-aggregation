@@ -11,7 +11,7 @@ Require Import LabeledNet.
 Require Import StructTact.Util.
 
 Require Import TotalMapSimulations.
-Require Import infseq.
+Require Import InfSeqExt.infseq.
 Require Import FunctionalExtensionality.
 
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.

@@ -3,8 +3,8 @@ Require Import HandlerMonad.
 Require Import NameOverlay.
 
 Require Import LabeledNet.
-Require Import infseq.
-Require Import infseq_aux.
+Require Import InfSeqExt.infseq.
+Require Import InfSeqExt.infseq_aux.
 Require Import Classical.
 
 Require Import Sumbool.

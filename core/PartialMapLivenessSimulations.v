@@ -15,7 +15,7 @@ Require Import FunctionalExtensionality.
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
 Require Import TotalMapLivenessSimulations.
-Require Import infseq.
+Require Import InfSeqExt.infseq.
 
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 

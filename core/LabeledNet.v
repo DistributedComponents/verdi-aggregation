@@ -1,5 +1,5 @@
 Require Import Verdi.
-Require Import infseq.
+Require Import InfSeqExt.infseq.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
