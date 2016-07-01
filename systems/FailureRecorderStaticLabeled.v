@@ -1203,6 +1203,24 @@ move => net net' failed failed' lb tr h H_in_f H_step.
 by invcs H_step.
 Qed.
 
+Lemma Failure_not_in_failed_always : 
+  forall s, lb_step_state_execution lb_step_o_f s ->
+       forall h, ~ In h (fst (hd s).(evt_a)) ->
+       always (now (fun e => ~ In h (fst e.(evt_a)))) s.
+Proof.
+cofix c.
+move => s H_exec.
+inversion H_exec => /=.
+move => h H_in_f.
+apply: Always; first by [].
+rewrite /=.
+apply: c; first by [].
+rewrite /=.
+destruct e, e', evt_r_a, evt_r_a0.
+simpl in *.
+by eapply lb_step_o_f_not_in_failed; eauto.
+Qed.
+
 Lemma Failure_lb_step_o_f_fails_occ_monotonic : 
   forall s, lb_step_state_execution lb_step_o_f s ->
        forall src dst k, 
@@ -1361,17 +1379,24 @@ Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
        strong_local_fairness lb_step_o_f s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
-       continuously (now (fun e => event_step_star_ex step_o_f step_o_f_init e /\ ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
+       continuously (now (fun e => 
+         event_step_star_ex step_o_f step_o_f_init e /\ 
+         ~ In dst (fst e.(evt_a)) /\ 
+         ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_star H_exec H_fair src dst H_in_f.
 have H_al := step_o_f_star_ex_lb_step_state_execution H_star H_exec.
+have H_al' := Failure_not_in_failed_always H_exec _ H_in_f.
 apply always_continuously in H_al.
+apply always_continuously in H_al'.
 have H_cny := Failure_lb_step_o_f_continuously_no_fail H_exec H_fair src _ H_in_f.
-have H_both := continuously_both _ _ _ _ H_al H_cny.
-move: H_both.
+have H_both := continuously_both _ _ _ _ H_al H_al'.
+have H_both' := continuously_both _ _ _ _ H_both H_cny.
+move: H_both'.
 apply continuously_monotonic.
 case => /= e s0 H_and.
-by find_apply_lem_hyp now_and_tl_and.
+unfold now, and_tl in H_and.
+by break_and.
 Qed.
 
 Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
@@ -1380,12 +1405,24 @@ Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
        strong_local_fairness lb_step_o_f s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
-       continuously (now (fun e => NSet.In n' ((snd e.(evt_a)).(onwState) n).(adjacent) -> ~ In n' (fst e.(evt_a)) /\ adjacent_to n' n)) s.
+       continuously (now (fun e => 
+         NSet.In n' ((snd e.(evt_a)).(onwState) n).(adjacent) -> 
+         ~ In n' (fst e.(evt_a)) /\ adjacent_to n' n)) s.
 Proof.
 move => s H_star H_exec H_fair n n' H_in_f.
 have H_cny := Failure_lb_step_o_f_no_fails_step_star_ex H_star H_exec H_fair n' _ H_in_f.
 move: H_cny.
 apply continuously_monotonic.
-Admitted.
+case => /= e s0 H_and H_ins.
+break_and.
+destruct e, evt_r_a.
+unfold event_step_star_ex in *.
+simpl in *.
+break_exists.
+have H_adj := Failure_in_adj_or_incoming_fail H _ H0 H_ins.
+break_or_hyp; last by break_and.
+split => //.
+by eapply Failure_in_adj_adjacent_to; eauto.
+Qed.
 
 End FailureRecorder.
