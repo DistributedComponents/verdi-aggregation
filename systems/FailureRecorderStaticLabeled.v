@@ -3,8 +3,8 @@ Require Import HandlerMonad.
 Require Import NameOverlay.
 
 Require Import LabeledNet.
+
 Require Import InfSeqExt.infseq.
-Require Import InfSeqExt.infseq_aux.
 Require Import Classical.
 
 Require Import Sumbool.
@@ -1136,9 +1136,11 @@ case (classic (P s)) => //.
 rewrite /P {P} => H_ev.
 suff H_suff: @inf_occurred _ _ _ event_state_event_state_r (RecvFail src dst) s by inversion H_suff. 
 apply: H_fair.
-apply: always_inf_often.
+rewrite /inf_enabled.
+apply always_inf_often.
+apply not_eventually_always_not in H_ev.
 move: H_ev.
-apply: until_not_eventually_always.
+apply: until_always_not_always.
 exact: Failure_RecvFail_enabled_until_occurred.
 Qed.
 
@@ -1390,8 +1392,8 @@ have H_al' := Failure_not_in_failed_always H_exec _ H_in_f.
 apply always_continuously in H_al.
 apply always_continuously in H_al'.
 have H_cny := Failure_lb_step_o_f_continuously_no_fail H_exec H_fair src _ H_in_f.
-have H_both := continuously_both _ _ _ _ H_al H_al'.
-have H_both' := continuously_both _ _ _ _ H_both H_cny.
+have H_both := continuously_and_tl H_al H_al'.
+have H_both' := continuously_and_tl H_both H_cny.
 move: H_both'.
 apply continuously_monotonic.
 case => /= e s0 H_and.

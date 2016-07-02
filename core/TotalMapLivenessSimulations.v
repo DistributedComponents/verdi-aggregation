@@ -11,8 +11,11 @@ Require Import LabeledNet.
 Require Import StructTact.Util.
 
 Require Import TotalMapSimulations.
-Require Import InfSeqExt.infseq.
 Require Import FunctionalExtensionality.
+
+Require Import InfSeqExt.infseq.
+Require Import InfSeqExt.map.
+Require Import InfSeqExt.exteq.
 
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
 
@@ -85,12 +88,12 @@ Context {multi_map_lb_congr : LabeledMultiParamsTotalMapCongruency base_map name
 Theorem lb_step_f_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
     @lb_step_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_f _ labeled_multi_snd (map tot_map_name failed, tot_map_net net) (tot_map_label lb) (map tot_map_name failed', tot_map_net net') (map tot_map_trace_occ tr).
+    @lb_step_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_net net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_net net') (List.map tot_map_trace_occ tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
 - have ->: tot_map_name (pDst p) = pDst (tot_map_packet p) by destruct p.
-  apply: (@LSF_deliver _ _ _ _ _ _ (map tot_map_packet xs) (map tot_map_packet ys) (map tot_map_output out) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply: (@LSF_deliver _ _ _ _ _ _ (List.map tot_map_packet xs) (List.map tot_map_packet ys) (List.map tot_map_output out) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
   * rewrite /tot_map_net /=.
     find_rewrite.
     by rewrite map_app.
@@ -130,11 +133,11 @@ Qed.
 Theorem lb_step_o_f_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
     @lb_step_o_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_f _ labeled_multi_snd (map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace_occ tr).
+    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_onet net') (List.map tot_map_trace_occ tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
-- apply (@LSOF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)).
+- apply (@LSOF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)).
   * rewrite /tot_map_onet /=.
     rewrite 2!tot_map_name_inv_inverse.
     by find_rewrite.
@@ -189,12 +192,12 @@ Qed.
 Theorem lb_step_o_d_f_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
     @lb_step_o_d_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_d_f _ labeled_multi_snd (map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (map tot_map_name failed', tot_map_odnet net') (map tot_map_trace_occ tr).
+    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_odnet net') (List.map tot_map_trace_occ tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
 - rewrite /tot_map_odnet /=.
-  apply (@LSODF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)) => //=.
+  apply (@LSODF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -248,42 +251,42 @@ invcs H_step => //=.
 Qed.
 
 Definition tot_map_net_event_state e :=
-{| evt_r_a := (map tot_map_name (fst e.(evt_r_a)), tot_map_net (snd e.(evt_r_a))) ;
+{| evt_r_a := (List.map tot_map_name (fst e.(evt_r_a)), tot_map_net (snd e.(evt_r_a))) ;
    evt_r_l := tot_map_label e.(evt_r_l) |}.
 
-Lemma tot_map_net_event_state_Map_unfold : forall s,
- Cons (tot_map_net_event_state (hd s)) (Map tot_map_net_event_state (tl s)) = Map tot_map_net_event_state s.
+Lemma tot_map_net_event_state_map_unfold : forall s,
+ Cons (tot_map_net_event_state (hd s)) (map tot_map_net_event_state (tl s)) = map tot_map_net_event_state s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
   
 Lemma lb_step_state_execution_lb_step_f_tot_map_net_infseq : forall s,
   lb_step_state_execution lb_step_f s ->
-  lb_step_state_execution lb_step_f (Map tot_map_net_event_state s).
+  lb_step_state_execution lb_step_f (map tot_map_net_event_state s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_net_event_state_Map_unfold {1}/tot_map_net_event_state /=.
+rewrite -tot_map_net_event_state_map_unfold {1}/tot_map_net_event_state /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_net_event_state_Map_unfold /= /tot_map_net_event_state /=.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_net_event_state_map_unfold /= /tot_map_net_event_state /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - set e0 := {| evt_r_a := _ ; evt_r_l := _  |}.
   have ->: e0 = tot_map_net_event_state e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_net_event_state_Map_unfold s').
+  rewrite (tot_map_net_event_state_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_net_label_event_state_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_net_event_state s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_net_event_state s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /evt_l /=.
 move => H_eq.
@@ -295,12 +298,12 @@ Hypothesis tot_map_label_injective :
 
 Lemma tot_map_net_label_event_state_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_net_event_state s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_net_event_state s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -318,26 +321,26 @@ apply: eventually_Map_conv => //.
 Qed.
 
 Definition tot_map_net_event_state_trace e :=
-{| evt_tr_r_a := (map tot_map_name (fst e.(evt_tr_r_a)), tot_map_net (snd e.(evt_tr_r_a))) ;
+{| evt_tr_r_a := (List.map tot_map_name (fst e.(evt_tr_r_a)), tot_map_net (snd e.(evt_tr_r_a))) ;
    evt_tr_r_l := tot_map_label e.(evt_tr_r_l) ;
-   evt_tr_r_trace := map tot_map_trace_occ e.(evt_tr_r_trace) |}.
+   evt_tr_r_trace := List.map tot_map_trace_occ e.(evt_tr_r_trace) |}.
 
-Lemma tot_map_net_event_state_trace_Map_unfold : forall s,
- Cons (tot_map_net_event_state_trace (hd s)) (Map tot_map_net_event_state_trace (tl s)) = Map tot_map_net_event_state_trace s.
+Lemma tot_map_net_event_state_trace_map_unfold : forall s,
+ Cons (tot_map_net_event_state_trace (hd s)) (map tot_map_net_event_state_trace (tl s)) = map tot_map_net_event_state_trace s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_trace_execution_lb_step_f_tot_map_net_infseq : forall s,
   lb_step_state_trace_execution lb_step_f s ->
-  lb_step_state_trace_execution lb_step_f (Map tot_map_net_event_state_trace s).
+  lb_step_state_trace_execution lb_step_f (map tot_map_net_event_state_trace s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_net_event_state_trace_Map_unfold {1}/tot_map_net_event_state_trace /=.
+rewrite -tot_map_net_event_state_trace_map_unfold {1}/tot_map_net_event_state_trace /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_net_event_state_trace_Map_unfold /= /tot_map_net_event_state_trace /=.
-apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_net_event_state_trace_map_unfold /= /tot_map_net_event_state_trace /=.
+apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
@@ -346,18 +349,18 @@ apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => 
 - set e0 := {| evt_tr_r_a := _ ; evt_tr_r_l := _ ; evt_tr_r_trace := _ |}.
   have ->: e0 = tot_map_net_event_state_trace e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_net_event_state_trace_Map_unfold s').
+  rewrite (tot_map_net_event_state_trace_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_net_label_event_state_trace_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_net_event_state_trace s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_net_event_state_trace s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /=.
 move => H_eq.
@@ -366,12 +369,12 @@ Qed.
 
 Lemma tot_map_net_label_event_state_trace_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_net_event_state_trace s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_net_event_state_trace s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -395,14 +398,14 @@ Context {fail_map_congr : FailureParamsTotalMapCongruency fail_fst fail_snd base
 Lemma tot_map_net_hd_step_f_star_ex_always : 
   forall s, event_step_star_ex step_f step_f_init (hd s) ->
        lb_step_state_execution lb_step_f s ->
-       always (now (event_step_star_ex step_f step_f_init)) (Map tot_map_net_event_state s).
+       always (now (event_step_star_ex step_f step_f_init)) (map tot_map_net_event_state s).
 Proof.
 case => e s H_star H_exec.
 apply: step_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_net_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_net_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists (map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
+  exists (List.map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
   apply: step_f_tot_mapped_simulation_star_1 => //.
   by rewrite -prod_fst_snd_eq.  
 exact: lb_step_state_execution_lb_step_f_tot_map_net_infseq.
@@ -411,7 +414,7 @@ Qed.
 Lemma tot_map_net_hd_step_f_star_always : 
   forall s, event_step_star step_f step_f_init (hd s) ->
        lb_step_state_trace_execution lb_step_f s ->
-       always (now (event_step_star step_f step_f_init)) (Map tot_map_net_event_state_trace s).
+       always (now (event_step_star step_f step_f_init)) (map tot_map_net_event_state_trace s).
 Proof.
 case => e s H_star H_exec.
 apply: step_f_star_lb_step_state_trace_execution.
@@ -423,42 +426,42 @@ exact: lb_step_trace_execution_lb_step_f_tot_map_net_infseq.
 Qed.
 
 Definition tot_map_onet_event_state e :=
-{| evt_r_a := (map tot_map_name (fst e.(evt_r_a)), tot_map_onet (snd e.(evt_r_a))) ;
+{| evt_r_a := (List.map tot_map_name (fst e.(evt_r_a)), tot_map_onet (snd e.(evt_r_a))) ;
    evt_r_l := tot_map_label e.(evt_r_l) |}.
 
-Lemma tot_map_onet_event_state_Map_unfold : forall s,
- Cons (tot_map_onet_event_state (hd s)) (Map tot_map_onet_event_state (tl s)) = Map tot_map_onet_event_state s.
+Lemma tot_map_onet_event_state_map_unfold : forall s,
+ Cons (tot_map_onet_event_state (hd s)) (map tot_map_onet_event_state (tl s)) = map tot_map_onet_event_state s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_state_execution_lb_step_o_f_tot_map_onet_infseq : forall s,
   lb_step_state_execution lb_step_o_f s ->
-  lb_step_state_execution lb_step_o_f (Map tot_map_onet_event_state s).
+  lb_step_state_execution lb_step_o_f (map tot_map_onet_event_state s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_onet_event_state_Map_unfold {1}/tot_map_onet_event_state /=.
+rewrite -tot_map_onet_event_state_map_unfold {1}/tot_map_onet_event_state /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_onet_event_state_Map_unfold /= /tot_map_onet_event_state /=.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_onet_event_state_map_unfold /= /tot_map_onet_event_state /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_o_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - set e0 := {| evt_r_a := _ ; evt_r_l := _  |}.
   have ->: e0 = tot_map_onet_event_state e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_onet_event_state_Map_unfold s').
+  rewrite (tot_map_onet_event_state_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_onet_label_event_state_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_onet_event_state s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_onet_event_state s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /evt_l /=.
 move => H_eq.
@@ -467,12 +470,12 @@ Qed.
 
 Lemma tot_map_onet_label_event_state_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_onet_event_state s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_onet_event_state s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -490,26 +493,26 @@ apply: eventually_Map_conv => //.
 Qed.
 
 Definition tot_map_onet_event_state_trace e :=
-{| evt_tr_r_a := (map tot_map_name (fst e.(evt_tr_r_a)), tot_map_onet (snd e.(evt_tr_r_a))) ;
+{| evt_tr_r_a := (List.map tot_map_name (fst e.(evt_tr_r_a)), tot_map_onet (snd e.(evt_tr_r_a))) ;
    evt_tr_r_l := tot_map_label e.(evt_tr_r_l) ;
-   evt_tr_r_trace := map tot_map_trace_occ e.(evt_tr_r_trace) |}.
+   evt_tr_r_trace := List.map tot_map_trace_occ e.(evt_tr_r_trace) |}.
 
-Lemma tot_map_onet_event_state_trace_Map_unfold : forall s,
- Cons (tot_map_onet_event_state_trace (hd s)) (Map tot_map_onet_event_state_trace (tl s)) = Map tot_map_onet_event_state_trace s.
+Lemma tot_map_onet_event_state_trace_map_unfold : forall s,
+ Cons (tot_map_onet_event_state_trace (hd s)) (map tot_map_onet_event_state_trace (tl s)) = map tot_map_onet_event_state_trace s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_state_trace_execution_lb_step_o_f_tot_map_onet_infseq : forall s,
   lb_step_state_trace_execution lb_step_o_f s ->
-  lb_step_state_trace_execution lb_step_o_f (Map tot_map_onet_event_state_trace s).
+  lb_step_state_trace_execution lb_step_o_f (map tot_map_onet_event_state_trace s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_onet_event_state_trace_Map_unfold {1}/tot_map_onet_event_state_trace /=.
+rewrite -tot_map_onet_event_state_trace_map_unfold {1}/tot_map_onet_event_state_trace /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_onet_event_state_trace_Map_unfold /= /tot_map_onet_event_state_trace /=.
-apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_onet_event_state_trace_map_unfold /= /tot_map_onet_event_state_trace /=.
+apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_o_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
@@ -518,18 +521,18 @@ apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => 
 - set e0 := {| evt_tr_r_a := _ ; evt_tr_r_l := _ ; evt_tr_r_trace := _ |}.
   have ->: e0 = tot_map_onet_event_state_trace e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_onet_event_state_trace_Map_unfold s').
+  rewrite (tot_map_onet_event_state_trace_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_onet_label_event_state_trace_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_onet_event_state_trace s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_onet_event_state_trace s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /=.
 move => H_eq.
@@ -538,12 +541,12 @@ Qed.
 
 Lemma tot_map_onet_label_event_state_trace_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_onet_event_state_trace s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_onet_event_state_trace s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -571,14 +574,14 @@ Context {fail_msg_map_congr : FailMsgParamsTotalMapCongruency fail_msg_fst fail_
 Lemma tot_map_onet_hd_step_o_f_star_ex_always : 
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
        lb_step_state_execution lb_step_o_f s ->
-       always (now (event_step_star_ex step_o_f step_o_f_init)) (Map tot_map_onet_event_state s).
+       always (now (event_step_star_ex step_o_f step_o_f_init)) (map tot_map_onet_event_state s).
 Proof.
 case => e s H_star H_exec.
 apply: step_o_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_onet_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_onet_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists (map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
+  exists (List.map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
   apply: step_o_f_tot_mapped_simulation_star_1 => //.
   by rewrite -prod_fst_snd_eq.  
 exact: lb_step_state_execution_lb_step_o_f_tot_map_onet_infseq.
@@ -587,7 +590,7 @@ Qed.
 Lemma tot_map_onet_hd_step_o_f_star_always : 
   forall s, event_step_star step_o_f step_o_f_init (hd s) ->
        lb_step_state_trace_execution lb_step_o_f s ->
-       always (now (event_step_star step_o_f step_o_f_init)) (Map tot_map_onet_event_state_trace s).
+       always (now (event_step_star step_o_f step_o_f_init)) (map tot_map_onet_event_state_trace s).
 Proof.
 case => e s H_star H_exec.
 apply: step_o_f_star_lb_step_state_trace_execution.
@@ -599,42 +602,42 @@ exact: lb_step_state_trace_execution_lb_step_o_f_tot_map_onet_infseq.
 Qed.
 
 Definition tot_map_odnet_event_state e :=
-{| evt_r_a := (map tot_map_name (fst e.(evt_r_a)), tot_map_odnet (snd e.(evt_r_a))) ;
+{| evt_r_a := (List.map tot_map_name (fst e.(evt_r_a)), tot_map_odnet (snd e.(evt_r_a))) ;
    evt_r_l := tot_map_label e.(evt_r_l) |}.
 
-Lemma tot_map_odnet_event_state_Map_unfold : forall s,
- Cons (tot_map_odnet_event_state (hd s)) (Map tot_map_odnet_event_state (tl s)) = Map tot_map_odnet_event_state s.
+Lemma tot_map_odnet_event_state_map_unfold : forall s,
+ Cons (tot_map_odnet_event_state (hd s)) (map tot_map_odnet_event_state (tl s)) = map tot_map_odnet_event_state s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_state_execution_lb_step_o_d_f_tot_map_odnet_infseq : forall s,
   lb_step_state_execution lb_step_o_d_f s ->
-  lb_step_state_execution lb_step_o_d_f (Map tot_map_odnet_event_state s).
+  lb_step_state_execution lb_step_o_d_f (map tot_map_odnet_event_state s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_odnet_event_state_Map_unfold {1}/tot_map_odnet_event_state /=.
+rewrite -tot_map_odnet_event_state_map_unfold {1}/tot_map_odnet_event_state /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_odnet_event_state_Map_unfold /= /tot_map_odnet_event_state /=.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_odnet_event_state_map_unfold /= /tot_map_odnet_event_state /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_o_d_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - set e0 := {| evt_r_a := _ ; evt_r_l := _  |}.
   have ->: e0 = tot_map_odnet_event_state e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_odnet_event_state_Map_unfold s').
+  rewrite (tot_map_odnet_event_state_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_odnet_label_event_state_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_odnet_event_state s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_odnet_event_state s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /evt_l /=.
 move => H_eq.
@@ -643,12 +646,12 @@ Qed.
 
 Lemma tot_map_odnet_label_event_state_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_odnet_event_state s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_odnet_event_state s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -666,26 +669,26 @@ apply: eventually_Map_conv => //.
 Qed.
 
 Definition tot_map_odnet_event_state_trace e :=
-{| evt_tr_r_a := (map tot_map_name (fst e.(evt_tr_r_a)), tot_map_odnet (snd e.(evt_tr_r_a))) ;
+{| evt_tr_r_a := (List.map tot_map_name (fst e.(evt_tr_r_a)), tot_map_odnet (snd e.(evt_tr_r_a))) ;
    evt_tr_r_l := tot_map_label e.(evt_tr_r_l) ;
-   evt_tr_r_trace := map tot_map_trace_occ e.(evt_tr_r_trace) |}.
+   evt_tr_r_trace := List.map tot_map_trace_occ e.(evt_tr_r_trace) |}.
 
-Lemma tot_map_odnet_event_state_trace_Map_unfold : forall s,
- Cons (tot_map_odnet_event_state_trace (hd s)) (Map tot_map_odnet_event_state_trace (tl s)) = Map tot_map_odnet_event_state_trace s.
+Lemma tot_map_odnet_event_state_trace_map_unfold : forall s,
+ Cons (tot_map_odnet_event_state_trace (hd s)) (map tot_map_odnet_event_state_trace (tl s)) = map tot_map_odnet_event_state_trace s.
 Proof.
-by move => s; rewrite -Map_Cons /= -{3}(recons s).
+by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
 Lemma lb_step_state_trace_execution_lb_step_o_d_f_tot_map_odnet_infseq : forall s,
   lb_step_state_trace_execution lb_step_o_d_f s ->
-  lb_step_state_trace_execution lb_step_o_d_f (Map tot_map_odnet_event_state_trace s).
+  lb_step_state_trace_execution lb_step_o_d_f (map tot_map_odnet_event_state_trace s).
 Proof.
 cofix c.
 move => s H_exec.
-rewrite -tot_map_odnet_event_state_trace_Map_unfold {1}/tot_map_odnet_event_state_trace /=.
+rewrite -tot_map_odnet_event_state_trace_map_unfold {1}/tot_map_odnet_event_state_trace /=.
 inversion H_exec; subst => /=.
-rewrite -tot_map_odnet_event_state_trace_Map_unfold /= /tot_map_odnet_event_state_trace /=.
-apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => /=.
+rewrite -tot_map_odnet_event_state_trace_map_unfold /= /tot_map_odnet_event_state_trace /=.
+apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
 - apply: lb_step_o_d_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
@@ -694,18 +697,18 @@ apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (map tot_map_trace_occ tr)) => 
 - set e0 := {| evt_tr_r_a := _ ; evt_tr_r_l := _ ; evt_tr_r_trace := _ |}.
   have ->: e0 = tot_map_odnet_event_state_trace e' by [].
   pose s' := Cons e' s0.
-  rewrite (tot_map_odnet_event_state_trace_Map_unfold s').
+  rewrite (tot_map_odnet_event_state_trace_map_unfold s').
   exact: c.
 Qed.
 
 Lemma tot_map_odnet_label_event_state_trace_inf_often_occurred :
   forall l s,
     inf_often (now (occurred l)) s ->
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_odnet_event_state_trace s).
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_odnet_event_state_trace s).
 Proof.
 move => l.
-apply: always_Map.
-apply: eventually_Map.
+apply: always_map.
+apply: eventually_map.
 case => e s.
 rewrite /= /occurred /=.
 move => H_eq.
@@ -714,12 +717,12 @@ Qed.
 
 Lemma tot_map_odnet_label_event_state_trace_inf_often_occurred_conv :
   forall l s,
-    inf_often (now (occurred (tot_map_label l))) (Map tot_map_odnet_event_state_trace s) ->
+    inf_often (now (occurred (tot_map_label l))) (map tot_map_odnet_event_state_trace s) ->
     inf_often (now (occurred l)) s.
 Proof.
 move => l.
-apply: always_Map_conv.
-apply: eventually_Map_conv => //.
+apply: always_map_conv.
+apply: eventually_map_conv => //.
 - rewrite /extensional /=.
   case => e s1.
   case => e' s2.
@@ -743,14 +746,14 @@ Context {new_msg_map_congr : NewMsgParamsTotalMapCongruency new_msg_fst new_msg_
 Lemma tot_map_odnet_hd_step_o_d_f_star_ex_always : 
   forall s, event_step_star_ex step_o_d_f step_o_d_f_init (hd s) ->
        lb_step_state_execution lb_step_o_d_f s ->
-       always (now (event_step_star_ex step_o_d_f step_o_d_f_init)) (Map tot_map_odnet_event_state s).
+       always (now (event_step_star_ex step_o_d_f step_o_d_f_init)) (map tot_map_odnet_event_state s).
 Proof.
 case => e s H_star H_exec.
 apply: step_o_d_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_odnet_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_odnet_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists (map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
+  exists (List.map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
   apply: step_o_d_f_tot_mapped_simulation_star_1 => //.
   by rewrite -prod_fst_snd_eq.  
 exact: lb_step_state_execution_lb_step_o_d_f_tot_map_odnet_infseq.
@@ -759,7 +762,7 @@ Qed.
 Lemma tot_map_odnet_hd_step_o_d_f_star_always : 
   forall s, event_step_star step_o_d_f step_o_d_f_init (hd s) ->
        lb_step_state_trace_execution lb_step_o_d_f s ->
-       always (now (event_step_star step_o_d_f step_o_d_f_init)) (Map tot_map_odnet_event_state_trace s).
+       always (now (event_step_star step_o_d_f step_o_d_f_init)) (map tot_map_odnet_event_state_trace s).
 Proof.
 case => e s H_star H_exec.
 apply: step_o_d_f_star_lb_step_state_trace_execution.
