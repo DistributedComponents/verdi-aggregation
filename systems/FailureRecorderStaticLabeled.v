@@ -1071,11 +1071,12 @@ rewrite /update2.
 by break_if; first by break_and.
 Qed.
 
-Lemma Failure_RecvFail_enabled_until_occurred :
+Lemma Failure_RecvFail_enabled_weak_until_occurred :
   forall s, lb_step_state_execution lb_step_o_f s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
-                  until (now (l_enabled lb_step_o_f (RecvFail src dst))) 
-                        (now (occurred (RecvFail src dst))) s.
+                  weak_until (now (l_enabled lb_step_o_f (RecvFail src dst))) 
+                             (now (occurred (RecvFail src dst))) 
+                             s.
 Proof.
 cofix c.
 case => /=.
@@ -1091,7 +1092,7 @@ case => [|src dst].
   - unfold lb_input_handlers in *.
     simpl in *.
     by io_handler_cases.
-  - apply: Until_tl; first by [].
+  - apply: W_tl; first by [].
     exact: c.
 case => /=.
 case; case => failed' net' lb s H_exec src' dst' H_en.
@@ -1100,8 +1101,8 @@ case (name_eq_dec dst dst') => H_eq.
   subst_max.
   case (name_eq_dec src src') => H_eq'.
     subst_max.
-    exact: Until0.
-  apply: Until_tl; first by [].
+    exact: W0.
+  apply: W_tl; first by [].
   apply: c => //=.
   rewrite /l_enabled /= /enabled.
   move {s H3 H_exec}.
@@ -1112,7 +1113,7 @@ case (name_eq_dec dst dst') => H_eq.
   simpl in *.
   move: H1 H H_eq'.
   exact: Failure_lb_step_o_f_RecvFail_neq_src_enabled.
-apply: Until_tl; first by [].
+apply: W_tl; first by [].
 apply: c => //=.
 rewrite /l_enabled /=.
 move {s H3 H_exec}.
@@ -1140,8 +1141,8 @@ rewrite /inf_enabled.
 apply always_inf_often.
 apply not_eventually_always_not in H_ev.
 move: H_ev.
-apply: until_always_not_always.
-exact: Failure_RecvFail_enabled_until_occurred.
+apply: weak_until_always_not_always.
+exact: Failure_RecvFail_enabled_weak_until_occurred.
 Qed.
 
 Lemma lb_step_o_f_count_occ_Fail_neq_eq : 
