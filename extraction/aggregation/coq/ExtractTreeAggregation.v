@@ -4,6 +4,7 @@ Require Import PeanoNat.
 Require Import StructTact.Fin.
 
 Require Import NameOverlay.
+Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import TreeAggregationStatic.
 
