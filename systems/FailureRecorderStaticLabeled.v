@@ -95,7 +95,6 @@ Instance FailureRecorder_LabeledMultiParams : LabeledMultiParams FailureRecorder
     lb_all_names_nodes := all_names_nodes ;
     lb_no_dup_nodes := no_dup_nodes ;
     label := Label ;
-    label_eq_dec := Label_eq_dec ;
     label_silent := Tau ;
     lb_init_handlers := InitData ;
     lb_net_handlers := (fun dst src msg s => runGenHandler s (NetHandler dst src msg)) ;

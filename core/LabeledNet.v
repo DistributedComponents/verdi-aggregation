@@ -15,14 +15,13 @@ Class LabeledMultiParams (P : BaseParams) :=
     lb_all_names_nodes : forall n, In n lb_nodes ;
     lb_no_dup_nodes : NoDup lb_nodes ;
     label : Type ;
-    label_eq_dec : forall x y : label, {x = y} + {x <> y} ;
     label_silent : label ;
     lb_init_handlers : lb_name -> data ;
     lb_net_handlers : lb_name -> lb_name -> lb_msg -> data -> label * (list output) * data * list (lb_name * lb_msg) ;
     lb_input_handlers : lb_name -> input -> data -> label * (list output) * data * list (lb_name * lb_msg)
   }.
 
-Section LabeledParams.
+Section CustomLabeledParams.
 
 Context {base_params : BaseParams}.
 Context {labeled_multi_params : LabeledMultiParams base_params}.
@@ -47,7 +46,51 @@ Global Instance unlabeled_multi_params : MultiParams base_params :=
     input_handlers := unlabeled_input_handlers
   }.
 
-End LabeledParams.
+End CustomLabeledParams.
+
+Section DefaultLabeledParams.
+
+Context {base_params : BaseParams}.
+Context {multi_params : MultiParams base_params}.
+
+Inductive default_label :=
+| DL_recv_msg : name -> name -> msg -> default_label
+| DL_recv_input : name -> input -> default_label
+| DL_tau : default_label.
+
+Definition default_lb_net_handlers me src m st :=
+  let '(out, st', ps) := net_handlers me src m st in
+  (DL_recv_msg me src m, out, st', ps).
+
+Definition default_lb_input_handlers me inp st :=
+  let '(out, st', ps) := input_handlers me inp st in
+  (DL_recv_input me inp, out, st', ps).
+
+Global Instance default_labeled_multi_params : LabeledMultiParams base_params :=
+  {
+    lb_name := name ;
+    lb_msg := msg ;
+    lb_msg_eq_dec := msg_eq_dec ;
+    lb_name_eq_dec := name_eq_dec ;
+    lb_nodes := nodes ;
+    lb_all_names_nodes := all_names_nodes ;
+    lb_no_dup_nodes := no_dup_nodes ;
+    label := default_label ;
+    label_silent := DL_tau ;
+    lb_init_handlers := init_handlers ;
+    lb_net_handlers := default_lb_net_handlers ;
+    lb_input_handlers := default_lb_input_handlers
+  }.
+
+Context {EqDec_eq_input : EqDec_eq input}.
+
+Definition default_label_eq_dec : forall x y : default_label, {x = y} + {x <> y}.
+decide equality; auto using name_eq_dec, msg_eq_dec, eq_dec.
+Defined.
+
+Global Instance EqDec_eq_default_label : EqDec_eq label := default_label_eq_dec.
+
+End DefaultLabeledParams.
 
 Section Events.
   Variable S : Type.

@@ -538,6 +538,8 @@ invcs H_step => //=.
 - exact: LSODF_stutter.
 Qed.
 
+Context {EqDec_eq_label_fst : EqDec_eq label}.
+
 Definition pt_map_net_event_state e :=
 {| evt_r_a := (List.map tot_map_name (fst e.(evt_r_a)), pt_map_net (snd e.(evt_r_a))) ;
    evt_r_l := tot_map_label e.(evt_r_l) |}.
@@ -557,7 +559,7 @@ move => s H_exec.
 rewrite -pt_map_net_event_state_Map_unfold {1}/pt_map_net_event_state /=.
 inversion H_exec; subst => /=.
 rewrite -pt_map_net_event_state_Map_unfold /= /pt_map_net_event_state /=.
-case (label_eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
+case (eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
   apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ []) => /=.
     rewrite H_eq.
     move: H_eq H.
@@ -663,7 +665,7 @@ move => s H_exec.
 rewrite -pt_map_onet_event_state_Map_unfold {1}/pt_map_onet_event_state /=.
 inversion H_exec; subst => /=.
 rewrite -pt_map_onet_event_state_Map_unfold /= /pt_map_onet_event_state /=.
-case (label_eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
+case (eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
   apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ []) => /=.
     rewrite H_eq.
     move: H_eq H.
@@ -770,7 +772,7 @@ move => s H_exec.
 rewrite -pt_map_odnet_event_state_Map_unfold {1}/pt_map_odnet_event_state /=.
 inversion H_exec; subst => /=.
 rewrite -pt_map_odnet_event_state_Map_unfold /= /pt_map_odnet_event_state /=.
-case (label_eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
+case (eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
   apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ []) => /=.
     rewrite H_eq.
     move: H_eq H.
