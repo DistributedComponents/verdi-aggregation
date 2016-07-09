@@ -5,7 +5,7 @@ Require Import NameOverlay.
 Require Import LabeledNet.
 
 Require Import InfSeqExt.infseq.
-Require Import Classical.
+Require Import InfSeqExt.classical.
 
 Require Import Sumbool.
 
@@ -1132,17 +1132,14 @@ Lemma Failure_RecvFail_eventually_occurred :
                   eventually (now (occurred (RecvFail src dst))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
-set P := eventually _.
-case (classic (P s)) => //.
-rewrite /P {P} => H_ev.
-suff H_suff: @inf_occurred _ _ _ event_state_event_state_r (RecvFail src dst) s by inversion H_suff. 
-apply: H_fair.
-rewrite /inf_enabled.
-apply always_inf_often.
-apply not_eventually_always_not in H_ev.
-move: H_ev.
-apply: weak_until_always_not_always.
-exact: Failure_RecvFail_enabled_weak_until_occurred.
+have H_wu := Failure_RecvFail_enabled_weak_until_occurred H_exec H_en.
+apply weak_until_until_or_always in H_wu.
+case: H_wu; first exact: until_eventually.
+move => H_al.
+apply always_inf_often in H_al.
+apply H_fair in H_al.
+destruct s as [x s].
+by apply always_now in H_al.
 Qed.
 
 Lemma lb_step_o_f_count_occ_Fail_neq_eq : 
