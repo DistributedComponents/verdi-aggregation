@@ -128,8 +128,7 @@ Instance refined_multi_params_map_congruency :
   {
     tot_init_handlers_eq := fun _ => eq_refl ;
     tot_net_handlers_eq := _ ;
-    tot_input_handlers_eq := _ ;
-    tot_map_output_injective := fun _ _ H => H
+    tot_input_handlers_eq := _
   }.
 Proof.
 - move => me src m st.
@@ -205,7 +204,7 @@ Theorem ghost_simulation_2 :
       deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-eapply step_f_tot_mapped_simulation_2 in H_step.
+eapply step_f_tot_mapped_simulation_2 in H_step => //.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
   split; eauto.
@@ -418,8 +417,7 @@ Instance mgv_refined_multi_params_map_congruency :
   {
     tot_init_handlers_eq := fun _ => eq_refl ;
     tot_net_handlers_eq := _ ;
-    tot_input_handlers_eq := _ ;
-    tot_map_output_injective := fun _ _ H => H
+    tot_input_handlers_eq := _
   }.
 Proof.
 - move => me src m st.
@@ -532,7 +530,7 @@ Theorem mgv_ghost_simulation_2 :
       mgv_deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-eapply step_f_tot_mapped_simulation_2 in H_step.
+eapply step_f_tot_mapped_simulation_2 in H_step => //.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
   split; eauto.

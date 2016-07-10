@@ -81,9 +81,7 @@ Class MultiParamsTotalMapCongruency
       net_handlers (tot_map_name me) (tot_map_name src) (tot_map_msg m) (tot_map_data st) ;
     tot_input_handlers_eq : forall me inp st, 
       tot_mapped_input_handlers me inp st = 
-      input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st) ;
-    tot_map_output_injective : forall o o', 
-      tot_map_output o = tot_map_output o' -> o = o'
+      input_handlers (tot_map_name me) (tot_map_input inp) (tot_map_data st)
   }.
 
 Class FailureParamsTotalMapCongruency 
@@ -315,6 +313,9 @@ rewrite (app_nil_end (map _ _)).
 apply: (@RT1nTStep _ _ _ _ (tot_map_net x'')) => //.
 exact: RT1nTBase.
 Qed.
+
+Hypothesis tot_map_output_injective :
+  forall o o', tot_map_output o = tot_map_output o' -> o = o'.
 
 Theorem step_m_tot_mapped_simulation_2 :
   forall net net' out mnet mout,
