@@ -1126,7 +1126,7 @@ Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
                   eventually (now (occurred (RecvFail src dst))) s.
 Proof.
@@ -1135,7 +1135,7 @@ have H_wu := Failure_RecvFail_enabled_weak_until_occurred H_exec H_en.
 apply weak_until_until_or_always in H_wu.
 case: H_wu; first exact: until_eventually.
 move => H_al.
-apply always_inf_often in H_al.
+apply always_continuously in H_al.
 apply H_fair in H_al.
 destruct s as [x s].
 by apply always_now in H_al.
@@ -1260,7 +1260,7 @@ Qed.
 
 Lemma Failure_eventually_fewer_Fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall src dst k, ~ In dst (fst (hd s).(evt_a)) ->
                     count_occ Msg_eq_dec (onwPackets (snd (hd s).(evt_a)) src dst) Fail = S k ->
                     eventually (now (fun e => count_occ Msg_eq_dec (onwPackets (snd e.(evt_a)) src dst) Fail = k)) s.
@@ -1296,14 +1296,14 @@ case (Label_eq_dec (RecvFail src dst) evt_r_l) => H_eq.
 apply E_next.
 apply IH.
 - by [].
-- by apply strong_local_fairness_invar in H_fair.
+- by apply weak_local_fairness_invar in H_fair.
 - by eapply lb_step_o_f_not_in_failed; eauto.
 - by eapply lb_step_o_f_count_occ_Fail_neq_eq; eauto.
 Qed.
 
 Lemma Failure_lb_step_o_f_eventually_le_0_fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        eventually (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail = 0)) s.
@@ -1330,7 +1330,7 @@ move => e s0 H_ev H_ev' H_exec H_fair H_in_f.
 apply: E_next.
 apply: H_ev'. 
 - by apply lb_step_state_execution_invar in H_exec.
-- by apply strong_local_fairness_invar in H_fair.
+- by apply weak_local_fairness_invar in H_fair.
 - inversion H_exec.
   destruct e, e'.
   destruct evt_r_a, evt_r_a0.
@@ -1340,7 +1340,7 @@ Qed.
 
 Lemma Failure_lb_step_o_f_continuously_no_fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
@@ -1369,13 +1369,13 @@ elim: H_ev.
 - move => e s0 H_ev IH H_exec H_fair.
   apply: E_next.
   apply: IH; first by apply lb_step_state_execution_invar in H_exec.
-  by apply strong_local_fairness_invar in H_fair.
+  by apply weak_local_fairness_invar in H_fair.
 Qed.
 
 Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
        lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
@@ -1401,7 +1401,7 @@ Qed.
 Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
        lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
