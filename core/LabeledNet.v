@@ -136,11 +136,17 @@ Section LabeledStepExecutions.
   Definition inf_enabled (step : lb_step_relation) (l : L) (s : infseq event) : Prop :=
     inf_often (now (l_enabled step l)) s.
 
+  Definition cont_enabled (step : lb_step_relation) (l : L) (s : infseq event) : Prop :=
+    continuously (now (l_enabled step l)) s.
+
   Definition inf_occurred (l : L) (s : infseq event) : Prop :=
     inf_often (now (occurred l)) s.
 
   Definition strong_local_fairness (step : lb_step_relation) (s : infseq event) : Prop :=
     forall l : L, inf_enabled step l s -> inf_occurred l s.
+
+  Definition weak_local_fairness (step : lb_step_relation) (s : infseq event) : Prop :=
+    forall l : L, cont_enabled step l s -> inf_occurred l s.
 
   Lemma strong_local_fairness_invar :
     forall step e s, strong_local_fairness step (Cons e s) -> strong_local_fairness step s.
@@ -153,6 +159,29 @@ Section LabeledStepExecutions.
     simpl. assumption.
     clear alev. generalize (fair a alevt_es); clear fair alevt_es.
     intro fair; case (always_Cons fair); trivial.
+  Qed.
+
+  Lemma weak_local_fairness_invar :
+    forall step e s, weak_local_fairness step (Cons e s) -> weak_local_fairness step s.
+  Proof.
+    unfold weak_local_fairness. unfold cont_enabled, inf_occurred, continuously, inf_often.
+    intros step e s fair a eval.
+    assert (eval_es: eventually (always (now (l_enabled step a))) (Cons e s)).
+      apply E_next. assumption.
+    apply fair in eval_es.
+    apply always_invar in eval_es.
+    assumption.
+  Qed.
+
+  Lemma strong_local_fairness_weak :
+    forall step s, strong_local_fairness step s -> weak_local_fairness step s.
+  Proof.
+  move => step.
+  case => e s.
+  rewrite /strong_local_fairness /weak_local_fairness /inf_enabled /cont_enabled.
+  move => H_str l H_cont.
+  apply: H_str.
+  exact: continuously_inf_often.
   Qed.
 
   CoInductive lb_step_state_execution (step : lb_step_relation) : infseq event -> Prop :=
