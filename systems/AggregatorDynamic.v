@@ -1,5 +1,5 @@
 Require Import Verdi.
-Require Import StateMachineHandlerMonad.
+Require Import HandlerMonad.
 Require Import NameOverlay.
 
 Require Import UpdateLemmas.
@@ -24,7 +24,7 @@ Require Import AggregationAux.
 Require Import AAC_tactics.AAC.
 
 (* FIXME: ANT not needed *)
-Module OneAggregator (Import NT : NameType)
+Module SingleAggregator (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
@@ -61,8 +61,7 @@ decide equality.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : m -> Output
-| Unit : Output.
+| AggregateResponse : m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
 decide equality.
@@ -84,7 +83,7 @@ Definition InitData :=
      sent := NMap.empty m ;
      received := NMap.empty m |}.
 
-Definition Handler (S : Type) := GenHandler1 S Output.
+Definition Handler (S : Type) := GenHandler unit S Output unit.
 
 Definition IOHandler (i : Input) : Handler Data :=
 st <- get ;;
@@ -99,8 +98,7 @@ match i with
            adjacent := st.(adjacent) ;
            sent := st.(sent) ;
            received := NMap.add src (m_src * m_inp) st.(received) |}                                                           
-  end) ;;
-  write_output Unit
+  end)
 | Fail src =>
   when (NSet.mem src st.(adjacent))
   (match NMap.find src st.(sent), NMap.find src st.(received) with
@@ -111,8 +109,7 @@ match i with
            sent := NMap.remove src st.(sent) ;
            received := NMap.remove src st.(received) |}           
   | _, _ => nop    
-  end) ;;
-  write_output Unit
+  end)
 | New src =>
   when (~~ NSet.mem src st.(adjacent))
   (put {| local := st.(local) ;
@@ -120,15 +117,13 @@ match i with
          adjacent := NSet.add src st.(adjacent) ;
          sent := NMap.add src 1 st.(sent) ;
          received := NMap.add src 1 st.(received)      
-      |}) ;;
-  write_output Unit
+      |})
 | Local m_inp =>
   put {| local := m_inp ;
          aggregate := st.(aggregate) * m_inp * st.(local)^-1 ;
          adjacent := st.(adjacent) ;
          sent := st.(sent) ;
-         received := st.(received) |} ;;
-  write_output Unit
+         received := st.(received) |}
 | AggregateRequest =>  
   write_output (AggregateResponse st.(aggregate))
 | SendAggregate dst =>
@@ -141,8 +136,7 @@ match i with
             adjacent := st.(adjacent) ;
             sent := NMap.add dst (m_dst * st.(aggregate)) st.(sent) ;
             received := st.(received) |}
-   end) ;;
-  write_output Unit
+   end)
 end.
 
 Instance Aggregator_BaseParams : BaseParams := 
@@ -152,74 +146,74 @@ Instance Aggregator_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance Aggregator_OneNodeParams : OneNodeParams Aggregator_BaseParams :=
+Instance Aggregator_SingleNodeParams : SingleNodeParams Aggregator_BaseParams :=
   {
-    init := InitData ;
-    handler := fun i d => runGenHandler1 d (IOHandler i) 
+    init_handler := InitData ;
+    input_handler := fun i d => runGenHandler1_ignore (IOHandler i) d
   }.
 
 Lemma IOHandler_cases :
-  forall i st out st',
-      IOHandler i st = (out, st') ->
+  forall i st u out st' ms,
+      IOHandler i st = (u, out, st', ms) ->
       (exists m_inp m_src src, i = Aggregate src m_inp /\ NSet.In src st.(adjacent) /\ NMap.find src st.(received) = Some m_src /\
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) * m_inp /\
        st'.(adjacent) = st.(adjacent) /\
        st'.(sent) = st.(sent) /\     
        st'.(received) = NMap.add src (m_src * m_inp) st.(received) /\
-       out = Unit) \/
+       out = []) \/
       (exists m_inp src, i = Aggregate src m_inp /\ NSet.In src st.(adjacent) /\ NMap.find src st.(received) = None /\ 
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists m_inp src, i = Aggregate src m_inp /\ ~ NSet.In src st.(adjacent) /\
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists m_snt m_rcd src, i = Fail src /\ NSet.In src st.(adjacent) /\ NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
        st'.(local) = st.(local) /\ 
        st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
        st'.(adjacent) = NSet.remove src st.(adjacent) /\
        st'.(sent) = NMap.remove src st.(sent) /\
        st'.(received) = NMap.remove src st.(received) /\
-       out = Unit) \/
+       out = []) \/
       (exists src, i = Fail src /\ NSet.In src st.(adjacent) /\ NMap.find src st.(received) = None /\
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists src, i = Fail src /\ NSet.In src st.(adjacent) /\ NMap.find src st.(sent) = None /\
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists src, i = Fail src /\ ~ NSet.In src st.(adjacent) /\
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists src, i = New src /\ ~ NSet.In src st.(adjacent) /\
        st'.(local) = st.(local) /\ 
        st'.(aggregate) = st.(aggregate) /\
        st'.(adjacent) = NSet.add src st.(adjacent) /\
        st'.(sent) = NMap.add src 1 st.(sent) /\
        st'.(received) = NMap.add src 1 st.(received) /\
-       out = Unit) \/
+       out = []) \/
       (exists src, i = New src /\ NSet.In src st.(adjacent) /\
-       st' = st /\ out = Unit) \/
+       st' = st /\ out = []) \/
       (exists m_inp, i = Local m_inp /\ 
        st'.(local) = m_inp /\ 
        st'.(aggregate) = st.(aggregate) * m_inp * st.(local)^-1 /\ 
        st'.(adjacent) = st.(adjacent) /\
        st'.(sent) = st.(sent) /\
        st'.(received) = st.(received) /\
-       out = Unit) \/
+       out = []) \/
       (exists dst m', i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(sent) = Some m' /\
          st'.(local) = st.(local) /\ 
          st'.(aggregate) = 1 /\
          st'.(adjacent) = st.(adjacent) /\
          st'.(sent) = NMap.add dst (m' * st.(aggregate)) st.(sent) /\
          st'.(received) = st.(received) /\
-         out = Unit) \/
+         out = []) \/
       (exists dst, i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(sent) = None /\
          st' = st /\
-         out = Unit) \/
+         out = []) \/
       (exists dst, i = SendAggregate dst /\ ~ NSet.In dst st.(adjacent) /\ 
          st' = st /\ 
-         out = Unit) \/
+         out = []) \/
       (exists dst, i = SendAggregate dst /\ st.(aggregate) = 1 /\
          st' = st /\ 
-         out = Unit) \/
-      (i = AggregateRequest /\ st' = st /\ out = AggregateResponse (aggregate st)).
+         out = []) \/
+      (i = AggregateRequest /\ st' = st /\ out = [AggregateResponse (aggregate st)]).
 Proof.
-move => i st out st'.
+move => i st u out st' ms.
 rewrite /IOHandler.
 case: i => [src m_inp|src|src|m_inp|dst|]; monad_unfold.
 - move => H_eq.
@@ -261,7 +255,7 @@ case: i => [src m_inp|src|src|m_inp|dst|]; monad_unfold.
   right; right; right; right; right; right; right; right; right; left => /=.
   by exists m_inp.
 - move => H_eq.
-  repeat break_let; break_if; first (break_let; break_match).
+  repeat break_let; break_if; first (repeat break_let; break_match).
   * move/andP: Heqb => /= [H_mem H_neq].
     repeat tuple_inversion.
     rewrite /sumbool_not in H_neq.
@@ -308,18 +302,20 @@ Instance AggregationData_Data : AggregationData Data :=
   }.
 
 Lemma Aggregator_conserves_node_mass : 
- forall st tr, step_1_star init st tr ->
+ forall st tr, step_s_star init_handler st tr ->
   conserves_node_mass st.
 Proof.
 move => st tr H_st.
-remember init as y in *.
+remember init_handler as y in *.
 move: Heqy.
 induction H_st using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init /conserves_node_mass /InitData; gsimpl.
 concludes.
 match goal with
-| [ H : step_1 _ _ _ |- _ ] => invc H
+| [ H : step_s _ _ _ |- _ ] => invc H
 end; simpl.
-rewrite /handler /= /runGenHandler1 /= in H0.
+rewrite /handler /= /runGenHandler1_ignore /= in H0.
+repeat break_let.
+repeat tuple_inversion.
 io_handler_cases; unfold conserves_node_mass in *; simpl in * => //.
 - repeat find_rewrite.
   rewrite sumM_add_map //; gsimpl.
@@ -353,4 +349,4 @@ io_handler_cases; unfold conserves_node_mass in *; simpl in * => //.
   by aac_reflexivity.
 Qed. 
 
-End OneAggregator.
+End SingleAggregator.

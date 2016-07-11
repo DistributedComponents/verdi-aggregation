@@ -56,7 +56,7 @@ Module Aggregation (Import NT : NameType)
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
 
-Module OA := OneAggregator NT NOT NSet NOTC NMap CFG ANT.
+Module OA := SingleAggregator NT NOT NSet NOTC NMap CFG ANT.
 
 (* FIXME *)
 Import OA.A.
@@ -1946,12 +1946,13 @@ Qed.
 
 End SingleNodeInvIn.
 
+(* FIXME: trace projected for node *)
 Theorem step_o_f_tot_one_mapped_simulation_1 :
   forall n net net' failed failed' tr tr',
     step_o_f_star step_o_f_init (failed, net) tr ->
     step_o_f (failed, net) (failed', net') tr' ->
     net.(onwState) n = net'.(onwState) n \/
-    exists tr'', @step_1 OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams n) (tot_one_map_data (net.(onwState) n)) (tot_one_map_data (net'.(onwState) n)) tr''.
+    exists tr'', @step_s OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams n) (tot_one_map_data (net.(onwState) n)) (tot_one_map_data (net'.(onwState) n)) tr''.
 Proof.
 move => n net net' failed failed' tr tr' H_star H_step.
 invcs H_step.
@@ -1963,9 +1964,9 @@ invcs H_step.
   repeat break_let.
   repeat tuple_inversion.
   destruct u.
-  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams to) (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0) (tot_one_map_data (onwState net to))) => [out' st'].
-  exists [(@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0, out')].
-  apply: S1T_deliver.
+  case H_h: (@input_handler OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams to) (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0) (tot_one_map_data (onwState net to))) => [out' st'].
+  exists ((inl (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0)) :: (map inr out')).
+  apply: SS_deliver => //=.
   suff H_suff: {|
    OA.local := local d;
    OA.aggregate := aggregate d;
@@ -1975,6 +1976,9 @@ invcs H_step.
     rewrite H_suff.
     by rewrite -H_h.
   destruct st'.
+  rewrite /input_handler /= /runGenHandler1_ignore in H_h.
+  repeat break_let.
+  repeat tuple_inversion.
   net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
   * case: H0.
     apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 _ x1).
@@ -2008,9 +2012,9 @@ invcs H_step.
   repeat break_let.
   repeat tuple_inversion.
   destruct u.
-  case H_h: (@handler OA.Aggregator_BaseParams (OA.Aggregator_OneNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
-  exists [(@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp, out')].
-  apply: S1T_deliver.
+  case H_h: (@input_handler OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
+  exists ((inl (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp)) :: map inr out').
+  apply: SS_deliver => //=.
   suff H_suff: {|
    OA.local := local d;
    OA.aggregate := aggregate d;
@@ -2020,14 +2024,18 @@ invcs H_step.
     rewrite H_suff.
     by rewrite -H_h.
   destruct st'.
+  rewrite /input_handler /= /runGenHandler1_ignore in H_h.
+  repeat break_let.
+  repeat tuple_inversion.
   by io_handler_cases; OA.io_handler_cases; simpl in *; congruence.
 - by left.
 Qed.
 
+(* FIXME: trace is projection for node *)
 Lemma Aggregation_step_o_f_tot_one_mapped_simulation_star_1 :
   forall n net failed tr,
     step_o_f_star step_o_f_init (failed, net) tr ->
-    exists tr', @step_1_star _ (OA.Aggregator_OneNodeParams n) (@init _ (OA.Aggregator_OneNodeParams n)) (tot_one_map_data (net.(onwState) n)) tr'.
+    exists tr', @step_s_star _ (OA.Aggregator_SingleNodeParams n) (@init_handler _ (OA.Aggregator_SingleNodeParams n)) (tot_one_map_data (net.(onwState) n)) tr'.
 Proof.
 move => n.
 move => net failed tr H_st.
