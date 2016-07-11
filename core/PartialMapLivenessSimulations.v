@@ -227,7 +227,7 @@ Theorem lb_step_o_f_pt_mapped_simulation_1_non_silent :
   forall net net' failed failed' lb tr,
     tot_map_label lb <> label_silent ->
     @lb_step_o_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_onet net') (pt_map_trace tr).
+    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_onet net') (pt_map_traces tr).
 Proof.
 move => net net' failed failed' lb tr H_neq H_step.
 have H_neq': lb <> label_silent.
@@ -241,7 +241,7 @@ invcs H_step => //=.
     rewrite /tot_mapped_lb_net_handlers_label in H_q.
     repeat break_let.
     by tuple_inversion.
-  apply (@LSOF_deliver _ _ _ _ _ m' (@pt_map_msgs _ _ _ _ msg_map ms) _ (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)).
+  apply (@LSOF_deliver _ _ _ _ _ _ m' (@pt_map_msgs _ _ _ _ msg_map ms) (pt_map_outputs out) (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)).
   * by rewrite /= 2!tot_map_name_inv_inverse /= H3 /= H_m.
   * exact: not_in_failed_not_in.
   * rewrite /pt_map_onet /= tot_map_name_inv_inverse.
@@ -264,13 +264,14 @@ invcs H_step => //=.
       break_if; break_if => //=; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite pt_map_traces_outputs_eq.
 - rewrite {2}/pt_map_onet /=.
   case H_i: pt_map_input => [inp'|]; last first.
     have H_q := @pt_lb_input_handlers_none _ _ _ _ _ _ _ _ multi_map_lb_congr h inp (onwState net h) H_i.
     rewrite /tot_mapped_lb_input_handlers_label in H_q.
     repeat break_let.
     by tuple_inversion.
-  apply (@LSOF_input _ _ _ _ _ _ _ _ (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LSOF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (pt_map_outputs out) inp' (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
   * exact: not_in_failed_not_in.
   * rewrite /pt_map_onet /= tot_map_name_inv_inverse.
     have H_q := @pt_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ H_i.
@@ -293,6 +294,7 @@ invcs H_step => //=.
       break_if; break_if => //=; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite pt_map_traces_outputs_eq.
 Qed.
      
 Theorem lb_step_o_f_pt_mapped_simulation_1_silent :
@@ -337,7 +339,7 @@ invcs H_step => //=.
     apply functional_extensionality => dst.
     break_if => //.
     break_and.
-    by rewrite -H2 -H4 2!tot_map_name_inv_inverse H3 /= H_m.
+    by rewrite -H2 -H5 2!tot_map_name_inv_inverse H3 /= H_m.
   have H_eq_s: s1 = s2.
     rewrite /s1 /s2 /update'.
     apply functional_extensionality => n.
@@ -383,7 +385,7 @@ Theorem lb_step_o_d_f_pt_mapped_simulation_1_non_silent :
   forall net net' failed failed' lb tr,
     tot_map_label lb <> label_silent ->
     @lb_step_o_d_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_odnet net') (pt_map_trace tr).
+    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_odnet net') (pt_map_traces tr).
 Proof.
 move => net net' failed failed' lb tr H_neq H_step.
 have H_neq': lb <> label_silent.
@@ -397,11 +399,11 @@ invcs H_step => //=.
     rewrite /tot_mapped_lb_net_handlers_label in H_q.
     repeat break_let.
     by tuple_inversion.
-  apply (@LSODF_deliver _ _ _ _ _ m' (@pt_map_msgs _ _ _ _ msg_map ms) _ (pt_map_data d) (pt_map_data d') (@pt_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)).
+  apply (@LSODF_deliver _ _ _ _ _ _ m' (@pt_map_msgs _ _ _ _ msg_map ms) (pt_map_outputs out) (pt_map_data d) (pt_map_data d') (@pt_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)).
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * by rewrite /pt_map_odnet /= tot_map_name_inv_inverse H5.
-  * by rewrite /pt_map_odnet /= 2!tot_map_name_inv_inverse H7 /= H_m.
+  * by rewrite /pt_map_odnet /= 2!tot_map_name_inv_inverse H6 /= H_m.
   * have H_q := @pt_net_handlers_some _ _ _ _ _ _ _ multi_map_congr to from m d _ H_m.
     rewrite /pt_mapped_net_handlers /net_handlers /= /unlabeled_net_handlers in H_q.
     repeat break_let.
@@ -410,7 +412,7 @@ invcs H_step => //=.
     rewrite /tot_mapped_lb_net_handlers_label in H_q'.
     repeat break_let.
     break_and.
-    by repeat tuple_inversion.   
+    by repeat tuple_inversion.
   * rewrite {2}/pt_map_odnet /=.
     rewrite (@collate_pt_map_update2_eq _ _ _ _ name_map).
     set f1 := fun _ => match _ with _ => _ end.    
@@ -422,16 +424,17 @@ invcs H_step => //=.
       break_if; break_if => //=; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite pt_map_traces_outputs_eq.
 - rewrite {2}/pt_map_odnet /=.
   case H_i: pt_map_input => [inp'|]; last first.
     have H_q := @pt_lb_input_handlers_none _ _ _ _ _ _ _ _ multi_map_lb_congr h inp d H_i.
     rewrite /tot_mapped_lb_input_handlers_label in H_q.
     repeat break_let.
     by tuple_inversion.
-  apply (@LSODF_input _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_data d') (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LSODF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (pt_map_outputs out) inp' (pt_map_data d) (pt_map_data d') (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
   * exact: not_in_failed_not_in.
   * exact: in_failed_in.
-  * by rewrite /pt_map_odnet /= tot_map_name_inv_inverse H6.
+  * by rewrite /pt_map_odnet /= tot_map_name_inv_inverse H5.
   * have H_q := @pt_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp d _ H_i.
     rewrite /pt_mapped_input_handlers /input_handlers /= /unlabeled_input_handlers in H_q.
     repeat break_let.
@@ -452,6 +455,7 @@ invcs H_step => //=.
       break_if; break_if => //=; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite pt_map_traces_outputs_eq.
 Qed.
 
 Theorem lb_step_o_d_f_pt_mapped_simulation_1_silent :
@@ -496,7 +500,7 @@ invcs H_step => //=.
     apply functional_extensionality => dst.
     break_if => //.
     break_and.
-    by rewrite  -H2 -H6 2!tot_map_name_inv_inverse H7 /= H_m.
+    by rewrite -H2 -H7 2!tot_map_name_inv_inverse H6 /= H_m.
   have H_eq_s: s1 = s2.
     rewrite /s1 /s2 /update_opt.
     apply functional_extensionality => n.
@@ -532,7 +536,7 @@ invcs H_step => //=.
     rewrite /s1 /s2.
     apply functional_extensionality => n.
     rewrite /update_opt.
-    by break_if; first by rewrite e H6 H.
+    by break_if; first by rewrite e H5 H.
   rewrite -H_eq_s /s1 {s1 s2 H_eq_s}.
   exact: LSODF_stutter.
 - exact: LSODF_stutter.
@@ -677,7 +681,7 @@ case (eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
   pose s' := Cons e' s0.
   rewrite (pt_map_onet_event_state_Map_unfold s').
   exact: c.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (pt_map_trace tr)) => /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (pt_map_traces tr)) => /=.
   move: H_eq H.
   destruct e, e'.
   destruct evt_r_a, evt_r_a0.
@@ -747,9 +751,7 @@ apply: step_o_f_star_ex_lb_step_state_execution.
   destruct e, evt_r_a.
   simpl in *.
   have H_ex := @step_o_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ _ name_map_bijective multi_map_congr _ _ overlay_map_congr _ _ fail_msg_map_congr _ _ _ H.
-  break_exists.
-  break_and.
-  by exists x0.
+  by exists (@pt_map_traces _ _ _ _ _ name_map x).
 exact: lb_step_state_execution_lb_step_o_f_pt_map_onet_infseq.
 Qed.
 
@@ -784,7 +786,7 @@ case (eq_dec (tot_map_label (evt_l e)) label_silent) => H_eq.
   pose s' := Cons e' s0.
   rewrite (pt_map_odnet_event_state_Map_unfold s').
   exact: c.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (pt_map_trace tr)) => /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (pt_map_traces tr)) => /=.
   move: H_eq H.
   destruct e, e'.
   destruct evt_r_a, evt_r_a0.
@@ -850,9 +852,7 @@ apply: step_o_d_f_star_ex_lb_step_state_execution.
   destruct e, evt_r_a.
   simpl in *.
   have H_ex := @step_o_d_f_pt_mapped_simulation_star_1 _ _ _ _ _ _ _ name_map_bijective multi_map_congr _ _ overlay_map_congr _ _ fail_msg_map_congr _ _ new_msg_map_congr _ _ _ H.
-  break_exists.
-  break_and.
-  by exists x0.
+  by exists (@pt_map_traces _ _ _ _ _ name_map x).
 exact: lb_step_state_execution_lb_step_o_d_f_pt_map_odnet_infseq.
 Qed.
 

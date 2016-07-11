@@ -443,14 +443,11 @@ Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : Na
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_f_star _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
-    pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
+    @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
 apply step_o_f_pt_mapped_simulation_star_1 in H_st.
-move: H_st => [tr' [H_st H_eq]].
-rewrite map_id in H_st.
-by exists tr'.
+by rewrite map_id in H_st.
 Qed.
 
 Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
@@ -476,7 +473,7 @@ forall net failed tr n,
  ~ NSet.In n (onwState net n).(adjacent).
 Proof.
 move => onet failed tr n H_st H_in_f.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 exact: FR.Failure_node_not_adjacent_self H_st' H_in_f.
 Qed.
 
@@ -488,7 +485,7 @@ forall onet failed tr,
   ~ In Fail (onet.(onwPackets) n n').
 Proof.
 move => onet failed tr H_st n n' H_in_f.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_not_failed_no_fail H_st' n n' H_in_f.
 move => H_in.
 case: H_inv'.
@@ -506,7 +503,7 @@ forall onet failed tr,
     adjacent_to n' n.
 Proof.
 move => net failed tr H_st n n' H_in_f H_ins.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 exact (FR.Failure_in_adj_adjacent_to H_st' n H_in_f H_ins).
 Qed.
 
@@ -526,7 +523,7 @@ forall onet failed tr,
     ~ In n' failed \/ (In n' failed /\ In Fail (onet.(onwPackets) n' n)).
 Proof.
 move => net failed tr H_st n n' H_in_f H_ins.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_in_adj_or_incoming_fail H_st' _ H_in_f H_ins.
 case: H_inv' => H_inv'; first by left.
 right.
@@ -545,7 +542,7 @@ Lemma Aggregation_le_one_fail :
     count_occ Msg_eq_dec (onet.(onwPackets) n' n) Fail <= 1.
 Proof.
 move => onet failed tr H_st n n' H_in_f.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_le_one_fail H_st' _ n' H_in_f.
 rewrite /= /id /= in H_inv'.
 move: H_inv'.
@@ -567,7 +564,7 @@ forall onet failed tr,
     NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st n n' H_in_f H_in_f' H_adj.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 exact: (FR.Failure_adjacent_to_in_adj H_st' H_in_f H_in_f' H_adj).
 Qed.
 
@@ -580,7 +577,7 @@ Lemma Aggregation_in_queue_fail_then_adjacent :
     NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st n n' H_in_f H_ins.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
@@ -597,7 +594,7 @@ Lemma Aggregation_first_fail_in_adj :
     NSet.In n' (onet.(onwState) n).(adjacent).
 Proof.
 move => onet failed tr H_st n n' H_in_f H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
@@ -864,7 +861,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -1364,7 +1361,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -1667,7 +1664,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -1961,8 +1958,8 @@ invcs H_step.
 - rewrite /update'.
   break_if; last by left.
   right.
-  rewrite -e /= in H6.
-  rewrite /runGenHandler_ignore /= in H6.
+  rewrite -e /= in H5.
+  rewrite /runGenHandler_ignore /= in H5.
   repeat break_let.
   repeat tuple_inversion.
   destruct u.
@@ -2006,8 +2003,8 @@ invcs H_step.
 - rewrite /update'.
   break_if; last by left.
   right.
-  rewrite -e /= in H5.
-  rewrite /runGenHandler_ignore /= in H5.
+  rewrite -e /= in H4.
+  rewrite /runGenHandler_ignore /= in H4.
   repeat break_let.
   repeat tuple_inversion.
   destruct u.

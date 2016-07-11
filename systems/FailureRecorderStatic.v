@@ -266,7 +266,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -329,7 +329,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -441,7 +441,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -558,7 +558,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 

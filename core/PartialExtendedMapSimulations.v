@@ -272,22 +272,22 @@ mkONetwork (fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src)
 Theorem step_o_pt_ext_mapped_simulation_1 :
   forall net net' tr,
     @step_o _ multi_fst net net' tr ->
-    (exists tr', @step_o _ multi_snd (pt_ext_map_onet net) (pt_ext_map_onet net') tr') \/ (pt_ext_map_onet net' = pt_ext_map_onet net).
+    (exists tr', @step_o _ multi_snd (pt_ext_map_onet net) (pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net.
 Proof.
 move => net net' tr.
 case => {net net' tr}.
-- move => net net' m ms out d l from to H_eq H_hnd H_eq'.
+- move => net net' tr m ms out d l from to H_eq H_hnd H_eq' H_eq_tr.
   case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
-    exists [(tot_map_name to, inr out')].
+    exists (map (fun o => (tot_map_name to, inr o)) out').
     rewrite H_eq' /= /pt_ext_map_onet /=.
-    apply (@SO_deliver _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from)).
-    * rewrite /= 2!tot_map_name_inv_inverse H_eq /=.
+    apply (@SO_deliver _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
+    * rewrite 2!tot_map_name_inv_inverse H_eq /=.
       case H_m0: pt_map_msg => [m0|]; last by rewrite H_m0 in H_m.
       rewrite H_m0 in H_m.
       by inversion H_m.
-    * rewrite /= tot_map_name_inv_inverse.
+    * rewrite tot_map_name_inv_inverse.
       have H_q := @pt_ext_net_handlers_some _ _ _ _ _ _ _ multi_map_congr _ _ _ _ _ _ _ _ H_m H_n.
       rewrite /pt_ext_mapped_net_handlers /= in H_q.
       by repeat break_let; repeat tuple_inversion.
@@ -318,13 +318,12 @@ case => {net net' tr}.
     case H_m': (pt_map_msg _) => [m'|] //.
     by rewrite H_m' in H_m.
   by rewrite H_eq_s H_eq_p.
-- move => h net net' out inp d l H_hnd H_eq.
+- move => h net net' tr out inp d l H_hnd H_eq H_eq_tr.
   case H_i: (pt_ext_map_input inp h (onwState net h)) => [inp'|].
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
-    exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SO_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)); last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
-    rewrite /=.
+    exists ((tot_map_name h, inl inp') :: map (fun o => (tot_map_name h, inr o)) out').
+    apply (@SO_input _ _ (tot_map_name h) _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=; last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
     have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
     rewrite /pt_ext_mapped_input_handlers /= in H_q.
     rewrite tot_map_name_inv_inverse.
@@ -389,17 +388,17 @@ Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fai
 Theorem step_o_f_pt_ext_mapped_simulation_1 :
   forall net net' failed failed' tr,
     @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    (exists tr', @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_onet net) (map tot_map_name failed', pt_ext_map_onet net') tr') \/ (pt_ext_map_onet net' = pt_ext_map_onet net /\ failed = failed').
+    (exists tr', @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_onet net) (map tot_map_name failed', pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net /\ failed = failed'.
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
 - case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
-    exists [(tot_map_name to, inr out')].
+    exists (map (fun o => (tot_map_name to, inr o)) out').
     rewrite /pt_ext_map_onet /=.
-    apply (@SOF_deliver _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from)).
-    * rewrite /= 2!tot_map_name_inv_inverse /= H3 /=.
+    apply (@SOF_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
+    * rewrite 2!tot_map_name_inv_inverse /= H3 /=.
       case H_m0: (pt_map_msg _) => [m0|]; last by rewrite H_m in H_m0.
       rewrite H_m in H_m0.
       by inversion H_m0.
@@ -411,7 +410,7 @@ invcs H_step.
     * by rewrite /= pt_ext_map_update_eq collate_pt_map_update2_eq.
   right.
   split => //.
-  have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H6.
+  have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H5.
   rewrite /pt_ext_map_onet /= pt_ext_map_update_eq H_eq_d collate_pt_map_update2_eq H_ms /=.
   set nwP1 := update2 _ _ _ _.
   set nwS1 := update _ _ _.
@@ -437,8 +436,8 @@ invcs H_step.
 - case H_i: (pt_ext_map_input inp h (onwState net h)) => [inp'|].
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
-    exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)).
+    exists ((tot_map_name h, inl inp') :: map (fun o => (tot_map_name h, inr o)) out').
+    apply (@SOF_input _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=.
     * exact: not_in_failed_not_in.
     * rewrite /= tot_map_name_inv_inverse.
       have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
@@ -447,7 +446,7 @@ invcs H_step.
     * by rewrite /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
   right.
   rewrite /= /pt_ext_map_onet /=.
-  have [H_d H_l] := pt_ext_input_handlers_none h inp (onwState net h) H_i H5.
+  have [H_d H_l] := pt_ext_input_handlers_none h inp (onwState net h) H_i H4.
   split => //.
   rewrite pt_ext_map_update_eq /= H_d.
   rewrite collate_pt_map_eq H_l /=.
@@ -601,9 +600,9 @@ invcs H_step.
 - case H_m: (pt_map_msg m) => [m'|].
     left.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data d to)) => [[out' d''] ps].
-    exists [(tot_map_name to, inr out')].
+    exists (map (fun o => (tot_map_name to, inr o)) out').
     rewrite /pt_ext_map_onet /=.
-    apply (@SODF_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) _ (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_map_name_msgs l) (tot_map_name from)).
+    apply (@SODF_deliver _ _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
     * exact: not_in_failed_not_in.
     * exact: in_failed_in.
     * by rewrite /= tot_map_name_inv_inverse /= H5.
@@ -627,7 +626,7 @@ invcs H_step.
       by find_rewrite_lem tot_map_name_inv_inverse.
   right.
   split => //.
-  have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H8.
+  have [H_eq_d H_ms] := pt_ext_net_handlers_none _ _ _ _ H_m H7.
   rewrite /pt_ext_map_odnet /= collate_pt_map_update2_eq H_ms /=.
   set nwP1 := update2 _ _ _ _.
   set nwS1 := fun _ => match _ with _ => _ end.
@@ -653,14 +652,14 @@ invcs H_step.
 - case H_i: (pt_ext_map_input inp h d) => [inp'|].
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data d h)) => [[out' d''] ps].
-    exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SODF_input _ _ _ _ _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_map_name_msgs l)).
+    exists ((tot_map_name h, inl inp') :: map (fun o => (tot_map_name h, inr o)) out').
+    apply (@SODF_input _ _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_map_name_msgs l)) => //=.
     * exact: not_in_failed_not_in.
     * exact: in_failed_in. 
     * by rewrite /pt_ext_map_odnet /= tot_map_name_inv_inverse H5.
     * have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp d _ _ _ _ H_i H_h.
       rewrite /pt_ext_mapped_input_handlers /= in H_q.
-      rewrite H7 in H_q.
+      find_rewrite.
       by repeat tuple_inversion.
     * rewrite /= /pt_ext_map_odnet /= collate_pt_map_eq.
       set u1 := fun _ => match _ with | _ => _ end.
@@ -675,7 +674,7 @@ invcs H_step.
       by find_rewrite_lem tot_map_name_inv_inverse.
   right.
   rewrite /= /pt_ext_map_odnet /=.
-  have [H_d H_l] := pt_ext_input_handlers_none h inp d H_i H7.
+  have [H_d H_l] := pt_ext_input_handlers_none h inp d H_i H6.
   split => //=.
   rewrite collate_pt_map_eq H_l /=.
   set nwS1 := fun n : name => match _ with | _ => _ end.

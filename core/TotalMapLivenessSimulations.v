@@ -133,11 +133,11 @@ Qed.
 Theorem lb_step_o_f_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
     @lb_step_o_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_onet net') (List.map tot_map_trace_occ tr).
+    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_onet net') (List.map tot_map_trace tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
-- apply (@LSOF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)).
+- apply (@LSOF_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
   * rewrite /tot_map_onet /=.
     rewrite 2!tot_map_name_inv_inverse.
     by find_rewrite.
@@ -162,8 +162,9 @@ invcs H_step => //=.
       break_if; break_if => //; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite /tot_map_onet /=.
-  apply (@LSOF_input _ _ _ _ _ _ _ _ (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LSOF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
   * exact: not_in_failed_not_in.
   * rewrite /tot_map_onet /= tot_map_name_inv_inverse.
     have H_q := @tot_input_handlers_eq _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h).
@@ -185,6 +186,7 @@ invcs H_step => //=.
       break_if; break_if => //; first by rewrite -e tot_map_name_inverse_inv in n0.
       by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite tot_lb_label_silent_fst_snd.
   exact: LSOF_stutter.
 Qed.
@@ -192,12 +194,12 @@ Qed.
 Theorem lb_step_o_d_f_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
     @lb_step_o_d_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_odnet net') (List.map tot_map_trace_occ tr).
+    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_odnet net') (List.map tot_map_trace tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
 - rewrite /tot_map_odnet /=.
-  apply (@LSODF_deliver _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) _ (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from)) => //=.
+  apply (@LSODF_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -221,8 +223,9 @@ invcs H_step => //=.
       repeat break_if => //=; first by rewrite -e tot_map_name_inverse_inv in n.
       by rewrite e tot_map_name_inv_inverse in n.
     by rewrite H_eq_f.
+  * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite /tot_map_odnet /=.
-  apply (@LSODF_input _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l)) => //=.
+  apply (@LSODF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -246,6 +249,7 @@ invcs H_step => //=.
       * by rewrite -e tot_map_name_inverse_inv in n0.
       * by rewrite e tot_map_name_inv_inverse in n0.
     by rewrite H_eq_f.
+  * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite tot_lb_label_silent_fst_snd.
   exact: LSODF_stutter.
 Qed.
@@ -444,7 +448,7 @@ move => s H_exec.
 rewrite -tot_map_onet_event_state_map_unfold {1}/tot_map_onet_event_state /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_onet_event_state_map_unfold /= /tot_map_onet_event_state /=.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
 - apply: lb_step_o_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - set e0 := {| evt_r_a := _ ; evt_r_l := _  |}.
@@ -495,7 +499,7 @@ Qed.
 Definition tot_map_onet_event_state_trace e :=
 {| evt_tr_r_a := (List.map tot_map_name (fst e.(evt_tr_r_a)), tot_map_onet (snd e.(evt_tr_r_a))) ;
    evt_tr_r_l := tot_map_label e.(evt_tr_r_l) ;
-   evt_tr_r_trace := List.map tot_map_trace_occ e.(evt_tr_r_trace) |}.
+   evt_tr_r_trace := List.map tot_map_trace e.(evt_tr_r_trace) |}.
 
 Lemma tot_map_onet_event_state_trace_map_unfold : forall s,
  Cons (tot_map_onet_event_state_trace (hd s)) (map tot_map_onet_event_state_trace (tl s)) = map tot_map_onet_event_state_trace s.
@@ -512,7 +516,7 @@ move => s H_exec.
 rewrite -tot_map_onet_event_state_trace_map_unfold {1}/tot_map_onet_event_state_trace /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_onet_event_state_trace_map_unfold /= /tot_map_onet_event_state_trace /=.
-apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
+apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
 - apply: lb_step_o_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
@@ -581,7 +585,7 @@ apply: step_o_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_onet_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_onet_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists (List.map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
+  exists (List.map (@tot_map_trace _ _ _ _ _ name_map) x).
   apply: step_o_f_tot_mapped_simulation_star_1 => //.
   by rewrite -prod_fst_snd_eq.  
 exact: lb_step_state_execution_lb_step_o_f_tot_map_onet_infseq.
@@ -620,7 +624,7 @@ move => s H_exec.
 rewrite -tot_map_odnet_event_state_map_unfold {1}/tot_map_odnet_event_state /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_odnet_event_state_map_unfold /= /tot_map_odnet_event_state /=.
-apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
+apply: (@Cons_lb_step_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
 - apply: lb_step_o_d_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - set e0 := {| evt_r_a := _ ; evt_r_l := _  |}.
@@ -671,7 +675,7 @@ Qed.
 Definition tot_map_odnet_event_state_trace e :=
 {| evt_tr_r_a := (List.map tot_map_name (fst e.(evt_tr_r_a)), tot_map_odnet (snd e.(evt_tr_r_a))) ;
    evt_tr_r_l := tot_map_label e.(evt_tr_r_l) ;
-   evt_tr_r_trace := List.map tot_map_trace_occ e.(evt_tr_r_trace) |}.
+   evt_tr_r_trace := List.map tot_map_trace e.(evt_tr_r_trace) |}.
 
 Lemma tot_map_odnet_event_state_trace_map_unfold : forall s,
  Cons (tot_map_odnet_event_state_trace (hd s)) (map tot_map_odnet_event_state_trace (tl s)) = map tot_map_odnet_event_state_trace s.
@@ -688,7 +692,7 @@ move => s H_exec.
 rewrite -tot_map_odnet_event_state_trace_map_unfold {1}/tot_map_odnet_event_state_trace /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_odnet_event_state_trace_map_unfold /= /tot_map_odnet_event_state_trace /=.
-apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace_occ tr)) => /=.
+apply: (@Cons_lb_step_trace_exec _ _ _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
 - apply: lb_step_o_d_f_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
@@ -753,7 +757,7 @@ apply: step_o_d_f_star_ex_lb_step_state_execution.
   rewrite /= /tot_map_odnet_event_state /= /event_step_star_ex /=.
   rewrite /= /tot_map_odnet_event_state /= /event_step_star_ex /= in H_star.
   break_exists.
-  exists (List.map (@tot_map_trace_occ _ _ _ _ _ name_map) x).
+  exists (List.map (@tot_map_trace _ _ _ _ _ name_map) x).
   apply: step_o_d_f_tot_mapped_simulation_star_1 => //.
   by rewrite -prod_fst_snd_eq.  
 exact: lb_step_state_execution_lb_step_o_d_f_tot_map_odnet_infseq.

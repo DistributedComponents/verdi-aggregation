@@ -447,14 +447,11 @@ Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgPa
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_o_d_f_star _ _ _ Aggregation_NewMsgParams Aggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_o_d_f_init (failed, pt_map_odnet net) tr' /\
-    pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
+    @step_o_d_f_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_o_d_f_init (failed, pt_map_odnet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
 apply step_o_d_f_pt_mapped_simulation_star_1 in H_st.
-move: H_st => [tr' [H_st H_eq]].
-rewrite map_id in H_st.
-by exists tr'.
+by rewrite map_id in H_st.
 Qed.
 
 Lemma Aggregation_node_not_adjacent_self : 
@@ -466,7 +463,7 @@ forall net failed tr,
  ~ NSet.In n d.(adjacent).
 Proof.
 move => net failed tr H_st n H_n H_f d H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_node_not_adjacent_self _ _ _ H_st' n.
 rewrite /= /id /= map_id H_eq in H_inv'.
 have IH_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
@@ -481,7 +478,7 @@ forall onet failed tr,
   forall n', ~ In Fail (onet.(odnwPackets) n n').
 Proof.
 move => net failed tr H_st n H_n H_f n'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have IH := FR.Failure_not_failed_no_fail H_st'.
 rewrite /= map_id /id /= in IH.
 have IH' := IH _ H_n H_f n'.
@@ -500,7 +497,7 @@ forall net failed tr,
         forall (n' : name), In_all_before New Fail (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st n H_n H_f n'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have IH := FR.Failure_in_after_all_fail_new H_st'.
 rewrite /= map_id /id /= in IH.
 have IH' := IH _ H_n H_f n'.
@@ -522,7 +519,7 @@ forall net failed tr,
    forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) New <= 1.
 Proof.
 move => net failed tr H_st n H_n H_f n'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have IH := FR.Failure_le_one_new H_st'.
 rewrite /= map_id /id /= in IH.
 have IH' := IH _ H_n H_f n'.
@@ -542,7 +539,7 @@ forall net failed tr,
    forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) Fail <= 1.
 Proof.
 move => net failed tr H_st n H_n H_f n'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have IH := FR.Failure_le_one_fail H_st'.
 rewrite /= map_id /id /= in IH.
 have IH' := IH _ H_n H_f n'.
@@ -564,7 +561,7 @@ Lemma Aggregation_in_new_failed_incoming_fail :
                In Fail (onet.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_f' H_in.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := FR.Failure_in_new_failed_incoming_fail H_st'.
 rewrite /= map_id /id /= in H_inv'.
 have IH := H_inv' _ H_n H_f _ H_f'.
@@ -589,7 +586,7 @@ forall onet failed tr,
                adjacent_to n' n.
 Proof.
 move => net failed tr H_st n n' H_n H_f d H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_in_adj_adjacent_to _ _ _ H_st' n n'.
 rewrite /= map_id /id /= H_eq in H_inv'.
 have H_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
@@ -605,7 +602,7 @@ forall onet failed tr,
             (In n' (odnwNodes onet) /\ ~ In n' failed) \/ (In n' (odnwNodes onet) /\ In n' failed /\ In Fail (onet.(odnwPackets) n' n)).
 Proof.
 move => net failed tr H_st n n' H_n H_f d H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_in_adj_or_incoming_fail  _ _ _ H_st' n n'.
 rewrite /= map_id /id /= H_eq in H_inv'.
 have H_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
@@ -633,7 +630,7 @@ forall net failed tr,
                             ~ NSet.In n' d.(adjacent).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_in d H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_new_incoming_not_in_adj _ _ _ H_st' n _ _ n' _ {| FR.adjacent := d.(adjacent) |}.
 rewrite /= map_id /id /= H_eq in H_inv'.
 apply: H_inv' => //.
@@ -653,7 +650,7 @@ Lemma Aggregation_adjacent_to_no_incoming_new_n_adjacent :
          NSet.In n' (adjacent d).
 Proof.
 move => net failed tr H_st n n' H_n H_f H_n' H_f' H_adj d H_eq H_in.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_adjacent_to_no_incoming_new_n_adjacent _ _ _ H_st' n n'.
 rewrite /= map_id /id /= H_eq in H_inv'.
 have H_inv'' := H_inv' H_n H_f H_n' H_f' H_adj {| FR.adjacent := d.(adjacent) |}.
@@ -673,7 +670,7 @@ Lemma Aggregation_incoming_fail_then_incoming_new_or_in_adjacent :
       (In New (net.(odnwPackets) n' n) /\ ~ NSet.In n' d.(adjacent)) \/ (~ In New (net.(odnwPackets) n' n) /\ NSet.In n' d.(adjacent)).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_in d H_eq. 
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_incoming_fail_then_incoming_new_or_in_adjacent _ _ _ H_st' n.
 rewrite /= map_id /id /= H_eq in H_inv'.
 have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
@@ -725,7 +722,7 @@ Lemma Aggregation_head_fail_then_adjacent :
    NSet.In n' d.(adjacent).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_eq d H_eq'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_head_fail_then_adjacent _ _ _ H_st' n.
 rewrite /= map_id /id /= H_eq' in H_inv'.
 have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
@@ -746,7 +743,7 @@ Lemma Aggregation_adjacent_or_incoming_new_reciprocal :
         NSet.In n d1.(adjacent) \/ In New (net.(odnwPackets) n n').
 Proof.
 move => net failed tr H_st n n' H_n H_f H_n' H_f' d H_eq d' H_eq'.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_adjacent_or_incoming_new_reciprocal _ _ _ H_st' n n'.
 rewrite /= map_id /id /= H_eq H_eq' in H_inv'.
 have H_inv'' := H_inv' H_n H_f H_n' H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _) {| FR.adjacent := d'.(adjacent) |} (Logic.eq_refl _).
@@ -788,7 +785,7 @@ Lemma Aggregation_adjacent_then_adjacent_or_new_incoming :
         NSet.In n d1.(adjacent) \/ In New (net.(odnwPackets) n n').
 Proof.
 move => net failed tr H_st n n' H_n H_f H_n' H_f' d H_eq d' H_eq' H_ins.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_adjacent_then_adjacent_or_new_incoming _ _ _ H_st' n n'.
 rewrite /= map_id /id /= H_eq H_eq' in H_inv'.
 have H_inv'' := H_inv' H_n H_f H_n' H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _) {| FR.adjacent := d'.(adjacent) |} (Logic.eq_refl _).
@@ -809,7 +806,7 @@ Lemma Aggregation_fail_head_no_new :
         ~ In New (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_eq.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_fail_head_no_new _ _ _ H_st' n.
 rewrite /= map_id /id /= in H_inv'.
 have H_inv'' := H_inv' H_n H_f n'.
@@ -836,7 +833,7 @@ Lemma Aggregation_failed_adjacent_fail :
       In Fail (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st n H_n H_f n' H_f' d H_eq H_or.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_failed_adjacent_fail _ _ _ H_st' n.
 rewrite /= map_id /id /= H_eq in H_inv'.
 have H_inv'' := H_inv' H_n H_f _ H_f' {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
@@ -863,7 +860,7 @@ Lemma Aggregation_in_new_then_adjacent :
             adjacent_to n' n.
 Proof.
 move => net failed tr H_st n H_n H_f n' H_in.
-have [tr' [H_st' H_inv]] := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_in_new_then_adjacent _ _ _ H_st' n.
 rewrite /= map_id /id /= in H_inv'.
 apply: (H_inv' H_n H_f n').
@@ -1607,8 +1604,8 @@ invcs H_step.
   rewrite /update_opt.
   break_if => H_eq'; last by left; congruence.    
   right.
-  rewrite -e /= in H8.
-  rewrite /runGenHandler_ignore /= in H8.
+  rewrite -e /= in H7.
+  rewrite /runGenHandler_ignore /= in H7.
   repeat break_let.
   repeat tuple_inversion.
   find_rewrite.
@@ -1787,7 +1784,7 @@ Variable onet : ordered_dynamic_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
 
@@ -2226,6 +2223,268 @@ rewrite -/(P_curr d _).
 move: H_d; generalize d => {d}.
 by apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f}; by intuition by (find_apply_lem_hyp adjacent_to_symmetric).
 Qed.
+
+Section DualNodeInv.
+
+Variable onet : ordered_dynamic_network.
+
+Variable failed : list name.
+
+Variable tr : list (name * (input + output)).
+
+Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+
+Variables n n' : name.
+
+Hypothesis active_n : In n (odnwNodes onet).
+
+Hypothesis active_n' : In n' (odnwNodes onet).
+
+Hypothesis not_failed_n : ~ In n failed.
+
+Hypothesis not_failed_n' : ~ In n' failed.
+
+Variable P : Data -> Data -> list msg -> list msg -> Prop.
+
+Hypothesis after_init : 
+  forall onet failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    n' = n ->
+    ~ In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    P (InitData n) (InitData n) [] [].
+
+Hypothesis after_init_fst_not_adjacent :
+   forall onet failed tr,
+     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    ~ In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    ~ adjacent_to n n' ->
+    forall d, onet.(odnwState) n' = Some d ->
+    P (InitData n) d [] [].
+
+Hypothesis after_init_snd_not_adjacent :
+   forall onet failed tr,
+     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     In n (odnwNodes onet) -> 
+     ~ In n failed ->
+     ~ In n' (odnwNodes onet) ->
+     ~ In n' failed ->
+     n' <> n ->
+     ~ adjacent_to n n' ->
+     forall d, onet.(odnwState) n = Some d ->
+     P d (InitData n') [] [].
+
+Hypothesis after_init_fst_adjacent :
+   forall onet failed tr,
+     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    ~ In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n n' ->
+    forall d, onet.(odnwState) n' = Some d ->
+    P (InitData n) d [New] [New].
+
+Hypothesis after_init_snd_adjacent :
+   forall onet failed tr,
+     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    ~ In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n n' ->
+    forall d, onet.(odnwState) n = Some d ->
+    P d (InitData n') [New] [New].
+
+Hypothesis recv_fail_self :
+  forall onet failed tr from ms m0 m1,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    n' = n ->
+    In from onet.(odnwNodes) ->
+    In from failed ->
+    from <> n ->    
+    adjacent_to from n ->
+    onet.(odnwPackets) from n = Fail :: ms ->
+    forall d, onet.(odnwState) n = Some d ->
+    NMap.find from d.(sent) = Some m0 ->
+    NMap.find from d.(received) = Some m1 ->
+    P d d (onet.(odnwPackets) n n) (onet.(odnwPackets) n n) ->
+    P {| local := d.(local) ;
+         aggregate := d.(aggregate) * m0 * m1^-1 ;
+         adjacent := NSet.remove from d.(adjacent) ;
+         sent := NMap.remove from d.(sent) ;
+         received := NMap.remove from d.(received)
+      |} 
+      {| local := d.(local) ;
+         aggregate := d.(aggregate) * m0 * m1^-1 ;
+         adjacent := NSet.remove from d.(adjacent) ;
+         sent := NMap.remove from d.(sent) ;
+         received := NMap.remove from d.(received)
+      |} 
+      [] [].
+
+Hypothesis recv_fail_other_fst :
+  forall onet failed tr from ms m0 m1,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    from <> n ->
+    from <> n' ->
+    In from (odnwNodes onet) ->
+    In from failed ->
+    adjacent_to from n ->
+    onet.(odnwPackets) from n = Fail :: ms ->    
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find from d0.(sent) = Some m0 ->
+    NMap.find from d0.(received) = Some m1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P {| local := d0.(local) ;
+         aggregate := d0.(aggregate) * m0 * m1^-1 ;
+         adjacent := NSet.remove from d0.(adjacent) ;
+         sent := NMap.remove from d0.(sent) ;
+         received := NMap.remove from d0.(received)
+       |} d1
+      (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis recv_fail_other_snd :
+  forall onet failed tr from ms m0 m1,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    from <> n ->
+    from <> n' ->
+    In from (odnwNodes onet) ->
+    In from failed ->
+    adjacent_to from n' ->
+    onet.(odnwPackets) from n' = Fail :: ms ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find from d1.(sent) = Some m0 ->
+    NMap.find from d1.(received) = Some m1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P d0 
+      {| local := d1.(local) ;
+         aggregate := d1.(aggregate) * m0 * m1^-1 ;
+         adjacent := NSet.remove from d1.(adjacent) ;
+         sent := NMap.remove from d1.(sent) ;
+         received := NMap.remove from d1.(received)
+      |}
+      (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis recv_new_self :
+  forall onet failed tr from ms,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    n' = n ->
+    In from onet.(odnwNodes) ->
+    from <> n ->
+    adjacent_to from n ->
+    onet.(odnwPackets) from n = New :: ms ->
+    forall d, onet.(odnwState) n = Some d ->
+    P d d (onet.(odnwPackets) n n) (onet.(odnwPackets) n n) ->
+    P {| local := d.(local) ;
+         aggregate := d.(aggregate) ;
+         adjacent := NSet.add from d.(adjacent) ;
+         sent := NMap.add from 1 d.(sent) ;
+         received := NMap.add from 1 d.(received)
+      |}
+      {| local := d.(local) ;
+         aggregate := d.(aggregate) ;
+         adjacent := NSet.add from d.(adjacent) ;
+         sent := NMap.add from 1 d.(sent) ;
+         received := NMap.add from 1 d.(received)
+      |}
+      [] [].
+
+Hypothesis recv_new_fst :
+  forall onet failed tr ms,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->
+    onet.(odnwPackets) n' n = New :: ms ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P {| local := d0.(local) ;
+         aggregate := d0.(aggregate) ;
+         adjacent := NSet.add n' d0.(adjacent) ;
+         sent := NMap.add n' 1 d0.(sent) ;
+         received := NMap.add n' 1 d0.(received)
+      |} 
+      d1
+      (odnwPackets onet n n') ms.
+
+Hypothesis recv_new_snd :
+  forall onet failed tr ms,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->
+    onet.(odnwPackets) n n' = New :: ms ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P d0 {| local := d1.(local) ;
+            aggregate := d1.(aggregate) ;
+            adjacent := NSet.add n d1.(adjacent) ;
+            sent := NMap.add n 1 d1.(sent) ;
+            received := NMap.add n 1 d1.(received)
+         |}
+      ms (odnwPackets onet n' n).
+
+(* BLAAAA *)
+
+(*
+Hypothesis recv_new_fst_other :
+  forall onet failed tr from ms,
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   from <> n ->
+   from <> n' ->
+   In from (odnwNodes onet) ->
+   adjacent_to from n ->
+   onet.(odnwPackets) from n = New :: ms ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P {| local := d0.(local) ;
+        
+
+        adjacent := NSet.add from (adjacent d0) 
+
+     |} d1
+     (odnwPackets onet n n') (odnwPackets onet n' n).
+*)
+
+
+End DualNodeInv.
 
 Lemma Aggregation_send_aggregate_in : 
   forall net failed tr,

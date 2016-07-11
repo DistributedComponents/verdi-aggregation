@@ -278,7 +278,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -341,7 +341,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -453,7 +453,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -570,7 +570,7 @@ Variable onet : ordered_network.
 
 Variable failed : list name.
 
-Variable tr : list (name * (input + list output)).
+Variable tr : list (name * (input + output)).
 
 Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
 
@@ -1010,7 +1010,7 @@ pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiPa
 pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d'.
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
-exists [(to0, inr [])].
+exists [].
 have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail from0 to0, [], d', []).
   case H_n: lb_net_handlers => [[[lb out] d1] l].
   rewrite /lb_net_handlers /= in H_n.
@@ -1021,12 +1021,11 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   find_rewrite.
   rewrite /d' /update'.
   by break_if.
-have H_eq: net'' = net'' by [].
-move: H_eq_n H_eq.
-apply: LSOF_deliver => //.
-rewrite /net' /=.
-rewrite /update2.
-by break_if; first by break_and.
+set tr := [].
+apply: LSOF_deliver; eauto => //=.
+rewrite /net' /= /update2.
+break_if; first by break_and.
+by eassumption.
 Qed.
 
 Lemma Failure_lb_step_o_f_RecvFail_neq_dst_enabled :
@@ -1048,7 +1047,7 @@ pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiPa
 pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d0.
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
-exists [(to0, inr [])].
+exists [].
 have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail from0 to0, [], d0, []).
   case H_n: lb_net_handlers => [[[lb out] d1] l].
   rewrite /lb_net_handlers /= in H_n.
@@ -1062,11 +1061,8 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   break_if => //.
   rewrite e in H_neq.
   by case: H_neq.
-have H_eq: net'' = net'' by [].
-move: H_eq_n H_eq.
-apply: LSOF_deliver => //.
-rewrite /net' /=.
-rewrite /update2.
+apply: LSOF_deliver => //; eauto.
+rewrite /net' /= /update2.
 by break_if; first by break_and.
 Qed.
 
@@ -1254,7 +1250,7 @@ have H_lb := H_hnd.
 rewrite /lb_net_handlers /= in H_hnd.
 net_handler_cases.
 exists (failed, {| onwPackets := update2 (onwPackets net) src dst ms; onwState := update' (onwState net) dst d |}).
-exists ([(dst, inr [])]).
+exists [].
 by apply: LSOF_deliver; eauto.
 Qed.
 

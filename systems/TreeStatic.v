@@ -626,14 +626,11 @@ Instance Tree_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverl
 Theorem Tree_Failed_pt_mapped_simulation_star_1 :
   forall net failed tr,
     @step_o_f_star _ _ _ Tree_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) tr' /\
-    pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
+    @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
 apply step_o_f_pt_mapped_simulation_star_1 in H_st.
-move: H_st => [tr' [H_st H_eq]].
-rewrite map_id in H_st.
-by exists tr'.
+by rewrite map_id in H_st.
 Qed.
 
 End Tree.

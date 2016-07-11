@@ -1419,29 +1419,46 @@ rewrite -map_msg_update2.
 by rewrite collate_tot_map_eq.
 Qed.
 
+Definition tot_map_trace (e : @name _ multi_fst * (@input base_fst + (@output base_fst))) :=
+match e with
+| (n, inl i) => (tot_map_name n, inl (tot_map_input i))
+| (n, inr o) => (tot_map_name n, inr (tot_map_output o))
+end.
+
+Lemma map_tot_map_trace_eq :
+  forall out to,
+   map tot_map_trace (map (fun o : output => (to, inr o)) out) =
+   map (fun o : output => (tot_map_name to, inr o)) (map tot_map_output out).
+elim => //=.
+move => o out IH to.
+by rewrite IH.
+Qed.
+
 Theorem step_o_f_tot_mapped_simulation_1 :
   forall net net' failed failed' tr,
     @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, tot_map_onet net) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace_occ tr).
+    @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, tot_map_onet net) (map tot_map_name failed', tot_map_onet net') (map tot_map_trace tr).
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
 - rewrite /tot_map_onet /=.
-  apply (@SOF_deliver _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from)).
+  apply (@SOF_deliver _ _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) (map tot_map_output out) (tot_map_data d) (tot_map_name_msgs l) (tot_map_name from) (tot_map_name to)).
   * by rewrite /tot_map_net /= 2!tot_map_name_inv_inverse /= H3.
   * exact: not_in_failed_not_in.
   * rewrite /= tot_map_name_inv_inverse -tot_net_handlers_eq /tot_mapped_net_handlers /=.
     repeat break_let.
-    by inversion H6.
+    by find_inversion.
   * by rewrite /= tot_map_update_eq collate_tot_map_update2_eq.
+  * by rewrite map_tot_map_trace_eq.
 - rewrite /tot_map_onet /=.
-  apply (@SOF_input _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_name_msgs l)).
+  apply (@SOF_input _ _ _ _ (tot_map_name h) _ _ _ _ (map tot_map_output out) (tot_map_input inp) (tot_map_data d) (tot_map_name_msgs l)).
   * exact: not_in_failed_not_in.
   * rewrite /= tot_map_name_inv_inverse -tot_input_handlers_eq /tot_mapped_input_handlers.
     repeat break_let.
-    by inversion H5.
+    by find_inversion.
   * by rewrite /= /tot_map_onet /= tot_map_update_eq collate_tot_map_eq.
-- rewrite /tot_map_onet /=.  
+  * by rewrite map_tot_map_trace_eq.
+- rewrite /tot_map_onet /=.
   set l := map_pair _ _.
   have H_nd: NoDup (map (fun nm => fst nm) (tot_map_name_msgs l)).
     rewrite /tot_map_name_msgs /=.
@@ -1468,7 +1485,7 @@ Qed.
 Corollary step_o_f_tot_mapped_simulation_star_1 :
   forall net failed tr,
     @step_o_f_star _ _ overlay_fst fail_msg_fst step_o_f_init (failed, net) tr ->
-    @step_o_f_star _ _ overlay_snd fail_msg_snd step_o_f_init (map tot_map_name failed, tot_map_onet net) (map tot_map_trace_occ tr).
+    @step_o_f_star _ _ overlay_snd fail_msg_snd step_o_f_init (map tot_map_name failed, tot_map_onet net) (map tot_map_trace tr).
 Proof.
 move => net failed tr H_step.
 remember step_o_f_init as y in *.
@@ -1488,7 +1505,7 @@ rewrite map_app.
 match goal with
 | H : step_o_f_star _ _ _ |- _ => apply: (refl_trans_1n_trace_trans H)
 end.
-rewrite (app_nil_end (map tot_map_trace_occ _)).
+rewrite (app_nil_end (map tot_map_trace _)).
 apply (@RT1nTStep _ _ _ _ (map tot_map_name l0, tot_map_onet o0)) => //.
 exact: RT1nTBase.
 Qed.
@@ -1544,7 +1561,7 @@ Theorem step_o_d_f_tot_mapped_simulation_1 :
   forall net net' failed failed' tr,
     NoDup (odnwNodes net) ->
     @step_o_d_f _ _ overlay_fst new_msg_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    @step_o_d_f _ _ overlay_snd new_msg_snd fail_msg_snd (map tot_map_name failed, tot_map_odnet net) (map tot_map_name failed', tot_map_odnet net') (map tot_map_trace_occ tr).
+    @step_o_d_f _ _ overlay_snd new_msg_snd fail_msg_snd (map tot_map_name failed, tot_map_odnet net) (map tot_map_name failed', tot_map_odnet net') (map tot_map_trace tr).
 Proof.
 move => net net' failed failed' tr H_nd H_step.
 invcs H_step.
@@ -1604,7 +1621,7 @@ invcs H_step.
       exact: in_failed_in.  
   by rewrite H_eq_p.
 - rewrite /tot_map_odnet /=.
-  apply (@SODF_deliver _ _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) _ (tot_map_data d) (tot_map_data d') (tot_map_name_msgs l) (tot_map_name from)) => //=.
+  apply (@SODF_deliver _ _ _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) (map tot_map_output out) (tot_map_data d) (tot_map_data d') (tot_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -1625,8 +1642,9 @@ invcs H_step.
       by rewrite e in n0.
     find_rewrite.
     by find_rewrite_lem tot_map_name_inv_inverse.
+  * by rewrite map_tot_map_trace_eq.
 - rewrite /tot_map_odnet /=.
-  apply (@SODF_input _ _ _ _ _ _ _ _ _ _ _ (tot_map_data d) (tot_map_data d') (tot_map_name_msgs l)) => //=.
+  apply (@SODF_input _ _ _ _ _ (tot_map_name h) _ _ _ _ (map tot_map_output out) (tot_map_input inp) (tot_map_data d) (tot_map_data d') (tot_map_name_msgs l)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -1645,6 +1663,7 @@ invcs H_step.
       by rewrite e in n0.
     find_rewrite.
     by find_rewrite_lem tot_map_name_inv_inverse.
+  * by rewrite map_tot_map_trace_eq.
 - rewrite /tot_map_odnet /=.  
   set l := map_pair _ _.
   have H_nd': NoDup (map (fun nm => fst nm) (tot_map_name_msgs l)).
@@ -1672,7 +1691,7 @@ Qed.
 Corollary step_o_d_f_tot_mapped_simulation_star_1 :
   forall net failed tr,
     @step_o_d_f_star _ _ overlay_fst new_msg_fst fail_msg_fst step_o_d_f_init (failed, net) tr ->
-    @step_o_d_f_star _ _ overlay_snd new_msg_snd fail_msg_snd step_o_d_f_init (map tot_map_name failed, tot_map_odnet net) (map tot_map_trace_occ tr).
+    @step_o_d_f_star _ _ overlay_snd new_msg_snd fail_msg_snd step_o_d_f_init (map tot_map_name failed, tot_map_odnet net) (map tot_map_trace tr).
 Proof.
 move => net failed tr H_step.
 remember step_o_d_f_init as y in *.
@@ -1692,7 +1711,7 @@ find_apply_lem_hyp step_o_d_f_tot_mapped_simulation_1.
   match goal with
   | H : step_o_d_f_star _ _ _ |- _ => apply: (refl_trans_1n_trace_trans H)
   end.
-  rewrite (app_nil_end (map tot_map_trace_occ _)).
+  rewrite (app_nil_end (map tot_map_trace _)).
   apply (@RT1nTStep _ _ _ _ (map tot_map_name l0, tot_map_odnet o0)) => //.
   exact: RT1nTBase.
 move: H_step1.
