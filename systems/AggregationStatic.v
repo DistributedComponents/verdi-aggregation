@@ -450,16 +450,20 @@ apply step_o_f_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
-Instance Aggregation_Aggregator_multi_one_map : MultiOneNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
+Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
   {
-    tot_one_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
-    tot_one_map_input := fun n i => 
+    tot_s_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+    tot_s_map_input := fun n i => 
                         match i with
                         | Local m_inp => OA.Local m_inp
                         | AggregateRequest => OA.AggregateRequest
                         | SendAggregate dst => OA.SendAggregate dst
                         end ;
-    tot_one_map_msg := fun dst src m =>
+    tot_s_map_output := fun o =>
+                         match o with 
+                         | AggregateResponse m_out => OA.AggregateResponse m_out
+                         end ;
+    tot_s_map_msg := fun dst src m =>
                         match m with
                         | Fail => OA.Fail src
                         | Aggregate m_msg => OA.Aggregate src m_msg
@@ -1946,121 +1950,66 @@ Qed.
 
 End SingleNodeInvIn.
 
-(* FIXME: trace projected for node *)
-Theorem step_o_f_tot_one_mapped_simulation_1 :
-  forall n net net' failed failed' tr tr',
-    step_o_f_star step_o_f_init (failed, net) tr ->
-    step_o_f (failed, net) (failed', net') tr' ->
-    net.(onwState) n = net'.(onwState) n \/
-    exists tr'', @step_s OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams n) (tot_one_map_data (net.(onwState) n)) (tot_one_map_data (net'.(onwState) n)) tr''.
+Instance Aggregation_Aggregator_congr (n : name) : MultiParamsSingleTotalMapCongruency (OA.Aggregator_SingleNodeParams n) Aggregation_Aggregator_multi_single_map n :=
+  {
+    tot_s_init_handlers_eq := _ ;
+    tot_s_input_handlers_eq := _
+  }.
 Proof.
-move => n net net' failed failed' tr tr' H_star H_step.
-invcs H_step.
-- rewrite /update'.
-  break_if; last by left.
-  right.
-  rewrite -e /= in H5.
-  rewrite /runGenHandler_ignore /= in H5.
+- by [].
+- move => inp st out st' ps out' st'' H_inp H_inp'.
+  unfold input_handlers, input_handler in *.  
+  simpl in *.
+  unfold runGenHandler_ignore, runGenHandler1_ignore in *.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u.
-  case H_h: (@input_handler OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams to) (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0) (tot_one_map_data (onwState net to))) => [out' st'].
-  exists ((inl (@tot_one_map_msg _ _ _ Aggregation_Aggregator_multi_one_map to from m0)) :: (map inr out')).
-  apply: SS_deliver => //=.
-  suff H_suff: {|
-   OA.local := local d;
-   OA.aggregate := aggregate d;
-   OA.adjacent := adjacent d;
-   OA.sent := sent d;
-   OA.received := received d |} = st'.
-    rewrite H_suff.
-    by rewrite -H_h.
-  destruct st'.
-  rewrite /input_handler /= /runGenHandler1_ignore in H_h.
-  repeat break_let.
-  repeat tuple_inversion.
-  net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
-  * case: H0.
-    apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H4 _ x1).
-    find_rewrite.
-    by left.
-  * case: H0.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
-    by congruence.
-  * have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H4 H.
-    by congruence.
-  * case: H.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
-    by congruence.
-  * have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H4 H.
-    by congruence.
-  * case: H.
-    apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H4).
-    find_rewrite.
-    by left.
-- rewrite /update'.
-  break_if; last by left.
-  right.
-  rewrite -e /= in H4.
-  rewrite /runGenHandler_ignore /= in H4.
-  repeat break_let.
-  repeat tuple_inversion.
-  destruct u.
-  case H_h: (@input_handler OA.Aggregator_BaseParams (OA.Aggregator_SingleNodeParams h) (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp) (tot_one_map_data (onwState net h))) => [out' st'].
-  exists ((inl (@tot_one_map_input _ _ _ Aggregation_Aggregator_multi_one_map h inp)) :: map inr out').
-  apply: SS_deliver => //=.
-  suff H_suff: {|
-   OA.local := local d;
-   OA.aggregate := aggregate d;
-   OA.adjacent := adjacent d;
-   OA.sent := sent d;
-   OA.received := received d |} = st'.
-    rewrite H_suff.
-    by rewrite -H_h.
-  destruct st'.
-  rewrite /input_handler /= /runGenHandler1_ignore in H_h.
-  repeat break_let.
-  repeat tuple_inversion.
+  unfold runGenHandler in *.
+  destruct st''.
   by io_handler_cases; OA.io_handler_cases; simpl in *; congruence.
-- by left.
 Qed.
 
-(* FIXME: trace is projection for node *)
+(* FIXME: trace projected for node *)
 Lemma Aggregation_step_o_f_tot_one_mapped_simulation_star_1 :
   forall n net failed tr,
     step_o_f_star step_o_f_init (failed, net) tr ->
-    exists tr', @step_s_star _ (OA.Aggregator_SingleNodeParams n) (@init_handler _ (OA.Aggregator_SingleNodeParams n)) (tot_one_map_data (net.(onwState) n)) tr'.
+    exists tr', @step_s_star _ (OA.Aggregator_SingleNodeParams n) (@init_handler _ (OA.Aggregator_SingleNodeParams n)) (tot_s_map_data (net.(onwState) n)) tr'.
 Proof.
 move => n.
-move => net failed tr H_st.
-have ->: net = snd (failed, net) by [].
-remember step_o_f_init as y in *.
-move: Heqy.
-induction H_st using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /=.
-  exists [].
-  exact: RT1nTBase.
-concludes.
-rewrite H_init {H_init x} in H_st1 H_st2.
-case: x' H IHH_st1 H_st1 => failed' net'.
-case: x'' H_st2 => failed'' net''.
-rewrite /=.
-move => H_step2 H IHH_step1 H_step1.
-have [tr' H_star] := IHH_step1.
-have H_st := step_o_f_tot_one_mapped_simulation_1 n H_step1 H.
-case: H_st => H_st; first by rewrite -H_st; exists tr'.
-have [tr'' H_st'] := H_st.
-exists (tr' ++ tr'').
-apply: (refl_trans_1n_trace_trans H_star).
-have ->: tr'' = tr'' ++ [] by rewrite -app_nil_end.
-apply RT1nTStep with (x' := (tot_one_map_data (onwState net'' n))) => //.
-exact: RT1nTBase.
+apply: step_o_f_tot_one_mapped_simulation_star_1.
+move => net failed tr src m ms out st' ps out' st'' H_star H_eq H_in_f H_hnd H_inp.
+unfold input_handlers, input_handler in *.  
+simpl in *.
+unfold runGenHandler_ignore, runGenHandler1_ignore in *.
+repeat break_let.
+repeat tuple_inversion.
+unfold runGenHandler in *.
+destruct st''.
+destruct u0.
+net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try repeat find_injection.
+* case: H0.
+  apply: (Aggregation_aggregate_msg_dst_adjacent_src H_star _ H_in_f _ x1).
+  find_rewrite.
+  by left.
+* case: H0.
+  apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H_in_f).
+  find_rewrite.
+  by left.
+* have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H_in_f H.
+  by congruence.
+* have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H_in_f H.
+  by congruence.
+* case: H.
+  apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H_in_f).
+  find_rewrite.
+  by left.
+* have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H_in_f H.
+  by congruence.
+* have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H_in_f H.
+  by congruence.
+* case: H.
+  apply: (Aggregation_in_queue_fail_then_adjacent H_star _ _ H_in_f).
+  find_rewrite.
+  by left.
 Qed.
 
 Instance AggregationData_Data : AggregationData Data :=
