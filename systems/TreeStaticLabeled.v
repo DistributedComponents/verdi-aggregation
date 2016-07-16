@@ -5,10 +5,13 @@ Require Import NameOverlay.
 Require Import LabeledNet.
 Require Import InfSeqExt.infseq.
 Require Import InfSeqExt.classical.
+Require Import InfSeqExt.exteq.
+Require Import InfSeqExt.map.
 
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
-Require Import PartialExtendedMapSimulations.
+Require Import TotalMapLivenessSimulations.
+Require Import PartialMapLivenessSimulations.
 
 Require Import UpdateLemmas.
 Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
@@ -26,7 +29,7 @@ Require Import FMapInterface.
 Require Import Sorting.Permutation.
 
 Require Import TreeAux.
-Require Import FailureRecorderStatic.
+Require Import FailureRecorderStaticLabeled.
 
 Set Implicit Arguments.
 
@@ -242,6 +245,8 @@ Instance Tree_LabeledMultiParams : LabeledMultiParams Tree_BaseParams :=
     lb_input_handlers := fun nm msg s =>
                         runGenHandler s (IOHandler nm msg)
   }.
+
+Instance Tree_EqDec_eq_label : EqDec_eq label := Label_eq_dec.
 
 Instance Tree_MultiParams : MultiParams Tree_BaseParams := unlabeled_multi_params.
 
@@ -507,7 +512,7 @@ Lemma IOHandler_cases :
        st.(broadcast) = false /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (root h /\ i = LevelRequest /\
+      (root h /\ i = LevelRequest /\ lb = Tau /\
        st' = st /\
        out = [LevelResponse (Some 0)] /\ ms = []) \/
       (~ root h /\ i = LevelRequest /\ lb = Tau /\
@@ -594,7 +599,7 @@ Proof.
   rewrite /net_handlers /= /runGenHandler_ignore /= /unlabeled_net_handlers /lb_net_handlers /= /runGenHandler /id in Heqp H_n.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u, st'.
+  destruct st'.
   by net_handler_cases; FR.net_handler_cases; simpl in *; congruence.
 - move => me src mg st out st' ps H_eq H_eq'.
   rewrite /= /runGenHandler_ignore /unlabeled_net_handlers /= /runGenHandler /= in H_eq'.
@@ -648,6 +653,124 @@ Proof.
 move => onet failed tr H_st.
 apply step_o_f_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
+Qed.
+
+Instance Tree_FailureRecorder_label_tot_map : LabeledMultiParamsLabelTotalMap Tree_LabeledMultiParams FR.FailureRecorder_LabeledMultiParams :=
+  {
+    tot_map_label := fun lb =>
+                      match lb with
+                      | Tau => FR.Tau
+                      | RecvFail dst src => FR.RecvFail dst src
+                      | RecvLevel _ _ => FR.Tau
+                      | BroadcastTrue _ => FR.Tau
+                      end
+  }.
+
+Instance Tree_FailureRecorder_labeled_partial_map_congruency : LabeledMultiParamsPartialMapCongruency Tree_FailureRecorder_base_params_pt_map Tree_FailureRecorder_name_tot_map Tree_FailureRecorder_multi_params_pt_map Tree_FailureRecorder_label_tot_map :=
+  {
+    pt_lb_label_silent_fst_snd := Logic.eq_refl ;
+    pt_lb_net_handlers_some := _ ;
+    pt_lb_net_handlers_none := _ ;
+    pt_lb_input_handlers_some := _ ;
+    pt_lb_input_handlers_none := _
+  }.
+Proof.
+- move => me src m st m' out st' ps lb H_m H_eq.
+  rewrite /lb_net_handlers /= /runGenHandler /= /id /= in H_eq.
+  rewrite /tot_mapped_lb_net_handlers_label /= /runGenHandler /=.
+  case H_n: NetHandler => [[[lb' out'] st''] ps'].
+  by net_handler_cases; FR.net_handler_cases; simpl in *; congruence.
+- move => me src m st H_eq.
+  rewrite /tot_mapped_lb_net_handlers_label /= /runGenHandler /=.
+  case H_n: NetHandler => [[[lb out] st'] ps].
+  by net_handler_cases.
+- move => me inp st inp' out st' ps lb H_i H_eq.
+  rewrite /tot_mapped_lb_input_handlers_label /= /runGenHandler /=.
+  case H_inp: IOHandler => [[[lb' out'] st''] ps'].
+  by io_handler_cases.
+- move => me inp st H_eq.
+  rewrite /tot_mapped_lb_input_handlers_label /= /runGenHandler /=.
+  case H_inp: IOHandler => [[[lb' out'] st''] ps'].
+  by io_handler_cases.
+Qed.
+
+Lemma Tree_FailureRecorder_lb_step_state_execution_pt_map : forall s,
+  lb_step_state_execution lb_step_o_f s ->
+  lb_step_state_execution lb_step_o_f (map pt_map_onet_event_state s).
+Proof.
+exact: lb_step_state_execution_lb_step_o_f_pt_map_onet_infseq.
+Qed.
+ 
+Lemma Tree_pt_map_onet_hd_step_o_f_star_ex_always : 
+  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
+       lb_step_state_execution lb_step_o_f s ->
+       always (now (event_step_star_ex step_o_f step_o_f_init)) (map pt_map_onet_event_state s).
+Proof.
+exact: pt_map_onet_hd_step_o_f_star_ex_always.
+Qed.
+
+Lemma Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
+forall l s,
+  lb_step_state_execution lb_step_o_f s ->
+  weak_local_fairness lb_step_o_f s ->
+  l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event_state (hd s)) ->
+  eventually (now (l_enabled lb_step_o_f l)) s.
+Proof.
+Admitted.
+
+Lemma Tree_pt_map_onet_always_l_enabled : 
+  forall l s,
+    lb_step_state_execution lb_step_o_f s ->
+    always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
+    l_enabled lb_step_o_f l (hd s) ->
+    always (now (l_enabled lb_step_o_f l)) s.
+Proof.
+Admitted.
+
+Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
+  forall s, lb_step_state_execution lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f (map pt_map_onet_event_state s).
+Proof.
+apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
+- exact: Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually.
+- exact: Tree_pt_map_onet_always_l_enabled.
+- case; first by exists Tau.
+  move => dst src.
+  by exists (RecvFail dst src).
+Qed.
+
+Lemma Tree_lb_step_o_f_continuously_no_fail :
+  forall s, lb_step_state_execution lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f s ->
+       forall src dst,
+       ~ In dst (fst (hd s).(evt_a)) ->
+       continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
+Proof.
+move => s H_exec H_fair src dst H_in_f.
+have H_exec_map := Tree_FailureRecorder_lb_step_state_execution_pt_map H_exec.
+have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness H_exec H_fair.
+have H_map := FR.Failure_lb_step_o_f_continuously_no_fail H_exec_map H_w src dst.
+move: H_map.
+set ind := ~ In _ _.
+move => H_map.
+have H_ind: ind.
+  move => H_ind.
+  case: H_in_f.
+  destruct s as [e s].
+  simpl in *.
+  by rewrite map_id in H_ind.
+concludes.
+move: H_map.
+apply continuously_map_conv.
+- exact: extensional_now.
+- exact: extensional_now.
+- case => /= e s0.
+  rewrite /id /=.
+  move => H_in H_in'.
+  case: H_in.
+  move: H_in'.
+  exact: in_msg_pt_map_msgs.
 Qed.
 
 End Tree.

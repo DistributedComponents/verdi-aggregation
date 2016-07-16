@@ -73,7 +73,7 @@ st <- get ;;
 match msg with
 | Fail => 
   put {| adjacent := NSet.remove src st.(adjacent) |} ;;
-  ret (RecvFail src me)
+  ret (RecvFail me src)
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data := ret Tau.
@@ -100,6 +100,8 @@ Instance FailureRecorder_LabeledMultiParams : LabeledMultiParams FailureRecorder
     lb_net_handlers := (fun dst src msg s => runGenHandler s (NetHandler dst src msg)) ;
     lb_input_handlers := fun nm msg s => runGenHandler s (IOHandler nm msg) ;
   }.
+
+Instance FailureRecorder_EqDec_eq_label : EqDec_eq label := Label_eq_dec.
 
 Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams := unlabeled_multi_params.
 
@@ -145,7 +147,7 @@ Proof. by move => h; case. Qed.
 Lemma NetHandler_cases : 
   forall dst src msg st lb out st' ms,
     NetHandler dst src msg st = (lb, out, st', ms) ->
-    msg = Fail /\ lb = RecvFail src dst /\ out = [] /\ ms = [] /\
+    msg = Fail /\ lb = RecvFail dst src /\ out = [] /\ ms = [] /\
     st'.(adjacent) = NSet.remove src st.(adjacent).
 Proof.
 move => dst src msg st lb out st' ms.
@@ -992,10 +994,10 @@ Qed.
 
 Lemma Failure_lb_step_o_f_RecvFail_neq_src_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst src src',
-  lb_step_o_f (failed, net) (RecvFail src dst) (failed', net') tr ->
-  lb_step_o_f (failed, net) (RecvFail src' dst) (failed'', net'') tr' ->
+  lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
+  lb_step_o_f (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
   src <> src' ->
-  enabled lb_step_o_f (RecvFail src' dst) (failed', net').
+  enabled lb_step_o_f (RecvFail dst src') (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src src' H_st H_st' H_neq.
 invcs H_st => //.
@@ -1011,7 +1013,7 @@ pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiPara
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
 exists [].
-have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail from0 to0, [], d', []).
+have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d', []).
   case H_n: lb_net_handlers => [[[lb out] d1] l].
   rewrite /lb_net_handlers /= in H_n.
   monad_unfold.
@@ -1030,10 +1032,10 @@ Qed.
 
 Lemma Failure_lb_step_o_f_RecvFail_neq_dst_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst dst' src src',
-    lb_step_o_f (failed, net) (RecvFail src dst) (failed', net') tr ->
-    lb_step_o_f (failed, net) (RecvFail src' dst') (failed'', net'') tr' ->
+    lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
+    lb_step_o_f (failed, net) (RecvFail dst' src') (failed'', net'') tr' ->
     dst <> dst' -> 
-    enabled lb_step_o_f (RecvFail src' dst') (failed', net').
+    enabled lb_step_o_f (RecvFail dst' src') (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst dst' src src' H_st H_st' H_neq.
 invcs H_st => //.
@@ -1048,7 +1050,7 @@ pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiPara
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
 exists [].
-have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail from0 to0, [], d0, []).
+have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d0, []).
   case H_n: lb_net_handlers => [[[lb out] d1] l].
   rewrite /lb_net_handlers /= in H_n.
   monad_unfold.
@@ -1068,15 +1070,15 @@ Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
-                  weak_until (now (l_enabled lb_step_o_f (RecvFail src dst))) 
-                             (now (occurred (RecvFail src dst))) 
+       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
+                  weak_until (now (l_enabled lb_step_o_f (RecvFail dst src))) 
+                             (now (occurred (RecvFail dst src))) 
                              s.
 Proof.
 cofix c.
 case => /=.
 case; case => failed net.
-case => [|src dst].
+case => [|dst src].
   case.
   case; case => /= failed' net' lb s H_exec src dst H_en.
   inversion H_exec; subst_max.
@@ -1123,8 +1125,8 @@ Qed.
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, lb_step_state_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f s ->
-       forall src dst, l_enabled lb_step_o_f (RecvFail src dst) (hd s) ->
-                  eventually (now (occurred (RecvFail src dst))) s.
+       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
+                  eventually (now (occurred (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
 have H_wu := Failure_RecvFail_enabled_weak_until_occurred H_exec H_en.
@@ -1139,7 +1141,7 @@ Qed.
 
 Lemma lb_step_o_f_count_occ_Fail_neq_eq : 
   forall net net' failed failed' lb src dst k tr,
-  lb <> RecvFail src dst ->
+  lb <> RecvFail dst src ->
   count_occ msg_eq_dec (net.(onwPackets) src dst) Fail = k ->
   lb_step_o_f (failed, net) lb (failed', net') tr ->
   count_occ msg_eq_dec (net'.(onwPackets) src dst) Fail = k.
@@ -1156,7 +1158,7 @@ Qed.
 Lemma lb_step_o_f_count_occ_Fail_recv : 
   forall net net' failed failed' src dst k tr,  
   count_occ msg_eq_dec (net.(onwPackets) src dst) Fail = S k ->
-  lb_step_o_f (failed, net) (RecvFail src dst) (failed', net') tr ->
+  lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
   count_occ msg_eq_dec (net'.(onwPackets) src dst) Fail = k.
 Proof.
 move => net net' failed failed' src dst k tr H_cnt H_step.
@@ -1239,7 +1241,7 @@ Lemma count_occ_fail_head :
   forall e src dst k,
   ~ In dst (fst (evt_a e)) ->
   count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail = S k ->
-  l_enabled lb_step_o_f (RecvFail src dst) e.
+  l_enabled lb_step_o_f (RecvFail dst src) e.
 Proof.
 case; case => /= failed net lb src dst k H_in_f H_cnt.
 rewrite /l_enabled /= /enabled.
@@ -1283,7 +1285,7 @@ destruct e, e'.
 destruct evt_r_a as [failed net].
 destruct evt_r_a0 as [failed' net'].
 simpl in *.
-case (Label_eq_dec (RecvFail src dst) evt_r_l) => H_eq.
+case (Label_eq_dec (RecvFail dst src) evt_r_l) => H_eq.
   subst_max.
   apply: E_next.
   apply: E0.
