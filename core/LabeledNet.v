@@ -21,7 +21,7 @@ Class LabeledMultiParams (P : BaseParams) :=
     lb_input_handlers : lb_name -> input -> data -> label * (list output) * data * list (lb_name * lb_msg)
   }.
 
-Section CustomLabeledParams.
+Section UnlabeledParams.
 
 Context {base_params : BaseParams}.
 Context {labeled_multi_params : LabeledMultiParams base_params}.
@@ -46,7 +46,7 @@ Global Instance unlabeled_multi_params : MultiParams base_params :=
     input_handlers := unlabeled_input_handlers
   }.
 
-End CustomLabeledParams.
+End UnlabeledParams.
 
 Section DefaultLabeledParams.
 
@@ -142,45 +142,46 @@ Section LabeledStepExecutions.
   Definition inf_occurred (l : L) (s : infseq event) : Prop :=
     inf_often (now (occurred l)) s.
 
-  Definition strong_local_fairness (step : lb_step_relation) (s : infseq event) : Prop :=
-    forall l : L, inf_enabled step l s -> inf_occurred l s.
+  Definition strong_local_fairness (step : lb_step_relation) (silent : L) (s : infseq event) : Prop :=
+    forall l : L, l <> silent -> inf_enabled step l s -> inf_occurred l s.
 
-  Definition weak_local_fairness (step : lb_step_relation) (s : infseq event) : Prop :=
-    forall l : L, cont_enabled step l s -> inf_occurred l s.
+  Definition weak_local_fairness (step : lb_step_relation) (silent : L) (s : infseq event) : Prop :=
+    forall l : L, l <> silent -> cont_enabled step l s -> inf_occurred l s.
 
   Lemma strong_local_fairness_invar :
-    forall step e s, strong_local_fairness step (Cons e s) -> strong_local_fairness step s.
+    forall step e silent s, strong_local_fairness step silent (Cons e s) -> strong_local_fairness step silent s.
   Proof. 
     unfold strong_local_fairness. unfold inf_enabled, inf_occurred, inf_often. 
-    intros step e s fair a alev. 
-    assert (alevt_es: always (eventually (now (l_enabled step a))) (Cons e s)).
+    intros step e silent s fair l neq alev. 
+    assert (alevt_es: always (eventually (now (l_enabled step l))) (Cons e s)).
     constructor. 
     constructor 2. destruct alev; assumption. 
     simpl. assumption.
-    clear alev. generalize (fair a alevt_es); clear fair alevt_es.
+    clear alev. generalize (fair l neq alevt_es); clear fair alevt_es.
     intro fair; case (always_Cons fair); trivial.
   Qed.
 
   Lemma weak_local_fairness_invar :
-    forall step e s, weak_local_fairness step (Cons e s) -> weak_local_fairness step s.
+    forall step e silent s, weak_local_fairness step silent (Cons e s) -> weak_local_fairness step silent s.
   Proof.
     unfold weak_local_fairness. unfold cont_enabled, inf_occurred, continuously, inf_often.
-    intros step e s fair a eval.
+    intros step e silent s fair a neq eval.
     assert (eval_es: eventually (always (now (l_enabled step a))) (Cons e s)).
       apply E_next. assumption.
     apply fair in eval_es.
     apply always_invar in eval_es.
     assumption.
+    assumption.
   Qed.
 
   Lemma strong_local_fairness_weak :
-    forall step s, strong_local_fairness step s -> weak_local_fairness step s.
+    forall step silent s, strong_local_fairness step silent s -> weak_local_fairness step silent s.
   Proof.
-  move => step.
+  move => step silent.
   case => e s.
   rewrite /strong_local_fairness /weak_local_fairness /inf_enabled /cont_enabled.
-  move => H_str l H_cont.
-  apply: H_str.
+  move => H_str l neq H_cont.
+  apply: H_str; first by [].
   exact: continuously_inf_often.
   Qed.
 

@@ -1124,7 +1124,7 @@ Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
 Proof.
@@ -1134,7 +1134,7 @@ apply weak_until_until_or_always in H_wu.
 case: H_wu; first exact: until_eventually.
 move => H_al.
 apply always_continuously in H_al.
-apply H_fair in H_al.
+apply H_fair in H_al => //.
 destruct s as [x s].
 by apply always_now in H_al.
 Qed.
@@ -1258,7 +1258,7 @@ Qed.
 
 Lemma Failure_eventually_fewer_Fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst k, ~ In dst (fst (hd s).(evt_a)) ->
                     count_occ Msg_eq_dec (onwPackets (snd (hd s).(evt_a)) src dst) Fail = S k ->
                     eventually (now (fun e => count_occ Msg_eq_dec (onwPackets (snd e.(evt_a)) src dst) Fail = k)) s.
@@ -1301,7 +1301,7 @@ Qed.
 
 Lemma Failure_lb_step_o_f_eventually_le_0_fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        eventually (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail = 0)) s.
@@ -1338,7 +1338,7 @@ Qed.
 
 Lemma Failure_lb_step_o_f_continuously_no_fail :
   forall s, lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
@@ -1373,7 +1373,7 @@ Qed.
 Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
        lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
@@ -1399,7 +1399,7 @@ Qed.
 Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
   forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
        lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 

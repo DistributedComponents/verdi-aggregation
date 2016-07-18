@@ -731,21 +731,21 @@ apply: eventually_map_conv => //.
 Qed.
 
 Hypothesis lb_step_o_f_enabled_strong_fairness_pt_map_onet_eventually :
-  forall l s,
-    lb_step_state_execution lb_step_o_f s ->
-    strong_local_fairness lb_step_o_f s ->        
+  forall l, tot_map_label l <> label_silent ->
+    forall s, lb_step_state_execution lb_step_o_f s ->
+    strong_local_fairness lb_step_o_f label_silent s ->        
     l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event_state (hd s)) ->
     eventually (now (l_enabled lb_step_o_f l)) s.
 
-Lemma pt_map_onet_tot_map_labeled_event_state_inf_often_enabled : 
-  forall l s,
-    lb_step_state_execution lb_step_o_f s ->
-    strong_local_fairness lb_step_o_f s ->
+Lemma pt_map_onet_tot_map_labeled_event_state_inf_often_enabled :
+  forall l, tot_map_label l <> label_silent ->
+    forall s, lb_step_state_execution lb_step_o_f s ->
+    strong_local_fairness lb_step_o_f label_silent s ->
     inf_often (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
     inf_often (now (l_enabled lb_step_o_f l)) s.
 Proof.
-move => l s H_exec H_fair.
-have H_a: ((lb_step_state_execution lb_step_o_f) /\_ (strong_local_fairness lb_step_o_f)) s by auto.
+move => l H_neq s H_exec H_fair.
+have H_a: ((lb_step_state_execution lb_step_o_f) /\_ (strong_local_fairness lb_step_o_f label_silent)) s by auto.
 move: H_a {H_exec H_fair}.
 apply: always_map_conv_ext => {s}.
   rewrite /and_tl /=.
@@ -780,7 +780,7 @@ apply: eventually_map_conv_ext.
     apply (Cons_lb_step_exec _ tr) => //.
     by apply: c; eauto.
   * rewrite /extensional /strong_local_fairness /inf_enabled /inf_occurred /=.
-    move => s1 s2 H_eq H_s1 l' H_en.
+    move => s1 s2 H_eq H_s1 l' H_neq' H_en.
     have H_s1l := H_s1 l'.
     move: H_s1l.
     set s1i := inf_often (now (occurred _)) s1.
@@ -789,7 +789,7 @@ apply: eventually_map_conv_ext.
       move: H_suff.
       apply extensional_inf_often => //.
       exact: extensional_now.
-    apply: H_s1l => {s1i}.
+    apply: H_s1l => {s1i}; first by [].
     move: H_en.
     apply: extensional_inf_often; last exact: exteq_sym.
     exact: extensional_now.
@@ -803,28 +803,28 @@ apply: eventually_map_conv_ext.
 Qed.
 
 Hypothesis lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
-  forall l s,
-    lb_step_state_execution lb_step_o_f s ->
-    weak_local_fairness lb_step_o_f s ->        
+  forall l, tot_map_label l <> label_silent ->
+    forall s, lb_step_state_execution lb_step_o_f s ->
+    weak_local_fairness lb_step_o_f label_silent s ->        
     l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event_state (hd s)) ->
     eventually (now (l_enabled lb_step_o_f l)) s.
 
-Hypothesis pt_map_onet_always_l_enabled : 
-  forall l s,
-  lb_step_state_execution lb_step_o_f s ->
+Hypothesis pt_map_onet_always_l_enabled :
+  forall l, tot_map_label l <> label_silent ->
+  forall s, lb_step_state_execution lb_step_o_f s ->
   always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
   l_enabled lb_step_o_f l (hd s) ->
   always (now (l_enabled lb_step_o_f l)) s.
 
-Lemma pt_map_onet_tot_map_labeled_event_state_continuously_enabled : 
-  forall l s,
-    lb_step_state_execution lb_step_o_f s ->
-    weak_local_fairness lb_step_o_f s ->
+Lemma pt_map_onet_tot_map_labeled_event_state_continuously_enabled :
+  forall l, tot_map_label l <> label_silent ->    
+    forall s, lb_step_state_execution lb_step_o_f s ->
+    weak_local_fairness lb_step_o_f label_silent s ->
     continuously (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
     continuously (now (l_enabled lb_step_o_f l)) s.
 Proof.
-move => l s H_exec H_fair.
-have H_a: ((lb_step_state_execution lb_step_o_f) /\_ (weak_local_fairness lb_step_o_f)) s by auto.
+move => l H_neq s H_exec H_fair.
+have H_a: ((lb_step_state_execution lb_step_o_f) /\_ (weak_local_fairness lb_step_o_f label_silent)) s by auto.
 move: H_a {H_exec H_fair}.
 apply: eventually_map_conv_ext => {s}.
 - apply extensional_always.
@@ -856,7 +856,7 @@ apply: eventually_map_conv_ext => {s}.
     apply (Cons_lb_step_exec _ tr) => //.
     by apply: c; eauto.
   * rewrite /extensional /weak_local_fairness /cont_enabled /inf_occurred /=.
-    move => s1 s2 H_eq H_s1 l' H_en.
+    move => s1 s2 H_eq H_s1 l' H_neq' H_en.
     have H_s1l := H_s1 l'.
     move: H_s1l.
     set s1i := inf_often (now (occurred _)) s1.
@@ -865,7 +865,7 @@ apply: eventually_map_conv_ext => {s}.
       move: H_suff.
       apply extensional_inf_often => //.
       exact: extensional_now.
-    apply: H_s1l => {s1i}.
+    apply: H_s1l => {s1i}; first by [].
     move: H_en.
     apply: extensional_continuously; last exact: exteq_sym.
     exact: extensional_now.
@@ -878,7 +878,7 @@ apply: eventually_map_conv_ext => {s}.
   rewrite map_Cons in H_al'.
   apply always_now in H_al'.
   simpl in *.
-  have H_ev := lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually _ H_a H_w H_al'.
+  have H_ev := lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually _ H_neq H_a H_w H_al'.
   move: H_a H_al H_ev {H_w H_al'}.
   apply eventually_map_monotonic => {x s}.
   * exact: lb_step_state_execution_invar.
@@ -893,34 +893,38 @@ Hypothesis label_tot_mapped :
 
 Lemma pt_map_onet_tot_map_label_event_state_strong_local_fairness : 
   forall s, lb_step_state_execution lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f s ->
-       strong_local_fairness lb_step_o_f (map pt_map_onet_event_state s).
+       strong_local_fairness lb_step_o_f label_silent s ->
+       strong_local_fairness lb_step_o_f label_silent (map pt_map_onet_event_state s).
 Proof.
 move => s.
-rewrite /strong_local_fairness => H_exec H_fair l H_en.
+rewrite /strong_local_fairness => H_exec H_fair l H_neq H_en.
 have [l' H_l] := label_tot_mapped l.
 rewrite H_l.
 apply pt_map_onet_tot_map_label_event_state_inf_often_occurred.
-apply H_fair.
+apply H_fair; first by move => H_eq; rewrite H_eq pt_lb_label_silent_fst_snd in H_l.
 rewrite H_l in H_en.
 unfold inf_enabled in *.
-exact: pt_map_onet_tot_map_labeled_event_state_inf_often_enabled.
+apply: pt_map_onet_tot_map_labeled_event_state_inf_often_enabled => //.
+move => H_eq.
+by rewrite -H_l in H_eq.
 Qed.
 
 Lemma pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
   forall s, lb_step_state_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f (map pt_map_onet_event_state s).
+       weak_local_fairness lb_step_o_f label_silent s ->
+       weak_local_fairness lb_step_o_f label_silent (map pt_map_onet_event_state s).
 Proof.
 move => s.
-rewrite /weak_local_fairness => H_exec H_fair l H_en.
+rewrite /weak_local_fairness => H_exec H_fair l H_neq H_en.
 have [l' H_l] := label_tot_mapped l.
 rewrite H_l.
 apply pt_map_onet_tot_map_label_event_state_inf_often_occurred.
-apply H_fair.
+apply H_fair; first by move => H_eq; rewrite H_eq pt_lb_label_silent_fst_snd in H_l.
 rewrite H_l in H_en.
 unfold cont_enabled in *.
-exact: pt_map_onet_tot_map_labeled_event_state_continuously_enabled.
+apply: pt_map_onet_tot_map_labeled_event_state_continuously_enabled => //.
+move => H_eq.
+by rewrite -H_l in H_eq.
 Qed.
 
 Context {overlay_fst : NameOverlayParams (@unlabeled_multi_params _ labeled_multi_fst)}.
