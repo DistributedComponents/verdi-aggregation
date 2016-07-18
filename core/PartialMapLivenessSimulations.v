@@ -809,12 +809,56 @@ Hypothesis lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
     l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event_state (hd s)) ->
     eventually (now (l_enabled lb_step_o_f l)) s.
 
-Hypothesis pt_map_onet_always_l_enabled :
+Hypothesis pt_map_onet_l_enabled :
   forall l, tot_map_label l <> label_silent ->
-  forall s, lb_step_state_execution lb_step_o_f s ->
-  always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
-  l_enabled lb_step_o_f l (hd s) ->
-  always (now (l_enabled lb_step_o_f l)) s.
+    forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
+    lb_step_o_f (failed, net) l (failed0, net0) tr0 ->
+    lb_step_o_f (failed, net) l' (failed', net') tr ->
+    lb_step_o_f (List.map tot_map_name failed', pt_map_onet net') (tot_map_label l) (pt_failed, pt_net) ptr ->
+    enabled lb_step_o_f l (failed', net').
+
+Lemma pt_map_onet_always_l_enabled : 
+  forall l, tot_map_label l <> label_silent -> 
+    forall s, lb_step_state_execution lb_step_o_f s ->
+    always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
+    l_enabled lb_step_o_f l (hd s) ->
+    always (now (l_enabled lb_step_o_f l)) s.
+Proof.
+cofix c.
+move => l H_neq.
+case => e; case => e' s.
+set tlb := tot_map_label _.
+move => H_exec H_al.
+rewrite /= => H_en.
+rewrite map_Cons in H_al.
+apply always_Cons in H_al.
+move: H_al => [H_en' H_al].
+rewrite map_Cons in H_al.
+apply always_Cons in H_al.
+move: H_al => [H_en'' H_al].
+inversion H_exec; subst.
+destruct e as [a l0].
+destruct a as [failed net].
+destruct e' as [a' l1].
+destruct a' as [failed' net'].
+rewrite /= in H_exec H1 H3 H_en H_en' H_en''.
+unfold tlb in * => {tlb}.
+apply Always.
+  rewrite /=.
+  exact: H_en.
+rewrite /=.
+apply c => //=.
+rewrite /l_enabled /=.
+move {H_al H_exec H3 H_en'}.
+rewrite /pt_map_onet_event_state /= /l_enabled /enabled in H_en''.
+break_exists.
+rewrite /= in H.
+rewrite /l_enabled /enabled /= in H_en.
+break_exists.
+rewrite -/(enabled _ _ _).
+destruct x, x1.
+by eapply pt_map_onet_l_enabled; eauto.
+Qed.
 
 Lemma pt_map_onet_tot_map_labeled_event_state_continuously_enabled :
   forall l, tot_map_label l <> label_silent ->    

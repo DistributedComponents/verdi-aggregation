@@ -694,6 +694,155 @@ Proof.
   by io_handler_cases.
 Qed.
 
+(*
+Lemma Failure_lb_step_o_f_RecvFail_neq_src_enabled :
+  forall net net' net'' failed failed' failed'' tr tr' dst src src',
+  lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
+  lb_step_o_f (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
+  src <> src' ->
+  enabled lb_step_o_f (RecvFail dst src') (failed', net').
+Proof.
+move => net net' net'' failed failed' failed'' tr tr' dst src src' H_st H_st' H_neq.
+invcs H_st => //.
+- net_handler_cases.
+  find_injection.
+  invcs H_st' => //.
+  net_handler_cases.
+  find_injection.
+  set net' := {| onwPackets := _ ; onwState := _ |}.
+  pose d' := {| adjacent := NSet.remove from0 d.(adjacent) |}.
+  pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
+  pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d'.
+  pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
+  exists (failed'', net'').
+  exists [].
+  have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d', []).
+    case H_n: lb_net_handlers => [[[lb out] d1] l].
+    rewrite /lb_net_handlers /= in H_n.
+    monad_unfold.
+    net_handler_cases.
+    destruct d1.
+    simpl in *.
+    find_rewrite.
+    rewrite /d' /update'.
+    by break_if.
+  set tr := [].
+  apply: LSOF_deliver; eauto => //=.
+  rewrite /net' /= /update2.
+  break_if; first by break_and.
+  by eassumption.
+Qed.
+
+Lemma Failure_lb_step_o_f_RecvFail_neq_dst_enabled :
+  forall net net' net'' failed failed' failed'' tr tr' dst dst' src src',
+    lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
+    lb_step_o_f (failed, net) (RecvFail dst' src') (failed'', net'') tr' ->
+    dst <> dst' -> 
+    enabled lb_step_o_f (RecvFail dst' src') (failed', net').
+Proof.
+move => net net' net'' failed failed' failed'' tr tr' dst dst' src src' H_st H_st' H_neq.
+invcs H_st => //.
+net_handler_cases.
+find_injection.
+invcs H_st' => //.
+net_handler_cases.
+find_injection.
+set net' := {| onwPackets := _ ; onwState := _ |}.
+pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
+pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d0.
+pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
+exists (failed'', net'').
+exists [].
+have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d0, []).
+  case H_n: lb_net_handlers => [[[lb out] d1] l].
+  rewrite /lb_net_handlers /= in H_n.
+  monad_unfold.
+  net_handler_cases.
+  destruct d1, d0.
+  simpl in *.
+  find_rewrite.
+  find_rewrite.
+  rewrite /update'.
+  break_if => //.
+  rewrite e in H_neq.
+  by case: H_neq.
+apply: LSOF_deliver => //; eauto.
+rewrite /net' /= /update2.
+by break_if; first by break_and.
+Qed.
+
+Lemma Failure_RecvFail_enabled_weak_until_occurred :
+  forall s, lb_step_state_execution lb_step_o_f s ->
+       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
+                  weak_until (now (l_enabled lb_step_o_f (RecvFail dst src))) 
+                             (now (occurred (RecvFail dst src))) 
+                             s.
+Proof.
+cofix c.
+case => /=.
+case; case => failed net.
+case => [|dst src].
+  case.
+  case; case => /= failed' net' lb s H_exec src dst H_en.
+  inversion H_exec; subst_max.
+  inversion H1; subst_max.
+  - unfold lb_net_handlers in *.
+    simpl in *.
+    by net_handler_cases.
+  - unfold lb_input_handlers in *.
+    simpl in *.
+    by io_handler_cases.
+  - apply: W_tl; first by [].
+    exact: c.
+case => /=.
+case; case => failed' net' lb s H_exec src' dst' H_en.
+inversion H_exec; subst_max.
+case (name_eq_dec dst dst') => H_eq.
+  subst_max.
+  case (name_eq_dec src src') => H_eq'.
+    subst_max.
+    exact: W0.
+  apply: W_tl; first by [].
+  apply: c => //=.
+  rewrite /l_enabled /= /enabled.
+  move {s H3 H_exec}.
+  rewrite -/(enabled _ _ _).
+  rewrite /l_enabled /enabled /= in H_en.
+  break_exists.
+  destruct x.
+  simpl in *.
+  move: H1 H H_eq'.
+  exact: Failure_lb_step_o_f_RecvFail_neq_src_enabled.
+apply: W_tl; first by [].
+apply: c => //=.
+rewrite /l_enabled /=.
+move {s H3 H_exec}.
+rewrite -/(enabled _ _ _).
+rewrite /l_enabled /enabled /= in H_en.
+break_exists.
+destruct x.
+move: H1 H H_eq.
+exact: Failure_lb_step_o_f_RecvFail_neq_dst_enabled.
+Qed.
+
+Lemma Failure_RecvFail_eventually_occurred :
+  forall s, lb_step_state_execution lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
+       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
+                  eventually (now (occurred (RecvFail dst src))) s.
+Proof.
+move => s H_exec H_fair src dst H_en.
+have H_wu := Failure_RecvFail_enabled_weak_until_occurred H_exec H_en.
+apply weak_until_until_or_always in H_wu.
+case: H_wu; first exact: until_eventually.
+move => H_al.
+apply always_continuously in H_al.
+apply H_fair in H_al => //.
+destruct s as [x s].
+by apply always_now in H_al.
+Qed.
+*)
+
 Lemma Tree_FailureRecorder_lb_step_state_execution_pt_map : forall s,
   lb_step_state_execution lb_step_o_f s ->
   lb_step_state_execution lb_step_o_f (map pt_map_onet_event_state s).
@@ -710,61 +859,16 @@ exact: pt_map_onet_hd_step_o_f_star_ex_always.
 Qed.
 
 Lemma Tree_FailureRecorder_RecvFail_enabled :  
-  forall l net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',
-    tot_map_label l <> FR.Tau ->
+  forall l, tot_map_label l <> FR.Tau ->
+  forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
     lb_step_o_f (failed, net) l (failed0, net0) tr0 ->
     lb_step_o_f (failed, net) l' (failed', net') tr ->
     lb_step_o_f (List.map tot_map_name failed', pt_map_onet net') (tot_map_label l) (pt_failed, pt_net) ptr ->
     enabled lb_step_o_f l (failed', net').
 Proof.
-case => //= dst src net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l' H_neq {H_neq}.
+case => //= dst src H_neq net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l' {H_neq}.
 rewrite map_id /=.
 Admitted.
-
-Lemma Tree_pt_map_onet_always_l_enabled : 
-  forall l, tot_map_label l <> FR.Tau -> 
-    forall s, lb_step_state_execution lb_step_o_f s ->
-    always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
-    l_enabled lb_step_o_f l (hd s) ->
-    always (now (l_enabled lb_step_o_f l)) s.
-Proof.
-cofix c.
-move => l H_neq.
-case => e; case => e' s.
-set tlb := tot_map_label _.
-move => H_exec H_al.
-rewrite /= => H_en.
-rewrite map_Cons in H_al.
-apply always_Cons in H_al.
-move: H_al => [H_en' H_al].
-rewrite map_Cons in H_al.
-apply always_Cons in H_al.
-move: H_al => [H_en'' H_al].
-inversion H_exec; subst.
-destruct e as [a l0].
-destruct a as [failed net].
-destruct e' as [a' l1].
-destruct a' as [failed' net'].
-rewrite /= in H_exec H1 H3 H_en H_en' H_en''.
-unfold tlb in * => {tlb}.
-apply Always.
-  rewrite /=.
-  exact: H_en.
-rewrite /=.
-apply c => //=.
-rewrite /l_enabled /=.
-move {H_al H_exec H3 H_en'}.
-rewrite /pt_map_onet_event_state /= map_id /l_enabled /enabled in H_en''.
-break_exists.
-rewrite /= in H.
-rewrite /l_enabled /enabled /= in H_en.
-break_exists.
-rewrite -/(enabled _ _ _).
-destruct x, x1.
-eapply Tree_FailureRecorder_RecvFail_enabled; eauto.
-rewrite /= map_id.
-eauto.
-Qed.
 
 Lemma Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> FR.Tau ->
@@ -794,7 +898,7 @@ Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness :
 Proof.
 apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
 - exact: Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually.
-- exact: Tree_pt_map_onet_always_l_enabled.
+- exact: Tree_FailureRecorder_RecvFail_enabled.
 - case; first by exists Tau.
   move => dst src.
   by exists (RecvFail dst src).
