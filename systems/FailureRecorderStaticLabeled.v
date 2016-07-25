@@ -136,12 +136,12 @@ Qed.
 Lemma input_handlers_IOHandler :
   forall h i d os d' ms,
     input_handlers h i d = (os, d', ms) ->
-    IOHandler h i d = (Tau, os, d', ms).
+    exists lb, IOHandler h i d = (lb, os, d', ms).
 Proof. by []. Qed.
 
 Lemma IOHandler_cases :
-  forall h i st out st' ms,
-      IOHandler h i st = (Tau, out, st', ms) -> False.
+  forall h i st out st' ms lb,
+      IOHandler h i st = (lb, out, st', ms) -> False.
 Proof. by move => h; case. Qed.
 
 Lemma NetHandler_cases : 
@@ -725,6 +725,7 @@ end; simpl.
   move {H'_step2}.
   move => H_in_f H_in_f'.
   find_apply_lem_hyp input_handlers_IOHandler.
+  break_exists.
   by io_handler_cases.
 - rewrite /= in IHH'_step1.
   move => H_nor H_nor'.
@@ -826,6 +827,7 @@ end; simpl.
   move => H_ins.
   exact: IHrefl_trans_1n_trace1.
 - find_apply_lem_hyp input_handlers_IOHandler.
+  break_exists.
   by io_handler_cases.
 - move => n n' H_in_f H_ins.
   rewrite /= in IHrefl_trans_1n_trace1.
