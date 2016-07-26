@@ -494,7 +494,7 @@ forall net failed tr,
    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
    forall n, In n (odnwNodes net) ->
         ~ In n failed ->
-        forall (n' : name), In_all_before New Fail (net.(odnwPackets) n' n).
+        forall (n' : name), before_all New Fail (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st n H_n H_f n'.
 have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
@@ -1187,7 +1187,7 @@ forall net failed tr,
  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
  forall n, In n net.(odnwNodes) -> ~ In n failed ->
  forall n', In n' net.(odnwNodes) ->
- forall m', In_all_before (Aggregate m') Fail (net.(odnwPackets) n' n).
+ forall m', before_all (Aggregate m') Fail (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H.
 change failed with (fst (failed, net)).
@@ -1235,33 +1235,33 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
   rewrite /update2.
   break_if; break_and; subst_max; last by eauto.
-  apply: append_before_all_not_in.
+  apply: before_all_not_in_append.
   exact: (Aggregation_not_failed_no_fail H).
 - move => n H_n H_f n' H_n' m'.
   have H_neq: h <> n by auto.
@@ -1274,7 +1274,7 @@ end; simpl in *.
     rewrite collate_map_pair_not_related //.
     by eauto.
   rewrite collate_map_pair_live_related //.
-    apply: append_neq_before_all => //.
+    apply: before_all_neq_append => //.
     by eauto.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
 Qed.
@@ -1443,7 +1443,7 @@ forall net failed tr,
  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
  forall n, In n net.(odnwNodes) -> ~ In n failed ->
  forall n', In n' net.(odnwNodes) ->
- forall m', In_all_before New (Aggregate m') (net.(odnwPackets) n' n).
+ forall m', before_all New (Aggregate m') (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H.
 change failed with (fst (failed, net)).
@@ -1491,33 +1491,33 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try find_injection; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: not_in_all_before.
+    case: IH => IH; first exact: before_all_not_in.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
   rewrite /update2.
   break_if; break_and; subst_max; last by eauto.  
-  apply: append_neq_before_all => //.
+  apply: before_all_neq_append => //.
   by eauto.
 - move => n H_n H_f n' H_n' m'.
   have H_neq: h <> n by auto.
@@ -1530,7 +1530,7 @@ end; simpl in *.
     rewrite collate_map_pair_not_related //.
     by eauto.
   rewrite collate_map_pair_live_related //.
-    apply: append_neq_before_all => //.
+    apply: before_all_neq_append => //.
     by eauto.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Aggregation_FailMsgParams _ _ _ H.
 Qed.

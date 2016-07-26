@@ -1064,7 +1064,7 @@ Lemma Aggregation_in_after_all_fail_aggregate :
 forall onet failed tr,
  step_o_f_star step_o_f_init (failed, onet) tr ->
  forall (n : name), ~ In n failed ->
- forall (n' : name) m', In_all_before (Aggregate m') Fail (onet.(onwPackets) n' n).
+ forall (n' : name) m', before_all (Aggregate m') Fail (onet.(onwPackets) n' n).
 Proof.
 move => onet failed tr H.
 have H_eq_f: failed = fst (failed, onet) by [].
@@ -1088,7 +1088,7 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: not_in_all_before.
+    exact: before_all_not_in.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
@@ -1096,14 +1096,14 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H0 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: not_in_all_before.
+    exact: before_all_not_in.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: not_in_all_before.
+    case: IH' => IH'; first exact: before_all_not_in.
     by move: IH' => [H_neq H_bef].
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
@@ -1111,7 +1111,7 @@ end; simpl.
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H0 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: not_in_all_before.
+    case: IH' => IH'; first exact: before_all_not_in.
     by move: IH' => [H_neq H_bef].
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
@@ -1119,7 +1119,7 @@ end; simpl.
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H0 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: not_in_all_before.
+    case: IH' => IH'; first exact: before_all_not_in.
     by move: IH' => [H_neq H_bef].
 - move {H1}. 
   find_apply_lem_hyp input_handlers_IOHandler.
@@ -1130,7 +1130,7 @@ end; simpl.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq'.
     rewrite H_eq in H2.
-    apply: append_before_all_not_in.
+    apply: before_all_not_in_append.
     exact: Aggregation_not_failed_no_fail H _ _ H2.
   * exact: IHrefl_trans_1n_trace1.
   * exact: IHrefl_trans_1n_trace1.
@@ -1149,7 +1149,7 @@ end; simpl.
     rewrite collate_map_pair_not_related //.
     exact: IHrefl_trans_1n_trace1.
   rewrite collate_map_pair_live_related //.
-  * apply: append_neq_before_all => //.
+  * apply: before_all_neq_append => //.
     exact: IHrefl_trans_1n_trace1.
   * exact: all_names_nodes.
   * exact: no_dup_nodes.
@@ -2460,7 +2460,7 @@ Qed.
 
 Lemma sum_aggregate_msg_incoming_fail_update2_eq :
   forall ns f from to ms,
-    (forall m', In_all_before (Aggregate m') Fail (f from to)) ->
+    (forall m', before_all (Aggregate m') Fail (f from to)) ->
     In from ns ->
     NoDup ns ->
     ~ In Fail ms ->
@@ -2486,7 +2486,7 @@ case: H_in => H_in.
     rewrite sum_aggregate_msg_incoming_update2_eq //.
     have H_not_in: forall m', ~ In (Aggregate m') ms.
       move => m'.
-      apply (@head_before_all_not_in _ _ _ Fail) => //.
+      apply (@before_all_head_not_in _ _ _ Fail) => //.
       rewrite -H_eq.
       exact: H_bef.
     by rewrite sum_aggregate_ms_no_aggregate_1.

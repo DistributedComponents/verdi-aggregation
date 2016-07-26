@@ -1597,8 +1597,8 @@ Lemma in_all_before_pt_map_msg :
   forall l m0 m1 m'0 m'1,
     pt_map_msg m0 = Some m'0 ->
     pt_map_msg m1 = Some m'1 ->
-    In_all_before m'0 m'1 (pt_map_msgs l) ->
-    In_all_before m0 m1 l.
+    before_all m'0 m'1 (pt_map_msgs l) ->
+    before_all m0 m1 l.
 Proof.
 elim => //=.
 move => m l IH m0 m1 m'0 m'1 H_eq H_eq' H_bef.

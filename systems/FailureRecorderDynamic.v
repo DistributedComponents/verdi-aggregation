@@ -915,13 +915,13 @@ forall net failed tr,
    step_o_d_f_star step_o_d_f_init (failed, net) tr ->
    forall n, In n (odnwNodes net) ->
         ~ In n failed ->
-        forall (n' : name), In_all_before New Fail (net.(odnwPackets) n' n).
+        forall (n' : name), before_all New Fail (net.(odnwPackets) n' n).
 Proof.
 move => net failed tr H_st.
 move => n H_n H_f n'.
 have [d H_d] := ordered_dynamic_initialized_state H_st _ H_n.
 pose P_curr (d : Data) (l : list Msg) :=
-  In_all_before New Fail l.
+  before_all New Fail l.
 rewrite -/(P_curr d _ ).
 move: H_d; generalize d => {d}.
 apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f} => /=.
@@ -929,15 +929,15 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f
 - by auto.
 - move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
-  apply head_before_all_not_in in H_bef => //.
-  exact: not_in_all_before.
+  apply before_all_head_not_in in H_bef => //.
+  exact: before_all_not_in.
 - move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
   rewrite /= in H_bef.
   break_or_hyp; last by break_and.
-  exact: not_in_all_before.
+  exact: before_all_not_in.
 - move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
-  exact: append_neq_before_all.
+  exact: before_all_neq_append.
 Qed.
 
 Lemma Failure_le_one_new : 
@@ -1072,7 +1072,7 @@ end; simpl.
       contradict H_in.
       rewrite H5 in H_bef.
       move: H_bef.
-      exact: head_before_all_not_in.
+      exact: before_all_head_not_in.
     exact: IHrefl_trans_1n_trace1.
   move: H0.
   rewrite /= /update2.
@@ -2105,6 +2105,6 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f
   rewrite H_eq /= in H_cnt.
   apply (@count_occ_In _ Msg_eq_dec) in H_in .
   by omega.
-Qed. 
+Qed.
 
 End FailureRecorder.

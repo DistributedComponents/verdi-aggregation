@@ -698,8 +698,7 @@ Proof.
   by io_handler_cases.
 Qed.
 
-(*
-Lemma Failure_lb_step_o_f_RecvFail_neq_src_enabled :
+Lemma Tree_lb_step_o_f_RecvFail_neq_src_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst src src',
   lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
   lb_step_o_f (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
@@ -711,12 +710,12 @@ invcs H_st => //.
 - net_handler_cases.
   find_injection.
   invcs H_st' => //.
-  net_handler_cases.
-  find_injection.
-  set net' := {| onwPackets := _ ; onwState := _ |}.
-  pose d' := {| adjacent := NSet.remove from0 d.(adjacent) |}.
-  pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
-  pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d'.
+  * net_handler_cases; try find_injection.
+(*    
+    set net' := {| onwPackets := _ ; onwState := _ |}.
+    pose d' := {| adjacent := NSet.remove from0 d.(adjacent); broadcast :=  |}.
+    pose onwPackets_net'' := @collate name (@EqDec_eq_name _ Tree_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ Tree_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
+    pose onwState_net'' := @update' name (@EqDec_eq_name _ Tree_MultiParams) _ (onwState net') to0 d'.
   pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
   exists (failed'', net'').
   exists [].
@@ -736,7 +735,10 @@ invcs H_st => //.
   break_if; first by break_and.
   by eassumption.
 Qed.
+*)
+Admitted.
 
+(*
 Lemma Failure_lb_step_o_f_RecvFail_neq_dst_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst dst' src src',
     lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
