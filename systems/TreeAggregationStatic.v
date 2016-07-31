@@ -6,8 +6,7 @@ Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
 Require Import PartialExtendedMapSimulations.
 
-Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 
@@ -367,8 +366,6 @@ Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams :=
                         runGenHandler_ignore s (IOHandler nm msg)
   }.
 
-Instance TreeAggregation_EqDec_eq_name : EqDec_eq name := EqDec_eq_name.
-
 Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_MultiParams :=
   {
     adjacent_to := adjacent_to ;
@@ -376,8 +373,6 @@ Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_M
     adjacent_to_symmetric := adjacent_to_symmetric ;
     adjacent_to_irreflexive := adjacent_to_irreflexive
   }.
-
-Instance TreeAggregation_RelDec_adjacent_to : RelDec adjacent_to := RelDec_adjacent_to.
 
 Instance TreeAggregation_FailMsgParams : FailMsgParams TreeAggregation_MultiParams :=
   {
@@ -1198,7 +1193,7 @@ Defined.
 Lemma TreeAggregation_conserves_network_mass : 
   forall onet failed tr,
   step_o_f_star step_o_f_init (failed, onet) tr ->
-  conserves_network_mass (exclude failed nodes) nodes onet.(onwPackets) onet.(onwState).
+  conserves_network_mass (remove_all name_eq_dec failed nodes) nodes onet.(onwPackets) onet.(onwState).
 Proof.
 move => onet failed tr H_st.
 have [tr' H_st'] := TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 H_st.

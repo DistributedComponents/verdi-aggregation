@@ -11,11 +11,9 @@ Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
-Require Import UpdateLemmas.
-
 Require Import OrderedLemmas.
 
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -173,8 +171,8 @@ match goal with
 | [ H : step_o_f _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - find_apply_lem_hyp net_handlers_NetHandler.
-  rewrite /update' /=.
-  case eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
+  rewrite /update /=.
+  case name_eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
   rewrite -H_dec in H3.
   net_handler_cases.
   apply NSet.remove_spec in H0.
@@ -306,7 +304,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec //.
   rewrite -H_dec {H_dec H'_step2 to} in H0 H1 H5.
   case: d H5 => /=.
@@ -383,7 +381,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     rewrite -H_dec /update2 /= {H_dec to H'_step2}.
@@ -504,7 +502,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H5 H0.
     have H_neq: n <> from.
@@ -539,7 +537,7 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
-      rewrite collate_map_pair_live_related //.
+      rewrite collate_map_snd_live_related //.
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: all_names_nodes.
@@ -634,7 +632,7 @@ end; simpl.
   move => H_in_f H_in_f'.
   find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec_n.
     rewrite -H_dec_n.
     rewrite -H_dec_n {H_dec_n to} in H5 H6 H1 H0.
@@ -793,14 +791,14 @@ end; simpl.
     rewrite H_eq H_eq' {H_eq H_eq' to from} in H7 H_ins H3 H2.
     rewrite /= in IHrefl_trans_1n_trace1.
     move: H_ins.
-    rewrite /update' /=.
+    rewrite /update /=.
     case name_eq_dec => H_dec //.
     move => H_ins.
     case: d H7 H_ins => /= adjacent0 H_eq H_adj.
     rewrite H_eq in H_adj.
     by apply NSetFacts.remove_1 in H_adj.
   move: H_ins.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec'.
     case: H_dec => H_dec; last by rewrite H_dec' in H_dec.
     case: d H7 => /= adjacent0 H_eq.
@@ -830,7 +828,7 @@ end; simpl.
     split; first by left.
     rewrite H_dec in H2.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
-    rewrite collate_map_pair_live_related //.
+    rewrite collate_map_snd_live_related //.
     * apply in_or_app.
       by right; left.
     * exact: all_names_nodes.
@@ -870,7 +868,7 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f
     move => H_cnt.
     by apply count_occ_In in H_cnt.
   have H_cnt_eq: count_occ Msg_eq_dec (onwPackets onet n' n) Fail = 0 by omega.
-  rewrite count_occ_app_split /= H_cnt_eq.
+  rewrite count_occ_app /= H_cnt_eq.
   by auto with arith.
 Qed.
 

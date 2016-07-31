@@ -2,9 +2,17 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import NameOverlay.
 
+Require Import LabeledNet.
+Require Import InfSeqExt.infseq.
+Require Import InfSeqExt.classical.
+Require Import InfSeqExt.exteq.
+Require Import InfSeqExt.map.
+
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
 Require Import PartialExtendedMapSimulations.
+Require Import TotalMapLivenessSimulations.
+Require Import PartialMapLivenessSimulations.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
@@ -21,11 +29,14 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 
+Require Import AAC_tactics.AAC.
+
 Require Import AggregationDefinitions.
-Require Import AggregationDynamic.
+Require Import AggregationAux.
+Require Import AggregationStatic.
 
 Require Import TreeAux.
-Require Import TreeDynamic.
+Require Import TreeStaticLabeled.
 
 Set Implicit Arguments.
 
@@ -33,6 +44,9 @@ Module TreeAggregation (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import RNT : RootNameType NT) (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
+
+Module A := Adjacency NT NOT NSet ANT.
+Import A.
 
 Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
 Import AG.OA.AX.AD.
@@ -49,8 +63,7 @@ Module NSetOrdProps := OrdProperties NSet.
 Inductive Msg : Type := 
 | Aggregate : m -> Msg
 | Fail : Msg
-| Level : option lv -> Msg
-| New : Msg.
+| Level : option lv -> Msg.
 
 Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
 decide equality; first exact: m_eq_dec.
@@ -110,23 +123,39 @@ Definition InitData (n : name) :=
 if root_dec n then
   {| local := 1 ;
      aggregate := 1 ;
-     adjacent := NSet.empty ;
-     sent := NMap.empty m ;
-     received := NMap.empty m ;
+     adjacent := adjacency n nodes ;
+     sent := init_map (adjacency n nodes) ;
+     received := init_map (adjacency n nodes) ;
      broadcast := true ;
      levels := NMap.empty lv |}
 else
   {| local := 1 ;
      aggregate := 1 ;
-     adjacent := NSet.empty ;
-     sent := NMap.empty m ;
-     received := NMap.empty m ;
+     adjacent := adjacency n nodes ;
+     sent := init_map (adjacency n nodes) ;
+     received := init_map (adjacency n nodes) ;
      broadcast := false ;
      levels := NMap.empty lv |}.
 
-Definition Handler (S : Type) := GenHandler (name * Msg) S Output unit.
+Inductive Label : Type :=
+| Tau : Label
+| RecvFail : name -> name -> Label
+| RecvLevel : name -> name -> Label
+| RecvAggregate : name -> name -> Label
+| DeliverBroadcastTrue : name -> Label
+| DeliverBroadcastFalse : name -> Label
+| DeliverLevelRequest : name -> Label
+| DeliverSendAggregate : name -> Label
+| DeliverLocal : name -> Label
+| DeliverAggregateRequest : name -> Label.
 
-Definition RootNetHandler (src : name) (msg : Msg) : Handler Data :=
+Definition Label_eq_dec : forall x y : Label, {x = y} + {x <> y}.
+decide equality; auto using name_eq_dec.
+Defined.
+
+Definition Handler (S : Type) := GenHandler (name * Msg) S Output Label.
+
+Definition RootNetHandler (me src : name) (msg : Msg) : Handler Data :=
 st <- get ;;
 match msg with 
 | Aggregate m_msg => 
@@ -139,9 +168,10 @@ match msg with
            sent := st.(sent) ;
            received := NMap.add src (m_src * m_msg) st.(received) ;
            broadcast := st.(broadcast) ;
-           levels := st.(levels) |}
-  end
-| Level _ => nop 
+           levels := st.(levels) |}    
+  end ;;
+  ret (RecvAggregate me src)
+| Level _ => ret (RecvLevel me src) 
 | Fail => 
   match NMap.find src st.(sent), NMap.find src st.(received) with
   | Some m_snt, Some m_rcd =>    
@@ -151,7 +181,7 @@ match msg with
            sent := NMap.remove src st.(sent) ;
            received := NMap.remove src st.(received) ;
            broadcast := st.(broadcast) ;
-           levels := st.(levels) |}
+           levels := st.(levels) |}    
   | _, _ =>
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
@@ -160,15 +190,8 @@ match msg with
            received := st.(received) ;
            broadcast := st.(broadcast) ;
            levels := st.(levels) |}
-  end
-| New =>
-  put {| local := st.(local) ;
-         aggregate := st.(aggregate) ;
-         adjacent := NSet.add src st.(adjacent) ;
-         sent := NMap.add src 1 st.(sent) ;
-         received := NMap.add src 1 st.(received) ;
-         broadcast := st.(broadcast) ;
-         levels := st.(levels) |}
+  end ;; 
+  ret (RecvFail me src)
 end.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
@@ -185,9 +208,10 @@ match msg with
            received := NMap.add src (m_src * m_msg) st.(received) ;
            broadcast := st.(broadcast) ;
            levels := st.(levels) |}
-  end
+  end ;;
+  ret (RecvAggregate me src)
 | Level None =>
-  if olv_eq_dec (level st.(adjacent) st.(levels)) (level st.(adjacent) (NMap.remove src st.(levels))) then
+  (if olv_eq_dec (level st.(adjacent) st.(levels)) (level st.(adjacent) (NMap.remove src st.(levels))) then
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
@@ -202,9 +226,10 @@ match msg with
            sent := st.(sent) ;
            received := st.(received) ;
            broadcast := true ;
-           levels := NMap.remove src st.(levels) |}
+           levels := NMap.remove src st.(levels) |}) ;; 
+  ret (RecvLevel me src)
 | Level (Some lv') =>
-  if olv_eq_dec (level st.(adjacent) st.(levels)) (level st.(adjacent) (NMap.add src lv' st.(levels))) then
+  (if olv_eq_dec (level st.(adjacent) st.(levels)) (level st.(adjacent) (NMap.add src lv' st.(levels))) then
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
@@ -219,7 +244,8 @@ match msg with
            sent := st.(sent) ;
            received := st.(received) ;
            broadcast := true ;
-           levels := NMap.add src lv' st.(levels) |}
+           levels := NMap.add src lv' st.(levels) |}) ;;
+  ret (RecvLevel me src)
 | Fail => 
   match NMap.find src st.(sent), NMap.find src st.(received) with
   | Some m_snt, Some m_rcd =>    
@@ -256,28 +282,21 @@ match msg with
              received := st.(received) ;
              broadcast := true ;
              levels := NMap.remove src st.(levels) |}
-  end
-| New =>
-  put {| local := st.(local) ;
-         aggregate := st.(aggregate) ;
-         adjacent := NSet.add src st.(adjacent) ;
-         sent := NMap.add src 1 st.(sent) ;
-         received := NMap.add src 1 st.(received) ;
-         broadcast := st.(broadcast) ;
-         levels := st.(levels) |}
+  end ;; 
+  ret (RecvFail me src)
 end.
 
 Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
-if root_dec me then RootNetHandler src msg 
+if root_dec me then RootNetHandler me src msg 
 else NonRootNetHandler me src msg.
 
 Definition send_level_fold (lvo : option lv) (n : name) (res : Handler Data) : Handler Data :=
 send (n, Level lvo) ;; res.
 
 Definition send_level_adjacent (lvo : option lv) (fs : NS) : Handler Data :=
-NSet.fold (send_level_fold lvo) fs nop.
+NSet.fold (send_level_fold lvo) fs (ret Tau).
 
-Definition RootIOHandler (i : Input) : Handler Data :=
+Definition RootIOHandler (me : name) (i : Input) : Handler Data :=
 st <- get ;;
 match i with
 | Local m_msg => 
@@ -287,25 +306,32 @@ match i with
          sent := st.(sent);
          received := st.(received);
          broadcast := st.(broadcast);
-         levels := st.(levels) |}
-| SendAggregate => nop
+         levels := st.(levels) |} ;;
+  ret (DeliverLocal me)
+| SendAggregate => 
+  ret (DeliverSendAggregate me)
 | AggregateRequest => 
-  write_output (AggregateResponse st.(aggregate))
+  write_output (AggregateResponse st.(aggregate)) ;;
+  ret (DeliverAggregateRequest me)
 | Broadcast => 
-  when st.(broadcast)
-  (send_level_adjacent (Some 0) st.(adjacent) ;;
-   put {| local := st.(local);
-          aggregate := st.(aggregate);
-          adjacent := st.(adjacent);
-          sent := st.(sent);
-          received := st.(received);
-          broadcast := false;
-          levels := st.(levels) |})
+  if st.(broadcast) then
+    send_level_adjacent (Some 0) st.(adjacent) ;;
+    put {| local := st.(local);
+           aggregate := st.(aggregate);
+           adjacent := st.(adjacent);
+           sent := st.(sent);
+           received := st.(received);
+           broadcast := false;
+           levels := st.(levels) |} ;;
+    ret (DeliverBroadcastTrue me)
+  else
+    ret (DeliverBroadcastFalse me)
 | LevelRequest => 
-  write_output (LevelResponse (Some 0))
+  write_output (LevelResponse (Some 0)) ;;
+  ret (DeliverLevelRequest me)
 end.
 
-Definition NonRootIOHandler (i : Input) : Handler Data :=
+Definition NonRootIOHandler (me : name) (i : Input) : Handler Data :=
 st <- get ;;
 match i with
 | Local m_msg => 
@@ -315,7 +341,8 @@ match i with
          sent := st.(sent);
          received := st.(received);
          broadcast := st.(broadcast);
-         levels := st.(levels) |}
+         levels := st.(levels) |} ;;
+  ret (DeliverLocal me)
 | SendAggregate => 
   when (sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match parent st.(adjacent) st.(levels) with
@@ -333,26 +360,32 @@ match i with
              broadcast := st.(broadcast);
              levels := st.(levels) |}
     end
-  end)
+  end) ;;
+  ret (DeliverSendAggregate me)
 | AggregateRequest => 
-  write_output (AggregateResponse st.(aggregate))
+  write_output (AggregateResponse st.(aggregate)) ;;
+  ret (DeliverAggregateRequest me)
 | Broadcast =>
-  when st.(broadcast)
-  (send_level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent) ;; 
-  put {| local := st.(local);
-         aggregate := st.(aggregate);
-         adjacent := st.(adjacent);
-         sent := st.(sent);
-         received := st.(received);
-         broadcast := false;
-         levels := st.(levels) |})
+  if st.(broadcast) then
+    send_level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent) ;; 
+    put {| local := st.(local);
+           aggregate := st.(aggregate);
+           adjacent := st.(adjacent);
+           sent := st.(sent);
+           received := st.(received);
+           broadcast := false;
+           levels := st.(levels) |} ;;
+    ret (DeliverBroadcastTrue me)
+  else
+    ret (DeliverBroadcastFalse me)
 | LevelRequest =>   
-  write_output (LevelResponse (level st.(adjacent) st.(levels)))
+  write_output (LevelResponse (level st.(adjacent) st.(levels))) ;;
+  ret (DeliverLevelRequest me)
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data :=
-if root_dec me then RootIOHandler i 
-else NonRootIOHandler i.
+if root_dec me then RootIOHandler me i 
+else NonRootIOHandler me i.
 
 Instance TreeAggregation_BaseParams : BaseParams :=
   {
@@ -361,21 +394,25 @@ Instance TreeAggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams :=
+Instance TreeAggregation_LabeledMultiParams : LabeledMultiParams TreeAggregation_BaseParams :=
   {
-    name := name ;
-    msg  := Msg ;
-    msg_eq_dec := Msg_eq_dec ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes ;
-    init_handlers := InitData ;
-    net_handlers := fun dst src msg s =>
-                      runGenHandler_ignore s (NetHandler dst src msg) ;
-    input_handlers := fun nm msg s =>
-                        runGenHandler_ignore s (IOHandler nm msg)
+    lb_name := name ;
+    lb_msg  := Msg ;
+    lb_msg_eq_dec := Msg_eq_dec ;
+    lb_name_eq_dec := name_eq_dec ;
+    lb_nodes := nodes ;
+    lb_all_names_nodes := all_names_nodes ;
+    lb_no_dup_nodes := no_dup_nodes ;
+    label := Label ;
+    label_silent := Tau ;
+    lb_init_handlers := InitData ;
+    lb_net_handlers := fun dst src msg s =>
+                        runGenHandler s (NetHandler dst src msg) ;
+    lb_input_handlers := fun nm msg s =>
+                        runGenHandler s (IOHandler nm msg)
   }.
+
+Instance TreeAggregation_MultiParams : MultiParams TreeAggregation_BaseParams := unlabeled_multi_params.
 
 Instance TreeAggregation_NameOverlayParams : NameOverlayParams TreeAggregation_MultiParams :=
   {
@@ -390,28 +427,24 @@ Instance TreeAggregation_FailMsgParams : FailMsgParams TreeAggregation_MultiPara
     msg_fail := Fail
   }.
 
-Instance TreeAggregation_NewMsgParams : NewMsgParams TreeAggregation_MultiParams :=
-  {
-    msg_new := New
-  }.
-
 Lemma net_handlers_NetHandler :
   forall dst src m st os st' ms,
     net_handlers dst src m st = (os, st', ms) ->
-    NetHandler dst src m st = (tt, os, st', ms).
+    exists lb, NetHandler dst src m st = (lb, os, st', ms).
 Proof.
 intros.
 simpl in *.
-monad_unfold.
+unfold unlabeled_net_handlers, lb_net_handlers in *.
+simpl in *.
 repeat break_let.
 find_inversion.
-destruct u. auto.
+by exists l0; auto.
 Qed.
 
 Lemma NetHandler_cases : 
-  forall dst src msg st out st' ms,
-    NetHandler dst src msg st = (tt, out, st', ms) ->
-    (exists m_msg m_src, msg = Aggregate m_msg /\ 
+  forall dst src msg st lb out st' ms,
+    NetHandler dst src msg st = (lb, out, st', ms) ->
+    (exists m_msg m_src, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\
      NMap.find src st.(received) = Some m_src /\
      st'.(local) = st.(local) /\
      st'.(aggregate) = st.(aggregate) * m_msg /\
@@ -421,11 +454,11 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (exists m_msg, msg = Aggregate m_msg /\ 
+    (exists m_msg, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\
      NMap.find src st.(received) = None /\ 
      st' = st /\ 
      out = [] /\ ms = []) \/
-    (root dst /\ msg = Fail /\ 
+    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\
      exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
@@ -435,7 +468,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ 
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\
      exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
      level st.(adjacent) st.(levels) = level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
@@ -446,7 +479,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ 
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\
      exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
      level st.(adjacent) st.(levels) <> level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
@@ -457,7 +490,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ msg = Fail /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
@@ -466,7 +499,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
      level st.(adjacent) st.(levels) = level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
@@ -476,7 +509,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
      level st.(adjacent) st.(levels) <> level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
@@ -486,10 +519,10 @@ Lemma NetHandler_cases :
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ exists lvo, msg = Level lvo /\ 
+    (root dst /\ exists lvo, msg = Level lvo /\ lb = RecvLevel dst src /\
      st' = st /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\
+    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\ lb = RecvLevel dst src /\
      level st.(adjacent) st.(levels) = level st.(adjacent) (NMap.add src lv_msg st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
@@ -499,7 +532,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.add src lv_msg st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\
+    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\ lb = RecvLevel dst src /\
      level st.(adjacent) st.(levels) <> level st.(adjacent) (NMap.add src lv_msg st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
@@ -509,7 +542,7 @@ Lemma NetHandler_cases :
      st'.(broadcast) = true /\
      st'.(levels) = NMap.add src lv_msg st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Level None /\
+    (~ root dst /\ msg = Level None /\ lb = RecvLevel dst src /\
      level st.(adjacent) st.(levels) = level st.(adjacent) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
@@ -519,29 +552,20 @@ Lemma NetHandler_cases :
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Level None /\
+    (~ root dst /\ msg = Level None /\ lb = RecvLevel dst src /\
      level st.(adjacent) st.(levels) <> level st.(adjacent) (NMap.remove src st.(levels)) /\
-     st'.(local) = st.(local) /\
+     st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
      st'.(sent) = st.(sent) /\
      st'.(received) = st.(received) /\
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
-     out = [] /\ ms = []) \/
-    (msg = New /\
-     st'.(local) = st.(local) /\
-     st'.(aggregate) = st.(aggregate) /\
-     st'.(adjacent) = NSet.add src st.(adjacent) /\
-     st'.(sent) = NMap.add src 1 st.(sent) /\
-     st'.(received) = NMap.add src 1  st.(received) /\
-     st'.(broadcast) = st.(broadcast) /\
-     st'.(levels) = st.(levels) /\
      out = [] /\ ms = []).
 Proof.
-move => dst src msg st out st' ms.
+move => dst src msg st lb out st' ms.
 rewrite /NetHandler /RootNetHandler /NonRootNetHandler.
-case: msg => [m_msg||olv_msg|]; monad_unfold.
+case: msg => [m_msg||olv_msg]; monad_unfold.
 - case root_dec => /= H_dec; case H_find: (NMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
   * by left; exists m_msg; exists m_src.
   * by right; left; exists m_msg.
@@ -549,26 +573,33 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
   * by right; left; exists m_msg.
 - case root_dec => /= H_dec; case H_find: (NMap.find _ _) => [m_snt|]; case H_find': (NMap.find _ _) => [m_rcd|] /=.
   * move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
+    find_injection.
     right; right; left.
+    rewrite /=.
+    split => //.
     split => //.
     split => //.
     by exists m_snt; exists m_rcd.
   * move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=. 
+    find_injection.
+    rewrite /=.
     right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split => //; first by right.
   * move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=. 
+    find_injection.
+    rewrite /=.
     right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split => //; first by left.
   * move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=. 
+    find_injection.
     right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split => //; first by left.
@@ -576,8 +607,10 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
       right; right; right; left.
       split => //.
       split => //.
+      split => //.
       by exists m_snt; exists m_rcd.
     right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by exists m_snt; exists m_rcd.
@@ -585,8 +618,10 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
       right; right; right; right; right; right; left.
       split => //.
       split => //.
+      split => //.
       by split; first by right.
     right; right; right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split; first by right.
@@ -594,8 +629,10 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
       right; right; right; right; right; right; left.
       split => //.
       split => //.
+      split => //.
       by split; first by left.
     right; right; right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split; first by left.
@@ -603,8 +640,10 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
       right; right; right; right; right; right; left.
       split => //.
       split => //.
+      split => //.
       by split; first by left.
     right; right; right; right; right; right; right; left.
+    split => //.
     split => //.
     split => //.
     by split; first by left.
@@ -612,7 +651,7 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
     move => H_eq.
     injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
     right; right; right; right; right; right; right; right; left.
-    split => //.
+    split => //.    
     by exists olv_msg.
   case H_olv_dec: olv_msg => [lv_msg|]; case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
   * right; right; right; right; right; right; right; right; right; left.
@@ -622,38 +661,34 @@ case: msg => [m_msg||olv_msg|]; monad_unfold.
     split => //.
     by exists lv_msg.
   * by right; right; right; right; right; right; right; right; right; right; right; left.
-  * by right; right; right; right; right; right; right; right; right; right; right; right; left.
-- case root_dec => /= H_dec.
-    right; right; right; right; right; right; right; right; right; right; right; right; right.
-    by find_inversion.
-  right; right; right; right; right; right; right; right; right; right; right; right; right.
-  by find_inversion.
+  * by right; right; right; right; right; right; right; right; right; right; right; right.
 Qed.
 
 Lemma input_handlers_IOHandler :
   forall h i d os d' ms,
     input_handlers h i d = (os, d', ms) ->
-    IOHandler h i d = (tt, os, d', ms).
+    exists lb, IOHandler h i d = (lb, os, d', ms).
 Proof.
 intros.
 simpl in *.
-monad_unfold.
+unfold unlabeled_input_handlers, lb_input_handlers in *.
+simpl in *.
 repeat break_let.
 find_inversion.
-destruct u. auto.
+by exists l0; auto.
 Qed.
 
 Lemma send_level_fold_app :
-  forall ns st olv nm,
+  forall ns st olv nm lb,
 snd (fold_left 
        (fun (a : Handler Data) (e : NSet.elt) => send_level_fold olv e a) ns
-       (fun s : Data => (tt, [], s, nm)) st) = 
+       (fun s : Data => (lb, [], s, nm)) st) = 
 snd (fold_left 
        (fun (a : Handler Data) (e : NSet.elt) => send_level_fold olv e a) ns
-       (fun s : Data => (tt, [], s, [])) st) ++ nm.
+       (fun s : Data => (lb, [], s, [])) st) ++ nm.
 Proof.
 elim => //=.
-move => n ns IH st olv nm.
+move => n ns IH st olv nm lb.
 rewrite {1}/send_level_fold /=.
 monad_unfold.
 rewrite /=.
@@ -668,7 +703,7 @@ Instance TreeAggregation_TreeMsg : TreeMsg :=
     tree_level := Level
   }.
 
-Lemma send_level_adjacent_fst_eq :
+Lemma send_level_adjacent_fst_eq : 
 forall fs olv st,
   snd (send_level_adjacent olv fs st) = level_adjacent olv fs.
 Proof.
@@ -687,23 +722,23 @@ by rewrite -send_level_fold_app.
 Qed.
 
 Lemma fst_fst_fst_tt_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 fst
   (fst
      (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st))) = tt.
+           (fun s : Data => (lb, [], s, nm)) st))) = lb.
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
 Lemma send_level_adjacent_fst_fst_eq : 
 forall fs olv st,
-  fst (fst (fst (send_level_adjacent olv fs st))) = tt.
+  fst (fst (fst (send_level_adjacent olv fs st))) = Tau.
 Proof.
 move => fs olv st.
 rewrite /send_level_adjacent.
@@ -712,30 +747,30 @@ by rewrite fst_fst_fst_tt_send_level_fold.
 Qed.
 
 Lemma snd_fst_fst_out_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 snd
   (fst
      (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st))) = [].
+           (fun s : Data => (lb, [], s, nm)) st))) = [].
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
 Lemma snd_fst_st_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 snd (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st)) = st.
+           (fun s : Data => (lb, [], s, nm)) st)) = st.
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
@@ -761,7 +796,7 @@ Qed.
 
 Lemma send_level_adjacent_eq : 
   forall fs olv st,
-  send_level_adjacent olv fs st = (tt, [], st, level_adjacent olv fs).
+  send_level_adjacent olv fs st = (Tau, [], st, level_adjacent olv fs).
 Proof.
 move => fs olv st.
 case H_eq: send_level_adjacent => [[[u o] s b]].
@@ -777,9 +812,9 @@ by rewrite H_eq'_1 H_eq'_2 H_eq'_3 H_eq'_4.
 Qed.
 
 Lemma IOHandler_cases :
-  forall h i st u out st' ms,
-      IOHandler h i st = (u, out, st', ms) ->
-      (exists m_msg, i = Local m_msg /\ 
+  forall h i st lb out st' ms,
+      IOHandler h i st = (lb, out, st', ms) ->
+      (exists m_msg, i = Local m_msg /\ lb = DeliverLocal h /\
          st'.(local) = m_msg /\ 
          st'.(aggregate) = st.(aggregate) * m_msg * st.(local)^-1 /\ 
          st'.(adjacent) = st.(adjacent) /\
@@ -788,10 +823,10 @@ Lemma IOHandler_cases :
          st'.(broadcast) = st.(broadcast) /\
          st'.(levels) = st.(levels) /\
          out = [] /\ ms = []) \/
-      (root h /\ i = SendAggregate /\ 
+      (root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
          st' = st /\
          out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\ 
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 1 /\ 
        exists dst m_dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(sent) = Some m_dst /\
        st'.(local) = st.(local) /\
@@ -802,24 +837,24 @@ Lemma IOHandler_cases :
        st'.(broadcast) = st.(broadcast) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) = 1 /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 1 /\
        parent st.(adjacent) st.(levels) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 1 /\
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(sent) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
-      (i = AggregateRequest /\ 
+      (i = AggregateRequest /\ lb = DeliverAggregateRequest h /\
        st' = st /\ 
        out = [AggregateResponse (aggregate st)] /\ ms = []) \/
-      (root h /\ i = Broadcast /\ st.(broadcast) = true /\
+      (root h /\ i = Broadcast /\ st.(broadcast) = true /\ lb = DeliverBroadcastTrue h /\
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) /\ 
        st'.(adjacent) = st.(adjacent) /\
@@ -828,7 +863,7 @@ Lemma IOHandler_cases :
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (Some 0) st.(adjacent)) \/
-      (~ root h /\ i = Broadcast /\ st.(broadcast) = true /\
+      (~ root h /\ i = Broadcast /\ st.(broadcast) = true /\ lb = DeliverBroadcastTrue h /\
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) /\ 
        st'.(adjacent) = st.(adjacent) /\
@@ -837,17 +872,17 @@ Lemma IOHandler_cases :
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
-      (i = Broadcast /\ st.(broadcast) = false /\
+      (i = Broadcast /\ st.(broadcast) = false /\ lb = DeliverBroadcastFalse h /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (root h /\ i = LevelRequest /\
+      (root h /\ i = LevelRequest /\ lb = DeliverLevelRequest h /\
        st' = st /\
        out = [LevelResponse (Some 0)] /\ ms = []) \/
-      (~ root h /\ i = LevelRequest /\
+      (~ root h /\ i = LevelRequest /\ lb = DeliverLevelRequest h /\
        st' = st /\
-       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).      
+       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
-move => h i st u out st' ms.
+move => h i st lb out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
 case: i => [m_msg||||]; monad_unfold.
 - by case root_dec => /= H_dec H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; left; exists m_msg.
@@ -862,8 +897,10 @@ case: i => [m_msg||||]; monad_unfold.
     split => //.
     split => //.
     split => //.
+    split => //.
     by exists dst; exists m_dst.
   right; right; right; right; right; left.
+  split => //.
   split => //.
   split => //.
   split => //.
@@ -875,35 +912,20 @@ case: i => [m_msg||||]; monad_unfold.
 - case root_dec => /= H_dec; case H_b: broadcast => /=.
   * right; right; right; right; right; right; right; left.
     repeat break_let.
-    injection Heqp => H_ms H_st H_out H_tt.
-    subst.
-    injection Heqp2 => H_ms H_st H_out H_tt.
-    subst.
-    injection H => H_ms H_st H_out H_tt.
-    subst.
-    rewrite /=.
+    repeat find_injection.
+    rewrite /= -2!app_nil_end.
     have H_eq := send_level_adjacent_eq st.(adjacent) (Some 0) st.
-    rewrite Heqp5 in H_eq.
-    injection H_eq => H_eq_ms H_eq_st H_eq_o H_eq_tt.
-    rewrite H_eq_ms H_eq_o.
-    by rewrite app_nil_l -2!app_nil_end.
+    find_rewrite.
+    by tuple_inversion.
   * right; right; right; right; right; right; right; right; right; left.
-    injection H => H_ms H_st H_o H_tt.
-    by rewrite H_st H_o H_ms.
+    by tuple_inversion.
   * right; right; right; right; right; right; right; right; left.
     repeat break_let.
-    injection Heqp => H_ms H_st H_out H_tt.
-    subst.
-    injection Heqp2 => H_ms H_st H_out H_tt.
-    subst.
-    injection H => H_ms H_st H_out H_tt.
-    subst.
-    rewrite /=.
+    repeat tuple_inversion.
+    rewrite /= -2!app_nil_end.
     have H_eq := send_level_adjacent_eq st.(adjacent) (level st.(adjacent) st.(levels)) st.
-    rewrite Heqp5 in H_eq.
-    injection H_eq => H_eq_ms H_eq_st H_eq_o H_eq_tt.
-    rewrite H_eq_ms H_eq_o.
-    by rewrite app_nil_l -2!app_nil_end.
+    find_rewrite.
+    by tuple_inversion.
   * right; right; right; right; right; right; right; right; right; left.
     injection H => H_ms H_st H_o H_tt.
     by rewrite H_st H_o H_ms.
@@ -935,23 +957,23 @@ Instance TreeAggregation_Aggregation_name_tot_map_bijective : MultiParamsNameTot
 
 Instance TreeAggregation_Aggregation_params_pt_msg_map : MultiParamsMsgPartialMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
-    pt_map_msg := fun m =>
-      match m with
+    pt_map_msg := fun m => 
+      match m with 
       | Aggregate m' => Some (AG.Aggregate m')
-      | Fail => Some AG.Fail
-      | New  => Some AG.New
-      | Level _ => None
-      end    
+      | Fail => Some AG.Fail      
+      | Level _ => None 
+      end   
   }.
+
 
 Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
-    pt_ext_map_data := fun d _ =>
+    pt_ext_map_data := fun d _ => 
       AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
     pt_ext_map_input := fun i n d =>
-      match i with
+      match i with 
       | Local m => Some (AG.Local m)
-      | SendAggregate =>
+      | SendAggregate => 
         if root_dec n then None else
           match parent d.(adjacent) d.(levels) with
           | Some p => Some (AG.SendAggregate p)
@@ -962,7 +984,7 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
       end
   }.
 
-Lemma pt_ext_map_name_msgs_level_adjacent_empty :
+Lemma pt_ext_map_name_msgs_level_adjacent_empty : 
   forall fs lvo,
   pt_map_name_msgs (level_adjacent lvo fs) = [].
 Proof.
@@ -981,37 +1003,31 @@ Instance TreeAggregation_Aggregation_multi_params_pt_ext_map_congruency : MultiP
     pt_ext_net_handlers_some := _ ;
     pt_ext_net_handlers_none := _ ;
     pt_ext_input_handlers_some := _ ;
-    pt_ext_input_handlers_none := _
+    pt_ext_input_handlers_none := _ 
   }.
 Proof.
 - by move => n; rewrite /= /InitData /=; break_if.
 - move => me src mg st mg' out st' ps H_eq H_eq'.
   rewrite /pt_ext_mapped_net_handlers.
   repeat break_let.
-  rewrite /= /runGenHandler_ignore /= in H_eq'.
-  rewrite /= /runGenHandler_ignore /= in Heqp.
+  rewrite /net_handlers /= /runGenHandler_ignore /= /unlabeled_net_handlers /lb_net_handlers /= /runGenHandler /id in H_eq' Heqp.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u, u0.
-  unfold id in *.
-  destruct st'.
+  destruct u, st'.
   by net_handler_cases; AG.net_handler_cases; simpl in *; congruence.
 - move => me src mg st out st' ps H_eq H_eq'.
-  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  rewrite /= /runGenHandler_ignore /= /unlabeled_net_handlers /lb_net_handlers /= /runGenHandler /id in H_eq'.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u.
   destruct st'.
   by net_handler_cases; simpl in *; congruence.
 - move => me inp st inp' out st' ps H_eq H_eq'.
   rewrite /pt_ext_mapped_input_handlers.
   repeat break_let.
-  rewrite /= /runGenHandler_ignore /= in H_eq'.
-  rewrite /= /runGenHandler_ignore /= in Heqp.
+  rewrite /= /runGenHandler_ignore /= /unlabeled_input_handlers /lb_input_handlers /= /runGenHandler /id in H_eq' Heqp.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u, u0.
-  unfold id in *.
+  destruct u.
   have H_eq_inp: inp = SendAggregate \/ inp <> SendAggregate by destruct inp; (try by right); left.
   case: H_eq_inp => H_eq_inp.
     subst_max.
@@ -1035,24 +1051,17 @@ Proof.
   simpl in *.
   by io_handler_cases; AG.io_handler_cases; simpl in *; repeat break_match; repeat find_injection; congruence.
 - move => me inp st out st' ps H_eq H_eq'.
-  rewrite /= /runGenHandler_ignore /= in H_eq'.
+  rewrite /= /runGenHandler_ignore /= /unlabeled_input_handlers /lb_input_handlers /= /runGenHandler /id in H_eq'.
   repeat break_let.
   repeat tuple_inversion.
-  destruct u.
-  destruct st'.
   io_handler_cases; simpl in *; unfold is_left in *; repeat break_if; try break_match; try congruence.
   * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
   * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
 Qed.
-
+  
 Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_msg_map := 
   {
     pt_fail_msg_fst_snd := Logic.eq_refl
-  }.
-
-Instance TreeAggregation_Aggregation_new_msg_params_pt_ext_map_congruency : NewMsgParamsPartialMapCongruency TreeAggregation_NewMsgParams AG.Aggregation_NewMsgParams TreeAggregation_Aggregation_params_pt_msg_map := 
-  {
-    pt_new_msg_fst_snd := Logic.eq_refl
   }.
 
 Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams AG.Aggregation_NameOverlayParams TreeAggregation_Aggregation_name_tot_map := 
@@ -1062,14 +1071,325 @@ Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : Na
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_d_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_NewMsgParams AG.Aggregation_FailMsgParams step_o_d_f_init (failed, pt_ext_map_odnet net) tr'.
+    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    exists tr', @step_o_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
 Proof.
-move => net failed tr H_st.
-apply step_o_d_f_pt_ext_mapped_simulation_star_1 in H_st.
+move => onet failed tr H_st.
+apply step_o_f_pt_ext_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' H_st].
 rewrite map_id in H_st.
 by exists tr'.
 Qed.
+
+Instance TreeAggregation_Tree_base_params_pt_map : BaseParamsPartialMap TreeAggregation_BaseParams TR.Tree_BaseParams :=
+  {
+    pt_map_data := fun d => TR.mkData d.(adjacent) d.(broadcast) d.(levels) ;
+    pt_map_input := fun i =>
+                   match i with
+                   | LevelRequest => Some TR.LevelRequest
+                   | Broadcast => Some TR.Broadcast
+                   | _ => None
+                   end ;
+    pt_map_output := fun o => 
+                    match o with
+                    | LevelResponse olv => Some (TR.LevelResponse olv)
+                    | _ => None
+                    end
+  }.
+
+Instance TreeAggregation_Tree_name_tot_map : MultiParamsNameTotalMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
+  {
+    tot_map_name := id ;
+    tot_map_name_inv := id ;
+  }.
+
+Instance TreeAggregation_Tree_name_tot_map_bijective : MultiParamsNameTotalMapBijective TreeAggregation_Tree_name_tot_map :=
+  {
+    tot_map_name_inv_inverse := fun _ => Logic.eq_refl ;
+    tot_map_name_inverse_inv := fun _ => Logic.eq_refl
+  }.
+
+Instance TreeAggregation_Tree_multi_params_pt_map : MultiParamsMsgPartialMap TreeAggregation_MultiParams TR.Tree_MultiParams :=
+  {
+    pt_map_msg := fun m => match m with 
+                        | Fail => Some TR.Fail 
+                        | Level lvo => Some (TR.Level lvo)
+                        | _ => None 
+                        end ;
+  }.
+
+Instance TreeAggregation_Tree_multi_params_pt_map_congruency : MultiParamsPartialMapCongruency TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_tot_map TreeAggregation_Tree_multi_params_pt_map :=
+  {
+    pt_init_handlers_eq := _ ;
+    pt_net_handlers_some := _ ;
+    pt_net_handlers_none := _ ;
+    pt_input_handlers_some := _ ;
+    pt_input_handlers_none := _
+  }.
+- by move => n; rewrite /= /InitData /= /TR.InitData /= /id /=; break_if.
+- move => me src mg st mg' H_eq.
+  rewrite /pt_mapped_net_handlers.
+  repeat break_let.
+  case H_n: net_handlers => [[out st'] ps].
+  rewrite /net_handlers /= /runGenHandler_ignore /= /unlabeled_net_handlers /lb_net_handlers /= /runGenHandler /id in Heqp H_n.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct st'.
+  by net_handler_cases; TR.net_handler_cases; simpl in *; congruence.
+- move => me src mg st out st' ps H_eq H_eq'.
+  rewrite /net_handlers /= /runGenHandler_ignore /= /unlabeled_net_handlers /lb_net_handlers /= /runGenHandler /id in H_eq'.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct st'.
+  by net_handler_cases; simpl in *; congruence.
+- move => me inp st inp' H_eq.
+  rewrite /pt_mapped_input_handlers.
+  repeat break_let.  
+  case H_i: input_handlers => [[out st'] ps].
+  rewrite /= /runGenHandler_ignore /= /unlabeled_input_handlers /lb_input_handlers /= /runGenHandler /id in Heqp H_i.
+  repeat break_let.
+  repeat tuple_inversion.
+  destruct st'.
+  io_handler_cases; TR.io_handler_cases; simpl in *; try congruence.
+    set ptl := pt_map_name_msgs _.
+    set ptl' := level_adjacent _ _.
+    suff H_suff: ptl = ptl' by repeat find_rewrite.
+    rewrite /ptl /ptl' /level_adjacent 2!NSet.fold_spec.
+    elim: NSet.elements => //=.
+    move => n ns IH.
+    rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) pt_map_name_msgs_app_distr /= /id /=.
+    by rewrite (@fold_left_level_fold_eq TR.Tree_TreeMsg) /= IH.
+  set ptl := pt_map_name_msgs _.
+  set ptl' := level_adjacent _ _.
+  suff H_suff: ptl = ptl' by repeat find_rewrite.
+  rewrite /ptl /ptl' /level_adjacent 2!NSet.fold_spec.
+  elim: NSet.elements => //=.
+  move => n ns IH.
+  rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) pt_map_name_msgs_app_distr /= /id /=.
+  by rewrite (@fold_left_level_fold_eq TR.Tree_TreeMsg) /= IH.
+- move => me inp st out st' ps H_eq H_eq'.
+  rewrite /= /runGenHandler_ignore /= /unlabeled_input_handlers /lb_input_handlers /= /runGenHandler in H_eq'.
+  repeat break_let.  
+  repeat tuple_inversion.
+  destruct st'.
+  by io_handler_cases; simpl in *; congruence.
+Qed.
+
+Instance TreeAggregation_Tree_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency TreeAggregation_FailMsgParams TR.Tree_FailMsgParams TreeAggregation_Tree_multi_params_pt_map := 
+  {
+    pt_fail_msg_fst_snd := Logic.eq_refl
+  }.
+
+Instance TreeAggregation_Tree_name_overlay_params_tot_map_congruency : NameOverlayParamsTotalMapCongruency TreeAggregation_NameOverlayParams TR.Tree_NameOverlayParams TreeAggregation_Tree_name_tot_map := 
+  {
+    tot_adjacent_to_fst_snd := fun _ _ => conj (fun H => H) (fun H => H)
+  }.
+
+Theorem TreeAggregation_Tree_pt_mapped_simulation_star_1 :
+forall net failed tr,
+    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
+    @step_o_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
+Proof.
+move => onet failed tr H_st.
+apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+by rewrite map_id in H_st.
+Qed.
+
+Instance AggregationData_Data : AggregationData Data :=
+  {
+    aggr_local := local ;
+    aggr_aggregate := aggregate ;
+    aggr_adjacent := adjacent ;
+    aggr_sent := sent ;
+    aggr_received := received
+  }.
+
+Instance AggregationMsg_TreeAggregation : AggregationMsg :=
+  {
+    aggr_msg := msg ;
+    aggr_msg_eq_dec := msg_eq_dec ;
+    aggr_fail := Fail ;
+    aggr_of := fun mg => match mg with | Aggregate m' => m' | _ => 1 end
+  }.
+
+Instance AggregationMsgMap_Aggregation_TreeAggregation : AggregationMsgMap AggregationMsg_TreeAggregation AG.AggregationMsg_Aggregation :=
+  {
+    map_msgs := pt_map_msgs ;    
+  }.
+Proof.
+- elim => //=.
+  case => [m'||olv] ms IH /=.
+  * by rewrite /aggregate_sum_fold /= IH.
+  * by rewrite /aggregate_sum_fold /= IH.
+  * by rewrite /aggregate_sum_fold /= IH; gsimpl.
+- elim => //=.
+  case => [m'||olv] ms IH /=.
+  * by split => H_in; case: H_in => H_in //; right; apply IH.
+  * by split => H_in; left.
+  * split => H_in; last by right; apply IH.
+    case: H_in => H_in //.
+    by apply IH.
+Defined.
+
+Lemma TreeAggregation_conserves_network_mass : 
+  forall onet failed tr,
+  step_o_f_star step_o_f_init (failed, onet) tr ->
+  conserves_network_mass (remove_all name_eq_dec failed nodes) nodes onet.(onwPackets) onet.(onwState).
+Proof.
+move => onet failed tr H_st.
+have [tr' H_st'] := TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 H_st.
+have H_inv := AG.Aggregation_conserves_network_mass H_st'.
+rewrite /= /id /= /conserves_network_mass in H_inv.
+rewrite /conserves_network_mass.
+move: H_inv.
+set state := fun n : name => _.
+set packets := fun src dst : name => _.
+rewrite (sum_local_aggr_local_eq _ (onwState onet)) //.
+move => H_inv.
+rewrite H_inv {H_inv}.
+rewrite (sum_aggregate_aggr_aggregate_eq _ (onwState onet)) //.
+rewrite sum_aggregate_msg_incoming_active_map_msgs_eq /map_msgs /= -/packets.
+rewrite (sum_fail_sent_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets //.
+by rewrite (sum_fail_received_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets.
+Qed.
+
+Instance TreeAggregation_Tree_label_tot_map : LabeledMultiParamsLabelTotalMap TreeAggregation_LabeledMultiParams TR.Tree_LabeledMultiParams :=
+  {
+    tot_map_label := fun lb =>
+                      match lb with
+                      | Tau => TR.Tau
+                      | RecvFail dst src => TR.RecvFail dst src
+                      | RecvLevel dst src => TR.RecvLevel dst src
+                      | RecvAggregate _ _ => TR.Tau
+                      | DeliverBroadcastTrue dst => TR.DeliverBroadcastTrue dst
+                      | DeliverBroadcastFalse dst => TR.DeliverBroadcastFalse dst
+                      | DeliverLevelRequest dst => TR.DeliverLevelRequest dst
+                      | DeliverSendAggregate _ => TR.Tau               
+                      | DeliverLocal _ => TR.Tau
+                      | DeliverAggregateRequest _ => TR.Tau
+                      end
+  }.
+
+Instance TreeAggregation_Tree_labeled_partial_map_congruency : LabeledMultiParamsPartialMapCongruency TreeAggregation_Tree_base_params_pt_map TreeAggregation_Tree_name_tot_map TreeAggregation_Tree_multi_params_pt_map TreeAggregation_Tree_label_tot_map :=
+  {
+    pt_lb_label_silent_fst_snd := Logic.eq_refl ;
+    pt_lb_net_handlers_some := _ ;
+    pt_lb_net_handlers_none := _ ;
+    pt_lb_input_handlers_some := _ ;
+    pt_lb_input_handlers_none := _
+  }.
+Proof.
+- move => me src m st m' out st' ps lb H_m H_eq.
+  rewrite /lb_net_handlers /= /runGenHandler /= /id /= in H_eq.
+  rewrite /tot_mapped_lb_net_handlers_label /= /runGenHandler /=.
+  case H_n: NetHandler => [[[lb' out'] st''] ps'].
+  by net_handler_cases; TR.net_handler_cases; simpl in *; congruence.
+- move => me src m st H_eq.
+  rewrite /tot_mapped_lb_net_handlers_label /= /runGenHandler /=.
+  case H_n: NetHandler => [[[lb out] st'] ps].
+  by net_handler_cases.
+- move => me inp st inp' out st' ps lb H_i H_eq.
+  rewrite /tot_mapped_lb_input_handlers_label /= /runGenHandler /=.
+  case H_inp: IOHandler => [[[lb' out'] st''] ps'].
+  rewrite /tot_mapped_lb_input_handlers_label /= /runGenHandler /= /id in H_eq.
+  by io_handler_cases; TR.io_handler_cases; simpl in *; congruence.
+- move => me inp st H_eq.
+  rewrite /tot_mapped_lb_input_handlers_label /= /runGenHandler /=.
+  case H_inp: IOHandler => [[[lb' out'] st''] ps'].
+  by io_handler_cases.
+Qed.
+
+Lemma TreeAggregation_Tree_lb_step_execution_pt_map : forall s,
+  lb_step_execution lb_step_o_f s ->
+  lb_step_execution lb_step_o_f (map pt_map_onet_event s).
+Proof.
+apply: lb_step_execution_lb_step_o_f_pt_map_onet_infseq.
+exact: TR.Label_eq_dec.
+Qed.
+
+Lemma TreeAggregation_Tree_pt_map_onet_hd_step_o_f_star_ex_always : 
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
+       always (now (event_step_star step_o_f step_o_f_init)) (map pt_map_onet_event s).
+Proof.
+apply: pt_map_onet_hd_step_o_f_star_always.
+exact: TR.Label_eq_dec.
+Qed.
+
+Lemma TreeAggregation_Tree_enabled :  
+  forall l, tot_map_label l <> TR.Tau ->
+  forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
+    lb_step_o_f (failed, net) l (failed0, net0) tr0 ->
+    lb_step_o_f (failed, net) l' (failed', net') tr ->
+    lb_step_o_f (List.map tot_map_name failed', pt_map_onet net') (tot_map_label l) (pt_failed, pt_net) ptr ->
+    enabled lb_step_o_f l (failed', net').
+Proof.
+case => //= [dst src|dst src|h|h|h] H_neq net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l' {H_neq}; rewrite map_id /=.
+Admitted.
+
+(* input labels are enabled right away, need to show other's enabledness depend only on message availability *)
+(* suffices: if message is incoming, eventually it is the first message *)
+Lemma TreeAggregation_Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
+forall l, tot_map_label l <> TR.Tau ->
+  forall s, lb_step_execution lb_step_o_f s ->
+  weak_local_fairness lb_step_o_f label_silent s ->
+  l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event (hd s)) ->
+  eventually (now (l_enabled lb_step_o_f l)) s.
+Proof.
+case => //= [dst src|dst src|h|h|h] H_neq {H_neq} s H_exec H_fair H_en.
+- by admit.
+- by admit.
+- destruct s as [[[failed net] l] s].
+  apply: E0.
+  rewrite /= /l_enabled /=.
+  rewrite /= /l_enabled /= map_id /enabled in H_en.
+  move: H_en => [[failed' net'] [tr H_st]].
+  invcs H_st; unfold runGenHandler, id in *; first by TR.net_handler_cases.
+  TR.io_handler_cases => //.
+    find_injection.
+    simpl in *.
+    by admit.
+  find_injection.
+  simpl in *.
+  by admit.
+- destruct s as [[[failed net] l] s].
+  apply: E0.
+  rewrite /= /l_enabled /=.
+  rewrite /= /l_enabled /= map_id /enabled in H_en.
+  move: H_en => [[failed' net'] [tr H_st]].
+  invcs H_st; unfold runGenHandler, id in *; first by TR.net_handler_cases.
+  TR.io_handler_cases => //.
+  find_injection.
+  simpl in *.
+  by admit.
+- destruct s as [[[failed net] l] s].
+  apply: E0.
+  rewrite /= /l_enabled /=.
+  rewrite /= /l_enabled /= map_id /enabled in H_en.
+  move: H_en => [[failed' net'] [tr H_st]].
+  invcs H_st; unfold runGenHandler, id in *; first by TR.net_handler_cases.
+  TR.io_handler_cases => //.
+    find_injection.
+    by admit.
+  find_injection.
+  by admit.
+Admitted.
+
+Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
+  forall s, lb_step_execution lb_step_o_f s ->
+       weak_local_fairness lb_step_o_f label_silent s ->
+       weak_local_fairness lb_step_o_f label_silent (map pt_map_onet_event s).
+Proof.
+apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
+- exact: TreeAggregation_Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually.
+- by admit.
+- case.
+  * by exists Tau.
+  * by move => dst src; exists (RecvFail dst src).
+  * by move => dst src; exists (RecvLevel dst src).
+  * by move => h; exists (DeliverBroadcastTrue h).
+  * by move => h; exists (DeliverBroadcastFalse h).
+  * by move => h; exists (DeliverLevelRequest h).
+Admitted.
 
 End TreeAggregation.

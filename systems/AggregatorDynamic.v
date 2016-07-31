@@ -2,8 +2,7 @@ Require Import Verdi.
 Require Import HandlerMonad.
 Require Import NameOverlay.
 
-Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.

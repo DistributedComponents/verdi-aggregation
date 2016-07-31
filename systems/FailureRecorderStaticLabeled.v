@@ -16,11 +16,9 @@ Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
-Require Import UpdateLemmas.
-
 Require Import OrderedLemmas.
 
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -100,8 +98,6 @@ Instance FailureRecorder_LabeledMultiParams : LabeledMultiParams FailureRecorder
     lb_net_handlers := (fun dst src msg s => runGenHandler s (NetHandler dst src msg)) ;
     lb_input_handlers := fun nm msg s => runGenHandler s (IOHandler nm msg) ;
   }.
-
-Instance FailureRecorder_EqDec_eq_label : EqDec_eq label := Label_eq_dec.
 
 Instance FailureRecorder_MultiParams : MultiParams FailureRecorder_BaseParams := unlabeled_multi_params.
 
@@ -186,8 +182,8 @@ match goal with
 | [ H : step_o_f _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
-  rewrite /update' /=.
-  case eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
+  rewrite /update /=.
+  case name_eq_dec => H_dec /=; last exact: IHrefl_trans_1n_trace1.
   rewrite -H_dec in H3.
   net_handler_cases.
   find_apply_lem_hyp NSet.remove_spec.
@@ -214,8 +210,7 @@ concludes.
 match goal with
 | [ H : step_o_f _ _ _ |- _ ] => invc H
 end; simpl.
-- find_apply_lem_hyp net_handlers_NetHandler.
-  break_exists.
+- find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
   rewrite /= /update2.
   case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
@@ -255,7 +250,7 @@ match goal with
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
-  rewrite /= in H4, H_in.
+  simpl in *.
   contradict H4.
   have H_in' := IHrefl_trans_1n_trace1 _ n' H_in.
   rewrite /update2 /=.
@@ -320,12 +315,12 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec //.
-  repeat find_reverse_rewrite.
+  repeat find_rewrite.
   destruct d.
   simpl in *.
-  rewrite H6.
+  aggressive_rewrite_goal.
   exact: (recv_fail _ H'_step1).
 - by find_apply_lem_hyp input_handlers_IOHandler.
 - move => H_in_f.
@@ -397,7 +392,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H6 H0.
     rewrite -H_dec /update2 /= {H_dec to H'_step2}.
@@ -518,7 +513,7 @@ end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec.
     rewrite -H_dec in H1 H6 H0.
     have H_neq: n <> from.
@@ -553,7 +548,7 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
-      rewrite collate_map_pair_live_related //.
+      rewrite collate_map_snd_live_related //.
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: all_names_nodes.
@@ -648,7 +643,7 @@ end; simpl.
   move => H_in_f H_in_f'.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec_n.
     rewrite -H_dec_n.
     rewrite -H_dec_n {H_dec_n to} in H6 H7 H1 H0.
@@ -724,8 +719,7 @@ end; simpl.
 - rewrite /= in IHH'_step1.
   move {H'_step2}.
   move => H_in_f H_in_f'.
-  find_apply_lem_hyp input_handlers_IOHandler.
-  break_exists.
+  find_apply_lem_hyp input_handlers_IOHandler; break_exists.
   by io_handler_cases.
 - rewrite /= in IHH'_step1.
   move => H_nor H_nor'.
@@ -801,21 +795,21 @@ match goal with
 end; simpl.
 - move => n n' H_in_f H_ins.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
-  net_handler_cases.
+  net_handler_cases.  
   rewrite /= /update2 {H1}.
   case (sumbool_and _ _ _ _) => H_dec.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq' {H_eq H_eq' to from} in H8 H_ins H3 H2.
     rewrite /= in IHrefl_trans_1n_trace1.
     move: H_ins.
-    rewrite /update' /=.
+    rewrite /update /=.
     case name_eq_dec => H_dec //.
     move => H_ins.
     case: d H8 H_ins => /= adjacent0 H_eq H_adj.
     rewrite H_eq in H_adj.
     by apply NSetFacts.remove_1 in H_adj.
   move: H_ins.
-  rewrite /update' /=.
+  rewrite /update /=.
   case name_eq_dec => H_dec'.
     case: H_dec => H_dec; last by rewrite H_dec' in H_dec.
     case: d H8 => /= adjacent0 H_eq.
@@ -826,8 +820,7 @@ end; simpl.
     exact: IHrefl_trans_1n_trace1.
   move => H_ins.
   exact: IHrefl_trans_1n_trace1.
-- find_apply_lem_hyp input_handlers_IOHandler.
-  break_exists.
+- find_apply_lem_hyp input_handlers_IOHandler; break_exists.
   by io_handler_cases.
 - move => n n' H_in_f H_ins.
   rewrite /= in IHrefl_trans_1n_trace1.
@@ -846,7 +839,7 @@ end; simpl.
     split; first by left.
     rewrite H_dec in H2.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
-    rewrite collate_map_pair_live_related //.
+    rewrite collate_map_snd_live_related //.
     * apply in_or_app.
       by right; left.
     * exact: all_names_nodes.
@@ -886,7 +879,7 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr onet tr H_st failed H_in_f
     move => H_cnt.
     by apply count_occ_In in H_cnt.
   have H_cnt_eq: count_occ Msg_eq_dec (onwPackets onet n' n) Fail = 0 by omega.
-  rewrite count_occ_app_split /= H_cnt_eq.
+  rewrite count_occ_app /= H_cnt_eq.
   by auto with arith.
 Qed.
 
@@ -1010,8 +1003,8 @@ net_handler_cases.
 find_injection.
 set net' := {| onwPackets := _ ; onwState := _ |}.
 pose d' := {| adjacent := NSet.remove from0 d.(adjacent) |}.
-pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
-pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d'.
+pose onwPackets_net'' := collate name_eq_dec to0 (update2 name_eq_dec  (onwPackets net') from0 to0 ms0) [].
+pose onwState_net'' := update name_eq_dec (onwState net') to0 d'.
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
 exists [].
@@ -1023,7 +1016,7 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   destruct d1.
   simpl in *.
   find_rewrite.
-  rewrite /d' /update'.
+  rewrite /d' /update.
   by break_if.
 set tr := [].
 apply: LSOF_deliver; eauto => //=.
@@ -1047,8 +1040,8 @@ invcs H_st' => //.
 net_handler_cases.
 find_injection.
 set net' := {| onwPackets := _ ; onwState := _ |}.
-pose onwPackets_net'' := @collate name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ to0 (@update2 name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwPackets net') from0 to0 ms0) [].
-pose onwState_net'' := @update' name (@EqDec_eq_name _ FailureRecorder_MultiParams) _ (onwState net') to0 d0.
+pose onwPackets_net'' := collate name_eq_dec to0 (update2 name_eq_dec (onwPackets net') from0 to0 ms0) [].
+pose onwState_net'' := update name_eq_dec (onwState net') to0 d0.
 pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
 exists (failed'', net'').
 exists [].
@@ -1061,7 +1054,7 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   simpl in *.
   find_rewrite.
   find_rewrite.
-  rewrite /update'.
+  rewrite /update.
   break_if => //.
   rewrite e in H_neq.
   by case: H_neq.
@@ -1071,7 +1064,7 @@ by break_if; first by break_and.
 Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
                   weak_until (now (l_enabled lb_step_o_f (RecvFail dst src))) 
                              (now (occurred (RecvFail dst src))) 
@@ -1081,10 +1074,10 @@ cofix c.
 case => /=.
 case; case => failed net.
 case => [|dst src].
-  case.
-  case; case => /= failed' net' lb s H_exec src dst H_en.
+  move => tr.
+  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
   inversion H_exec; subst_max.
-  inversion H1; subst_max.
+  inversion H2; subst_max.
   - unfold lb_net_handlers in *.
     simpl in *.
     by net_handler_cases.
@@ -1092,9 +1085,11 @@ case => [|dst src].
     simpl in *.
     by io_handler_cases.
   - apply: W_tl; first by [].
+    simpl.
     exact: c.
+move => tr.
 case => /=.
-case; case => failed' net' lb s H_exec src' dst' H_en.
+case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
 inversion H_exec; subst_max.
 case (name_eq_dec dst dst') => H_eq.
   subst_max.
@@ -1104,28 +1099,28 @@ case (name_eq_dec dst dst') => H_eq.
   apply: W_tl; first by [].
   apply: c => //=.
   rewrite /l_enabled /= /enabled.
-  move {s H3 H_exec}.
+  move {s H4 H_exec}.
   rewrite -/(enabled _ _ _).
   rewrite /l_enabled /enabled /= in H_en.
   break_exists.
   destruct x.
   simpl in *.
-  move: H1 H H_eq'.
+  move: H2 H H_eq'.
   exact: Failure_lb_step_o_f_RecvFail_neq_src_enabled.
 apply: W_tl; first by [].
 apply: c => //=.
 rewrite /l_enabled /=.
-move {s H3 H_exec}.
+move {s H4 H_exec}.
 rewrite -/(enabled _ _ _).
 rewrite /l_enabled /enabled /= in H_en.
 break_exists.
 destruct x.
-move: H1 H H_eq.
+move: H2 H H_eq.
 exact: Failure_lb_step_o_f_RecvFail_neq_dst_enabled.
 Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
@@ -1203,7 +1198,7 @@ by invcs H_step.
 Qed.
 
 Lemma Failure_not_in_failed_always : 
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        forall h, ~ In h (fst (hd s).(evt_a)) ->
        always (now (fun e => ~ In h (fst e.(evt_a)))) s.
 Proof.
@@ -1215,13 +1210,13 @@ apply: Always; first by [].
 rewrite /=.
 apply: c; first by [].
 rewrite /=.
-destruct e, e', evt_r_a, evt_r_a0.
+destruct e, e', evt_a, evt_a0.
 simpl in *.
 by eapply lb_step_o_f_not_in_failed; eauto.
 Qed.
 
 Lemma Failure_lb_step_o_f_fails_occ_monotonic : 
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        forall src dst k, 
          count_occ Msg_eq_dec ((snd (hd s).(evt_a)).(onwPackets) src dst) Fail <= k ->
          always (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail <= k)) s.
@@ -1233,7 +1228,7 @@ move => src dst k H_cnt.
 apply: Always; first by [].
 apply: c; first by [].
 rewrite /=.
-destruct e, e', evt_r_a, evt_r_a0.
+destruct e, e', evt_a, evt_a0.
 simpl in *.
 move: H.
 exact: lb_step_o_f_count_occ_Fail_le_monotonic.
@@ -1245,7 +1240,7 @@ Lemma count_occ_fail_head :
   count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail = S k ->
   l_enabled lb_step_o_f (RecvFail dst src) e.
 Proof.
-case; case => /= failed net lb src dst k H_in_f H_cnt.
+case => /= [[failed net] lb] tr src dst k H_in_f H_cnt.
 rewrite /l_enabled /= /enabled.
 case H_m: (onwPackets net src dst) => [|m ms]; first by rewrite H_m in H_cnt.
 destruct m.
@@ -1253,13 +1248,13 @@ case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src Fail 
 have H_lb := H_hnd.
 rewrite /lb_net_handlers /= in H_hnd.
 net_handler_cases.
-exists (failed, {| onwPackets := update2 (onwPackets net) src dst ms; onwState := update' (onwState net) dst d |}).
+exists (failed, {| onwPackets := update2 Net.name_eq_dec (onwPackets net) src dst ms; onwState := update name_eq_dec (onwState net) dst d |}).
 exists [].
 by apply: LSOF_deliver; eauto.
 Qed.
 
 Lemma Failure_eventually_fewer_Fail :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst k, ~ In dst (fst (hd s).(evt_a)) ->
                     count_occ Msg_eq_dec (onwPackets (snd (hd s).(evt_a)) src dst) Fail = S k ->
@@ -1270,8 +1265,8 @@ have H_en := count_occ_fail_head _ _ _ H_in_f H_cnt.
 apply Failure_RecvFail_eventually_occurred in H_en => //.
 move: H_exec H_fair H_in_f H_cnt.
 elim: H_en => {s}.
-  case; case; case => /= failed net lb.
-  case; case; case => /= failed' net' lb' s.
+  case; case => /= [[failed net] lb] tr.
+  case; case; case => /= failed' net' lb' tr' s.
   rewrite /occurred /= => H_eq.
   rewrite -H_eq {H_eq}.
   move => H_exec H_fair H_in H_cnt.
@@ -1284,10 +1279,10 @@ elim: H_en => {s}.
 move => e s H_ev IH H_exec H_fair H_in H_cnt.
 inversion H_exec; subst.
 destruct e, e'.
-destruct evt_r_a as [failed net].
-destruct evt_r_a0 as [failed' net'].
+destruct evt_a as [failed net].
+destruct evt_a0 as [failed' net'].
 simpl in *.
-case (Label_eq_dec (RecvFail dst src) evt_r_l) => H_eq.
+case (Label_eq_dec (RecvFail dst src) evt_l) => H_eq.
   subst_max.
   apply: E_next.
   apply: E0.
@@ -1302,7 +1297,7 @@ apply IH.
 Qed.
 
 Lemma Failure_lb_step_o_f_eventually_le_0_fail :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
@@ -1329,17 +1324,17 @@ elim: H_ev H_exec H_fair H_in_f.
 move => e s0 H_ev H_ev' H_exec H_fair H_in_f.
 apply: E_next.
 apply: H_ev'. 
-- by apply lb_step_state_execution_invar in H_exec.
+- by apply lb_step_execution_invar in H_exec.
 - by apply weak_local_fairness_invar in H_fair.
 - inversion H_exec.
   destruct e, e'.
-  destruct evt_r_a, evt_r_a0.
+  destruct evt_a, evt_a0.
   simpl in *.
   by apply: lb_step_o_f_not_in_failed; eauto.
 Qed.
 
 Lemma Failure_lb_step_o_f_continuously_no_fail :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
@@ -1352,13 +1347,13 @@ elim: H_ev.
 - move => s0 H_n H_exec H_fair.
   apply: E0.
   inversion H_exec.
-  rewrite -H1 /now in H_n.
+  rewrite -H2 /now in H_n.
   have H_al := Failure_lb_step_o_f_fails_occ_monotonic H_exec src dst.
-  rewrite -H1 /= in H_al.
+  rewrite -H2 /= in H_al.
   have H_le_n: count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail <= 0 by rewrite H_n.
   have H_al' := H_al _ H_le_n.
   move: H_al' {H_al}.
-  rewrite H1.
+  rewrite H2.
   generalize s0.
   apply: always_monotonic.
   case => e2 s2.
@@ -1368,23 +1363,23 @@ elim: H_ev.
   by auto with arith.
 - move => e s0 H_ev IH H_exec H_fair.
   apply: E_next.
-  apply: IH; first by apply lb_step_state_execution_invar in H_exec.
+  apply: IH; first by apply lb_step_execution_invar in H_exec.
   by apply weak_local_fairness_invar in H_fair.
 Qed.
 
 Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
-  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_state_execution lb_step_o_f s ->
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
-         event_step_star_ex step_o_f step_o_f_init e /\ 
+         event_step_star step_o_f step_o_f_init e /\ 
          ~ In dst (fst e.(evt_a)) /\ 
          ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_star H_exec H_fair src dst H_in_f.
-have H_al := step_o_f_star_ex_lb_step_state_execution H_star H_exec.
+have H_al := step_o_f_star_lb_step_execution H_star H_exec.
 have H_al' := Failure_not_in_failed_always H_exec _ H_in_f.
 apply always_continuously in H_al.
 apply always_continuously in H_al'.
@@ -1399,8 +1394,8 @@ by break_and.
 Qed.
 
 Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
-  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_state_execution lb_step_o_f s ->
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
@@ -1414,8 +1409,8 @@ move: H_cny.
 apply continuously_monotonic.
 case => /= e s0 H_and H_ins.
 break_and.
-destruct e, evt_r_a.
-unfold event_step_star_ex in *.
+destruct e, evt_a.
+unfold event_step_star in *.
 simpl in *.
 break_exists.
 have H_adj := Failure_in_adj_or_incoming_fail H _ H0 H_ins.

@@ -13,8 +13,7 @@ Require Import PartialMapSimulations.
 Require Import TotalMapLivenessSimulations.
 Require Import PartialMapLivenessSimulations.
 
-Require Import UpdateLemmas.
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 
@@ -247,8 +246,6 @@ Instance Tree_LabeledMultiParams : LabeledMultiParams Tree_BaseParams :=
     lb_input_handlers := fun nm msg s =>
                         runGenHandler s (IOHandler nm msg)
   }.
-
-Instance Tree_EqDec_eq_label : EqDec_eq label := Label_eq_dec.
 
 Instance Tree_MultiParams : MultiParams Tree_BaseParams := unlabeled_multi_params.
 
@@ -849,30 +846,32 @@ by apply always_now in H_al.
 Qed.
 *)
 
-Lemma Tree_FailureRecorder_lb_step_state_execution_pt_map : forall s,
-  lb_step_state_execution lb_step_o_f s ->
-  lb_step_state_execution lb_step_o_f (map pt_map_onet_event_state s).
+Lemma Tree_FailureRecorder_lb_step_execution_pt_map : forall s,
+  lb_step_execution lb_step_o_f s ->
+  lb_step_execution lb_step_o_f (map pt_map_onet_event s).
 Proof.
-exact: lb_step_state_execution_lb_step_o_f_pt_map_onet_infseq.
+apply: lb_step_execution_lb_step_o_f_pt_map_onet_infseq.
+exact: FR.Label_eq_dec.
 Qed.
  
-Lemma Tree_FailureRecorder_pt_map_onet_hd_step_o_f_star_ex_always : 
-  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_state_execution lb_step_o_f s ->
-       always (now (event_step_star_ex step_o_f step_o_f_init)) (map pt_map_onet_event_state s).
+Lemma Tree_FailureRecorder_pt_map_onet_hd_step_o_f_star_always : 
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
+       always (now (event_step_star step_o_f step_o_f_init)) (map pt_map_onet_event s).
 Proof.
-exact: pt_map_onet_hd_step_o_f_star_ex_always.
+apply: pt_map_onet_hd_step_o_f_star_always.
+exact: FR.Label_eq_dec.
 Qed.
 
 Lemma Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> FR.Tau ->
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
   weak_local_fairness lb_step_o_f label_silent s ->
-  l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event_state (hd s)) ->
+  l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event (hd s)) ->
   eventually (now (l_enabled lb_step_o_f l)) s.
 Proof.
 case => //= dst src H_neq {H_neq}.
-case => [[[failed net] l]] s H_exec H_fair H_en.
+case => [[[failed net] l]] tr s H_exec H_fair H_en.
 rewrite /l_enabled /enabled /= map_id in H_en.
 break_exists.
 destruct x as [failed' net'].
@@ -910,8 +909,8 @@ Admitted.
 
 Lemma Tree_FailureRecorder_pt_map_onet_always_l_enabled : 
    forall l, tot_map_label l <> label_silent -> 
-     forall s, lb_step_state_execution lb_step_o_f s ->
-     always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event_state s) ->
+     forall s, lb_step_execution lb_step_o_f s ->
+     always (now (l_enabled lb_step_o_f (tot_map_label l))) (map pt_map_onet_event s) ->
      l_enabled lb_step_o_f l (hd s) ->
      always (now (l_enabled lb_step_o_f l)) s.
 Proof.
@@ -932,7 +931,7 @@ destruct e as [a l0].
 destruct a as [failed net].
 destruct e' as [a' l1].
 destruct a' as [failed' net'].
-rewrite /= in H_exec H1 H3 H_en H_en' H_en''.
+rewrite /= in H_exec H2 H4 H_en H_en' H_en''.
 unfold tlb in * => {tlb}.
 apply Always.
   rewrite /=.
@@ -940,8 +939,8 @@ apply Always.
 rewrite /=.
 apply c => //=.
 rewrite /l_enabled /=.
-move {H_al H_exec H3 H_en'}.
-rewrite /pt_map_onet_event_state /= /l_enabled /enabled in H_en''.
+move {H_al H_exec H4 H_en'}.
+rewrite /pt_map_onet_event /= /l_enabled /enabled in H_en''.
 break_exists.
 rewrite /= in H.
 rewrite /l_enabled /enabled /= in H_en.
@@ -952,9 +951,9 @@ by eapply Tree_FailureRecorder_enabled; eauto.
 Qed.
 
 Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
-       weak_local_fairness lb_step_o_f label_silent (map pt_map_onet_event_state s).
+       weak_local_fairness lb_step_o_f label_silent (map pt_map_onet_event s).
 Proof.
 apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
 - exact: Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually.
@@ -965,14 +964,14 @@ apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
 Qed.
 
 Lemma Tree_lb_step_o_f_continuously_no_fail :
-  forall s, lb_step_state_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_exec H_fair src dst H_in_f.
-have H_exec_map := Tree_FailureRecorder_lb_step_state_execution_pt_map H_exec.
+have H_exec_map := Tree_FailureRecorder_lb_step_execution_pt_map H_exec.
 have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness H_exec H_fair.
 have H_map := FR.Failure_lb_step_o_f_continuously_no_fail H_exec_map H_w src dst.
 move: H_map.
@@ -998,8 +997,8 @@ apply continuously_map_conv.
 Qed.
 
 Lemma Tree_lb_step_o_f_continuously_adj_not_failed : 
-  forall s, event_step_star_ex step_o_f step_o_f_init (hd s) ->
-       lb_step_state_execution lb_step_o_f s ->
+  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
+       lb_step_execution lb_step_o_f s ->
        weak_local_fairness lb_step_o_f label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
@@ -1008,12 +1007,12 @@ Lemma Tree_lb_step_o_f_continuously_adj_not_failed :
          ~ In n' (fst e.(evt_a)) /\ adjacent_to n' n)) s.
 Proof.
 move => s H_star H_exec H_fair src dst H_in_f.
-have H_exec_map := Tree_FailureRecorder_lb_step_state_execution_pt_map H_exec.
+have H_exec_map := Tree_FailureRecorder_lb_step_execution_pt_map H_exec.
 have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness H_exec H_fair.
 have H_map := FR.Failure_lb_step_o_f_continuously_adj_not_failed _ H_exec_map H_w src dst.
 move: H_map.
 set ind := ~ In _ _.
-set eex := event_step_star_ex _ _ _.
+set eex := event_step_star _ _ _.
 move => H_map.
 have H_ind: ind.
   move => H_ind.

@@ -2,10 +2,10 @@ Require Import List.
 Import ListNotations.
 
 Require Import StructTact.StructTactics.
-Require Import Net.
 Require Import StructTact.Util.
+Require Import Net.
 
-Local Arguments update {_} {_} {_} _ _ _ _ : simpl never.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import Sumbool.
 Require Import FunctionalExtensionality.
@@ -188,8 +188,8 @@ Definition tot_map_net (net : @network _ multi_fst) : @network _ multi_snd :=
 
 Lemma tot_map_update_eq :
   forall f d h,
-    (fun n : name => tot_map_data (update f h d (tot_map_name_inv n))) =
-    update (fun n : name => tot_map_data (f (tot_map_name_inv n))) (tot_map_name h) (tot_map_data d).
+    (fun n : name => tot_map_data (update name_eq_dec f h d (tot_map_name_inv n))) =
+    update name_eq_dec (fun n : name => tot_map_data (f (tot_map_name_inv n))) (tot_map_name h) (tot_map_data d).
 Proof.
 move => net d h.
 apply functional_extensionality => n.
@@ -201,8 +201,8 @@ Qed.
 
 Corollary tot_map_update_packet_eq :
 forall f p d,
-  (fun n : name => tot_map_data (update f (pDst p) d (tot_map_name_inv n))) =
-  (update (fun n : name => tot_map_data (f (tot_map_name_inv n))) (pDst (tot_map_packet p)) (tot_map_data d)).
+  (fun n : name => tot_map_data (update name_eq_dec f (pDst p) d (tot_map_name_inv n))) =
+  (update name_eq_dec (fun n : name => tot_map_data (f (tot_map_name_inv n))) (pDst (tot_map_packet p)) (tot_map_data d)).
 Proof.
 move => f.
 case => src dst m d.
@@ -354,7 +354,7 @@ invcs H_step.
   case H_hnd': (net_handlers (Net.pDst p) (Net.pSrc p) (Net.pBody p) (nwState (Net.pDst p))) => [dout l'].
   case: dout H_hnd' => out' d' H_hnd'.
   rewrite -H_eq_pks1.
-  exists {| nwPackets := send_packets (Net.pDst p) l' ++ pks1 ++ pks2 ; nwState := update nwState (Net.pDst p) d' |}.
+  exists {| nwPackets := send_packets (Net.pDst p) l' ++ pks1 ++ pks2 ; nwState := update name_eq_dec nwState (Net.pDst p) d' |}.
   split.
   * match goal with
     | H : _ = map tot_map_trace_occ _ |- _ => 
@@ -441,7 +441,7 @@ invcs H_step.
   end.
   find_inversion.
   find_inversion.
-  exists ({| nwPackets := send_packets h' l0 ++ nwPackets ; nwState := update nwState h' d0 |}).
+  exists ({| nwPackets := send_packets h' l0 ++ nwPackets ; nwState := update name_eq_dec nwState h' d0 |}).
   split.
   * apply (@SM_input _ _ _ _ _ _ _ d0 l0) => //=.
     find_rewrite.
@@ -451,7 +451,7 @@ invcs H_step.
     set nwP1 := map tot_map_packet _.
     set nwP2 := map (fun _ => _) (tot_map_name_msgs _).
     set nwS1 := fun _ => _.
-    set nwS2 := update _ _ _.
+    set nwS2 := update _ _ _ _.
     have H_eq_nwp: nwP1 = nwP2.
       rewrite /nwP1 /nwP2 {nwP1 nwP2}.
       elim l0 => //=.
@@ -666,7 +666,7 @@ invcs H_step.
   case H_hnd': (net_handlers (Net.pDst p) (Net.pSrc p) (Net.pBody p) (nwState (Net.pDst p))) => [dout l'].
   case: dout H_hnd' => out' d' H_hnd'.
   rewrite -H_eq_pks1.
-  exists {| nwPackets := send_packets (Net.pDst p) l' ++ pks1 ++ pks2 ; nwState := update nwState (Net.pDst p) d' |}.
+  exists {| nwPackets := send_packets (Net.pDst p) l' ++ pks1 ++ pks2 ; nwState := update name_eq_dec nwState (Net.pDst p) d' |}.
   split.
   * match goal with
     | H : _ = map tot_map_trace_occ _ |- _ => 
@@ -760,7 +760,7 @@ invcs H_step.
   inversion H_q.
   simpl in *.
   find_apply_lem_hyp map_eq_name_eq_eq.   
-  exists ({| nwPackets := send_packets h' l0 ++ nwPackets ; nwState := update nwState h' d0 |}).
+  exists ({| nwPackets := send_packets h' l0 ++ nwPackets ; nwState := update name_eq_dec nwState h' d0 |}).
   split.
   * rewrite H_eq_mout.
     match goal with
@@ -780,7 +780,7 @@ invcs H_step.
     set nwP1 := map tot_map_packet _.
     set nwP2 := map (fun _ => _) (tot_map_name_msgs _).
     set nwS1 := fun _ => _.
-    set nwS2 := update _ _ _.
+    set nwS2 := update _ _ _ _.
     have H_eq_nwp: nwP1 = nwP2.
       rewrite /nwP1 /nwP2 {Heqp H_q nwP1 nwP2}.
       elim l0 => //=.
@@ -926,13 +926,13 @@ forall h m ns nm,
      (map
         (fun nm0 : name * msg =>
          (tot_map_name (fst nm0), tot_map_msg (snd nm0)))
-        (map_pair m (filter_rel h ns))) ->
+        (map_snd m (filter_rel adjacent_to_dec h ns))) ->
    snd nm = tot_map_msg m.
 Proof.
 move => h m.
 elim => //=.
 move => n ns IH.
-case (rel_dec _ _) => H_dec /=.
+case (adjacent_to_dec _ _) => H_dec /=.
   case => n' m' H_in.
   case: H_in => H_in.
     by inversion H_in.
@@ -1051,15 +1051,15 @@ Qed.
 
 Lemma in_map_pair_adjacent_to :
   forall (m : @msg _ multi_fst) ns failed h n,
-    In (tot_map_name_inv n, m) (map_pair m (filter_rel h (exclude failed ns))) ->
-    In (tot_map_name_inv n) (filter_rel h (exclude failed ns)).
+    In (tot_map_name_inv n, m) (map_snd m (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed ns))) ->
+    In (tot_map_name_inv n) (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed ns)).
 Proof.
 move => m.
-elim => //=.
-move => n l IH failed h n'. 
-case (in_dec _ _ _) => H_dec; first exact: IH.
+elim => //= [|n l IH] failed h n'; first by rewrite remove_all_nil.
+have H_cn := remove_all_cons name_eq_dec failed n l.
+break_or_hyp; break_and; find_rewrite; first exact: IH.
 rewrite /=.
-case (rel_dec _ _) => H_dec' /=.
+case (adjacent_to_dec _ _) => H_dec' /=.
   move => H_in.
   case: H_in => H_in.
     inversion H_in.
@@ -1071,15 +1071,14 @@ Qed.
 
 Lemma in_adjacent_exclude_in_exlude :
   forall ns failed n h,
-    In (tot_map_name_inv n) (filter_rel h (exclude failed ns)) ->
-    In (tot_map_name_inv n) (exclude failed ns) /\ adjacent_to h (tot_map_name_inv n).
+    In (tot_map_name_inv n) (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed ns)) ->
+    In (tot_map_name_inv n) (remove_all name_eq_dec failed ns) /\ adjacent_to h (tot_map_name_inv n).
 Proof.
-elim => //=.
-move => n l IH failed n' h.
-case (in_dec _ _ _) => /= H_dec.
-  move => H_in.
-  exact: IH.
-case (rel_dec _ _) => /= H_dec'.
+elim => [|n l IH] failed n' h; first by rewrite remove_all_nil.
+have H_cn := remove_all_cons name_eq_dec failed n l.
+break_or_hyp; break_and; find_rewrite; first exact: IH.
+rewrite /=.
+case (adjacent_to_dec _ _) => /= H_dec'.
   move => H_in.
   case: H_in => H_in.
     rewrite {1}H_in -{4}H_in.
@@ -1098,12 +1097,12 @@ Qed.
 
 Lemma in_failed_exclude :
   forall ns failed n,
-    In (tot_map_name_inv n) (exclude failed ns) ->
+    In (tot_map_name_inv n) (remove_all name_eq_dec failed ns) ->
     ~ In (tot_map_name_inv n) failed /\ In (tot_map_name_inv n) ns.
 Proof.
-elim => //=.
-move => n ns IH failed n'.
-case (in_dec _ _ _) => H_dec /=.
+elim => [|n ns IH] failed n'; first by rewrite remove_all_nil.
+have H_cn := remove_all_cons name_eq_dec failed n ns.
+break_or_hyp; break_and; find_rewrite.
   move => H_in.
   apply IH in H_in.
   move: H_in => [H_in H_in'].
@@ -1126,24 +1125,27 @@ Lemma in_in_adj_map_pair :
     ~ In n (map tot_map_name failed) ->
     adjacent_to h n ->
     In (n, m)
-     (map_pair m
-        (filter_rel h
-           (exclude (map tot_map_name failed) ns))).
+     (map_snd m
+        (filter_rel adjacent_to_dec h
+           (remove_all name_eq_dec (map tot_map_name failed) ns))).
 Proof.
 move => m.
 elim => //=.
-move => n ns IH failed n' h H_in H_in' H_adj.
-case (in_dec _ _ _) => H_dec.
-  case: H_in => H_in; first by rewrite -H_in in H_in'.
+move => n ns IH failed n' h.
+set mfailed := map _ failed.
+move => H_in H_in' H_adj.
+have H_cn := remove_all_cons name_eq_dec mfailed n ns.
+break_or_hyp; break_and; find_rewrite.
+  break_or_hyp => //.
   exact: IH.
 case: H_in => H_in.
   rewrite H_in.
   rewrite /=.
-  case (rel_dec _ _) => H_dec' //.
+  case (adjacent_to_dec _ _) => H_dec' //.
   rewrite /=.
   by left.
 rewrite /=.
-case (rel_dec _ _) => H_dec'.
+case (adjacent_to_dec _ _) => H_dec'.
   rewrite /=.
   right.
   exact: IH.
@@ -1152,12 +1154,13 @@ Qed.
 
 Lemma in_exclude_not_in_failed_map :
   forall ns n failed,
-  In n (exclude (map tot_map_name failed) ns) ->
+  In n (remove_all name_eq_dec (map tot_map_name failed) ns) ->
   ~ In n (map tot_map_name failed) /\ In n ns.
 Proof.
-elim => //=.
-move => n ns IH n' failed.
-case (in_dec _ _ _) => H_dec.
+elim => [|n ns IH] n' failed; first by rewrite remove_all_nil.
+set mfailed := map _ failed.
+have H_cn := remove_all_cons name_eq_dec mfailed n ns.
+break_or_hyp; break_and; find_rewrite.
   move => H_in.
   apply IH in H_in.
   move: H_in => [H_nin H_in].
@@ -1167,7 +1170,7 @@ rewrite /=.
 move => H_in.
 case: H_in => H_in.
   rewrite H_in.
-  rewrite H_in in H_dec.
+  subst.
   split => //.
   by left.
 apply IH in H_in.
@@ -1218,12 +1221,12 @@ Lemma adjacent_in_in_msg :
   forall (m : @msg base_fst multi_fst) ns n h,
     adjacent_to h (tot_map_name_inv n) ->
     In (tot_map_name_inv n) ns ->
-    In (tot_map_name_inv n, m) (map_pair m (filter_rel h ns)).
+    In (tot_map_name_inv n, m) (map_snd m (filter_rel adjacent_to_dec h ns)).
 Proof.
 move => m.
 elim => //=.
 move => n ns IH n' h H_adj H_in.
-case (rel_dec _ _) => H_dec; case: H_in => H_in.
+case (adjacent_to_dec _ _) => H_dec; case: H_in => H_in.
 - rewrite /=.
   left.
   by rewrite H_in.
@@ -1238,17 +1241,15 @@ Lemma not_in_failed_in_exclude :
   forall ns n failed,
   ~ In (tot_map_name_inv n) failed ->
   In (tot_map_name_inv n) ns ->
-  In (tot_map_name_inv n) (exclude failed ns).
+  In (tot_map_name_inv n) (remove_all name_eq_dec failed ns).
 Proof.
 elim => //=.
 move => n ns IH n' failed H_in H_in'.
-case (in_dec _ _ _) => H_dec; case: H_in' => H_in'.
-- by rewrite H_in' in H_dec.
+have H_cn := remove_all_cons name_eq_dec failed n ns.
+break_or_hyp; break_and; find_rewrite; break_or_hyp => //=. 
 - exact: IH.
-- rewrite /=.
-  by left.
-- right.
-  exact: IH.
+- by left.
+- right; exact: IH.
 Qed.
 
 Lemma tot_map_name_in : 
@@ -1270,16 +1271,16 @@ Lemma nodup_perm_map_map_pair_perm :
   NoDup ns ->
   Permutation (map tot_map_name ns) ns' ->
   Permutation 
-    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_pair m (filter_rel h (exclude failed ns)))) 
-    (map_pair (tot_map_msg m) (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) ns'))).
+    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_snd m (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed ns)))) 
+    (map_snd (tot_map_msg m) (filter_rel adjacent_to_dec (tot_map_name h) (remove_all name_eq_dec (map tot_map_name failed) ns'))).
 Proof.
 move => h m failed ns ns' H_nd H_pm.
 apply NoDup_Permutation; last split.
 - apply (@nodup_tot_map m); first exact: in_for_msg.
-  apply nodup_map_pair.
-  by apply nodup_exclude.
-- apply nodup_map_pair.
-  apply nodup_exclude.
+  apply NoDup_map_snd.
+  by apply NoDup_remove_all.
+- apply NoDup_map_snd.
+  apply NoDup_remove_all.
   move: H_pm.
   apply: NoDup_Permutation_NoDup.
   exact: nodup_to_map_name.
@@ -1289,7 +1290,7 @@ apply NoDup_Permutation; last split.
   rewrite H_eq in H_in.
   rewrite H_eq {H_eq}.
   apply in_tot_map_name in H_in.
-    apply in_map_pair_related_in in H_in. 
+    apply in_map_snd_related_in in H_in.
     move: H_in => [H_adj H_in].
     apply in_failed_exclude in H_in.
     move: H_in => [H_in H_in'].
@@ -1305,11 +1306,11 @@ apply NoDup_Permutation; last split.
     exact: in_in_adj_map_pair.
   exact: in_for_msg.
 - case: x => n m' H_in.
-  have H_eq := in_for_msg _ _ _ _ H_in.
+  have H_eq := in_for_msg _ _ adjacent_to adjacent_to_dec _ _ _ _ H_in.
   rewrite /= in H_eq.
   rewrite H_eq.
   rewrite H_eq in H_in.
-  apply in_map_pair_related_in in H_in.
+  apply in_map_snd_related_in in H_in.
   move: H_in => [H_adj H_in].
   rewrite -(tot_map_name_inverse_inv n) in H_adj.
   apply tot_adjacent_to_fst_snd in H_adj.
@@ -1329,8 +1330,8 @@ Qed.
 Lemma map_map_pair_eq :
   forall h m failed,
   Permutation 
-    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_pair m (filter_rel h (exclude failed nodes)))) 
-    (map_pair (tot_map_msg m) (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
+    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_snd m (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes)))) 
+    (map_snd (tot_map_msg m) (filter_rel adjacent_to_dec (tot_map_name h) (remove_all name_eq_dec (map tot_map_name failed) nodes))).
 Proof.
 move => h m failed.
 apply nodup_perm_map_map_pair_perm; first exact: no_dup_nodes.
@@ -1347,8 +1348,8 @@ Lemma map_msg_fail_eq_nodup :
   NoDup ns ->
   Permutation (map tot_map_name ns) ns' ->
    Permutation 
-    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_pair msg_fail (filter_rel h (exclude failed ns)))) 
-    (map_pair msg_fail (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) ns'))).
+    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed ns)))) 
+    (map_snd msg_fail (filter_rel adjacent_to_dec (tot_map_name h) (remove_all name_eq_dec (map tot_map_name failed) ns'))).
 Proof.
 move => h failed.
 rewrite tot_fail_msg_fst_snd.
@@ -1358,8 +1359,8 @@ Qed.
 Lemma map_msg_fail_eq :
   forall h failed,
    Permutation 
-    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_pair msg_fail (filter_rel h (exclude failed nodes)))) 
-    (map_pair msg_fail (filter_rel (tot_map_name h) (exclude (map tot_map_name failed) nodes))).
+    (map (fun nm : name * msg => (tot_map_name (fst nm), tot_map_msg (snd nm))) (map_snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes)))) 
+    (map_snd msg_fail (filter_rel adjacent_to_dec (tot_map_name h) (remove_all name_eq_dec (map tot_map_name failed) nodes))).
 Proof.
 move => h failed.
 rewrite tot_fail_msg_fst_snd.
@@ -1372,8 +1373,8 @@ Definition tot_map_onet (onet : @ordered_network _ multi_fst) : @ordered_network
 
 Lemma map_msg_update2 : 
   forall f ms to from,
-    (fun src dst => map tot_map_msg (update2 f from to ms (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    update2 (fun src0 dst0 : name => map tot_map_msg (f (tot_map_name_inv src0) (tot_map_name_inv dst0)))
+    (fun src dst => map tot_map_msg (update2 name_eq_dec f from to ms (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    update2 name_eq_dec (fun src0 dst0 : name => map tot_map_msg (f (tot_map_name_inv src0) (tot_map_name_inv dst0)))
         (tot_map_name from) (tot_map_name to) (map tot_map_msg ms).
 Proof.
 move => f ms to from.
@@ -1397,8 +1398,8 @@ Qed.
 
 Lemma collate_tot_map_eq :
   forall f h l,
-    (fun src dst => map tot_map_msg (collate h f l (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate (tot_map_name h) (fun src dst => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name_msgs l).
+    (fun src dst => map tot_map_msg (collate name_eq_dec h f l (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    collate name_eq_dec (tot_map_name h) (fun src dst => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name_msgs l).
 Proof.
 move => f h l.
 elim: l h f => //.
@@ -1406,7 +1407,7 @@ case => n m l IH h f.
 rewrite /= IH /=.
 rewrite 2!tot_map_name_inv_inverse /=.
 set f1 := fun _ _ => _.
-set f2 := update2 _ _ _ _.
+set f2 := update2 _ _ _ _ _.
 have H_eq_f: f1 = f2.
   rewrite /f1 /f2 {f1 f2}.
   have H_eq := map_msg_update2 f (f h n ++ [m]) n h.
@@ -1418,10 +1419,10 @@ Qed.
 Lemma collate_tot_map_update2_eq :
   forall f from to ms l,
     (fun src dst => map tot_map_msg
-            (collate to (update2 f from to ms) l
+            (collate name_eq_dec to (update2 name_eq_dec f from to ms) l
                (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate (tot_map_name to)
-            (update2
+    collate name_eq_dec (tot_map_name to)
+            (update2 name_eq_dec
                (fun src dst : name =>
                 map tot_map_msg
                   (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name from)
@@ -1440,8 +1441,8 @@ end.
 
 Lemma map_tot_map_trace_eq :
   forall out to,
-   map tot_map_trace (map (fun o : output => (to, inr o)) out) =
-   map (fun o : output => (tot_map_name to, inr o)) (map tot_map_output out).
+    map tot_map_trace (map_fst to (map inr out)) =
+    map_fst (tot_map_name to) (map inr (map tot_map_output out)).
 elim => //=.
 move => o out IH to.
 by rewrite IH.
@@ -1472,21 +1473,21 @@ invcs H_step.
   * by rewrite /= /tot_map_onet /= tot_map_update_eq collate_tot_map_eq.
   * by rewrite map_tot_map_trace_eq.
 - rewrite /tot_map_onet /=.
-  set l := map_pair _ _.
+  set l := map_snd _ _.
   have H_nd: NoDup (map (fun nm => fst nm) (tot_map_name_msgs l)).
     rewrite /tot_map_name_msgs /=.
     rewrite /l {l}.
-    apply nodup_snd_fst.
+    apply NoDup_map_snd_fst.
       apply (@nodup_tot_map msg_fail); first exact: in_for_msg.
-      apply nodup_map_pair.
-      apply nodup_exclude.
+      apply NoDup_map_snd.
+      apply NoDup_remove_all.
       exact: no_dup_nodes.
     move => nm nm' H_in H_in'.
     have H_fail := tot_map_in_snd _ _ _ _ H_in.
     have H_fail' := tot_map_in_snd _ _ _ _ H_in'.
     by rewrite H_fail H_fail'.
   have H_pm := map_msg_fail_eq h failed.
-  have H_eq := nodup_perm_collate_eq _ _ H_nd H_pm.
+  have H_eq := NoDup_perm_collate_eq  _ _ name_eq_dec _ _ _ _ H_nd H_pm.
   rewrite /l /tot_map_name_msgs in H_eq.
   apply: SOF_fail.
   * exact: not_in_failed_not_in.
@@ -1538,15 +1539,15 @@ Definition tot_map_odnet (net : @ordered_dynamic_network _ multi_fst) : @ordered
 
 Lemma collate_ls_tot_map_eq :
   forall ns f h m,
-    (fun src dst => map tot_map_msg (collate_ls ns f h m (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate_ls (map tot_map_name ns) (fun src dst => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name h) (tot_map_msg m).
+    (fun src dst => map tot_map_msg (collate_ls name_eq_dec ns f h m (tot_map_name_inv src) (tot_map_name_inv dst))) =
+    collate_ls name_eq_dec (map tot_map_name ns) (fun src dst => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst))) (tot_map_name h) (tot_map_msg m).
 Proof.
 elim => //=.
 move => n ns IH f h m.
 rewrite /= IH /=.
 rewrite 2!tot_map_name_inv_inverse /=.
 set f1 := fun _ _ => _.
-set f2 := update2 _ _ _ _.
+set f2 := update2 _ _ _ _ _.
 have H_eq_f: f1 = f2.
   rewrite /f1 /f2 {f1 f2}.
   have H_eq := map_msg_update2 f (f n h ++ [m]) h n.
@@ -1558,10 +1559,10 @@ Qed.
 Lemma collate_ls_tot_map_update2_eq :
   forall ns f h m from to ms,
     (fun src dst => map tot_map_msg
-            (collate_ls ns (update2 f from to ms) h m
+            (collate_ls name_eq_dec ns (update2 name_eq_dec f from to ms) h m
                (tot_map_name_inv src) (tot_map_name_inv dst))) =
-    collate_ls (map tot_map_name ns)
-            (update2 (fun src dst : name => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst)))
+    collate_ls name_eq_dec (map tot_map_name ns)
+            (update2 name_eq_dec (fun src dst : name => map tot_map_msg (f (tot_map_name_inv src) (tot_map_name_inv dst)))
                      (tot_map_name from) (tot_map_name to) (map tot_map_msg ms))
             (tot_map_name h) (tot_map_msg m).
 Proof.
@@ -1581,11 +1582,11 @@ invcs H_step.
 - rewrite /tot_map_odnet /=.
   apply (@SODF_start _ _ _ _ _ _ _ _ (tot_map_name h)) => /=; first exact: not_in_failed_not_in.
   set p1 := fun _ _ => _.
-  set p2 := collate_ls _ _ _ _.
+  set p2 := collate_ls _ _ _ _ _.
   set s1 := fun _ => _.
-  set s2 := update_opt _ _ _.
+  set s2 := update _ _ _ _.
   have H_eq_s: s1 = s2.
-    rewrite /s1 /s2 /update_opt {s1 s2}.
+    rewrite /s1 /s2 /update {s1 s2}.
     apply functional_extensionality => n.
     rewrite -tot_init_handlers_eq.
     break_match_goal.
@@ -1602,20 +1603,20 @@ invcs H_step.
     rewrite collate_tot_map_eq.
     rewrite tot_new_msg_fst_snd.
     set f1 := fun _ _ => _.    
-    set c1 := collate _ _ _.
-    set c2 := collate _ _ _.
+    set c1 := collate _ _ _ _.
+    set c2 := collate _ _ _ _.
     set f'1 := map tot_map_name _.
-    set f'2 := filter_rel (tot_map_name h) _.
+    set f'2 := filter_rel _ (tot_map_name h) _.
     have H_c: c1 = c2.
       rewrite /c1 /c2 {c1 c2}.
-      apply: nodup_perm_collate_eq; last first.
+      apply: NoDup_perm_collate_eq; last first.
         rewrite /tot_map_name_msgs.
         by apply: nodup_perm_map_map_pair_perm; last exact: Permutation_refl.
       rewrite /tot_map_name_msgs /=.
-      apply: nodup_snd_fst => //.
+      apply: NoDup_map_snd_fst => //.
         apply (@nodup_tot_map msg_new); first exact: in_for_msg.
-        apply: nodup_map_pair.
-        exact: nodup_exclude.
+        apply: NoDup_map_snd.
+        exact: NoDup_remove_all.
       move => nm nm' H_in H_in'.
       apply tot_map_in_snd in H_in.
       apply tot_map_in_snd in H_in'.
@@ -1623,15 +1624,22 @@ invcs H_step.
     rewrite H_c {H_c}.
     suff H_suff: f'1 = f'2 by rewrite H_suff.
     rewrite /f'1 /f'2.
-    elim (odnwNodes net) => //=.
-    move => n ns IH.
-    repeat break_if => //=.
-    * by rewrite IH.
-    * by find_apply_lem_hyp tot_adjacent_to_fst_snd.
+    elim (odnwNodes net) => /=; first by rewrite 2!remove_all_nil.
+    move => n ns.
+    set mn := tot_map_name n.
+    set mns := map _ ns.
+    set mfailed' := map _ failed'.
+    move => IH.
+    have H_cn := remove_all_cons name_eq_dec failed' n ns.
+    have H_cn' := remove_all_cons name_eq_dec mfailed' mn mns.
+    unfold mn, mns, mfailed' in *.
+    repeat break_or_hyp; repeat break_and; repeat find_rewrite => //=.
     * by find_apply_lem_hyp not_in_failed_not_in.
-    * by find_apply_lem_hyp tot_adjacent_to_fst_snd.
-    * case: n0.
-      exact: in_failed_in.  
+    * by find_apply_lem_hyp in_failed_in.
+    * case adjacent_to_dec => H_dec; case adjacent_to_dec => H_dec' => //=.
+      + by rewrite IH.
+      + by find_apply_lem_hyp tot_adjacent_to_fst_snd.
+      + by find_apply_lem_hyp tot_adjacent_to_fst_snd.
   by rewrite H_eq_p.
 - rewrite /tot_map_odnet /=.
   apply (@SODF_deliver _ _ _ _ _ _ _ _ _ (tot_map_msg m) (map tot_map_msg ms) (map tot_map_output out) (tot_map_data d) (tot_map_data d') (tot_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
@@ -1645,10 +1653,10 @@ invcs H_step.
     repeat break_let.
     by repeat tuple_inversion.
   * set u1 := fun _ => match _ with | _ => _ end.
-    set u2 := update_opt _ _ _.   
+    set u2 := update _ _ _ _.   
     rewrite collate_tot_map_update2_eq.
     suff H_suff: u1 = u2 by rewrite H_suff.
-    rewrite /u1 /u2 /update_opt /=.
+    rewrite /u1 /u2 /update /=.
     apply functional_extensionality => n.
     repeat break_if; try by congruence.
       rewrite -(tot_map_name_inverse_inv n) in n0.
@@ -1667,9 +1675,9 @@ invcs H_step.
     by repeat tuple_inversion.
   * rewrite collate_tot_map_eq.
     set u1 := fun _ => match _ with | _ => _ end.
-    set u2 := update_opt _ _ _.   
+    set u2 := update _ _ _ _.   
     suff H_suff: u1 = u2 by rewrite H_suff.
-    rewrite /u1 /u2 /update_opt /=.
+    rewrite /u1 /u2 /update /=.
     apply functional_extensionality => n.
     repeat break_if; try by congruence.
       rewrite -(tot_map_name_inverse_inv n) in n0.
@@ -1678,20 +1686,20 @@ invcs H_step.
     by find_rewrite_lem tot_map_name_inv_inverse.
   * by rewrite map_tot_map_trace_eq.
 - rewrite /tot_map_odnet /=.  
-  set l := map_pair _ _.
+  set l := map_snd _ _.
   have H_nd': NoDup (map (fun nm => fst nm) (tot_map_name_msgs l)).
     rewrite /tot_map_name_msgs /=.
     rewrite /l {l}.
-    apply nodup_snd_fst.
+    apply NoDup_map_snd_fst.
       apply (@nodup_tot_map msg_fail); first exact: in_for_msg.
-      apply nodup_map_pair.
-      exact: nodup_exclude.      
+      apply NoDup_map_snd.
+      exact: NoDup_remove_all.
     move => nm nm' H_in H_in'.
     have H_fail := tot_map_in_snd _ _ _ _ H_in.
     have H_fail' := tot_map_in_snd _ _ _ _ H_in'.
     by rewrite H_fail H_fail'.
   have H_pm := map_msg_fail_eq_nodup h failed H_nd (Permutation_refl (map tot_map_name (odnwNodes net))).
-  have H_eq := nodup_perm_collate_eq  _ _ H_nd' H_pm.
+  have H_eq := NoDup_perm_collate_eq  _ _ name_eq_dec _ _ _ _ H_nd' H_pm.
   rewrite /l /tot_map_name_msgs in H_eq.
   apply: SODF_fail.
   * exact: not_in_failed_not_in.
@@ -1744,6 +1752,8 @@ Context {single : SingleNodeParams base_snd}.
 Context {tot_map : MultiSingleNodeParamsTotalMap multi base_snd}.
 Context {me : name} {map_congr : MultiParamsSingleTotalMapCongruency single tot_map me}.
 
+Import StructTact.Update.
+
 Definition step_o_f_tot_s_net_handlers_eq :=
   forall net failed tr src m ms out st' ps out' st'',
   step_o_f_star step_o_f_init (failed, net) tr ->
@@ -1763,7 +1773,7 @@ Theorem step_o_f_tot_one_mapped_simulation_1 :
 Proof.
 move => H_net_eq net net' failed failed' tr tr' H_star H_step.
 invcs H_step.
-- rewrite /update'.
+- rewrite /update.
   break_if; last by left.
   right.
   subst_max.
@@ -1773,7 +1783,7 @@ invcs H_step.
   exists (inl (tot_s_map_msg me from m) :: (map inr out')).
   apply: SS_deliver => //=.
   by rewrite H_hnd H0.
-- rewrite /update'.
+- rewrite /update.
   break_if; last by left.
   right.
   subst_max.
@@ -1848,11 +1858,11 @@ invcs H_step.
     have H_eq_n := ordered_dynamic_uninitialized_state H_star _ H4.
     by congruence.
   move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   break_if; first by find_rewrite.
   by congruence.
 - move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   break_if => H_eq'; last by left; congruence.    
   right.
   find_injection.
@@ -1865,7 +1875,7 @@ invcs H_step.
   apply: SS_deliver => //=.
   by rewrite H_hnd H0.
 - move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   break_if => H_eq'; last by left; rewrite H_eq in H_eq'; find_injection.
   right.
   find_injection.
@@ -1892,15 +1902,15 @@ Proof.
 move => net net' failed failed' tr H_st H_eq d H_eq'.
 invcs H_st => //=.
 - move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   break_if => H_eq'; last by congruence.
   find_injection.
   by rewrite tot_s_init_handlers_eq.
 - move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   by break_if => H_eq'; congruence.
 - move: H_eq'.
-  rewrite /update_opt.
+  rewrite /update.
   by break_if => H_eq'; congruence.
 - by congruence.
 Qed.

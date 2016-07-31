@@ -1,5 +1,4 @@
 Require Import Verdi.
-Require Import OrderedLemmas.
 Require Import StructTact.Fin.
 
 Require Import OrderedType.
@@ -90,7 +89,7 @@ End FinRootNameType.
 
 Module Type AdjacentNameType (Import NT : NameType).
 Parameter adjacent_to : relation name.
-Parameter adjacent_to_dec : RelDec adjacent_to.
+Parameter adjacent_to_dec : forall x y : name, {adjacent_to x y} + {~ adjacent_to x y}.
 Parameter adjacent_to_symmetric : Symmetric adjacent_to.
 Parameter adjacent_to_irreflexive : Irreflexive adjacent_to.
 End AdjacentNameType.
@@ -98,9 +97,8 @@ End AdjacentNameType.
 Inductive fin_complete (n : nat) : fin n -> fin n -> Prop :=
 | fin_complete_neq : forall x y, x <> y -> fin_complete n x y.
 
-Definition fin_complete_RelDec : forall n, RelDec (fin_complete n).
-unfold RelDec.
-intros n x y.
+Definition fin_complete_dec (n : nat) : forall x y, {fin_complete n x y} + { ~ fin_complete n x y}.
+intros x y.
 case (fin_eq_dec n x y); intro H_eq.
 - rewrite H_eq.
   right.
@@ -133,7 +131,7 @@ Qed.
 
 Module FinCompleteAdjacentNameType (Import N : NatValue) (FN : FinNameType N) <: AdjacentNameType FN.
 Definition adjacent_to := fin_complete n.
-Definition adjacent_to_dec := fin_complete_RelDec n.
+Definition adjacent_to_dec := fin_complete_dec n.
 Definition adjacent_to_symmetric := fin_complete_Symmetric n.
 Definition adjacent_to_irreflexive := fin_complete_Irreflexive n.
 End FinCompleteAdjacentNameType.
@@ -144,23 +142,21 @@ Module Adjacency (Import NT : NameType)
 
 Definition NS := NSet.t.
 
-Instance RelDec_adjacent_to_adjacency : RelDec adjacent_to := adjacent_to_dec.
-
 Definition adjacency (n : name) (ns : list name) : NS :=
-  fold_right (fun n' fs => NSet.add n' fs) NSet.empty (filter_rel n ns).
+  fold_right (fun n' fs => NSet.add n' fs) NSet.empty (filter_rel adjacent_to_dec n ns).
 
 Require Import mathcomp.ssreflect.ssreflect.
 
 Lemma adjacent_to_node_adjacency : 
   forall n n' ns, 
-    In n' (filter_rel n ns) <-> NSet.In n' (adjacency n ns).
+    In n' (filter_rel adjacent_to_dec n ns) <-> NSet.In n' (adjacency n ns).
 Proof.
 move => n n' ns.
 split.
   elim: ns => //=.
   move => n0 ns IH.
   rewrite /adjacency /=.
-  case rel_dec => H_dec; case rel_dec => H_dec' //= H_in.
+  case adjacent_to_dec => //= H_dec H_in.
   case: H_in => H_in.
     rewrite H_in.
     apply NSet.add_spec.
@@ -171,7 +167,7 @@ split.
 elim: ns => //=; first by rewrite /adjacency /=; exact: NSet.empty_spec.
 move => n0 ns IH.
 rewrite /adjacency /=.
-case rel_dec => H_dec; case rel_dec => H_dec' //= H_ins.
+case adjacent_to_dec =>  //= H_dec H_ins.
 apply NSet.add_spec in H_ins.
 case: H_ins => H_ins; first by left.
 right.
