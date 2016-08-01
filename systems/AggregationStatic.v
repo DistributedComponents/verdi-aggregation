@@ -1141,9 +1141,9 @@ end; simpl.
   rewrite H_dec in H_neq H2.
   rewrite H_dec {H_dec h}.
   case (adjacent_to_dec n' n0) => H_dec; last first.
-    rewrite collate_map_pair_not_related //.
+    rewrite collate_map2snd_not_related //.
     exact: IHrefl_trans_1n_trace1.
-  rewrite collate_map_snd_live_related //.
+  rewrite collate_map2snd_not_in_related //.
   * apply: before_all_neq_append => //.
     exact: IHrefl_trans_1n_trace1.
   * exact: all_names_nodes.
@@ -1341,10 +1341,10 @@ end; simpl.
   rewrite H_dec {h H_dec H_in_f} in H_in H_neq H2.
   case (adjacent_to_dec n' n0) => H_dec; last first.
     move: H_in.
-    rewrite collate_map_pair_not_related //.
+    rewrite collate_map2snd_not_related //.
     exact: IHrefl_trans_1n_trace1.
   move: H_in.
-  rewrite collate_map_snd_live_related //.
+  rewrite collate_map2snd_not_in_related //.
   * move => H_in.
     apply in_app_or in H_in.
     case: H_in => H_in; last by case: H_in => H_in.
@@ -1936,8 +1936,8 @@ end; simpl.
   case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
   rewrite H_dec.
   rewrite H_dec {H_dec h H_in_f} in H0 H_neq.
-  case (adjacent_to_dec n' n) => H_dec; last by rewrite collate_map_pair_not_related.
-  rewrite collate_map_snd_live_related //.
+  case (adjacent_to_dec n' n) => H_dec; last by rewrite collate_map2snd_not_related.
+  rewrite collate_map2snd_not_in_related //.
   * exact: (fail_adjacent H'_step1).
   * exact: all_names_nodes.
   * exact: no_dup_nodes.
@@ -2865,7 +2865,7 @@ Qed.
 
 Lemma sum_aggregate_msg_collate_fail_eq :
   forall l f h n n',
-    sum_aggregate_msg (collate name_eq_dec h f (map_snd Fail l) n' n) =
+    sum_aggregate_msg (collate name_eq_dec h f (map2snd Fail l) n' n) =
     sum_aggregate_msg (f n' n).
 Proof.
 elim => //=.
@@ -2881,7 +2881,7 @@ Qed.
 Lemma sum_aggregate_msg_incoming_collate_msg_for_notin_eq :
   forall ns ns' h n f,
   ~ In n ns' ->
-  sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map_snd Fail (filter_rel adjacent_to_dec h ns'))) n =
+  sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map2snd Fail (filter_rel adjacent_to_dec h ns'))) n =
   sum_aggregate_msg_incoming ns f n.
 Proof.
 elim => //=.
@@ -3671,9 +3671,9 @@ end; simpl.
       case: H_Adj'.
       move: H_ins'.
       exact: (Aggregation_in_adj_adjacent_to H_step1).
-    case in_dec => /= H_dec; first by rewrite collate_map_pair_not_related // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
+    case in_dec => /= H_dec; first by rewrite collate_map2snd_not_related // in H_dec; case: H_ins; exact: (Aggregation_in_queue_fail_then_adjacent H_step1).
     move {H_dec}.
-    rewrite (collate_map_pair_not_related _ _ _ name_eq_dec _ _ _ _ _ _ H_Adj).
+    rewrite (collate_map2snd_not_related _ _ _ name_eq_dec _ _ _ _ _ _ H_Adj).
     rewrite (collate_neq _ _ name_eq_dec _ _ _ _ _ H_neq) //.
     rewrite (Aggregation_self_channel_empty H_step1) //=.
     rewrite {3 6}/sum_fail_map /=.
@@ -3759,7 +3759,7 @@ end; simpl.
     exact: in_remove_all_was_in.
   case in_dec => /= H_dec_f; last first.
     case: H_dec_f.
-    have H_a := collate_map_pair_live_related_alt _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
+    have H_a := collate_map2snd_related_not_in _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
     case adjacent_to_dec => /= H_dec // {H_dec}.
@@ -3825,7 +3825,7 @@ end; simpl.
   case in_dec => /= H_dec; last first.
     case: H_dec.
     rewrite /cl /u2.
-    have H_a := collate_map_pair_live_related_alt _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
+    have H_a := collate_map2snd_related_not_in _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
     move: H_a.
     rewrite /=.
     case adjacent_to_dec => /= H_dec // {H_dec}.

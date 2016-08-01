@@ -337,14 +337,14 @@ Section LabeledStepOrder.
                      lb_net_handlers to from m (onwState net to) = (lb, out, d, l) ->
                      net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l)
                                        (update name_eq_dec (onwState net) to d) ->
-                     tr = map_fst to (map inr out) ->
+                     tr = map2fst to (map inr out) ->
                      lb_step_o_f (failed, net) lb (failed, net') tr
   | LSOF_input : forall h net net' failed tr out inp d l lb,
                    ~ In h failed ->
                    lb_input_handlers h inp (onwState net h) = (lb, out, d, l) ->
                    net' = mkONetwork (collate name_eq_dec h (onwPackets net) l)
                                      (update name_eq_dec (onwState net) h d) ->
-                   tr = (h, inl inp) :: map_fst h (map inr out) ->
+                   tr = (h, inl inp) :: map2fst h (map inr out) ->
                    lb_step_o_f (failed, net) lb (failed, net') tr
   | LSOF_stutter : forall net failed, lb_step_o_f (failed, net) label_silent (failed, net) [].
 
@@ -360,7 +360,7 @@ Section LabeledStepOrder.
     invcs H_st.
     - set net' := {| onwPackets := _ ; onwState := _ |}.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
-      rewrite (app_nil_end (map_fst _ _)).
+      rewrite (app_nil_end (map2fst _ _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
       apply: (SOF_deliver _ _ _ H3) => //.
       rewrite /net_handlers /= /unlabeled_net_handlers /=.
@@ -400,7 +400,7 @@ Section LabeledStepOrderDynamic.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
                 odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
-      tr = map_fst to (map inr out) ->
+      tr = map2fst to (map inr out) ->
       lb_step_o_d_f (failed, net) lb (failed, net') tr
   | LSODF_input : forall h net net' failed tr out inp d d' l lb,
       ~ In h failed ->
@@ -410,7 +410,7 @@ Section LabeledStepOrderDynamic.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec h (odnwPackets net) l;
                 odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
-      tr = (h, inl inp) :: map_fst h (map inr out) ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
       lb_step_o_d_f (failed, net) lb (failed, net') tr
   | LSODF_stutter : forall net failed, lb_step_o_d_f (failed, net) label_silent (failed, net) [].
 
@@ -427,7 +427,7 @@ Section LabeledStepOrderDynamic.
     invcs H_st.
     - set net' := {| odnwNodes := _ ; odnwPackets := _ ; odnwState := _ |}.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
-      rewrite (app_nil_end (map_fst _ _)).
+      rewrite (app_nil_end (map2fst _ _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
       apply: (SODF_deliver _ _ _ _ _ H5 H6) => //.
       rewrite /net_handlers /= /unlabeled_net_handlers /=.

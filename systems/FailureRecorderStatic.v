@@ -537,12 +537,12 @@ end; simpl.
     rewrite H_dec in H0 H_neq H_f.
     rewrite H_dec {H_dec h H'_step2 H_in}.
     case (adjacent_to_dec n' n) => H_dec.
-      rewrite collate_map_snd_live_related //.
+      rewrite collate_map2snd_not_in_related //.
       * apply (fail_adjacent H'_step1) => //.
         exact: IHH'_step1.
       * exact: all_names_nodes.
       * exact: no_dup_nodes.
-    rewrite collate_map_pair_not_related //.
+    rewrite collate_map2snd_not_related //.
     exact: IHH'_step1.
   rewrite collate_neq //.
   exact: IHH'_step1.
@@ -828,7 +828,7 @@ end; simpl.
     split; first by left.
     rewrite H_dec in H2.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_f' H_ins.
-    rewrite collate_map_snd_live_related //.
+    rewrite collate_map2snd_not_in_related //.
     * apply in_or_app.
       by right; left.
     * exact: all_names_nodes.

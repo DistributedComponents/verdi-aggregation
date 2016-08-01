@@ -1312,7 +1312,7 @@ Lemma sum_aggregate_msg_incoming_active_singleton_neq_collate_eq :
   forall ns f h n,
   h <> n ->
   sum_aggregate_msg_incoming_active [n] ns f =  
-  sum_aggregate_msg_incoming_active [n] ns (collate name_eq_dec h f (map_snd aggr_fail (filter_rel adjacent_to_dec h ns))).
+  sum_aggregate_msg_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))).
 Proof.
 elim => //=.
 move => n' ns IH f h n H_neq.
@@ -1349,7 +1349,7 @@ Lemma sum_fail_sent_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
   sum_fail_sent_incoming_active [n] ns f g = 
-  sum_fail_sent_incoming_active [n] ns (collate name_eq_dec h f (map_snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
+  sum_fail_sent_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -1366,7 +1366,7 @@ Lemma sum_fail_received_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
   sum_fail_received_incoming_active [n] ns f g =
-  sum_fail_received_incoming_active [n] ns (collate name_eq_dec h f (map_snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
+  sum_fail_received_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -1382,7 +1382,7 @@ Qed.
 Lemma sum_fail_map_incoming_not_adjacent_collate_eq :
   forall ns ns' f h n adj map,
   ~ adjacent_to h n ->
-  sum_fail_map_incoming ns (collate name_eq_dec h f (map_snd aggr_fail (filter_rel adjacent_to_dec h ns'))) n adj map =
+  sum_fail_map_incoming ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns'))) n adj map =
   sum_fail_map_incoming ns f n adj map.
 Proof.
 elim => //=.
@@ -1390,13 +1390,13 @@ move => n' ns IH ns' f h n adj map H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite collate_map_pair_not_related.
+by rewrite collate_map2snd_not_related.
 Qed.
 
 Lemma sum_aggregate_msg_incoming_not_adjacent_collate_eq :
   forall ns ns' f h n,
   ~ adjacent_to h n ->
-  sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map_snd aggr_fail (filter_rel adjacent_to_dec h ns'))) n =
+  sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns'))) n =
   sum_aggregate_msg_incoming ns f n.
 Proof.
 elim => //=.
@@ -1404,7 +1404,7 @@ move => n' ns IH ns' f h n H_adj.
 rewrite IH //.
 case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
 rewrite -H_dec.
-by rewrite collate_map_pair_not_related.
+by rewrite collate_map2snd_not_related.
 Qed.
 
 End MsgProps.

@@ -447,13 +447,13 @@ Section StepOrder.
                      net_handlers to from m (onwState net to) = (out, d, l) ->
                      net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l)
                                       (update name_eq_dec (onwState net) to d) ->
-                     tr = map_fst to (map inr out) ->
+                     tr = map2fst to (map inr out) ->
                      step_o net net' tr
   | SO_input : forall h net net' tr out inp d l,
                    input_handlers h inp (onwState net h) = (out, d, l) ->
                    net' = mkONetwork (collate name_eq_dec h (onwPackets net) l)
                                      (update name_eq_dec (onwState net) h d) ->
-                   tr = (h, inl inp) :: map_fst h (map inr out) ->
+                   tr = (h, inl inp) :: map2fst h (map inr out) ->
                    step_o net net' tr.
 
   Definition step_o_star := refl_trans_1n_trace step_o.
@@ -474,19 +474,19 @@ Section StepOrderFailure.
                      net_handlers to from m (onwState net to) = (out, d, l) ->
                      net' = {| onwPackets := collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l;
                                onwState := update name_eq_dec (onwState net) to d |} ->
-                     tr = map_fst to (map inr out) ->
+                     tr = map2fst to (map inr out) ->
                      step_o_f (failed, net) (failed, net') tr
   | SOF_input : forall h net net' failed tr out inp d l,
                    ~ In h failed ->
                    input_handlers h inp (onwState net h) = (out, d, l) ->
                    net' = {| onwPackets := collate name_eq_dec h (onwPackets net) l;
                              onwState := update name_eq_dec (onwState net) h d |} ->
-                   tr = (h, inl inp) :: map_fst h (map inr out) ->
+                   tr = (h, inl inp) :: map2fst h (map inr out) ->
                    step_o_f (failed, net) (failed, net') tr
   | SOF_fail :  forall h net net' failed,
                  ~ In h failed ->
                  net' = {| onwPackets := collate name_eq_dec h (onwPackets net) 
-                             (map_snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes)));
+                             (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes)));
                            onwState := onwState net |} ->
                  step_o_f (failed, net) (h :: failed, net') [].
 
@@ -518,7 +518,7 @@ Section StepOrderDynamic.
       net' = {| odnwNodes := h :: odnwNodes net;
                 odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (odnwNodes net))
                                (collate name_eq_dec h (odnwPackets net) 
-                                 (map_snd msg_new (filter_rel adjacent_to_dec h (odnwNodes net)))) h msg_new;
+                                 (map2snd msg_new (filter_rel adjacent_to_dec h (odnwNodes net)))) h msg_new;
                 odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
       step_o_d net net' []
   | SOD_deliver : forall net net' tr m ms out d d' l from to,
@@ -529,7 +529,7 @@ Section StepOrderDynamic.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
                 odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
-      tr = map_fst to (map inr out) ->
+      tr = map2fst to (map inr out) ->
       step_o_d net net' tr
   | SOD_input : forall h net net' tr out inp d d' l,
       In h (odnwNodes net) ->
@@ -538,7 +538,7 @@ Section StepOrderDynamic.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec h (odnwPackets net) l;
                 odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
-      tr = (h, inl inp) :: map_fst h (map inr out) ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
       step_o_d net net' tr.
 
   Definition step_o_d_star := refl_trans_1n_trace step_o_d.
@@ -559,7 +559,7 @@ Section StepOrderDynamicFailure.
       net' = {| odnwNodes := h :: odnwNodes net;
                 odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net)))
                                 (collate name_eq_dec h (odnwPackets net) 
-                                  (map_snd msg_new (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))))) h msg_new;
+                                  (map2snd msg_new (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))))) h msg_new;
                 odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
       step_o_d_f (failed, net) (failed, net') []
   | SODF_deliver : forall net net' failed tr m ms out d d' l from to,
@@ -571,7 +571,7 @@ Section StepOrderDynamicFailure.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
                 odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
-      tr = map_fst to (map inr out) ->
+      tr = map2fst to (map inr out) ->
       step_o_d_f (failed, net) (failed, net') tr
   | SODF_input : forall h net net' failed tr out inp d d' l,
       ~ In h failed ->
@@ -581,14 +581,14 @@ Section StepOrderDynamicFailure.
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec h (odnwPackets net) l;
                 odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
-      tr = (h, inl inp) :: map_fst h (map inr out) ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
       step_o_d_f (failed, net) (failed, net') tr
   | SODF_fail : forall h net net' failed,
       ~ In h failed ->
       In h (odnwNodes net) ->
       net' = {| odnwNodes := odnwNodes net;
                 odnwPackets := collate name_eq_dec h (odnwPackets net) 
-                                (map_snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))));
+                                (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))));
                 odnwState := odnwState net |} ->
       step_o_d_f (failed, net) (h :: failed, net') [].
 

@@ -176,7 +176,7 @@ end; simpl.
 - move => n.
   case (name_eq_dec h n) => H_dec; last by rewrite collate_ls_neq_to // collate_neq.
   rewrite H_dec collate_ls_not_related; last exact: adjacent_to_irreflexive.
-  by rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+  by rewrite collate_map2snd_not_related; last exact: adjacent_to_irreflexive.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases.
     rewrite /= /update2.
@@ -188,7 +188,7 @@ end; simpl.
 - move => n.
   case (name_eq_dec h n) => H_dec; last by rewrite collate_neq.
   rewrite H_dec.
-  rewrite collate_map_pair_not_related //; last exact: adjacent_to_irreflexive.
+  rewrite collate_map2snd_not_related //; last exact: adjacent_to_irreflexive.
 Qed.
 
 Lemma Failure_not_failed_no_fail :
@@ -215,24 +215,24 @@ end; simpl.
     case (name_eq_dec n n') => H_dec.
       rewrite -H_dec {H_dec n'}.
       rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; move => H_in; case: H2; move: H_in; exact: in_remove_all_was_in.
-      rewrite collate_map_snd_notin; last by move => H_in; case: H2; move: H_in; exact: in_remove_all_was_in.
+      rewrite collate_map2snd_not_in; last by move => H_in; case: H2; move: H_in; exact: in_remove_all_was_in.
       by rewrite (Failure_self_channel_empty H).
     rewrite collate_ls_neq_to //.
     case (adjacent_to_dec n n') => H_dec'.
       case (In_dec name_eq_dec n' failed) => H_in_f.
-        rewrite collate_map_snd_in_failed //.
+        rewrite collate_map2snd_in //.
         by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H).
       case (In_dec name_eq_dec n' (odnwNodes net)) => H_in.
-        rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup H).
+        rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup H).
         move => H_in'.
         find_apply_lem_hyp in_app_or.
         simpl in *.
         break_or_hyp; last by break_or_hyp.
         contradict H0.
         by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H). 
-      rewrite collate_map_snd_notin; last by move => H_in'; case: H_in; move: H_in'; exact: in_remove_all_was_in.
+      rewrite collate_map2snd_not_in; last by move => H_in'; case: H_in; move: H_in'; exact: in_remove_all_was_in.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H). 
-    rewrite collate_map_pair_not_related //. 
+    rewrite collate_map2snd_not_related //. 
     by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ H).
   have H_neq: h <> n by move => H_eq; repeat find_rewrite.
   case (name_eq_dec h n') => H_dec.
@@ -308,7 +308,7 @@ end; simpl in *.
   rewrite collate_ls_neq_to //.
   case (name_eq_dec h n') => H_dec.
     rewrite -H_dec.
-    rewrite collate_map_snd_notin; last by move => H_in'; case: H_not_in; move: H_in'; exact: in_remove_all_was_in.
+    rewrite collate_map2snd_not_in; last by move => H_in'; case: H_not_in; move: H_in'; exact: in_remove_all_was_in.
     by auto.
   rewrite collate_neq //.
   by auto.
@@ -326,7 +326,7 @@ end; simpl in *.
   have H_neq: h <> n by move => H_eq; rewrite -H_eq in H_in.
   case (name_eq_dec h n') => H_dec.
     rewrite -H_dec.
-    rewrite collate_map_snd_notin; last by move => H_in'; case: H_in; move: H_in'; exact: in_remove_all_was_in.
+    rewrite collate_map2snd_not_in; last by move => H_in'; case: H_in; move: H_in'; exact: in_remove_all_was_in.
     by auto.
   rewrite collate_neq //.
   by auto.
@@ -542,19 +542,19 @@ end; simpl in *.
     case (name_eq_dec h n') => H_dec.
       repeat find_reverse_rewrite.
       rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
-      rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+      rewrite collate_map2snd_not_related; last exact: adjacent_to_irreflexive.
       by rewrite (Failure_self_channel_empty s1).
     rewrite collate_ls_neq_to //.
     case (In_dec name_eq_dec n' (odnwNodes net)) => H_a'; last first.
-      rewrite collate_map_snd_notin; last by move => H_in; case: H_a'; move: H_in; exact: in_remove_all_was_in.
+      rewrite collate_map2snd_not_in; last by move => H_in; case: H_a'; move: H_in; exact: in_remove_all_was_in.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
     case (In_dec name_eq_dec n' failed0) => H_f'.
-      rewrite collate_map_snd_notin //; last by move => H_in; move: H_in H_f'; apply: in_remove_all_not_in.
+      rewrite collate_map2snd_not_in //; last by move => H_in; move: H_in H_f'; apply: in_remove_all_not_in.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
     case (adjacent_to_dec h n') => H_dec'.
-      rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+      rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
-    rewrite collate_map_pair_not_related //.
+    rewrite collate_map2snd_not_related //.
     by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
   break_or_hyp => //.
   set f := collate _ _ _ _.
@@ -785,14 +785,14 @@ end; simpl in *.
     case (name_eq_dec h n') => H_dec.
       repeat find_reverse_rewrite.
       rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
-      rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+      rewrite collate_map2snd_not_related; last exact: adjacent_to_irreflexive.
       by rewrite (Failure_self_channel_empty s1).
     case (In_dec name_eq_dec n' (odnwNodes net)) => H_a'; last first.
       rewrite collate_ls_not_in_related; last by eauto using in_remove_all_was_in.
       rewrite collate_neq //.
       by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1).
     case (In_dec name_eq_dec n' failed0) => H_f'.
-      rewrite collate_ls_in_excluded //.
+      rewrite collate_ls_in_remove_all //.
       rewrite collate_neq //.
       by rewrite (Failure_inactive_no_incoming s1).
     case (adjacent_to_dec h n') => H_dec'; last first.
@@ -809,8 +809,8 @@ end; simpl in *.
   break_or_hyp => //.
   case (name_eq_dec h n') => H_dec'; last by rewrite collate_neq //; exact: IHs1.
   rewrite -H_dec'.
-  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_map_pair_not_related //; rewrite H_dec'; exact: IHs1.
-  rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+  case (adjacent_to_dec h n) => H_adj; last by rewrite collate_map2snd_not_related //; rewrite H_dec'; exact: IHs1.
+  rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
   have IH := IHs1 H H_f _ H_eq.
   move: IH.
   rewrite -H_dec'.
@@ -876,8 +876,8 @@ end; simpl in *.
   have H_not_in: ~ In n failed0 by auto.
   case (name_eq_dec h n') => H_dec.
     rewrite H_dec.
-    case (adjacent_to_dec n' n) => H_dec'; last by rewrite collate_map_pair_not_related //; exact: IHs1.
-    rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    case (adjacent_to_dec n' n) => H_dec'; last by rewrite collate_map2snd_not_related //; exact: IHs1.
+    rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
     rewrite H_dec in H_neq H0 H1.
     apply (send_fail s1) => //.
     exact: IHs1.
@@ -1050,7 +1050,7 @@ end; simpl.
   case: H_in_n => H_in_n.
     rewrite H_in_n.
     rewrite H_in_n in H2.
-    rewrite collate_ls_in_excluded //.
+    rewrite collate_ls_in_remove_all //.
     rewrite collate_neq //.
     by rewrite (Failure_inactive_no_incoming H).
   have H_neq_h: h <> n by move => H_eq; rewrite -H_eq in H_in_n.
@@ -1091,14 +1091,14 @@ end; simpl.
   case: H_in_f' => H_in_f'.
     rewrite -H_in_f'.
     case (adjacent_to_dec h n) => H_dec; last first.
-      rewrite collate_map_pair_not_related //.
+      rewrite collate_map2snd_not_related //.
       move => H_in.
       have H_adj': ~ adjacent_to n h.
         move => H_adj.
         by apply adjacent_to_symmetric in H_adj.
       have H_emp := Failure_not_adjacent_no_incoming H H_in_n H_in_n_f H_adj'.
       by rewrite H_emp in H_in.
-    rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup H).
+    rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup H).
     move => H_in.
     apply in_or_app.
     by right; left.
@@ -1242,7 +1242,7 @@ end; simpl.
     rewrite -H_dec.
     rewrite -H_dec in H_ins.
     have H_adj := Failure_in_adj_adjacent_to H _ H_in_n H_in H_eq H_ins.
-    rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup H).
+    rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup H).
     apply in_or_app.
     by right; left.
   rewrite collate_neq //.
@@ -1543,7 +1543,7 @@ end; simpl.
   * move => d0 H_eq d1 H_eq'.
     repeat find_inversion.
     rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
-    rewrite collate_map_pair_not_related; last exact: adjacent_to_irreflexive.
+    rewrite collate_map2snd_not_related; last exact: adjacent_to_irreflexive.
     rewrite (Failure_self_channel_empty s1).
     exact: (after_init s1).
   * case: H_in_n' => H_in_n'; first by find_rewrite.
@@ -1551,13 +1551,13 @@ end; simpl.
     repeat find_inversion.
     rewrite collate_ls_neq_to; last by auto.
     case (adjacent_to_dec h n') => H_dec.
-      rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+      rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
       rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
       rewrite collate_neq //; last by auto.
       rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) //.
       rewrite (Failure_inactive_no_incoming s1) //=.
       exact: (after_init_fst_adjacent s1).
-    rewrite collate_map_pair_not_related //.
+    rewrite collate_map2snd_not_related //.
     rewrite collate_ls_not_related //.
     rewrite collate_neq //; last by auto.
     rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) //.
@@ -1570,7 +1570,7 @@ end; simpl.
       rewrite collate_ls_not_related //.
       rewrite collate_neq; last by auto.
       rewrite collate_ls_neq_to; last by auto.
-      rewrite collate_map_pair_not_related //.
+      rewrite collate_map2snd_not_related //.
       rewrite (Failure_inactive_no_incoming s1) //.
       rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) //.
       have H_adj: ~ adjacent_to n h.
@@ -1582,7 +1582,7 @@ end; simpl.
     rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
     rewrite collate_neq; last by auto.
     rewrite collate_ls_neq_to; last by auto.
-    rewrite collate_map_snd_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
     rewrite (Failure_inactive_no_incoming s1) //.
     rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ FailureRecorder_FailMsgParams _ _ _ s1) //=.
     apply adjacent_to_symmetric in H_dec.
