@@ -1,5 +1,6 @@
 Require Import Verdi.
 Require Import InfSeqExt.infseq.
+Require Import InfSeqExt.exteq.
 
 Require Import mathcomp.ssreflect.ssreflect.
 
@@ -135,6 +136,26 @@ Section LabeledStepExecution.
     intro fair; case (always_Cons fair); trivial.
   Qed.
 
+  Lemma strong_local_fairness_extensional :
+    forall step silent, extensional (strong_local_fairness step silent).
+  Proof.
+    move => step silent.
+    rewrite /extensional /strong_local_fairness /inf_enabled /inf_occurred /=.
+    move => s1 s2 H_eq H_s1 l' H_neq' H_en.
+    have H_s1l := H_s1 l'.
+    move: H_s1l.
+    set s1i := inf_often (now (occurred _)) s1.
+    move => H_s1l.
+    suff H_suff: s1i.
+      move: H_suff.
+      apply extensional_inf_often => //.
+      exact: extensional_now.
+    apply: H_s1l => {s1i}; first by [].
+    move: H_en.
+    apply: extensional_inf_often; last exact: exteq_sym.
+    exact: extensional_now.
+  Qed.
+
   Lemma weak_local_fairness_invar :
     forall step e silent s, weak_local_fairness step silent (Cons e s) -> weak_local_fairness step silent s.
   Proof.
@@ -146,6 +167,26 @@ Section LabeledStepExecution.
     apply always_invar in eval_es.
     assumption.
     assumption.
+  Qed.
+
+  Lemma weak_local_fairness_extensional :
+    forall step silent, extensional (weak_local_fairness step silent).
+  Proof.
+  move => step silent.
+  rewrite /extensional /weak_local_fairness /cont_enabled /inf_occurred /=.
+  move => s1 s2 H_eq H_s1 l' H_neq' H_en.
+  have H_s1l := H_s1 l'.
+  move: H_s1l.
+  set s1i := inf_often (now (occurred _)) s1.
+  move => H_s1l.
+  suff H_suff: s1i.
+    move: H_suff.
+    apply extensional_inf_often => //.
+    exact: extensional_now.
+  apply: H_s1l => {s1i}; first by [].
+  move: H_en.
+  apply: extensional_continuously; last exact: exteq_sym.
+  exact: extensional_now.
   Qed.
 
   Lemma strong_local_fairness_weak :
@@ -171,6 +212,25 @@ Section LabeledStepExecution.
   Proof.
     intros step x s e. change (lb_step_execution step (tl (Cons x s))).
     destruct e; simpl. assumption. 
+  Qed.
+
+  Lemma lb_step_execution_extensional :
+    forall step, extensional (lb_step_execution step).
+  Proof.
+  move => step.
+  rewrite /extensional /=.
+  cofix c.
+  case => e1; case => e1' s1.
+  case => e2; case => e2' s2 H_eq.
+  find_apply_lem_hyp exteq_inversion.
+  break_and.
+  find_copy_apply_lem_hyp exteq_inversion.
+  break_and.
+  repeat find_rewrite.
+  move => H_exec.
+  inversion H_exec; subst.
+  apply (Cons_lb_step_exec _ tr) => //.
+  by apply: c; eauto.
   Qed.
 
   Definition event_step_star (step : step_relation A trace) (init : A) (e : event) :=

@@ -627,16 +627,8 @@ Proof.
 move => l.
 apply: always_map_conv.
 apply: eventually_map_conv => //.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2.
-  move => H_eq.
-  by inversion H_eq; subst_max.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2.
-  move => H_eq.
-  by inversion H_eq; subst_max.
+- exact: extensional_now.
+- exact: extensional_now.
 - case => e s.
   rewrite /= /occurred /=.
   move => H_eq.
@@ -666,46 +658,11 @@ apply: always_map_conv_ext => {s}.
   apply lb_step_execution_invar in H_e.
   by apply strong_local_fairness_invar in H_w.
 apply: eventually_map_conv_ext.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2 H_eq.
-  apply exteq_inversion in H_eq.
-  break_and.
-  by find_rewrite.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2 H_eq.
-  apply exteq_inversion in H_eq.
-  break_and.
-  by find_rewrite.
+- exact: extensional_now.
+- exact: extensional_now.
 - apply extensional_and_tl.
-  * rewrite /extensional /=.
-    cofix c.
-    case => e1; case => e1' s1.
-    case => e2; case => e2' s2 H_eq.
-    find_apply_lem_hyp exteq_inversion.
-    break_and.
-    find_copy_apply_lem_hyp exteq_inversion.
-    break_and.
-    repeat find_rewrite.
-    move => H_exec.
-    inversion H_exec; subst.
-    apply (Cons_lb_step_exec _ tr) => //.
-    by apply: c; eauto.
-  * rewrite /extensional /strong_local_fairness /inf_enabled /inf_occurred /=.
-    move => s1 s2 H_eq H_s1 l' H_neq' H_en.
-    have H_s1l := H_s1 l'.
-    move: H_s1l.
-    set s1i := inf_often (now (occurred _)) s1.
-    move => H_s1l.
-    suff H_suff: s1i.
-      move: H_suff.
-      apply extensional_inf_often => //.
-      exact: extensional_now.
-    apply: H_s1l => {s1i}; first by [].
-    move: H_en.
-    apply: extensional_inf_often; last exact: exteq_sym.
-    exact: extensional_now.
+  * exact: lb_step_execution_extensional.
+  * exact: strong_local_fairness_extensional.
 - rewrite /and_tl /=.
   move => x s [H_e H_w].
   apply lb_step_execution_invar in H_e.
@@ -741,47 +698,12 @@ have H_a: ((lb_step_execution lb_step_o_f) /\_ (weak_local_fairness lb_step_o_f 
 move: H_a {H_exec H_fair}.
 apply: eventually_map_conv_ext => {s}.
 - apply extensional_always.
-  rewrite /extensional /=.
-  case => e s1.
-  case => e' s2 H_eq.
-  apply exteq_inversion in H_eq.
-  break_and.
-  by find_rewrite.
+  exact: extensional_now.
 - apply extensional_always.
-  rewrite /extensional /=.
-  case => e s1.
-  case => e' s2 H_eq.
-  apply exteq_inversion in H_eq.
-  break_and.
-  by find_rewrite.
+  exact: extensional_now.
 - apply extensional_and_tl.
-  * rewrite /extensional /=.
-    cofix c.
-    case => e1; case => e1' s1.
-    case => e2; case => e2' s2 H_eq.
-    find_apply_lem_hyp exteq_inversion.
-    break_and.
-    find_copy_apply_lem_hyp exteq_inversion.
-    break_and.
-    repeat find_rewrite.
-    move => H_exec.
-    inversion H_exec; subst.
-    apply (Cons_lb_step_exec _ tr) => //.
-    by apply: c; eauto.
-  * rewrite /extensional /weak_local_fairness /cont_enabled /inf_occurred /=.
-    move => s1 s2 H_eq H_s1 l' H_neq' H_en.
-    have H_s1l := H_s1 l'.
-    move: H_s1l.
-    set s1i := inf_often (now (occurred _)) s1.
-    move => H_s1l.
-    suff H_suff: s1i.
-      move: H_suff.
-      apply extensional_inf_often => //.
-      exact: extensional_now.
-    apply: H_s1l => {s1i}; first by [].
-    move: H_en.
-    apply: extensional_continuously; last exact: exteq_sym.
-    exact: extensional_now.
+  * exact: lb_step_execution_extensional.
+  * exact: weak_local_fairness_extensional.
 - rewrite /and_tl /=.
   move => x s [H_e H_w].
   apply lb_step_execution_invar in H_e.
@@ -941,16 +863,8 @@ Proof.
 move => l.
 apply: always_map_conv.
 apply: eventually_map_conv => //.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2.
-  move => H_eq.
-  by inversion H_eq; subst_max.
-- rewrite /extensional /=.
-  case => e s1.
-  case => e' s2.
-  move => H_eq.
-  by inversion H_eq; subst_max.
+- exact: extensional_now.
+- exact: extensional_now.
 - case => e s.
   rewrite /= /occurred /=.
   move => H_eq.
