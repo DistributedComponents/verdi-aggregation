@@ -1407,6 +1407,724 @@ rewrite -H_dec.
 by rewrite collate_map2snd_not_related.
 Qed.
 
+Lemma sum_aggregate_msg_incoming_update2_aggregate : 
+  forall ns f from to ms mg m',
+    aggr_of mg = m' ->
+    In from ns ->
+    NoDup ns ->
+    ~ In aggr_fail (f from to) ->
+    f from to = mg :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to * (m')^-1.
+Proof.
+elim => //.
+move => n ns IH f from to ms mg m' H_agg H_in H_nd H_f H_eq.
+case: H_in => H_in.
+  rewrite H_in /=.
+  case (in_dec _ _) => H_dec; case (in_dec _ _) => H_dec' //=.
+    rewrite H_eq in H_dec'.
+    case: H_dec'.
+    right.    
+    move: H_dec.
+    rewrite /update2.
+    by case (sumbool_and _ _ _ _) => H_dec.
+  rewrite H_eq /=.
+  gsimpl.
+  rewrite {2}/update2.
+  case (sumbool_and _ _ _ _) => H_dec''; last by case: H_dec''.
+  rewrite H_in in H_nd.
+  inversion H_nd.
+  rewrite /aggregate_sum_fold /=.
+  gsimpl.
+  rewrite sum_aggregate_msg_incoming_update2_eq //.
+  rewrite H_agg.
+  by gsimpl.
+rewrite /=.
+inversion H_nd.
+rewrite (IH f from to ms mg m' H_agg) //.
+have H_neq: n <> from by move => H_eq'; rewrite H_eq' in H1.
+case (in_dec _ _) => H_dec; case (in_dec _ _) => H_dec' //=.
+- by gsimpl.
+- case: H_dec'.
+  move: H_dec.
+  rewrite /update2 /=.
+  by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq0 H_eq1]; rewrite H_eq0 in H_neq.
+- case: H_dec.
+  rewrite /update2 /=.
+  by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq0 H_eq1]; rewrite H_eq0 in H_neq.
+- rewrite /update2 /=.
+  case (sumbool_and _ _ _ _) => H_dec0; first by move: H_dec0 => [H_eq0 H_eq1]; rewrite H_eq0 in H_neq.
+  by aac_reflexivity.
+Qed.
+
+Lemma no_fail_sum_fail_map_incoming_eq :
+  forall ns mg f from to ms adj map,  
+  In from ns ->
+  NoDup ns ->
+  f from to = mg :: ms ->
+  ~ In aggr_fail (f from to) ->
+  sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj map =
+  sum_fail_map_incoming ns f to adj map.
+Proof.
+elim => //=.
+move => n ns IH mg f from to ms adj map.
+case => H_in H_eq H_in'.
+  rewrite H_in.
+  rewrite H_in in H_eq.
+  rewrite {2}/update2 /=.
+  case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
+  inversion H_eq.
+  move => H_not_in.
+  rewrite sum_fail_map_incoming_not_in_eq //.
+  rewrite {2}/sum_fail_map.
+  case (in_dec _ _) => /= H_dec' //.
+  rewrite H_in' in H_not_in.
+  have H_not_in': ~ In aggr_fail ms by move => H_inn; case: H_not_in; right.
+  rewrite {1}/sum_fail_map.
+  by case (in_dec _ _) => /= H_dec''.
+inversion H_eq.
+move => H_inn.
+have H_neq: from <> n by move => H_eq'; rewrite H_eq' in H_in.
+rewrite {2}/update2 /=.
+case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq0 H_eq1].
+by rewrite (IH mg f from to ms adj map H_in).
+Qed.
+
+Lemma no_fail_sum_fail_map_incoming_add_eq :
+  forall ns mg m' f from to ms adj map,  
+  In from ns ->
+  NoDup ns ->
+  f from to = mg :: ms ->
+  ~ In aggr_fail (f from to) ->
+  sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj (NMap.add from m' map) =
+  sum_fail_map_incoming ns f to adj map.
+Proof.
+elim => //=.
+move => n ns IH mg m' f from to ms adj map.
+case => H_in H_eq H_in'.
+  rewrite H_in.
+  rewrite H_in in H_eq.
+  rewrite {2}/update2 /=.
+  case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
+  inversion H_eq.
+  move => H_not_in.
+  rewrite sum_fail_map_incoming_not_in_eq //.
+  rewrite {2}/sum_fail_map.
+  case (in_dec _ _) => /= H_dec' //.
+  rewrite H_in' in H_not_in.
+  have H_not_in': ~ In aggr_fail ms by move => H_inn; case: H_not_in; right.
+  rewrite {1}/sum_fail_map /=.
+  case (in_dec _ _) => /= H_dec'' //.
+  by rewrite sum_fail_map_incoming_add_not_in_eq.
+move => H_inn.
+inversion H_eq.
+rewrite (IH _ _ _ _ _ _ _ _ H_in H2 H_in' H_inn).
+have H_neq: from <> n by move => H_eq'; rewrite -H_eq' in H1.
+rewrite /update2 /=.
+case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq0 H_eq1].
+rewrite /sum_fail_map.
+case (in_dec _ _) => /= H_dec' //.
+case (NSet.mem _ _) => //.
+rewrite /sum_fold.
+case H_find: (NMap.find _ _) => [m0|]; case H_find': (NMap.find _ _) => [m1|] //.
+- apply NMapFacts.find_mapsto_iff in H_find.
+  apply NMapFacts.add_neq_mapsto_iff in H_find => //.
+  apply NMapFacts.find_mapsto_iff in H_find.
+  rewrite H_find in H_find'.
+  by inversion H_find'.
+- apply NMapFacts.find_mapsto_iff in H_find.
+  apply NMapFacts.add_neq_mapsto_iff in H_find => //.
+  apply NMapFacts.find_mapsto_iff in H_find.
+  by rewrite H_find in H_find'.
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply (NMapFacts.add_neq_mapsto_iff _ m' _ H_neq) in H_find'.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  by rewrite H_find in H_find'.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_update2_fail_eq : 
+  forall ns f from to ms mg,
+    mg <> aggr_fail ->
+    In from ns ->
+    NoDup ns ->
+    In aggr_fail (f from to) ->
+    f from to = mg :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to.
+Proof.
+elim => //=.
+move => n ns IH f from to ms mg H_neq H_in H_nd H_in' H_eq.
+case: H_in => H_in.
+  inversion H_nd.
+  rewrite H_in.
+  rewrite H_in {H_in l x H H0 n H_nd} in H1.
+  have H_in'' := H_in'.
+  rewrite H_eq in H_in''.
+  case: H_in'' => H_in'' //.
+  case (in_dec _ _) => /= H_dec; case (in_dec _ _) => /= H_dec' //.
+  - by rewrite sum_aggregate_msg_incoming_update2_eq.
+  - case: H_dec.
+    rewrite /update2.
+    by case (sumbool_and _ _ _ _) => H_dec_s.
+inversion H_nd => {x l H H0}.
+have H_neq': from <> n by move => H_eq'; rewrite -H_eq' in H1.
+case (in_dec _ _) => /= H_dec; case (in_dec _ _) => /= H_dec'.
+- by rewrite (IH _ _ _ _ mg).
+- case: H_dec'.
+  move: H_dec.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by move: H_dec => [H_eq' H_eq''].
+- case: H_dec.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by move: H_dec => [H_eq' H_eq''].
+- rewrite {2}/update2 /=.
+  case (sumbool_and _ _ _ _) => H_dec_s; first by move: H_dec_s => [H_eq' H_eq''].
+  by rewrite (IH _ _ _ _ mg).
+Qed.
+
+Lemma sum_aggregate_msg_incoming_update2_aggregate_in_fail_add :
+  forall ns f from to ms mg x x0 adj map,
+    mg <> aggr_fail ->
+    NSet.In from adj ->
+    In from ns ->
+    NoDup ns ->
+    In aggr_fail (f from to) -> 
+    f from to = mg :: ms ->
+    NMap.find from map = Some x0 ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj (NMap.add from (x0 * x) map) =
+    sum_fail_map_incoming ns f to adj map * x.
+Proof.
+elim => //=.
+move => n ns IH f from to ms mg x x0 adj map H_neq H_ins H_in H_nd H_in' H_eq H_find.
+case: H_in => H_in.
+  inversion H_nd.
+  rewrite H_in.
+  rewrite H_in {H_in l x1 H H0 n H_nd} in H1.
+  have H_in'' := H_in'.
+  rewrite H_eq in H_in''.
+  case: H_in'' => H_in'' //.
+  rewrite sum_fail_map_incoming_not_in_eq //.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
+  rewrite sum_fail_map_incoming_add_not_in_eq //.
+  rewrite /sum_fail_map.
+  case (in_dec _ _) => H_dec' //=.
+  case (in_dec _ _) => H_dec'' //=.
+  case H_mem: (NSet.mem _ _).
+    rewrite /sum_fold.
+    case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|].
+    - rewrite H_find'' in H_find.
+      injection H_find => H_eq'.
+      rewrite H_eq'.
+      rewrite NMapFacts.add_eq_o // in H_find'.
+      injection H_find' => H_eq''.
+      rewrite -H_eq''.
+      by gsimpl.
+    - by rewrite H_find'' in H_find.
+    - by rewrite NMapFacts.add_eq_o in H_find'.
+    - by rewrite H_find'' in H_find.
+  apply NSetFacts.mem_1 in H_ins.
+  by rewrite H_ins in H_mem.
+inversion H_nd.
+have H_neq': from <> n by move => H_eq'; rewrite -H_eq' in H1.
+rewrite (IH _ _ _ _ _ _ _ _ _ _ _ _ _ _ H_eq) //.
+rewrite /update2.
+case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq' H_eq''].
+rewrite /sum_fail_map /sum_fold.
+case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|] //.
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  rewrite H_find' in H_find''.
+  injection H_find'' => H_eq'.
+  rewrite H_eq'.
+  by aac_reflexivity.
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  by rewrite H_find' in H_find''.  
+- apply NMapFacts.find_mapsto_iff in H_find''.
+  apply (NMapFacts.add_neq_mapsto_iff _ (x0 * x) _ H_neq') in H_find''.
+  apply NMapFacts.find_mapsto_iff in H_find''.
+  by rewrite H_find' in H_find''.
+- by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_update2_aggregate_in_fail :
+  forall ns f from to ms mg adj map,
+    mg <> aggr_fail ->
+    In from ns ->
+    NoDup ns ->
+    f from to = mg :: ms ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj map =
+    sum_fail_map_incoming ns f to adj map.
+Proof.
+elim => //=.
+move => n ns IH f from to ms mg adj map H_neq H_in H_nd H_eq.
+inversion H_nd => {x l H H0 H_nd}.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in {H_in n} in H1.
+  rewrite sum_fail_map_incoming_not_in_eq //.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  rewrite H_eq.
+  rewrite /sum_fail_map.
+  by case (in_dec _ _ _) => /= H_dec'; case (in_dec _ _ _) => //= H_dec''; case aggr_msg_eq_dec => H_dec_a.
+have H_neq': from <> n by move => H_eq'; rewrite -H_eq' in H1.
+rewrite (IH _ _ _ _ _ _ _ _ _ _ H_eq) //.
+rewrite /update2.
+by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq' H_eq''].
+Qed.
+
+Lemma sum_fail_map_incoming_fail_remove_eq :
+  forall ns f from to ms x adj map,
+    In from ns ->
+    NoDup ns ->
+    NSet.In from adj ->
+    f from to = aggr_fail :: ms ->
+    ~ In aggr_fail ms ->
+    NMap.find from map = Some x ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to (NSet.remove from adj) (NMap.remove from map) =
+    sum_fail_map_incoming ns f to adj map * x^-1.
+Proof.
+elim => //=.
+move => n ns IH f from to ms x adj map H_in H_nd H_ins H_eq H_in' H_find.
+inversion H_nd.
+move {x0 H0 l H H_nd}.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in {H_in n} in H1.
+  rewrite sum_fail_map_incoming_update2_remove_eq //.
+  rewrite {2}/update2.
+  case (sumbool_and _ _ _ _) => H_dec; last by case: H_dec.
+  rewrite /sum_fail_map.
+  case: andP => H_and; case: andP => H_and'.
+  - move: H_and => [H_f H_mem].
+    move: H_f.
+    by case (in_dec _ _) => /= H_f.
+  - move: H_and => [H_f H_mem].
+    move: H_f.
+    by case (in_dec _ _) => /= H_f.
+  - rewrite sum_fail_map_incoming_not_in_eq //.
+    rewrite /sum_fold.
+    case H_find': (NMap.find _ _) => [m0|]; last by rewrite H_find' in H_find.
+    rewrite H_find in H_find'.
+    inversion H_find'.
+    by gsimpl.
+  - case: H_and'.
+    split.
+      rewrite H_eq.
+      case in_dec => /= H_dec_in //.
+      case: H_dec_in.
+      by left.
+    exact: NSetFacts.mem_1.
+have H_neq: from <> n by move => H_eq'; rewrite H_eq' in H_in.
+rewrite (IH _ _ _ _ x) //.
+rewrite /update2.
+case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq' H_eq''].
+rewrite /sum_fail_map.
+case: andP => H_and; case: andP => H_and'.
+- rewrite /sum_fold.
+  case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|].
+  * apply NMapFacts.find_mapsto_iff in H_find'.
+    apply NMapFacts.remove_neq_mapsto_iff in H_find' => //.
+    apply NMapFacts.find_mapsto_iff in H_find'.
+    rewrite H_find' in H_find''.
+    injection H_find'' => H_eq'.
+    rewrite H_eq'.
+    by aac_reflexivity.
+  * apply NMapFacts.find_mapsto_iff in H_find'.
+    apply NMapFacts.remove_neq_mapsto_iff in H_find' => //.
+    apply NMapFacts.find_mapsto_iff in H_find'.
+    by rewrite H_find' in H_find''.
+  * apply NMapFacts.find_mapsto_iff in H_find''.
+    apply (NMapFacts.remove_neq_mapsto_iff _ m1 H_neq) in H_find''.
+    apply NMapFacts.find_mapsto_iff in H_find''.
+    by rewrite H_find' in H_find''.
+  * by gsimpl.
+- move: H_and => [H_f H_mem].
+  case: H_and'.
+  split => //.
+  apply NSetFacts.mem_2 in H_mem.
+  apply NSetFacts.remove_3 in H_mem.
+  exact: NSetFacts.mem_1.
+- move: H_and' => [H_f H_mem].
+  case: H_and.
+  split => //.
+  apply NSetFacts.mem_2 in H_mem.
+  apply NSetFacts.mem_1.
+  exact: NSetFacts.remove_2.
+- by gsimpl.
+Qed.
+
+Lemma sum_aggregate_ms_no_aggregate_1 : 
+  forall ms,
+  (forall mg, aggr_of mg <> 1 -> ~ In mg ms) -> 
+  sum_aggregate_msg ms = 1.
+Proof.
+elim => //.
+move => mg ms IH H_in.
+simpl.
+rewrite /aggregate_sum_fold.
+case (m_eq_dec (aggr_of mg) 1) => H_dec.
+  rewrite H_dec.
+  gsimpl.
+  rewrite IH //.
+  move => mg' H_neq.
+  apply H_in in H_neq.
+  move => H_in'.
+  case: H_neq.
+  by right.
+have H_in' := H_in mg H_dec.
+case: H_in'.
+by left.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_fail_update2_eq :
+  aggr_of aggr_fail = 1 ->
+  forall ns f from to ms,
+    (forall mg, aggr_of mg <> 1 -> before_all mg aggr_fail (f from to)) ->
+    In from ns ->
+    NoDup ns ->
+    ~ In aggr_fail ms ->
+    f from to = aggr_fail :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to.
+Proof.
+move => H_neq.
+elim => //=.
+move => n ns IH f from to ms H_bef H_in H_nd H_in' H_eq.
+inversion H_nd => {x H l H0 H_nd}.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in {n H_in} in H1. 
+  case (in_dec _ _ _) => /= H_dec; case (in_dec _ _ _) => /= H_dec' //.
+  - move: H_dec.
+    rewrite {1}/update2.
+    case (sumbool_and _ _ _ _) => H_s //.
+    by case: H_s.
+  - rewrite H_eq in H_dec'.
+    by case: H_dec'; left.
+  - rewrite {2}/update2.
+    case (sumbool_and _ _ _ _) => H_s; last by case: H_s.
+    rewrite sum_aggregate_msg_incoming_update2_eq //.
+    rewrite sum_aggregate_ms_no_aggregate_1 //.
+    move => mg H_neq'.
+    have H_bef' := H_bef _ H_neq'.
+    apply (@before_all_head_not_in _ _ _ aggr_fail); first by move => H_eq'; rewrite H_eq' in H_neq'.
+    case (aggr_msg_eq_dec mg aggr_fail) => H_dec_fail; first by rewrite H_dec_fail in H_neq'.
+    rewrite H_eq in H_bef'.
+    rewrite /= in H_bef'.
+    case: H_bef' => H_bef'; last by break_and.
+    by left.
+  - rewrite H_eq in H_dec'.
+    by case: H_dec'; left.
+have H_neq': from <> n by move => H_eq'; rewrite H_eq' in H_in.
+case (in_dec _ _ _) => /= H_dec; case (in_dec _ _ _) => /= H_dec' //.
+- by rewrite IH.
+- move: H_dec.
+  rewrite {1}/update2.
+  by case (sumbool_and _ _ _ _) => H_dec.
+- case: H_dec.
+  rewrite {1}/update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by move: H_dec => [H_eq' H_eq''].
+- rewrite IH //.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_s //.
+  by move: H_s => [H_eq' H_eq''].
+Qed.
+
+Lemma sum_fail_map_incoming_add_aggregate_eq :
+  forall ns f x h x0 m' adj map mg,
+    aggr_of mg = m' ->
+    h <> x ->
+    In x ns ->
+    NoDup ns ->
+    In aggr_fail (f x h) ->
+    NMap.find x map = Some x0 ->
+    NSet.In x adj ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f h x (f h x ++ [mg])) h adj (NMap.add x (x0 * m') map) =
+    sum_fail_map_incoming ns f h adj map * m'.
+Proof.
+elim => //.
+move => n ns IH f x h x0 m' adj map mg H_agg H_neq H_in H_nd H_in' H_find H_ins.
+rewrite /=.
+inversion H_nd => {x1 H l H0}.
+case: H_in => H_in.
+  rewrite -H_in.
+  rewrite -H_in {H_in x} in H_in' H_neq H_find H_ins.
+  rewrite sum_fail_map_incoming_update2_not_eq //.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq'].
+  rewrite sum_fail_map_incoming_add_not_in_eq //.
+  rewrite /sum_fail_map.
+  case (in_dec _ _ _) => /= H_dec' //=.
+  case H_mem: (NSet.mem _ _); last by rewrite NSetFacts.mem_1 in H_mem.
+  rewrite /sum_fold.
+  case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|].
+  - rewrite NMapFacts.add_eq_o // in H_find'.
+    inversion H_find'.
+    rewrite H_find'' in H_find.
+    inversion H_find.
+    by gsimpl.
+  - by rewrite H_find'' in H_find.
+  - by rewrite NMapFacts.add_eq_o // in H_find'.
+  - by rewrite H_find'' in H_find.
+rewrite IH //.
+rewrite /update2.
+case (sumbool_and _ _ _ _) => H_dec //; first by move: H_dec => [H_eq H_eq']; rewrite H_eq' in H_neq.
+have H_neq': x <> n by move => H_eq; rewrite H_eq in H_in.
+rewrite /sum_fail_map.
+rewrite /sum_fold.
+case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|].
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  rewrite H_find' in H_find''.
+  inversion H_find''.
+  by case: andP => H_and; gsimpl; aac_reflexivity.  
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  by rewrite H_find' in H_find''.
+- apply NMapFacts.find_mapsto_iff in H_find''.
+  apply (NMapFacts.add_neq_mapsto_iff _ (x0 * m') _ H_neq') in H_find''.
+  apply NMapFacts.find_mapsto_iff in H_find''.
+  by rewrite H_find'' in H_find'.
+- by gsimpl; aac_reflexivity.
+Qed.
+
+Lemma sum_fail_map_incoming_not_in_fail_add_update2_eq :
+  forall ns f h x ms m' adj map,
+    h <> x ->
+    In x ns ->
+    NoDup ns ->
+    ~ In aggr_fail (f x h) ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f h x ms) h adj (NMap.add x m' map) =
+    sum_fail_map_incoming ns f h adj map.
+Proof.
+elim => //=.
+move => n ns IH f h x ms m' adj map H_neq H_in H_nd H_in'.
+inversion H_nd => {l H0 x0 H H_nd}.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in {n H_in} in H1.
+  rewrite {2}/update2.
+  case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq'].
+  rewrite sum_fail_map_incoming_add_not_in_eq //.
+  rewrite sum_fail_map_incoming_update2_not_eq //.
+  rewrite /sum_fail_map.
+  by case (in_dec _ _) => /= H_dec'.
+have H_neq': x <> n by move => H_eq; rewrite H_eq in H_in.
+rewrite IH //.
+rewrite /update2.
+case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; rewrite H_eq' in H_neq.
+rewrite /sum_fail_map /sum_fold.
+case H_find': (NMap.find _ _) => [m0|]; case H_find'': (NMap.find _ _) => [m1|].
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  rewrite H_find' in H_find''.
+  inversion H_find''.
+  by case: andP => H_and; gsimpl; aac_reflexivity.  
+- apply NMapFacts.find_mapsto_iff in H_find'.
+  apply NMapFacts.add_neq_mapsto_iff in H_find' => //.
+  apply NMapFacts.find_mapsto_iff in H_find'.
+  by rewrite H_find' in H_find''.
+- apply NMapFacts.find_mapsto_iff in H_find''.
+  apply (NMapFacts.add_neq_mapsto_iff _ m' _ H_neq') in H_find''.
+  apply NMapFacts.find_mapsto_iff in H_find''.
+  by rewrite H_find'' in H_find'.
+- by gsimpl; aac_reflexivity.
+Qed.
+
+Lemma sum_fail_map_incoming_update2_app_eq : 
+  forall ns f h x n adj map mg,
+    mg <> aggr_fail ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f h x (f h x ++ [mg])) n adj map = 
+    sum_fail_map_incoming ns f n adj map.
+Proof.
+elim => //=.
+move => n ns IH f h x n0 adj map mg H_neq.
+rewrite IH //.
+rewrite /update2.
+case (sumbool_and _ _ _ _) => /= H_dec //.
+rewrite /sum_fail_map.
+case: andP => H_and; case: andP => H_and' //.
+  move: H_dec => [H_eq H_eq'].
+  rewrite H_eq H_eq' {h x H_eq H_eq'} in H_and H_and'.
+  move: H_and => [H_dec' H_mem].
+  move: H_dec'.
+  case (in_dec _ _) => /= H_dec' H_eq //.
+  apply in_app_or in H_dec'.
+  case: H_dec' => H_dec'; last by case: H_dec'.
+  case: H_and'.
+  split => //.
+  by case (in_dec _ _).
+move: H_dec => [H_eq H_eq'].
+rewrite H_eq H_eq' {h x H_eq H_eq'} in H_and H_and'.
+move: H_and' => [H_dec' H_mem].
+move: H_dec'.
+case (in_dec _ _) => /= H_dec' H_eq //.
+case: H_and.
+case (in_dec _ _) => /= H_dec //.
+split => //.
+case: H_dec.
+apply in_or_app.
+by left.
+Qed.
+
+Lemma sum_fail_sent_incoming_active_update2_app_eq :
+  forall ns0 ns1 packets state h x mg,
+    mg <> aggr_fail ->
+    sum_fail_sent_incoming_active ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
+    sum_fail_sent_incoming_active ns1 ns0 packets state.
+Proof.
+elim => //=.
+move => n ns IH H_neq ns1 packets state h x m'.
+rewrite IH //.
+by rewrite sum_fail_map_incoming_update2_app_eq.
+Qed.
+
+Lemma sum_fail_received_incoming_active_update2_app_eq :
+  forall ns0 ns1 packets state h x mg,
+    mg <> aggr_fail ->
+    sum_fail_received_incoming_active ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
+    sum_fail_received_incoming_active ns1 ns0 packets state.
+Proof.
+elim => //=.
+move => n ns IH H_neq ns1 packets state h x m'.
+rewrite IH //.
+by rewrite sum_fail_map_incoming_update2_app_eq.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_app_aggregate_eq :
+  forall ns f h x m' mg,
+    mg <> aggr_fail ->
+    aggr_of mg = m' ->
+    In h ns ->
+    NoDup ns ->
+    ~ In aggr_fail (f h x) ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f h x (f h x ++ [mg])) x =
+    sum_aggregate_msg_incoming ns f x * m'.
+Proof.
+elim => //.
+move => n ns IH f h x m' mg H_neq H_eq H_in H_nd H_in'.
+inversion H_nd => {x0 H H0 l H_nd}.
+case: H_in => H_in.
+  rewrite H_in in H1.
+  rewrite H_in {H_in n}.
+  rewrite /=.
+  rewrite sum_aggregate_msg_incoming_update2_eq //.
+  case (in_dec _ _) => /= H_dec; case (in_dec _ _) => /= H_dec' //.
+    case: H_dec'.
+    move: H_dec.
+    rewrite /update2 /=.
+    case (sumbool_and _ _ _ _) => H_dec //.
+    move => H_in.
+    apply in_app_or in H_in.
+    case: H_in => H_in //.
+    by case: H_in.
+  rewrite /update2 /=.
+  case (sumbool_and _ _ _ _) => H_and; last by case: H_and.
+  rewrite sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+  gsimpl.
+  by find_rewrite.
+rewrite /= (IH _ _ _ _ _ H_neq H_eq) //.
+have H_neq': h <> n by move => H_eq'; rewrite H_eq' in H_in.
+case (in_dec _ _) => /= H_dec; case (in_dec _ _) => /= H_dec' //.
+- by aac_reflexivity.
+- case: H_dec'.
+  move: H_dec.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by break_and.
+- case: H_dec.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_dec //.
+  by break_and.
+- rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_and; first by break_and.
+  by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_in_update2_app_eq :
+  forall ns0 ns1 f x h m' mg,
+    aggr_of mg = m' ->
+    mg <> aggr_fail ->
+    NoDup ns0 ->
+    NoDup ns1 ->
+    In x ns0 ->
+    In h ns1 ->
+    ~ In h ns0 ->
+    ~ In aggr_fail (f h x) ->
+    sum_aggregate_msg_incoming_active ns1 ns0 (update2 name_eq_dec f h x (f h x ++ [mg])) =
+    sum_aggregate_msg_incoming_active ns1 ns0 f * m'.
+Proof.
+elim => //=.
+move => n ns0 IH ns1 f x h m' mg H_eq H_neq H_nd H_nd' H_in H_inn H_in' H_f.
+have H_neq': h <> n by move => H_neq'; case: H_in'; left.
+have H_nin: ~ In h ns0 by move => H_nin; case: H_in'; right.
+move {H_in'}.
+inversion H_nd => {l x0 H H0 H_nd}.
+case: H_in => H_in.
+  rewrite H_in.
+  rewrite H_in {H_in n} in H1 H_neq'.
+  rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+  erewrite sum_aggregate_msg_incoming_app_aggregate_eq => //.
+  find_rewrite.
+  by gsimpl.
+have H_neq'': n <> x by move => H_eq'; rewrite -H_eq' in H_in.
+erewrite IH => //.
+rewrite sum_aggregate_msg_incoming_neq_eq //.
+find_rewrite.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_aggregate_msg_collate_fail_eq :
+  aggr_of aggr_fail = 1 ->
+  forall l f h n n',
+    sum_aggregate_msg (collate name_eq_dec h f (map2snd aggr_fail l) n' n) =
+    sum_aggregate_msg (f n' n).
+Proof.
+move => H_eq.
+elim => //=.
+move => n0 l IH f h n n'.
+rewrite IH.
+rewrite /update2.
+case sumbool_and => H_and //.
+move: H_and => [H_eq' H_eq''].
+rewrite H_eq' H_eq'' sum_aggregate_msg_split /= /aggregate_sum_fold /= H_eq.
+by gsimpl.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_collate_msg_for_notin_eq :
+  aggr_of aggr_fail = 1 ->
+  forall ns ns' h n f,
+  ~ In n ns' ->
+  sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns'))) n =
+  sum_aggregate_msg_incoming ns f n.
+Proof.
+move => H_eq.
+elim => //=.
+move => n' ns IH ns' h n f H_in.
+case in_dec => /= H_dec; case in_dec => /= H_dec'.
+- by rewrite IH.
+- case (name_eq_dec h n') => H_eq'; last by rewrite collate_neq in H_dec.
+  case: H_dec'.
+  rewrite -H_eq'.
+  rewrite -H_eq' {H_eq'} in H_dec.
+  by apply in_collate_in in H_dec.
+- case: H_dec.
+  exact: collate_in_in.
+- rewrite IH //.
+  by rewrite sum_aggregate_msg_collate_fail_eq.
+Qed.
+
 End MsgProps.
 
 End AAux.
