@@ -604,8 +604,7 @@ Class AggregationData (data : Type) :=
     aggr_local : data -> m ;
     aggr_aggregate : data -> m ;
     aggr_adjacent : data -> NS ;
-    aggr_sent : data -> NM ;
-    aggr_received : data -> NM
+    aggr_balance : data -> NM
   }.
 
 Section AggregationProps.
@@ -613,7 +612,7 @@ Section AggregationProps.
 Context {data} {ad : AggregationData data}.
 
 Definition conserves_node_mass (d : data) : Prop := 
-d.(aggr_local) = d.(aggr_aggregate) * sumM d.(aggr_adjacent) d.(aggr_sent) * (sumM d.(aggr_adjacent) d.(aggr_received))^-1.
+d.(aggr_local) = d.(aggr_aggregate) * sumM d.(aggr_adjacent) d.(aggr_balance).
 
 Definition sum_local (l : list data) : m :=
 fold_right (fun (d : data) (partial : m) => partial * d.(aggr_local)) 1 l.
@@ -621,14 +620,11 @@ fold_right (fun (d : data) (partial : m) => partial * d.(aggr_local)) 1 l.
 Definition sum_aggregate (l : list data) : m :=
 fold_right (fun (d : data) (partial : m) => partial * d.(aggr_aggregate)) 1 l.
 
-Definition sum_sent (l : list data) : m :=
-fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_sent)) 1 l.
-
-Definition sum_received (l : list data) : m :=
-fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_received)) 1 l.
+Definition sum_balance (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_balance)) 1 l.
 
 Definition conserves_mass_globally (l : list data) : Prop :=
-sum_local l = sum_aggregate l * sum_sent l * (sum_received l)^-1.
+sum_local l = sum_aggregate l * sum_balance l.
 
 Definition conserves_node_mass_all (l : list data) : Prop :=
 forall d, In d l -> conserves_node_mass d.
@@ -713,9 +709,9 @@ rewrite /=.
 by rewrite IH.
 Qed.
 
-Lemma sum_sent_distr : 
+Lemma sum_balance_distr : 
   forall dl dl',
-    sum_sent (dl ++ dl') = sum_sent dl * sum_sent dl'.
+    sum_balance (dl ++ dl') = sum_balance dl * sum_balance dl'.
 Proof.
 elim => /=; first by move => dl'; gsimpl.
 move => d dl IH dl'.
@@ -723,33 +719,12 @@ rewrite IH.
 by aac_reflexivity.
 Qed.
 
-Lemma sum_received_distr : 
-  forall dl dl',
-    sum_received (dl ++ dl') = sum_received dl * sum_received dl'.
-Proof.
-elim => /=; first by move => dl'; gsimpl.
-move => d dl IH dl'.
-rewrite IH.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_sent_Nodes_data_distr : 
+Lemma sum_balance_Nodes_data_distr : 
   forall ns0 ns1 state,
-    sum_sent (Nodes_data ns0 state) * sum_sent (Nodes_data ns1 state) =
-    sum_sent (Nodes_data (ns0 ++ ns1) state).
+    sum_balance (Nodes_data ns0 state) * sum_balance (Nodes_data ns1 state) =
+    sum_balance (Nodes_data (ns0 ++ ns1) state).
 Proof.
 elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
-rewrite -IH.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_received_Nodes_data_distr : 
-  forall ns0 ns1 state,
-    (sum_received (Nodes_data ns1 state))^-1 * (sum_received (Nodes_data ns0 state))^-1 = 
-    (sum_received (Nodes_data (ns0 ++ ns1) state))^-1.
-Proof.
-elim => [|n ns0 IH] ns1 state /=; first by gsimpl.
-gsimpl.
 rewrite -IH.
 by aac_reflexivity.
 Qed.
@@ -790,18 +765,15 @@ if In_dec aggr_msg_eq_dec aggr_fail l && NSet.mem from adj then sum_fold map fro
 Definition sum_fail_map_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) (adj : NS) (map : NM) : m :=
 fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (packets n' n) n' adj map) 1 ns.
 
-Definition sum_fail_sent_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
+Definition sum_fail_balance_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
 fold_right (fun (n : name) (partial : m) => 
-  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_sent)) 1 actns.
-
-Definition sum_fail_received_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
-fold_right (fun (n : name) (partial : m) => 
-  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_received)) 1 actns.
+  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_balance)) 1 actns.
 
 Definition conserves_network_mass (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : Prop :=
 sum_local (Nodes_data actns state) = 
-  sum_aggregate (Nodes_data actns state) * sum_aggregate_msg_incoming_active allns actns packets * 
-  sum_fail_sent_incoming_active allns actns packets state * (sum_fail_received_incoming_active allns actns packets state)^-1.
+  sum_aggregate (Nodes_data actns state) * 
+  sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_balance_incoming_active allns actns packets state.
 
 End MsgFolds.
 
@@ -891,32 +863,12 @@ move => n ns IH packets n' adj map.
 by rewrite sum_fail_map_map_msgs_eq // IH.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_map_msgs_eq :
+Lemma sum_fail_balance_incoming_active_map_msgs_eq :
   forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
     (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
-    (forall n, In n actns -> n.(state).(aggr_sent) = n.(state').(aggr_sent)) ->    
-    sum_fail_sent_incoming_active allns actns packets state = 
-    sum_fail_sent_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
-Proof.
-move => state state' packets allns.
-elim => //=.
-move => n actns IH H_eq H_eq'.
-rewrite sum_fail_map_incoming_map_msgs_eq //.
-rewrite H_eq; last by left.
-rewrite H_eq'; last by left.
-rewrite IH //.
-  move => n' H_in.
-  by rewrite H_eq; last by right.
-move => n' H_in.
-by rewrite H_eq'; last by right.
-Qed.
-
-Lemma sum_fail_received_incoming_active_map_msgs_eq :
-  forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
-    (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
-    (forall n, In n actns -> n.(state).(aggr_received) = n.(state').(aggr_received)) ->
-    sum_fail_received_incoming_active allns actns packets state = 
-    sum_fail_received_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+    (forall n, In n actns -> n.(state).(aggr_balance) = n.(state').(aggr_balance)) ->    
+    sum_fail_balance_incoming_active allns actns packets state = 
+    sum_fail_balance_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
 Proof.
 move => state state' packets allns.
 elim => //=.

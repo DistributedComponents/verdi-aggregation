@@ -85,24 +85,11 @@ rewrite /= IH.
 by aac_reflexivity.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_split :
+Lemma sum_fail_balance_incoming_active_split :
   forall ns0 ns1 ns2 packets state,
-    sum_fail_sent_incoming_active ns0 (ns1 ++ ns2) packets state = 
-    sum_fail_sent_incoming_active ns0 ns1 packets state *
-    sum_fail_sent_incoming_active ns0 ns2 packets state.
-Proof.
-move => ns0 ns1 ns2 packets state.
-elim: ns1 => //=; first by gsimpl.
-move => n ns1 IH.
-rewrite /= IH.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_fail_received_incoming_active_split :
-  forall ns0 ns1 ns2 packets state,
-    sum_fail_received_incoming_active ns0 (ns1 ++ ns2) packets state = 
-    sum_fail_received_incoming_active ns0 ns1 packets state *
-    sum_fail_received_incoming_active ns0 ns2 packets state.
+    sum_fail_balance_incoming_active ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_balance_incoming_active ns0 ns1 packets state *
+    sum_fail_balance_incoming_active ns0 ns2 packets state.
 Proof.
 move => ns0 ns1 ns2 packets state.
 elim: ns1 => //=; first by gsimpl.
@@ -217,23 +204,11 @@ rewrite 2!sum_fail_map_incoming_split /=.
 by gsimpl.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_permutation_eq :
+Lemma sum_fail_balance_incoming_active_permutation_eq :
   forall ns1 ns1' ns packets state,
   Permutation ns1 ns1' ->
-  sum_fail_sent_incoming_active ns1 ns packets state =
-  sum_fail_sent_incoming_active ns1' ns packets state.
-Proof.
-move => ns1 ns1' ns.
-elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
-rewrite (IH _ _ _ _ H_pm).
-by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
-Qed.
-
-Lemma sum_fail_received_incoming_active_permutation_eq :
-  forall ns1 ns1' ns packets state,
-  Permutation ns1 ns1' ->
-  sum_fail_received_incoming_active ns1 ns packets state =
-  sum_fail_received_incoming_active ns1' ns packets state.
+  sum_fail_balance_incoming_active ns1 ns packets state =
+  sum_fail_balance_incoming_active ns1' ns packets state.
 Proof.
 move => ns1 ns1' ns.
 elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
@@ -270,43 +245,19 @@ case: H_ins.
 exact: NSetFacts.remove_2.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_empty_1 : 
+Lemma sum_fail_balance_incoming_active_empty_1 : 
   forall ns packets state,
-  sum_fail_sent_incoming_active [] ns packets state = 1.
+  sum_fail_balance_incoming_active [] ns packets state = 1.
 Proof.
 elim => [|n ns IH] packets state //=.
 rewrite IH.
 by gsimpl.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_all_head_eq : 
+Lemma sum_fail_balance_incoming_active_all_head_eq : 
   forall ns ns' packets state n,
-  sum_fail_sent_incoming_active (n :: ns) ns' packets state = 
-  sum_fail_sent_incoming_active [n] ns' packets state * sum_fail_sent_incoming_active ns ns' packets state.
-Proof.
-move => ns ns'.
-elim: ns' ns => /=.
-  move => ns packets state.
-  by gsimpl.
-move => n ns IH ns' packets state n'.
-rewrite IH.
-gsimpl.
-by aac_reflexivity.
-Qed.
-
-Lemma sum_fail_received_incoming_active_empty_1 : 
-  forall ns packets state,
-  sum_fail_received_incoming_active [] ns packets state = 1.
-Proof.
-elim => [|n ns IH] packets state //=.
-rewrite IH.
-by gsimpl.
-Qed.
-
-Lemma sum_fail_received_incoming_active_all_head_eq : 
-  forall ns ns' packets state n,
-  sum_fail_received_incoming_active (n :: ns) ns' packets state = 
-  sum_fail_received_incoming_active [n] ns' packets state * sum_fail_received_incoming_active ns ns' packets state.
+  sum_fail_balance_incoming_active (n :: ns) ns' packets state = 
+  sum_fail_balance_incoming_active [n] ns' packets state * sum_fail_balance_incoming_active ns ns' packets state.
 Proof.
 move => ns ns'.
 elim: ns' ns => /=.
@@ -747,13 +698,13 @@ rewrite /update2 /=.
 by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; rewrite H_eq in H_neq.
 Qed.
 
-Lemma sum_fail_map_incoming_sent_neq_eq :
+Lemma sum_fail_map_incoming_balance_neq_eq :
   forall ns packets state from to ms n d,
   n <> to ->
   sum_fail_map_incoming ns (update2 name_eq_dec packets from to ms) n
     (aggr_adjacent (match name_eq_dec n to with left _ => d | right_ => state n end))
-    (aggr_sent (match name_eq_dec n to with left _ => d |right _ => state n end)) =
-  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_sent (state n)).
+    (aggr_balance (match name_eq_dec n to with left _ => d |right _ => state n end)) =
+  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_balance (state n)).
 Proof.
 elim => //=.
 move => n ns IH packets state from to ms n0 d H_neq.
@@ -765,49 +716,16 @@ move: H_dec' => [H_eq H_eq'].
 by rewrite H_eq' in H_neq.
 Qed.
 
-Lemma sum_fail_map_incoming_received_neq_eq :
-  forall ns packets state from to ms n d,
-  n <> to ->
-  sum_fail_map_incoming ns (update2 name_eq_dec packets from to ms) n
-    (aggr_adjacent (match name_eq_dec n to with left _ => d | right_ => state n end))
-    (aggr_received (match name_eq_dec n to with left _ => d |right _ => state n end)) =
-  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_received (state n)).
-Proof.
-elim => //=.
-move => n ns IH packets state from to ms n0 d H_neq.
-rewrite IH //.
-case name_eq_dec => H_dec //=.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec' //.
-move: H_dec' => [H_eq H_eq'].
-by rewrite H_eq' in H_neq.
-Qed.
-
-Lemma sum_fail_sent_incoming_active_not_in_eq_alt :
+Lemma sum_fail_balance_incoming_active_not_in_eq_alt :
 forall ns1 ns0 packets state h d,
   ~ In h ns1 ->
-  sum_fail_sent_incoming_active ns0 ns1 packets (update name_eq_dec state h d) =
-  sum_fail_sent_incoming_active ns0 ns1 packets state.
+  sum_fail_balance_incoming_active ns0 ns1 packets (update name_eq_dec state h d) =
+  sum_fail_balance_incoming_active ns0 ns1 packets state.
 Proof.
 elim => //=.
 move => n ns1 IH ns0 packets state h d H_in.
 have H_neq: n <> h by move => H_eq; case: H_in; left.
 have H_not_in: ~ In h ns1 by move => H_in'; case: H_in; right.
-rewrite IH //.
-rewrite /update.
-by case (name_eq_dec _ _) => H_dec.
-Qed.
-
-Lemma sum_fail_received_incoming_active_not_in_eq_alt :
-forall ns packets state h d,
-  ~ In h ns ->
-  sum_fail_received_incoming_active nodes ns packets (update name_eq_dec state h d) =
-  sum_fail_received_incoming_active nodes ns packets state.
-Proof.
-elim => //=.
-move => n ns IH packets state h d H_in.
-have H_neq: n <> h by move => H_eq; case: H_in; left.
-have H_not_in: ~ In h ns by move => H_in'; case: H_in; right.
 rewrite IH //.
 rewrite /update.
 by case (name_eq_dec _ _) => H_dec.
@@ -905,14 +823,14 @@ case: H_in.
 by right.
 Qed.
 
-Lemma sum_fail_map_incoming_sent_neq_eq_alt :
+Lemma sum_fail_map_incoming_balance_neq_eq_alt :
   forall ns packets state from to ms h n d,
   n <> to ->
   n <> h ->
   sum_fail_map_incoming ns (update2 name_eq_dec packets from to ms) n
     (aggr_adjacent (update name_eq_dec state h d n))
-    (aggr_sent (update name_eq_dec state h d n)) =
-  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_sent (state n)).
+    (aggr_balance (update name_eq_dec state h d n)) =
+  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_balance (state n)).
 Proof.
 elim => //=.
 move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
@@ -923,46 +841,6 @@ rewrite /update2 /=.
 case (sumbool_and _ _ _ _) => H_dec' //.
 move: H_dec' => [H_eq H_eq'].
 by rewrite H_eq' in H_neq.
-Qed.
-
-Lemma sum_fail_map_incoming_received_neq_eq_alt :
-  forall ns packets state from to ms h n d,
-  n <> to ->
-  n <> h ->
-  sum_fail_map_incoming ns (update2 name_eq_dec packets from to ms) n
-    (aggr_adjacent (update name_eq_dec state h d n))
-    (aggr_received (update name_eq_dec state h d n)) =
-  sum_fail_map_incoming ns packets n (aggr_adjacent (state n)) (aggr_received (state n)).
-Proof.
-elim => //=.
-move => n ns IH packets state from to ms h n0 d H_neq H_neq'.
-rewrite IH //.
-rewrite /update.
-case (name_eq_dec _ _) => H_dec //=.
-rewrite /update2 /=.
-case (sumbool_and _ _ _ _) => H_dec' //.
-move: H_dec' => [H_eq H_eq'].
-by rewrite H_eq' in H_neq.
-Qed.
-
-Lemma sum_fail_received_incoming_active_not_in_eq_alt2 :
-  forall ns0 ns1 packets state from to ms h d,
-    ~ In to ns0 ->
-    ~ In h ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 (update2 name_eq_dec packets from to ms) (update name_eq_dec state h d) =
-    sum_fail_received_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //.
-move => n ns IH ns1 packets state from to ms h d H_in H_in'.
-rewrite /sum_fail_sent_incoming_active /=.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-have H_neq': n <> h by move => H_eq; case: H_in'; left.
-rewrite sum_fail_map_incoming_received_neq_eq_alt //.
-rewrite -/(sum_fail_received_incoming_active _ _ _ _).
-have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
-have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
-have IH' := IH ns1 packets state from to ms h d H_inn H_inn'.
-by rewrite -IH'.
 Qed.
 
 (* FIXME *)
@@ -992,26 +870,11 @@ rewrite /update2.
 by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; rewrite H_eq' in H_neq.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_update_not_in_eq :
+Lemma sum_fail_balance_incoming_active_update_not_in_eq :
   forall ns0 ns1 packets state h d,
     ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 packets (update name_eq_dec state h d) =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //=.
-move => n ns IH ns1 packets state h d H_in.
-have H_neq: n <> h by move => H_eq; case: H_in; left.
-have H_in': ~ In h ns by move => H_in'; case: H_in; right.
-rewrite IH //.
-rewrite /update.
-by case (name_eq_dec _ _) => H_dec.
-Qed.
-
-Lemma sum_fail_received_incoming_active_update_not_in_eq :
-  forall ns0 ns1 packets state h d,
-    ~ In h ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 packets (update name_eq_dec state h d) =
-    sum_fail_received_incoming_active ns1 ns0 packets state.
+    sum_fail_balance_incoming_active ns1 ns0 packets (update name_eq_dec state h d) =
+    sum_fail_balance_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
 move => n ns IH ns1 packets state h d H_in.
@@ -1044,25 +907,11 @@ case in_dec => /= H_dec; case in_dec => /= H_dec'.
   by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
 Qed.
 
-Lemma sum_fail_sent_incoming_active_singleton_neq_update2_eq :
+Lemma sum_fail_balance_incoming_active_singleton_neq_update2_eq :
   forall ns f g h n n' ms,
     h <> n ->
-    sum_fail_sent_incoming_active [n] ns f g =
-    sum_fail_sent_incoming_active [n] ns (update2 name_eq_dec f h n' ms) g.
-Proof.
-elim => //=.
-move => n0 ns IH f g h n n' ms H_neq.
-gsimpl.
-rewrite -IH //.
-rewrite /update2.
-by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
-Qed.
-
-Lemma sum_fail_received_incoming_active_singleton_neq_update2_eq :
-  forall ns f g h n n' ms,
-    h <> n ->
-    sum_fail_received_incoming_active [n] ns f g =
-    sum_fail_received_incoming_active [n] ns (update2 name_eq_dec f h n' ms) g.
+    sum_fail_balance_incoming_active [n] ns f g =
+    sum_fail_balance_incoming_active [n] ns (update2 name_eq_dec f h n' ms) g.
 Proof.
 elim => //=.
 move => n0 ns IH f g h n n' ms H_neq.
@@ -1165,25 +1014,11 @@ rewrite /f1 {f1}.
 by rewrite IH.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_collate_update2_eq :
+Lemma sum_fail_balance_incoming_active_collate_update2_eq :
   forall ns ns' h n f g l ms,
   ~ In n ns ->
-  sum_fail_sent_incoming_active ns' ns (collate name_eq_dec h (update2 name_eq_dec f h n ms) l) g =
-  sum_fail_sent_incoming_active ns' ns (collate name_eq_dec h f l) g.
-Proof.
-elim => //=.
-move => n' ns IH ns' h n f g l ms H_in.
-have H_neq: n' <> n by move => H_in'; case: H_in; left.
-have H_in': ~ In n ns by move => H_in'; case: H_in; right.
-rewrite IH //.
-by rewrite sum_fail_map_incoming_collate_update2_eq.
-Qed.
-
-Lemma sum_fail_received_incoming_active_collate_update2_eq :
-  forall ns ns' h n f g l ms,
-  ~ In n ns ->
-  sum_fail_received_incoming_active ns' ns (collate name_eq_dec h (update2 name_eq_dec f h n ms) l) g =
-  sum_fail_received_incoming_active ns' ns (collate name_eq_dec h f l) g.
+  sum_fail_balance_incoming_active ns' ns (collate name_eq_dec h (update2 name_eq_dec f h n ms) l) g =
+  sum_fail_balance_incoming_active ns' ns (collate name_eq_dec h f l) g.
 Proof.
 elim => //=.
 move => n' ns IH ns' h n f g l ms H_in.
@@ -1206,25 +1041,11 @@ rewrite /update2.
 by case (sumbool_and _ _ _ _) => H_dec; first by move: H_dec => [H_eq H_eq']; rewrite H_eq' in H_neq.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_not_in_eq_alt_alt :
+Lemma sum_fail_balance_incoming_active_not_in_eq_alt_alt :
   forall ns0 ns1 from to ms f g,
   ~ In to ns0 ->
-  sum_fail_sent_incoming_active ns1 ns0 (update2 name_eq_dec f from to ms) g =
-  sum_fail_sent_incoming_active ns1 ns0 f g.
-Proof.
-elim => //.
-move => n ns IH ns1 from to ms f g H_in.
-have H_neq: to <> n by move => H_eq; case: H_in; left.
-have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-rewrite /= IH //.
-by rewrite sum_fail_map_incoming_update2_not_eq_alt.
-Qed.
-
-Lemma sum_fail_received_incoming_active_not_in_eq_alt_alt :
-  forall ns0 ns1 from to ms f g,
-  ~ In to ns0 ->
-  sum_fail_received_incoming_active ns1 ns0 (update2 name_eq_dec f from to ms) g =
-  sum_fail_received_incoming_active ns1 ns0 f g.
+  sum_fail_balance_incoming_active ns1 ns0 (update2 name_eq_dec f from to ms) g =
+  sum_fail_balance_incoming_active ns1 ns0 f g.
 Proof.
 elim => //.
 move => n ns IH ns1 from to ms f g H_in.
@@ -1251,60 +1072,42 @@ case name_eq_dec => H_dec //.
 by rewrite H_dec.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_not_in_eq :
+Lemma sum_fail_balance_incoming_active_not_in_eq :
   forall ns0 ns1 packets state from to ms d,
     ~ In to ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 
+    sum_fail_balance_incoming_active ns1 ns0 
       (update2 name_eq_dec packets from to ms) 
       (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
+    sum_fail_balance_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
 move => n ns IH ns1 packets state from to ms d H_in.
-rewrite /sum_fail_sent_incoming_active /=.
+rewrite /sum_fail_balance_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite sum_fail_map_incoming_sent_neq_eq //=.
+rewrite sum_fail_map_incoming_balance_neq_eq //=.
 have H_in': ~ In to ns by move => H_in'; case: H_in; right.
 have IH' := IH ns1 packets state from to ms d H_in'.
-rewrite /sum_fail_sent_incoming_active in IH'.
+rewrite /sum_fail_balance_incoming_active in IH'.
 by rewrite IH' /=.
 Qed.
 
-Lemma sum_fail_received_incoming_active_not_in_eq :
-  forall ns0 ns1 packets state from to ms d,
-    ~ In to ns0 ->
-    sum_fail_received_incoming_active ns1 ns0 (update2 name_eq_dec packets from to ms)
-     (fun nm : name => match name_eq_dec nm to with left _ => d | right _ => state nm end) =
-    sum_fail_received_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //.
-move => n ns IH ns1 packets state from to ms d H_in.
-rewrite /sum_fail_received_incoming_active /=.
-have H_neq: n <> to by move => H_eq; case: H_in; left.
-rewrite sum_fail_map_incoming_received_neq_eq //=.
-have H_in': ~ In to ns by move => H_in'; case: H_in; right.
-have IH' := IH ns1 packets state from to ms d H_in'.
-rewrite /sum_fail_received_incoming_active in IH'.
-by rewrite IH'.
-Qed.
-
-Lemma sum_fail_sent_incoming_active_not_in_eq_alt2 :
+Lemma sum_fail_balance_incoming_active_not_in_eq_alt2 :
   forall ns0 ns1 packets state from to ms h d,
     ~ In to ns0 ->
     ~ In h ns0 ->
-    sum_fail_sent_incoming_active ns1 ns0 (update2 name_eq_dec packets from to ms) (update name_eq_dec state h d) =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
+    sum_fail_balance_incoming_active ns1 ns0 (update2 name_eq_dec packets from to ms) (update name_eq_dec state h d) =
+    sum_fail_balance_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //.
 move => n ns IH ns1 packets state from to ms h d H_in H_in'.
-rewrite /sum_fail_sent_incoming_active /=.
+rewrite /sum_fail_balance_incoming_active /=.
 have H_neq: n <> to by move => H_eq; case: H_in; left.
 have H_neq': n <> h by move => H_eq; case: H_in'; left.
-rewrite sum_fail_map_incoming_sent_neq_eq_alt //=.
+rewrite sum_fail_map_incoming_balance_neq_eq_alt //=.
 have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
 have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
 have IH' := IH ns1 packets state from to ms h d H_inn H_inn'.
-rewrite /sum_fail_sent_incoming_active in IH'.
+rewrite /sum_fail_balance_incoming_active in IH'.
 by rewrite IH'.
 Qed.
 
@@ -1345,11 +1148,11 @@ case in_dec => /= H_dec; case adjacent_to_dec => H_dec'.
   by rewrite -IH.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_singleton_neq_collate_eq :
+Lemma sum_fail_balance_incoming_active_singleton_neq_collate_eq :
   forall ns f g h n,
   h <> n ->
-  sum_fail_sent_incoming_active [n] ns f g = 
-  sum_fail_sent_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
+  sum_fail_balance_incoming_active [n] ns f g = 
+  sum_fail_balance_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
 Proof.
 elim => //=.
 move => n' ns IH f g h n H_neq.
@@ -1357,24 +1160,7 @@ gsimpl.
 case adjacent_to_dec => H_dec.
   rewrite -IH //.
   rewrite collate_neq //.
-  by rewrite -sum_fail_sent_incoming_active_singleton_neq_update2_eq.
-rewrite -IH //.
-by rewrite collate_neq.
-Qed.
-
-Lemma sum_fail_received_incoming_active_singleton_neq_collate_eq :
-  forall ns f g h n,
-  h <> n ->
-  sum_fail_received_incoming_active [n] ns f g =
-  sum_fail_received_incoming_active [n] ns (collate name_eq_dec h f (map2snd aggr_fail (filter_rel adjacent_to_dec h ns))) g.
-Proof.
-elim => //=.
-move => n' ns IH f g h n H_neq.
-gsimpl.
-case adjacent_to_dec => H_dec.
-  rewrite -IH //.
-  rewrite collate_neq //.
-  by rewrite -sum_fail_received_incoming_active_singleton_neq_update2_eq.
+  by rewrite -sum_fail_balance_incoming_active_singleton_neq_update2_eq.
 rewrite -IH //.
 by rewrite collate_neq.
 Qed.
@@ -1978,23 +1764,11 @@ apply in_or_app.
 by left.
 Qed.
 
-Lemma sum_fail_sent_incoming_active_update2_app_eq :
+Lemma sum_fail_balance_incoming_active_update2_app_eq :
   forall ns0 ns1 packets state h x mg,
     mg <> aggr_fail ->
-    sum_fail_sent_incoming_active ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
-    sum_fail_sent_incoming_active ns1 ns0 packets state.
-Proof.
-elim => //=.
-move => n ns IH H_neq ns1 packets state h x m'.
-rewrite IH //.
-by rewrite sum_fail_map_incoming_update2_app_eq.
-Qed.
-
-Lemma sum_fail_received_incoming_active_update2_app_eq :
-  forall ns0 ns1 packets state h x mg,
-    mg <> aggr_fail ->
-    sum_fail_received_incoming_active ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
-    sum_fail_received_incoming_active ns1 ns0 packets state.
+    sum_fail_balance_incoming_active ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
+    sum_fail_balance_incoming_active ns1 ns0 packets state.
 Proof.
 elim => //=.
 move => n ns IH H_neq ns1 packets state h x m'.
