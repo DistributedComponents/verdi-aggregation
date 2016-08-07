@@ -82,16 +82,14 @@ Record Data := mkData {
   local : m ; 
   aggregate : m ; 
   adjacent : NS ; 
-  sent : NM ; 
-  received : NM 
+  balance : NM 
 }.
 
 Definition InitData (n : name) := 
   {| local := 1 ;
      aggregate := 1 ;
      adjacent := NSet.empty ;
-     sent := NMap.empty m ;
-     received := NMap.empty m |}.
+     balance := NMap.empty m |}.
 
 Definition Handler (S : Type) := GenHandler (name * Msg) S Output unit.
 
@@ -99,37 +97,32 @@ Definition NetHandler (me src: name) (msg : Msg) : Handler Data :=
 st <- get ;;
 match msg with
 | Aggregate m_msg => 
-  match NMap.find src st.(received) with
+  match NMap.find src st.(balance) with
   | None => nop
   | Some m_src => 
     put {| local := st.(local) ;
            aggregate := st.(aggregate) * m_msg ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := NMap.add src (m_src * m_msg) st.(received) |}                                                           
+           balance := NMap.add src (m_src * (m_msg)^-1) st.(balance) |}
   end
 | Fail => 
-  match NMap.find src st.(sent), NMap.find src st.(received) with
-  | Some m_snt, Some m_rcd =>    
+  match NMap.find src st.(balance) with
+  | Some m_bal =>    
     put {| local := st.(local) ;
-           aggregate := st.(aggregate) * m_snt * (m_rcd)^-1 ;
+           aggregate := st.(aggregate) * m_bal ;
            adjacent := NSet.remove src st.(adjacent) ;
-           sent := NMap.remove src st.(sent) ;
-           received := NMap.remove src st.(received) |}           
-  | _, _ => 
+           balance := NMap.remove src st.(balance) |}           
+  | None => 
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := NSet.remove src st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) |}
+           balance := st.(balance) |}
   end
 | New =>
   put {| local := st.(local) ;
          aggregate := st.(aggregate) ;
          adjacent := NSet.add src st.(adjacent) ;
-         sent := NMap.add src 1 st.(sent) ;
-         received := NMap.add src 1 st.(received)      
-      |}
+         balance := NMap.add src 1 st.(balance) |}
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data :=
@@ -139,21 +132,19 @@ match i with
   put {| local := m_msg ;
          aggregate := st.(aggregate) * m_msg * st.(local)^-1 ;
          adjacent := st.(adjacent) ;
-         sent := st.(sent) ;
-         received := st.(received) |}
+         balance := st.(balance) |}
 | AggregateRequest =>
   write_output (AggregateResponse st.(aggregate))
 | SendAggregate dst => 
   when (NSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
-  (match NMap.find dst st.(sent) with
-   | None => nop
+  (match NMap.find dst st.(balance) with
    | Some m_dst =>        
      put {| local := st.(local) ;
             aggregate := 1 ;
             adjacent := st.(adjacent) ;
-            sent := NMap.add dst (m_dst * st.(aggregate)) st.(sent) ;
-            received := st.(received) |} ;; 
+            balance := NMap.add dst (m_dst * st.(aggregate)) st.(balance) |} ;; 
      send (dst, (Aggregate st.(aggregate)))
+   | None => nop
    end)
 end.
 
@@ -231,17 +222,15 @@ Lemma IOHandler_cases :
          st'.(local) = m_msg /\ 
          st'.(aggregate) = st.(aggregate) * m_msg * st.(local)^-1 /\ 
          st'.(adjacent) = st.(adjacent) /\
-         st'.(sent) = st.(sent) /\
-         st'.(received) = st.(received) /\
+         st'.(balance) = st.(balance) /\
          out = [] /\ ms = []) \/
-      (exists dst m', i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(sent) = Some m' /\
+      (exists dst m', i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(balance) = Some m' /\
          st'.(local) = st.(local) /\ 
          st'.(aggregate) = 1 /\
          st'.(adjacent) = st.(adjacent) /\
-         st'.(sent) = NMap.add dst (m' * st.(aggregate)) st.(sent) /\
-         st'.(received) = st.(received) /\
+         st'.(balance) = NMap.add dst (m' * st.(aggregate)) st.(balance) /\
          out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
-      (exists dst, i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(sent) = None /\
+      (exists dst, i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) <> 1 /\ NMap.find dst st.(balance) = None /\
          st' = st /\
          out = [] /\ ms = []) \/
       (exists dst, i = SendAggregate dst /\ NSet.In dst st.(adjacent) /\ st.(aggregate) = 1 /\
@@ -290,59 +279,43 @@ Qed.
 Lemma NetHandler_cases : 
   forall dst src msg st out st' ms,
     NetHandler dst src msg st = (tt, out, st', ms) ->
-    (exists m_msg m_src, msg = Aggregate m_msg /\ NMap.find src st.(received) = Some m_src /\
+    (exists m_msg m_src, msg = Aggregate m_msg /\ NMap.find src st.(balance) = Some m_src /\
      st'.(local) = st.(local) /\
      st'.(aggregate) = st.(aggregate) * m_msg /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\     
-     st'.(received) = NMap.add src (m_src * m_msg) st.(received) /\
+     st'.(balance) = NMap.add src (m_src * (m_msg)^-1) st.(balance) /\
      out = [] /\ ms = []) \/
-    (exists m_msg, msg = Aggregate m_msg /\ NMap.find src st.(received) = None /\ 
+    (exists m_msg, msg = Aggregate m_msg /\ NMap.find src st.(balance) = None /\ 
      st' = st /\ out = [] /\ ms = []) \/
-    (exists m_snt m_rcd, msg = Fail /\ NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
+    (exists m_bal, msg = Fail /\ NMap.find src st.(balance) = Some m_bal /\
      st'.(local) = st.(local) /\ 
-     st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
+     st'.(aggregate) = st.(aggregate) * m_bal /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = NMap.remove src st.(sent) /\
-     st'.(received) = NMap.remove src st.(received) /\
+     st'.(balance) = NMap.remove src st.(balance) /\
      out = [] /\ ms = []) \/
-    (msg = Fail /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (msg = Fail /\ NMap.find src st.(balance) = None /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      out = [] /\ ms = []) \/
     (msg = New /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
-     st'.(sent) = NMap.add src 1 st.(sent) /\
-     st'.(received) = NMap.add src 1 st.(received) /\
+     st'.(balance) = NMap.add src 1 st.(balance) /\
      out = [] /\ ms =[]).
 Proof.
 move => dst src msg st out st' ms.
 rewrite /NetHandler.
-case: msg => [m_msg||]; monad_unfold.
-  case H_find: (NMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=; first by left; exists m_msg; exists  m_src.
-  by right; left; exists m_msg.
-- case H_find: (NMap.find _ _) => [m_snt|]; case H_find': (NMap.find _ _) => [m_rcd|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-  * right; right; left.
-    by exists m_snt; exists m_rcd.
-  * right; right; right; left.
-    split => //.
-    split => //.
-    by right.
-  * right; right; right; left.
-    split => //.
-    split => //.
-    by left.
-  * right; right; right; left.
-    split => //.
-    split => //.
-    by left.
-- right; right; right; right.
-  by find_inversion.
+case: msg => [m_msg||]; monad_unfold; repeat break_let; repeat break_match; repeat find_injection.
+- by left; exists m_msg, a.
+- by right; left; exists m_msg.
+- by right; right; left; exists a.
+- by right; right; right; left.
+- move => H_eq.
+  find_injection.
+  by right; right; right; right.
 Qed.
 
 Ltac net_handler_cases := 
@@ -911,10 +884,6 @@ end; rewrite /=.
     break_if; last by find_higher_order_rewrite.
     break_and; repeat find_rewrite.
     by find_higher_order_rewrite.
-  * rewrite /update2 /=.
-    break_if; last by find_higher_order_rewrite.
-    break_and; repeat find_rewrite.
-    by find_higher_order_rewrite.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=.
   rewrite /update2 /=.
@@ -970,9 +939,6 @@ end; rewrite /=.
   * rewrite /update2 /=.
     break_if; break_and; last by eauto.
     by repeat find_rewrite; eauto.
-  * rewrite /update2 /=.
-    break_if; break_and; last by eauto.
-    by repeat find_rewrite; eauto.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=.
   * by auto.
@@ -995,13 +961,13 @@ end; rewrite /=.
   by auto.
 Qed.
 
-Lemma Aggregation_in_set_exists_find_sent : 
+Lemma Aggregation_in_set_exists_find_balance : 
 forall net failed tr, 
  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
  forall n, In n net.(odnwNodes) -> ~ In n failed ->
  forall d, net.(odnwState) n = Some d ->
  forall n', NSet.In n' d.(adjacent) -> 
-       exists m5 : m, NMap.find n' d.(sent) = Some m5.
+       exists m5 : m, NMap.find n' d.(balance) = Some m5.
 Proof.
 move => net failed tr H.
 change failed with (fst (failed, net)).
@@ -1025,7 +991,15 @@ end; simpl in *.
   net_handler_cases => //=; unfold update in *; break_if; try by eauto.
   * find_injection.    
     repeat find_rewrite.
-    by eauto.
+    case (name_eq_dec n' from) => H_dec.
+      exists (x0 * x^-1).
+      by rewrite NMapFacts.add_eq_o.
+    have IH := IHrefl_trans_1n_trace1 _ H3 H7 _ H4 _ H9.  
+    break_exists_name m'.
+    exists m'.
+    apply NMapFacts.find_mapsto_iff.
+    apply NMapFacts.add_neq_mapsto_iff; auto.
+    by apply NMapFacts.find_mapsto_iff.
   * find_injection.
     by eauto.
   * find_injection.
@@ -1036,19 +1010,11 @@ end; simpl in *.
     repeat find_rewrite.
     find_apply_lem_hyp NSetFacts.remove_3.
     have IH := IHrefl_trans_1n_trace1 _ H3 H7 _ H4 _ H9.
-    break_exists.
-    exists x1.
+    break_exists_name m'.
+    exists m'.
     apply NMapFacts.find_mapsto_iff.
     apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq.
     by apply NMapFacts.find_mapsto_iff.
-  * find_injection.
-    have H_neq: n' <> from.
-      move => H_eq.
-      repeat find_rewrite.
-      by find_apply_lem_hyp NSetFacts.remove_1.
-    repeat find_rewrite.
-    find_apply_lem_hyp NSetFacts.remove_3.
-    by eauto.
   * find_injection.
     have H_neq: n' <> from.
       move => H_eq.
@@ -1086,97 +1052,6 @@ end; simpl in *.
   * find_injection.
     by eauto.
   * find_injection.
-    by eauto.
-- by eauto.
-Qed.
-
-Lemma Aggregation_in_set_exists_find_received : 
-forall net failed tr, 
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
- forall n, In n net.(odnwNodes) -> ~ In n failed ->
- forall d, net.(odnwState) n = Some d ->
- forall n', NSet.In n' d.(adjacent) -> 
-       exists m5 : m, NMap.find n' d.(received) = Some m5.
-Proof.
-move => net failed tr H.
-change failed with (fst (failed, net)).
-change net with (snd (failed, net)) at 1 3.
-remember step_o_d_f_init as y in *.
-move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
-concludes.
-match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
-end; simpl in *.
-- move => n H_in H_f d.
-  rewrite /update.
-  break_if => H_eq.
-    find_injection.
-    unfold InitData in *.
-    by find_apply_lem_hyp NSetFacts.empty_1.
-  break_or_hyp => //.
-  by eauto.
-- find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //=; unfold update in *; break_if; try by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    case (name_eq_dec n' from) => H_dec.
-      exists (x0 * x).
-      rewrite H_dec.
-      exact: NMapFacts.add_eq_o.
-    rewrite NMapFacts.add_neq_o; last by auto.
-    by eauto.
-  * find_injection.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    have H_neq: n' <> from.
-      move => H_eq.
-      find_rewrite.
-      by find_apply_lem_hyp NSetFacts.remove_1.
-    find_apply_lem_hyp NSetFacts.remove_3.
-    have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H4 _ H9.
-    break_exists.
-    exists x1.
-    apply NMapFacts.find_mapsto_iff.
-    apply NMapFacts.remove_neq_mapsto_iff; first by move => H_eq; rewrite H_eq in H_neq.
-    by apply NMapFacts.find_mapsto_iff.
-  * find_injection.
-    repeat find_rewrite.
-    find_apply_lem_hyp NSetFacts.remove_3.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    find_apply_lem_hyp NSetFacts.remove_3.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    case (name_eq_dec n' from) => H_dec.
-      exists 1.
-      rewrite H_dec.
-      exact: NMapFacts.add_eq_o.
-    find_apply_lem_hyp NSetFacts.add_3; last by auto.
-    rewrite NMapFacts.add_neq_o; last by auto.
-    by eauto.
-- find_apply_lem_hyp input_handlers_IOHandler.
-  io_handler_cases => //=; unfold update in *; break_if; try by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
-    by eauto.
-  * find_injection.
-    repeat find_rewrite.
     by eauto.
 - by eauto.
 Qed.
@@ -1244,15 +1119,11 @@ end; simpl in *.
     find_rewrite.
     case: IH => IH; first exact: before_all_not_in.
     by break_and.
-  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
-    find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
-    by break_and.
-  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
-    find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
-    by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
     case: IH => IH; first exact: before_all_not_in.
     by break_and.
@@ -1366,36 +1237,24 @@ end; simpl in *.
     break_or_hyp; first by left.
     right.
     exact: NSetFacts.remove_2.
-  * contradict H17.
-    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H6 H2 _ H16 m5.
+  * contradict H16.
+    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H12 H2 _ H15 m5.
     find_rewrite.
     simpl in *.
     break_or_hyp => //.
     by break_and.
   * find_rewrite.
     break_or_hyp => //.
-    have IH := IHrefl_trans_1n_trace1 _ H6 H15 _ H16 _ H17 _ H4.
+    have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 _ H16 _ H4.
     break_or_hyp; first by left.
     right.
-    exact: NSetFacts.remove_2.
-  * contradict H17.
-    have H_bef := Aggregation_in_after_all_fail_aggregate H _ H6 H2 _ H16 m5.
-    find_rewrite.
-    simpl in *.
-    break_or_hyp => //.
-    by break_and.
-  * break_or_hyp => //.
-    have IH := IHrefl_trans_1n_trace1 _ H6 H15 _ H16 _ H17 _ H4.
-    break_or_hyp; first by left.
-    right.
-    find_rewrite.
     exact: NSetFacts.remove_2.
   * find_rewrite.
     right.
     exact: NSetFacts.add_1.
   * break_or_hyp => //.
     find_rewrite.
-    have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 _ H16 _ H4.
+    have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H14 _ H15 _ H4.
     break_or_hyp; first by left.
     right.
     exact: NSetFacts.add_2.
@@ -1500,15 +1359,11 @@ end; simpl in *.
     find_rewrite.
     case: IH => IH; first exact: before_all_not_in.
     by break_and.
-  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
-    find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
-    by break_and.
-  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H16 m'.
-    find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
-    by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
     case: IH => IH; first exact: before_all_not_in.
     by break_and.
@@ -1564,7 +1419,7 @@ Qed.
 
 Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
   {
-    tot_s_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+    tot_s_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(balance) ;
     tot_s_map_input := fun n i => 
                         match i with
                         | Local m_inp => OA.Local m_inp
@@ -1631,38 +1486,17 @@ net_handler_cases; OA.io_handler_cases; simpl in *; (try by congruence); try rep
   repeat find_rewrite.
   simpl in *.
   break_or_hyp; break_or_hyp => //.
-  by break_and.    
+  by break_and.
 * case: H0.
-  have H_hd: head (odnwPackets net x1 n) = Some Fail by find_rewrite.
+  have H_hd: head (odnwPackets net x0 n) = Some Fail by find_rewrite.
   apply: (Aggregation_head_fail_then_adjacent H_star _ _ _ _ H_hd) => //.
   case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec' //.
   have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
-  by congruence.      
-* case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec'; last first.
-    have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
-    by congruence.
-  have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H_dec' H_in_f H_eq' H.
   by congruence.
 * case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec'; last first.
     have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
     by congruence.
-  have [m' H_m] := Aggregation_in_set_exists_find_sent H_star _ H_dec' H_in_f H_eq' H.
-  by congruence.
-* case: H.
-  have H_hd: head (odnwPackets net x n) = Some Fail by find_rewrite.
-  apply: (Aggregation_head_fail_then_adjacent H_star _ _ _ _ H_hd) => //=.
-  case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec' //.
-  have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
-  by congruence.
-* case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec'; last first.
-    have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
-    by congruence.
-  have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H_dec' H_in_f H_eq' H.
-  by congruence.
-* case (in_dec name_eq_dec n net.(odnwNodes)) => H_dec'; last first.
-    have H_st := (@ordered_dynamic_uninitialized_state _ _ _ _ Aggregation_FailMsgParams _ _ _ H_star) _ H_dec'.
-    by congruence.
-  have [m' H_m] := Aggregation_in_set_exists_find_received H_star _ H_dec' H_in_f H_eq' H.
+  have [m' H_m] := Aggregation_in_set_exists_find_balance H_star _ H_dec' H_in_f H_eq' H.
   by congruence.
 * case: H.
   have H_hd: head (odnwPackets net x n) = Some Fail by find_rewrite.
@@ -1682,8 +1516,7 @@ Instance AggregationData_Data : AggregationData Data :=
     aggr_local := local ;
     aggr_aggregate := aggregate ;
     aggr_adjacent := adjacent ;
-    aggr_sent := sent ;
-    aggr_received := received
+    aggr_balance := balance
   }.
 
 Instance AggregationMsg_Aggregation : AggregationMsg :=
@@ -1767,7 +1600,7 @@ Hypothesis after_adjacent :
   P d [New].
 
 Hypothesis recv_fail_from_eq :
-  forall onet failed tr ms m0 m1,
+  forall onet failed tr ms m0,
   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
@@ -1777,18 +1610,16 @@ Hypothesis recv_fail_from_eq :
   adjacent_to n' n ->
   onet.(odnwPackets) n' n = Fail :: ms ->
   forall d, onet.(odnwState) n = Some d ->
-  NMap.find n' d.(sent) = Some m0 ->
-  NMap.find n' d.(received) = Some m1 ->
+  NMap.find n' d.(balance) = Some m0 ->
   P d (onet.(odnwPackets) n' n) ->
   P {| local := d.(local) ;
-       aggregate := d.(aggregate) * m0 * m1^-1 ;
+       aggregate := d.(aggregate) * m0 ;
        adjacent := NSet.remove n' d.(adjacent) ;
-       sent := NMap.remove n' d.(sent) ;
-       received := NMap.remove n' d.(received)     
+       balance := NMap.remove n' d.(balance)
     |} ms.
 
 Hypothesis recv_fail_from_neq :
-  forall onet failed tr from ms m0 m1,
+  forall onet failed tr from ms m0,
   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
@@ -1799,14 +1630,12 @@ Hypothesis recv_fail_from_neq :
   adjacent_to from n ->
   onet.(odnwPackets) from n = Fail :: ms ->
   forall d, onet.(odnwState) n = Some d ->
-  NMap.find from d.(sent) = Some m0 ->
-  NMap.find from d.(received) = Some m1 ->
+  NMap.find from d.(balance) = Some m0 ->
   P d (onet.(odnwPackets) n' n) ->
   P {| local := d.(local) ;
-       aggregate := d.(aggregate) * m0 * m1^-1 ;
+       aggregate := d.(aggregate) * m0 ;
        adjacent := NSet.remove from d.(adjacent) ;
-       sent := NMap.remove from d.(sent) ;
-       received := NMap.remove from d.(received)
+       balance := NMap.remove from d.(balance)
     |} (onet.(odnwPackets) n' n).
 
 Hypothesis recv_new_from_eq :
@@ -1823,8 +1652,7 @@ Hypothesis recv_new_from_eq :
   P {| local := d.(local) ;
        aggregate := d.(aggregate) ;
        adjacent := NSet.add n' d.(adjacent) ;
-       sent := NMap.add n' 1 d.(sent) ;
-       received := NMap.add n' 1 d.(received)
+       balance := NMap.add n' 1 d.(balance)
     |} ms.
 
 Hypothesis recv_new_from_neq :
@@ -1842,8 +1670,7 @@ Hypothesis recv_new_from_neq :
   P {| local := d.(local) ;
        aggregate := d.(aggregate) ;       
        adjacent := NSet.add from d.(adjacent) ;
-       sent := NMap.add from 1 d.(sent) ;
-       received := NMap.add from 1 d.(received)
+       balance := NMap.add from 1 d.(balance)
      |} (onet.(odnwPackets) n' n).
 
 Hypothesis recv_aggregate_eq : 
@@ -1856,13 +1683,12 @@ Hypothesis recv_aggregate_eq :
   adjacent_to n' n ->
   onet.(odnwPackets) n' n = Aggregate m' :: ms ->
   forall d, onet.(odnwState) n = Some d -> 
-  NMap.find n' d.(received) = Some m0 ->
+  NMap.find n' d.(balance) = Some m0 ->
   P d (onet.(odnwPackets) n' n) ->
   P {| local := d.(local) ;
        aggregate := d.(aggregate) * m' ;
        adjacent := d.(adjacent) ;
-       sent := d.(sent) ;
-       received := NMap.add n' (m0 * m') d.(received)
+       balance := NMap.add n' (m0 * (m')^-1) d.(balance)
     |} ms.
 
 Hypothesis recv_aggregate_other : 
@@ -1876,13 +1702,12 @@ Hypothesis recv_aggregate_other :
   adjacent_to from n ->
   onet.(odnwPackets) from n = Aggregate m' :: ms ->
   forall d, onet.(odnwState) n = Some d -> 
-  NMap.find from d.(received) = Some m0 ->  
+  NMap.find from d.(balance) = Some m0 ->  
   P d (onet.(odnwPackets) n' n) ->
   P {| local := d.(local) ;
        aggregate := d.(aggregate) * m' ;
        adjacent := d.(adjacent) ;
-       sent := d.(sent) ;
-       received := NMap.add from (m0 * m') d.(received)
+       balance := NMap.add from (m0 * (m')^-1) d.(balance)
     |} (onet.(odnwPackets) n' n).
 
 Hypothesis recv_local : 
@@ -1895,8 +1720,7 @@ Hypothesis recv_local :
     P {| local := m_local ;
          aggregate := d.(aggregate) * m_local * d.(local)^-1 ;
          adjacent := d.(adjacent) ;
-         sent := d.(sent) ;
-         received := d.(received)
+         balance := d.(balance)
       |} (onet.(odnwPackets) n' n).
 
 Hypothesis send_fail : 
@@ -1923,13 +1747,12 @@ Hypothesis recv_send_aggregate :
     forall d, onet.(odnwState) n = Some d ->
     NSet.In n' d.(adjacent) ->
     d.(aggregate) <> 1 ->
-    NMap.find n' d.(sent) = Some m' ->
+    NMap.find n' d.(balance) = Some m' ->
     P d (onet.(odnwPackets) n' n) ->
     P {| local := d.(local) ;
          aggregate := 1 ;
          adjacent := d.(adjacent) ;
-         sent := NMap.add n' (m' * d.(aggregate)) d.(sent) ;
-         received := d.(received) 
+         balance := NMap.add n' (m' * d.(aggregate)) d.(balance)
       |} (onet.(odnwPackets) n' n).
 
 Hypothesis recv_send_aggregate_other : 
@@ -1944,13 +1767,12 @@ Hypothesis recv_send_aggregate_other :
     forall d, onet.(odnwState) n = Some d ->
     NSet.In to d.(adjacent) ->
     d.(aggregate) <> 1 ->
-    NMap.find to d.(sent) = Some m' ->
+    NMap.find to d.(balance) = Some m' ->
     P d (onet.(odnwPackets) n' n) ->
     P {| local := d.(local) ;
          aggregate := 1 ;
          adjacent := d.(adjacent) ;
-         sent := NMap.add to (m' * d.(aggregate)) d.(sent) ;
-         received := d.(received) 
+         balance := NMap.add to (m' * d.(aggregate)) d.(balance)
         |} (onet.(odnwPackets) n' n).
 
 Hypothesis recv_send_aggregate_sender :
@@ -2035,7 +1857,7 @@ end; simpl in *.
       find_injection.
       destruct d0.
       simpl in *.
-      rewrite H7 H8 H9 H10 H11.
+      rewrite H7 H8 H9 H10.
       rewrite /update2.
       break_if.
         break_and.
@@ -2056,7 +1878,7 @@ end; simpl in *.
     case (in_dec name_eq_dec from net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.          
     have H_ins := Aggregation_aggregate_msg_dst_adjacent_src s1 _ H1 H0 _ H_dec _ H_in H2.
     break_or_hyp; last first.
-      have [m' H_rcd] := Aggregation_in_set_exists_find_received s1 _ H1 H0 H2 H6.
+      have [m' H_rcd] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H6.
       by congruence.
     have H_bef := Aggregation_in_after_all_aggregate_new s1 _ H1 H0 _ H_dec x.
     repeat find_rewrite.
@@ -2080,16 +1902,12 @@ end; simpl in *.
       have H_adj := Aggregation_head_fail_then_adjacent s1 _ H1 H0 _ H_hd H2.
       exact: (Aggreation_in_adj_adjacent_to s1 _ H1 H0 H2 H_adj).
     break_or_hyp => //.
-    apply: (@recv_fail_from_neq _ _ _ _ ms _ _ s1) => //; last by eauto.
+    apply: (@recv_fail_from_neq _ _ _ _ ms _ s1) => //; last by eauto.
     have H_adj := Aggregation_head_fail_then_adjacent s1 _ H1 H0 _ H_hd H2.
     exact: (Aggreation_in_adj_adjacent_to s1 _ H1 H0 H2 H_adj).
   * have H_hd: head (odnwPackets net from to) = Some Fail by find_rewrite.
     have H_ins := Aggregation_head_fail_then_adjacent s1 _ H1 H0 _ H_hd H2.
-    have [m' H_rcd] := Aggregation_in_set_exists_find_sent s1 _ H1 H0 H2 H_ins.
-    by congruence.
-  * have H_hd: head (odnwPackets net from to) = Some Fail by find_rewrite.
-    have H_ins := Aggregation_head_fail_then_adjacent s1 _ H1 H0 _ H_hd H2.
-    have [m' H_rcd] := Aggregation_in_set_exists_find_received s1 _ H1 H0 H2 H_ins.
+    have [m' H_rcd] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H_ins.
     by congruence.
   * have H_neq: from <> to.
       move => H_eq.
@@ -2127,7 +1945,7 @@ end; simpl in *.
         have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H1 H0 H2 H3.
         by break_or_hyp; break_and.
       by eauto.
-  * have [m' H_rcd] := Aggregation_in_set_exists_find_sent s1 _ H1 H0 H2 H.
+  * have [m' H_rcd] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H.
     by congruence.
   * unfold update in *.
     destruct d0.
@@ -2251,7 +2069,7 @@ Hypothesis after_init_snd_adjacent :
     P d (InitData n') [New] [New].
 
 Hypothesis recv_fail_self :
-  forall onet failed tr from ms m0 m1,
+  forall onet failed tr from ms m0,
     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
@@ -2262,25 +2080,22 @@ Hypothesis recv_fail_self :
     adjacent_to from n ->
     onet.(odnwPackets) from n = Fail :: ms ->
     forall d, onet.(odnwState) n = Some d ->
-    NMap.find from d.(sent) = Some m0 ->
-    NMap.find from d.(received) = Some m1 ->
+    NMap.find from d.(balance) = Some m0 ->
     P d d (onet.(odnwPackets) n n) (onet.(odnwPackets) n n) ->
     P {| local := d.(local) ;
-         aggregate := d.(aggregate) * m0 * m1^-1 ;
+         aggregate := d.(aggregate) * m0 ;
          adjacent := NSet.remove from d.(adjacent) ;
-         sent := NMap.remove from d.(sent) ;
-         received := NMap.remove from d.(received)
+         balance := NMap.remove from d.(balance)
       |} 
       {| local := d.(local) ;
-         aggregate := d.(aggregate) * m0 * m1^-1 ;
+         aggregate := d.(aggregate) * m0 ;
          adjacent := NSet.remove from d.(adjacent) ;
-         sent := NMap.remove from d.(sent) ;
-         received := NMap.remove from d.(received)
+         balance := NMap.remove from d.(balance)
       |} 
       [] [].
 
 Hypothesis recv_fail_other_fst :
-  forall onet failed tr from ms m0 m1,
+  forall onet failed tr from ms m0,
     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
@@ -2295,19 +2110,17 @@ Hypothesis recv_fail_other_fst :
     onet.(odnwPackets) from n = Fail :: ms ->    
     forall d0, onet.(odnwState) n = Some d0 ->
     forall d1, onet.(odnwState) n' = Some d1 ->
-    NMap.find from d0.(sent) = Some m0 ->
-    NMap.find from d0.(received) = Some m1 ->
+    NMap.find from d0.(balance) = Some m0 ->
     P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
     P {| local := d0.(local) ;
-         aggregate := d0.(aggregate) * m0 * m1^-1 ;
+         aggregate := d0.(aggregate) * m0 ;
          adjacent := NSet.remove from d0.(adjacent) ;
-         sent := NMap.remove from d0.(sent) ;
-         received := NMap.remove from d0.(received)
+         balance := NMap.remove from d0.(balance)
        |} d1
       (odnwPackets onet n n') (odnwPackets onet n' n).
 
 Hypothesis recv_fail_other_snd :
-  forall onet failed tr from ms m0 m1,
+  forall onet failed tr from ms m0,
     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
@@ -2322,15 +2135,13 @@ Hypothesis recv_fail_other_snd :
     onet.(odnwPackets) from n' = Fail :: ms ->
     forall d0, onet.(odnwState) n = Some d0 ->
     forall d1, onet.(odnwState) n' = Some d1 ->
-    NMap.find from d1.(sent) = Some m0 ->
-    NMap.find from d1.(received) = Some m1 ->
+    NMap.find from d1.(balance) = Some m0 ->
     P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
     P d0 
       {| local := d1.(local) ;
-         aggregate := d1.(aggregate) * m0 * m1^-1 ;
+         aggregate := d1.(aggregate) * m0 ;
          adjacent := NSet.remove from d1.(adjacent) ;
-         sent := NMap.remove from d1.(sent) ;
-         received := NMap.remove from d1.(received)
+         balance := NMap.remove from d1.(balance)
       |}
       (odnwPackets onet n n') (odnwPackets onet n' n).
 
@@ -2349,14 +2160,12 @@ Hypothesis recv_new_self :
     P {| local := d.(local) ;
          aggregate := d.(aggregate) ;
          adjacent := NSet.add from d.(adjacent) ;
-         sent := NMap.add from 1 d.(sent) ;
-         received := NMap.add from 1 d.(received)
+         balance := NMap.add from 1 d.(balance)
       |}
       {| local := d.(local) ;
          aggregate := d.(aggregate) ;
          adjacent := NSet.add from d.(adjacent) ;
-         sent := NMap.add from 1 d.(sent) ;
-         received := NMap.add from 1 d.(received)
+         balance := NMap.add from 1 d.(balance)
       |}
       [] [].
 
@@ -2376,8 +2185,7 @@ Hypothesis recv_new_fst :
     P {| local := d0.(local) ;
          aggregate := d0.(aggregate) ;
          adjacent := NSet.add n' d0.(adjacent) ;
-         sent := NMap.add n' 1 d0.(sent) ;
-         received := NMap.add n' 1 d0.(received)
+         balance := NMap.add n' 1 d0.(balance)
       |} 
       d1
       (odnwPackets onet n n') ms.
@@ -2398,8 +2206,7 @@ Hypothesis recv_new_snd :
     P d0 {| local := d1.(local) ;
             aggregate := d1.(aggregate) ;
             adjacent := NSet.add n d1.(adjacent) ;
-            sent := NMap.add n 1 d1.(sent) ;
-            received := NMap.add n 1 d1.(received)
+            balance := NMap.add n 1 d1.(balance)
          |}
       ms (odnwPackets onet n' n).
 
@@ -2480,13 +2287,12 @@ Lemma Aggregation_sent_received_eq :
     forall n, In n net.(odnwNodes) -> ~ In n failed ->
     forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
     forall d, net.(odnwState) n = Some d ->
-    forall d', net.(odnwState) n' = Some d' ->
-    forall m0 m1,
+    forall d', net.(odnwState) n' = Some d' ->    
     NSet.In n' d.(adjacent) ->
     NSet.In n d'.(adjacent) ->
-    NMap.find n d'.(sent) = Some m0 ->
-    NMap.find n' d.(received) = Some m1 ->
-    m0 = sum_aggregate_msg (net.(odnwPackets) n' n) * m1.
+    forall m0, NMap.find n d'.(balance) = Some m0 ->
+    forall m1, NMap.find n' d.(balance) = Some m1 ->
+    m0 * (sum_aggregate_msg (net.(odnwPackets) n n'))^-1 = (m1)^-1 * sum_aggregate_msg (net.(odnwPackets) n' n).
 Proof.
 Admitted.
 

@@ -89,12 +89,7 @@ Record Data := mkData {
 }.
 
 Definition InitData (n : name) := 
-if root_dec n then
-  {| adjacent := adjacency n nodes ;
-     broadcast := true ;
-     levels := NMap.empty lv |}
-else
-  {| adjacent := adjacency n nodes ;
+  {| adjacent := NSet.empty ;
      broadcast := false ;
      levels := NMap.empty lv |}.
 
@@ -111,7 +106,8 @@ match msg with
 | New => 
   put {| adjacent := NSet.add src st.(adjacent) ;
          broadcast := st.(broadcast) ;
-         levels := st.(levels) |}
+         levels := st.(levels) |} ;;
+  send (src, Level (Some 0))
 end.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
@@ -144,10 +140,12 @@ match msg with
     put {| adjacent := NSet.remove src st.(adjacent) ;
            broadcast := true ;
            levels := NMap.remove src st.(levels) |}
-| New => 
+| New =>
   put {| adjacent := NSet.add src st.(adjacent) ;
          broadcast := st.(broadcast) ;
-         levels := st.(levels) |}
+         levels := st.(levels) |} ;;
+  when (sumbool_not _ _ (olv_eq_dec (level st.(adjacent) st.(levels)) None))
+    (send (src, Level (level st.(adjacent) st.(levels))))
 end.
 
 Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
@@ -297,42 +295,62 @@ Lemma NetHandler_cases :
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (msg = New /\
+    (root dst /\ msg = New /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
-     out = [] /\ ms = []). 
+     out = [] /\ ms = [(src, Level (Some 0))]) \/
+    (~ root dst /\ msg = New /\ level st.(adjacent) st.(levels) = None /\
+     st'.(adjacent) = NSet.add src st.(adjacent) /\
+     st'.(broadcast) = st.(broadcast) /\
+     st'.(levels) = st.(levels) /\
+     out = [] /\ ms = []) \/
+    (~ root dst /\ msg = New /\ exists lv, level st.(adjacent) st.(levels) = Some lv /\
+     st'.(adjacent) = NSet.add src st.(adjacent) /\
+     st'.(broadcast) = st.(broadcast) /\
+     st'.(levels) = st.(levels) /\
+     out = [] /\ ms = [(src, Level (Some lv))]).
 Proof.
 move => dst src msg st out st' ms.
 rewrite /NetHandler /RootNetHandler /NonRootNetHandler.
-case: msg; monad_unfold.
-- case root_dec => /= H_dec.
-  * move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-    by left.
-  * case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-      by right; left.
-    by right; right; left.
-- case root_dec => /= H_dec olv_msg.
-    move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-    right; right; right; left.
-    split => //.
-    by exists olv_msg.
-  case H_olv_dec: olv_msg => [lv_msg|]; case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-  * right; right; right; right; left.
-    split => //.
-    by exists lv_msg.
-  * right; right; right; right; right; left.
-    split => //.
-    by exists lv_msg.
-  * by right; right; right; right; right; right; left.
-  * by right; right; right; right; right; right; right; left.
-- case root_dec => /= H_dec.
-    right; right; right; right; right; right; right; right.
-    by find_inversion.
-  right; right; right; right; right; right; right; right.
-  by find_inversion.    
+case: msg => [|olv|]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat break_match; repeat break_if; repeat find_injection.
+- by left.
+- right; left.
+  move: Heqb.
+  by case olv_eq_dec.
+- right; right; left.
+  move: Heqb.
+  by case olv_eq_dec.
+- right; right; right; left.
+  split => //.
+  by exists olv.
+- right; right; right; right; left.
+  split => //.
+  exists l1.
+  move: Heqb.
+  by case olv_eq_dec.
+- right; right; right; right; right; left.
+  split => //.
+  exists l1.
+  move: Heqb.
+  by case olv_eq_dec.
+- right; right; right; right; right; right; left.
+  move: Heqb.
+  by case olv_eq_dec.
+- right; right; right; right; right; right; right; left.
+  move: Heqb.
+  by case olv_eq_dec.
+- by right; right; right; right; right; right; right; right; left.
+- unfold sumbool_not in *.
+  break_match => //.
+  right; right; right; right; right; right; right; right; right; right.
+  move: n {Heqb}.
+  case H_lv: level => [lv|] H_neq //.
+  repeat split => //.
+  by exists lv.
+- unfold sumbool_not in *.
+  break_match => //.
+  by right; right; right; right; right; right; right; right; right; left.
 Qed.
 
 Lemma input_handlers_IOHandler :
@@ -500,45 +518,19 @@ Lemma IOHandler_cases :
 Proof.
 move => h i st u out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
-case: i => [|]; monad_unfold.
-- case root_dec => /= H_dec H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
-    by right; right; right; left.
-  by right; right; right; right.
-- case root_dec => /= H_dec; case H_b: broadcast => /=.
-  * left.
-    repeat break_let.
-    injection Heqp => H_ms H_st H_out H_tt.
-    subst.
-    injection Heqp2 => H_ms H_st H_out H_tt.
-    subst.
-    injection H => H_ms H_st H_out H_tt.
-    subst.
-    rewrite /=.
-    have H_eq := send_level_adjacent_eq st.(adjacent) (Some 0) st.
-    rewrite Heqp5 in H_eq.
-    injection H_eq => H_eq_ms H_eq_st H_eq_o H_eq_tt.
-    rewrite H_eq_ms H_eq_o.
-    by rewrite app_nil_l -2!app_nil_end.
-  * right; right; left.
-    injection H => H_ms H_st H_o H_tt.
-    by rewrite H_st H_o H_ms.
-  * right; left.
-    repeat break_let.
-    injection Heqp => H_ms H_st H_out H_tt.
-    subst.
-    injection Heqp2 => H_ms H_st H_out H_tt.
-    subst.
-    injection H => H_ms H_st H_out H_tt.
-    subst.
-    rewrite /=.
-    have H_eq := send_level_adjacent_eq st.(adjacent) (level st.(adjacent) st.(levels)) st.
-    rewrite Heqp5 in H_eq.
-    injection H_eq => H_eq_ms H_eq_st H_eq_o H_eq_tt.
-    rewrite H_eq_ms H_eq_o.
-    by rewrite app_nil_l -2!app_nil_end.
-  * right; right; left.
-    injection H => H_ms H_st H_o H_tt.
-    by rewrite H_st H_o H_ms.
+case: i; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat break_match; repeat break_if; repeat find_injection.
+- by right; right; right; left.
+- by right; right; right; right.
+- find_rewrite_lem send_level_adjacent_eq.
+  find_injection.
+  left.
+  by rewrite app_nil_l -2!app_nil_end.
+- by right; right; left.
+- find_rewrite_lem send_level_adjacent_eq.
+  find_injection.
+  right; left.
+  by rewrite app_nil_l -2!app_nil_end.
+- by right; right; left.
 Qed.
 
 Ltac net_handler_cases := 
