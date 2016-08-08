@@ -2287,16 +2287,11 @@ have H_cons := Aggregation_conserves_node_mass_all H_step.
 apply global_conservation in H_cons.
 rewrite /conserves_mass_globally in H_cons.
 rewrite H_cons {H_cons}.
-suff H_suff: @sum_balance _ AggregationData_Data (Nodes_data (remove_all name_eq_dec failed nodes) onet.(onwState)) =
-             @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (remove_all name_eq_dec failed nodes) onet.(onwPackets) *
-             @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (remove_all name_eq_dec failed nodes) onet.(onwPackets) onet.(onwState).
-  move: H_suff.
-  set ss1 := sum_balance _.
-  set sai1 := sum_aggregate_msg_incoming_active _ _ _.
-  set sfsia := sum_fail_balance_incoming_active _ _ _ _.
-  set sa := sum_aggregate _.
-  move => H_suff.
-  by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
+set sb := sum_balance _.
+set saa := sum_aggregate_msg_incoming_active _ _ _.
+set sfb := sum_fail_balance_incoming_active _ _ _ _.
+suff H_suff: sb = saa * sfb by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
+rewrite /sb /saa /sfb {sb saa sfb}.
 remember step_o_f_init as y in *.
 have ->: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
@@ -2341,7 +2336,6 @@ end; simpl.
   * have H_in: In (Aggregate x) (onwPackets net from to) by rewrite H0; left.
     have H_ins := Aggregation_aggregate_msg_dst_adjacent_src H_step1 _ H1 _ _ H_in.
     rewrite sumM_add_map //.
-    gsimpl.
     aac_rewrite IH.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
@@ -2513,25 +2507,25 @@ end; simpl.
   move: IH.
   rewrite -2!sum_aggregate_msg_incoming_active_split.
   move => IH.
-  have ->: @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (ns0 ++ ns1) l *
-    @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes ns0 l (onwState net) *
-    @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes ns1 l (onwState net) =
-    @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (ns0 ++ ns1) l *
-    @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (ns0 ++ ns1) l (onwState net).
+  set sa := sum_aggregate_msg_incoming_active _ _ _.
+  set sf1 := sum_fail_balance_incoming_active _ _ _ _.
+  set sf2 := sum_fail_balance_incoming_active _ _ _ _.
+  have ->: sa * sf1 * sf2 =
+    sa * @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (ns0 ++ ns1) l (onwState net).
     rewrite sum_fail_balance_incoming_active_split.
     by gsimpl.
+  rewrite /sa /sf1 /sf2 {sa sf1 sf2}.
   move: IH.
-  have ->: @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (ns0 ++ ns1) (onwPackets net) *
-   @sum_aggregate_msg_incoming AggregationMsg_Aggregation nodes (onwPackets net) h *
-   @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes ns0 (onwPackets net) (onwState net) *
-   @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes ns1 (onwPackets net) (onwState net) *
-   @sum_fail_map_incoming AggregationMsg_Aggregation nodes (onwPackets net) h (adjacent (onwState net h)) (balance (onwState net h)) =
-   @sum_aggregate_msg_incoming_active AggregationMsg_Aggregation nodes (ns0 ++ ns1) (onwPackets net) *
-   @sum_aggregate_msg_incoming AggregationMsg_Aggregation nodes (onwPackets net) h *
-   @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (ns0 ++ ns1) (onwPackets net) (onwState net) *
-   @sum_fail_map_incoming AggregationMsg_Aggregation nodes (onwPackets net) h (adjacent (onwState net h)) (balance (onwState net h)).
+  set saa := sum_aggregate_msg_incoming_active _ _ _.
+  set sai := sum_aggregate_msg_incoming _ _ _.
+  set sf1 := sum_fail_balance_incoming_active _ _ _ _.
+  set sf2 := sum_fail_balance_incoming_active _ _ _ _.
+  set sfm := sum_fail_map_incoming _ _ _ _ _.
+  have ->: saa * sai * sf1 * sf2 * sfm = 
+    saa * sai * @sum_fail_balance_incoming_active AggregationMsg_Aggregation _ AggregationData_Data nodes (ns0 ++ ns1) (onwPackets net) (onwState net) * sfm.
     rewrite sum_fail_balance_incoming_active_split.
     by gsimpl.
+  rewrite /saa /sai /sf1 /sf2 /sfm {saa sai sf1 sf2 sfm}.
   set sums := sumM _ _.
   set sb := sum_balance _.
   move => IH.
@@ -2553,8 +2547,7 @@ end; simpl.
     (sumM (adjacent (onwState net h)) (balance (onwState net h)))^-1 * s1 =
     (sumM_active (adjacent (onwState net h)) (balance (onwState net h)) (ns0 ++ ns1))^-1.
     rewrite -H_acs.
-    gsimpl.
-    by aac_reflexivity.
+    by gsimpl; aac_reflexivity.
   aac_rewrite H_acs'.
   move {H_acs H_acs' s1}.
   apply NoDup_remove_1 in H_nd.
@@ -2619,8 +2612,7 @@ end; simpl.
       move {IH}.
       rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-      gsimpl.
-      by aac_reflexivity.
+      by gsimpl; aac_reflexivity.
     - move/negP: H_mem => H_mem.
       case: H_mem.
       apply NSetFacts.mem_1.
@@ -2652,8 +2644,7 @@ end; simpl.
       move {IH}.
       rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
-      gsimpl.
-      by aac_reflexivity.
+      by gsimpl; aac_reflexivity.
   match goal with | H : _ = _ :: remove_all _ _ _ |- _ => symmetry in H end.
   move: H.
   move {H_dec}.
@@ -2739,8 +2730,7 @@ end; simpl.
     rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
     rewrite (sum_fail_map_incoming_not_adjacent_collate_eq _ _ _ _ _ H_Adj).
     rewrite (sum_aggregate_msg_incoming_not_adjacent_collate_eq _ _ _ H_Adj).
-    gsimpl.
-    by aac_reflexivity.
+    by gsimpl; aac_reflexivity.
   rewrite /=.
   have H_adj': adjacent_to n h by apply adjacent_to_symmetric in H_Adj.
   have H_ins: NSet.In h (net.(onwState) n).(adjacent) by exact: (Aggregation_adjacent_to_in_adj H_step1).
@@ -2858,8 +2848,7 @@ end; simpl.
   set s11 := sum_fail_balance_incoming_active _ _ _ _.
   set s12 := sum_aggregate_msg_incoming_active _ _ _.
   set s13 := sum_aggregate_msg_incoming_active _ _ _.
-  gsimpl.
-  by aac_reflexivity.
+  by gsimpl; aac_reflexivity.
 Qed.
 
 End Aggregation.
