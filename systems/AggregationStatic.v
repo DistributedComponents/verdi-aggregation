@@ -1,22 +1,6 @@
-(* merge sent and received into "balance" map? *)
-
-(* at recovery time, send new to all existing neighbors *)
-(* handle problem with unprocessed fail messages for recovery *)
-
+(* at recovery time, send new to all existing neighbors, handle problem with unprocessed fail messages for recovery *)
 (* higher-level language like ott/lem for protocols that exports to handlers? *)
-
-(* path to liveness properties:
-
-- handler monad must be able to output labels, e.g., return broadcast_level
-
-- all labels must be decorated with the involved node names by the semantics
-
-- labels must be removed at extraction time
-
-- is strong local liveness warranted in practice? how can extraction guarantee it?
-*)
-
-(* must use rev 6b77fae28fb5f669861a7b2782e35fcd0fe1fbfa of https://scm.gforge.inria.fr/anonscm/git/coq-contribs/aac-tactics.git *)
+(* must use v8.5 branch of https://github.com/coq-contribs/aac-tactics *)
 Require Import Verdi.
 Require Import HandlerMonad.
 Require Import NameOverlay.
@@ -2352,7 +2336,6 @@ end; simpl.
   rewrite 2!sum_balance_distr /=.
   rewrite 2!sum_aggregate_msg_incoming_active_split /=.
   rewrite 2!sum_fail_balance_incoming_active_split /=.
-  gsimpl.
   move => IH.  
   net_handler_cases => //=.
   * have H_in: In (Aggregate x) (onwPackets net from to) by rewrite H0; left.
@@ -2388,7 +2371,6 @@ end; simpl.
       by apply count_occ_not_In in H_cnt.
     have H_ins := Aggregation_in_queue_fail_then_adjacent H_step1 _ _ H1 H_in.
     rewrite (sumM_remove_remove H_ins H).
-    gsimpl.
     aac_rewrite IH.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
@@ -2430,7 +2412,6 @@ end; simpl.
   rewrite 2!sum_balance_distr /=.
   rewrite 2!sum_aggregate_msg_incoming_active_split /=.
   rewrite 2!sum_fail_balance_incoming_active_split /=.
-  gsimpl.
   move => IH.
   io_handler_cases => //=.
   * rewrite sum_fail_balance_incoming_active_not_in_eq_alt //.
@@ -2441,7 +2422,6 @@ end; simpl.
   * have H_x_Nodes: In x nodes by exact: all_names_nodes.
     have H_neq: h <> x by move => H_eq; have H_self := Aggregation_node_not_adjacent_self H_step1 H0; rewrite {1}H_eq in H_self.
     rewrite (sumM_add_map _ H H3).
-    gsimpl.
     aac_rewrite IH.
     move {IH}.
     rewrite sum_aggregate_msg_incoming_neq_eq //.
@@ -2620,11 +2600,9 @@ end; simpl.
     have IH' := IH H3 H_in' _ H.
     move {IH}.
     move: IH'.
-    gsimpl.
     move => IH.
     case in_dec => /= H_dec; case H_mem: (NSet.mem n (net.(onwState) h).(adjacent)).
     - apply NSetFacts.mem_2 in H_mem.
-      gsimpl.
       rewrite sum_fail_balance_incoming_active_all_head_eq.
       rewrite sum_fail_balance_incoming_active_all_head_eq in IH.
       rewrite (sum_fail_balance_incoming_active_all_head_eq ns').
@@ -2637,14 +2615,11 @@ end; simpl.
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH.
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
-      move: IH.
-      gsimpl.
-      move => IH.
       aac_rewrite IH.
       move {IH}.
-      gsimpl.
       rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+      gsimpl.
       by aac_reflexivity.
     - move/negP: H_mem => H_mem.
       case: H_mem.
@@ -2661,7 +2636,6 @@ end; simpl.
         apply NSetFacts.mem_1.
         exact: (Aggregation_aggregate_msg_dst_adjacent_src H_step1 _ _ _ m').
       rewrite (Aggregation_sum_aggregate_ms_no_aggregate_1 _ H_notin).
-      gsimpl.
       rewrite sum_fail_balance_incoming_active_all_head_eq.
       rewrite sum_fail_balance_incoming_active_all_head_eq in IH.
       rewrite (sum_fail_balance_incoming_active_all_head_eq ns').
@@ -2674,14 +2648,11 @@ end; simpl.
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH.
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
       rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
-      move: IH.
-      gsimpl.
-      move => IH.
       aac_rewrite IH.
       move {IH}.
-      gsimpl.
       rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
       rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
+      gsimpl.
       by aac_reflexivity.
   match goal with | H : _ = _ :: remove_all _ _ _ |- _ => symmetry in H end.
   move: H.
@@ -2697,10 +2668,8 @@ end; simpl.
   rewrite (Aggregation_self_channel_empty H_step1) //=.
   rewrite {1 3}/sum_fail_map /=.
   rewrite /sum_active_fold.
-  gsimpl.
   case (adjacent_to_dec _ _) => H_Adj; last first.
     rewrite /=.
-    gsimpl.
     have H_Adj': ~ adjacent_to n h by move => H_Adj'; apply adjacent_to_symmetric in H_Adj'.
     case: ifP => H_dec.
       apply NSetFacts.mem_2 in H_dec.
@@ -2752,7 +2721,6 @@ end; simpl.
       case => [m'|] l H_in_f H_in_agg H_in_m; first by case (H_in_agg m'); left.
       by case: H_in_m; left.
     rewrite H_emp_hn H_emp_nh /sum_fail_map /=.
-    gsimpl.
     rewrite sum_fail_balance_incoming_active_all_head_eq.
     rewrite sum_fail_balance_incoming_active_all_head_eq in IH'.
     rewrite (sum_fail_balance_incoming_active_all_head_eq ns').
@@ -2765,18 +2733,15 @@ end; simpl.
     rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH'.
     rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
     rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
-    move: IH'.
-    gsimpl.
-    move => IH.
-    aac_rewrite IH.
-    move {IH}.
+    aac_rewrite IH'.
+    move {IH'}.
     rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
     rewrite -(sum_fail_balance_incoming_active_singleton_neq_collate_eq _ _ _ H_neq).
     rewrite (sum_fail_map_incoming_not_adjacent_collate_eq _ _ _ _ _ H_Adj).
     rewrite (sum_aggregate_msg_incoming_not_adjacent_collate_eq _ _ _ H_Adj).
+    gsimpl.
     by aac_reflexivity.
   rewrite /=.
-  gsimpl.
   have H_adj': adjacent_to n h by apply adjacent_to_symmetric in H_Adj.
   have H_ins: NSet.In h (net.(onwState) n).(adjacent) by exact: (Aggregation_adjacent_to_in_adj H_step1).
   have H_ins': NSet.In n (net.(onwState) h).(adjacent) by exact: (Aggregation_adjacent_to_in_adj H_step1).
@@ -2821,8 +2786,7 @@ end; simpl.
   case H_bal': NMap.find => [m'0|]; last by rewrite H_bal in H_bal'.
   rewrite H_bal in H_bal'.
   injection H_bal' => H_eq_bal.
-  rewrite -H_eq_bal {m'0 H_bal' H_eq_bal}.  
-  gsimpl.
+  rewrite -H_eq_bal {m'0 H_bal' H_eq_bal}.
   rewrite sum_fail_balance_incoming_active_all_head_eq.
   rewrite sum_fail_balance_incoming_active_all_head_eq in IH'.
   rewrite (sum_fail_balance_incoming_active_all_head_eq ns').
@@ -2866,7 +2830,6 @@ end; simpl.
   rewrite H_bal_n in H_bal'.
   injection H_bal' => H_eq_bal.
   rewrite -H_eq_bal {m'2 H_bal' H_eq_bal}.
-  gsimpl.
   rewrite sum_aggregate_msg_incoming_active_eq_not_in_eq //.
   rewrite {1}/cl {1}/u2.
   rewrite sum_aggregate_msg_incoming_active_collate_update2_eq //.
@@ -2877,11 +2840,9 @@ end; simpl.
   have H_sr := Aggregation_sent_received_eq H_step1 H0 H1 H_ins' H_ins H_bal_n H_bal.
   aac_rewrite <- H_sr.
   move {H_sr}.
-  gsimpl.
   have H_agg: @sum_aggregate_msg AggregationMsg_Aggregation (onwPackets net h n) * (@sum_aggregate_msg AggregationMsg_Aggregation (onwPackets net h n))^-1 = 1 by gsimpl.
   aac_rewrite H_agg.
   move {H_agg}.
-  gsimpl.
   rewrite {1 2}/cl /u2.
   rewrite sum_fail_map_incoming_collate_not_in_eq //.
   rewrite sum_fail_map_incoming_not_in_eq //.
@@ -2896,7 +2857,8 @@ end; simpl.
   set s10 := sum_fail_balance_incoming_active _ _ _ _.
   set s11 := sum_fail_balance_incoming_active _ _ _ _.
   set s12 := sum_aggregate_msg_incoming_active _ _ _.
-  set s13 := sum_aggregate_msg_incoming_active _ _ _.  
+  set s13 := sum_aggregate_msg_incoming_active _ _ _.
+  gsimpl.
   by aac_reflexivity.
 Qed.
 
