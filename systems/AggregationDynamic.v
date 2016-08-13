@@ -2210,9 +2210,6 @@ Hypothesis recv_new_snd :
          |}
       ms (odnwPackets onet n' n).
 
-(* BLAAAA *)
-
-(*
 Hypothesis recv_new_fst_other :
   forall onet failed tr from ms,
    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
@@ -2229,15 +2226,661 @@ Hypothesis recv_new_fst_other :
    forall d0, onet.(odnwState) n = Some d0 ->
    forall d1, onet.(odnwState) n' = Some d1 ->
    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
-   P {| local := d0.(local) ;
-        
+   P {| local := d0.(local) ; 
+        aggregate := d0.(aggregate) ;
+        adjacent := NSet.add from d0.(adjacent) ;
+        balance := NMap.add from 1 d0.(balance)
+     |} d1 (odnwPackets onet n n') (odnwPackets onet n' n).
 
-        adjacent := NSet.add from (adjacent d0) 
+Hypothesis recv_new_snd_other :
+  forall onet failed tr from ms,
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   from <> n ->
+   from <> n' ->
+   In from (odnwNodes onet) ->
+   adjacent_to from n' ->
+   onet.(odnwPackets) from n' = New :: ms ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P d0 {| local := d1.(local) ;
+           aggregate := d1.(aggregate) ;
+           adjacent := NSet.add from d1.(adjacent) ;
+           balance := NMap.add from 1 d1.(balance)
+        |} (odnwPackets onet n n') (odnwPackets onet n' n).
 
-     |} d1
-     (odnwPackets onet n n') (odnwPackets onet n' n).
-*)
+Hypothesis recv_aggregate_self :
+  forall onet failed tr from ms m0 m',
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    n' = n ->
+    In from onet.(odnwNodes) ->
+    from <> n ->
+    adjacent_to from n ->
+    onet.(odnwPackets) from n = Aggregate m' :: ms ->    
+    forall d, onet.(odnwState) n = Some d ->
+    NMap.find from d.(balance) = Some m0 ->
+    P d d (onet.(odnwPackets) n n) (onet.(odnwPackets) n n) ->
+    P {| local := d.(local) ;
+         aggregate := d.(aggregate) * m' ;
+         adjacent := d.(adjacent) ;
+         balance := NMap.add from (m0 * (m')^-1) d.(balance)
+      |}
+      {| local := d.(local) ;
+         aggregate := d.(aggregate) * m' ;
+         adjacent := d.(adjacent) ;
+         balance := NMap.add from (m0 * (m')^-1) d.(balance)
+      |}
+      [] [].
 
+Hypothesis recv_aggregate_fst :
+  forall onet failed tr ms m0 m',
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->
+    onet.(odnwPackets) n' n = Aggregate m' :: ms ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find n' d0.(balance) = Some m0 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P {| local := d0.(local) ;
+         aggregate := d0.(aggregate) * m' ;
+         adjacent := d0.(adjacent) ;
+         balance := NMap.add n' (m0 * (m')^-1) d0.(balance)
+      |} d1 (odnwPackets onet n n') ms.
+
+Hypothesis recv_aggregate_snd :
+  forall onet failed tr ms m0 m',
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->
+    onet.(odnwPackets) n n' = Aggregate m' :: ms ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find n d1.(balance) = Some m0 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P d0 {| local := d1.(local) ;
+            aggregate := d1.(aggregate) * m' ;
+            adjacent := d1.(adjacent) ;
+            balance := NMap.add n (m0 * (m')^-1) d1.(balance)
+         |} ms (odnwPackets onet n' n).
+
+Hypothesis recv_aggregate_fst_other :
+  forall onet failed tr from ms m0 m',
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   from <> n ->
+   from <> n' ->
+   In from (odnwNodes onet) ->
+   adjacent_to from n ->
+   onet.(odnwPackets) from n = Aggregate m' :: ms ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   NMap.find from d0.(balance) = Some m0 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P {| local := d0.(local) ; 
+        aggregate := d0.(aggregate) * m' ;
+        adjacent := d0.(adjacent) ;
+        balance := NMap.add from (m0 * (m')^-1) d0.(balance)
+     |} d1 (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis recv_aggregate_snd_other :
+  forall onet failed tr from ms m0 m',
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   from <> n ->
+   from <> n' ->
+   In from (odnwNodes onet) ->
+   adjacent_to from n' ->
+   onet.(odnwPackets) from n' = Aggregate m' :: ms ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   NMap.find from d1.(balance) = Some m0 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P d0 {| local := d1.(local) ;
+           aggregate := d1.(aggregate) * m' ;
+           adjacent := d1.(adjacent) ;
+           balance := NMap.add from (m0 * (m')^-1) d1.(balance)
+        |} (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis recv_local_self : 
+  forall onet failed tr m_local,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    n' = n ->
+    forall d, onet.(odnwState) n = Some d ->
+    P d d (onet.(odnwPackets) n n) (onet.(odnwPackets) n n) ->
+    P {| local := m_local ;
+         aggregate := d.(aggregate) * m_local * d.(local)^-1 ;
+         adjacent := d.(adjacent) ;
+         balance := d.(balance)
+      |}
+      {| local := m_local ;
+         aggregate := d.(aggregate) * m_local * d.(local)^-1 ;
+         adjacent := d.(adjacent) ;
+         balance := d.(balance)
+      |}
+      [] [].
+
+Hypothesis recv_local_fst :
+  forall onet failed tr m_local,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P {| local := m_local ;
+         aggregate := d0.(aggregate) * m_local * d0.(local)^-1 ;
+         adjacent := d0.(adjacent) ;
+         balance := d0.(balance)
+      |} d1 (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis recv_local_snd :
+  forall onet failed tr m_local,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P d0 {| local := m_local ;
+            aggregate := d1.(aggregate) * m_local * d1.(local)^-1 ;
+            adjacent := d1.(adjacent) ;
+            balance := d1.(balance)
+         |} (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis send_aggregate_self :
+  forall onet failed tr to m0,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    n' = n ->
+    In to onet.(odnwNodes) ->
+    to <> n ->
+    adjacent_to to n ->
+    forall d, onet.(odnwState) n = Some d ->
+    NMap.find to d.(balance) = Some m0 ->
+    NSet.In to d.(adjacent) ->
+    d.(aggregate) <> 1 ->
+    P d d (odnwPackets onet n n) (odnwPackets onet n n) ->
+    P {| local := d.(local) ;
+         aggregate := 1 ;
+         adjacent := d.(adjacent) ;
+         balance := NMap.add to (m0 * d.(aggregate)) d.(balance)
+      |} 
+      {| local := d.(local) ;
+         aggregate := 1 ;
+         adjacent := d.(adjacent) ;
+         balance := NMap.add to (m0 * d.(aggregate)) d.(balance)
+      |} [] [].
+
+Hypothesis send_aggregate_fst :
+  forall onet failed tr m0,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find n' d0.(balance) = Some m0 ->
+    NSet.In n' d0.(adjacent) ->
+    d0.(aggregate) <> 1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P {| local := d0.(local) ;
+         aggregate := 1 ;
+         adjacent := d0.(adjacent) ;
+         balance := NMap.add n' (m0 * d0.(aggregate)) d0.(balance)
+      |} d1 (odnwPackets onet n n' ++ [Aggregate d0.(aggregate)]) (odnwPackets onet n' n).
+
+Hypothesis send_aggregate_snd :
+  forall onet failed tr m0,
+    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    In n (odnwNodes onet) -> 
+    ~ In n failed ->
+    In n' (odnwNodes onet) ->
+    ~ In n' failed ->
+    n' <> n ->
+    adjacent_to n' n ->    
+    forall d0, onet.(odnwState) n = Some d0 ->
+    forall d1, onet.(odnwState) n' = Some d1 ->
+    NMap.find n d1.(balance) = Some m0 ->
+    NSet.In n d1.(adjacent) ->
+    d1.(aggregate) <> 1 ->
+    P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+    P d0 {| local := d1.(local) ;
+            aggregate := 1 ;
+            adjacent := d1.(adjacent) ;
+            balance := NMap.add n (m0 * d1.(aggregate)) d1.(balance)
+         |} (odnwPackets onet n n') (odnwPackets onet n' n ++ [Aggregate d1.(aggregate)]).
+
+Hypothesis send_aggregate_fst_other :
+  forall onet failed tr to m0,
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   to <> n ->
+   to <> n' ->
+   In to (odnwNodes onet) ->
+   adjacent_to to n ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   NMap.find to d0.(balance) = Some m0 ->
+   NSet.In to d0.(adjacent) ->
+   d0.(aggregate) <> 1 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P {| local := d0.(local) ; 
+        aggregate := 1 ;
+        adjacent := d0.(adjacent) ;
+        balance := NMap.add to (m0 * d0.(aggregate)) d0.(balance)
+     |} d1 (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Hypothesis send_aggregate_snd_other :
+  forall onet failed tr to m0,
+   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   In n (odnwNodes onet) -> 
+   ~ In n failed ->
+   In n' (odnwNodes onet) ->
+   ~ In n' failed ->  
+   n' <> n ->
+   to <> n ->
+   to <> n' ->
+   In to (odnwNodes onet) ->
+   adjacent_to to n' ->
+   forall d0, onet.(odnwState) n = Some d0 ->
+   forall d1, onet.(odnwState) n' = Some d1 ->
+   NMap.find to d1.(balance) = Some m0 ->
+   NSet.In to d1.(adjacent) ->
+   d1.(aggregate) <> 1 ->
+   P d0 d1 (odnwPackets onet n n') (odnwPackets onet n' n) ->
+   P d0 {| local := d1.(local) ;
+           aggregate := 1 ;
+           adjacent := d1.(adjacent) ;
+           balance := NMap.add to (m0 * d1.(aggregate)) d1.(balance)
+        |} (odnwPackets onet n n') (odnwPackets onet n' n).
+
+Theorem P_dual_inv : 
+  forall d0, onet.(odnwState) n = Some d0 -> 
+  forall d1, onet.(odnwState) n' = Some d1 -> 
+  P d0 d1 (onet.(odnwPackets) n n') (onet.(odnwPackets) n' n).
+Proof.
+move: onet failed tr H_step active_n active_n' not_failed_n not_failed_n'.
+clear onet failed tr H_step active_n active_n' not_failed_n not_failed_n'.
+move => onet failed tr H_step.
+have H_eq_f: failed = fst (failed, onet) by [].
+have H_eq_o: onet = snd (failed, onet) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {1 2 5 6 7 8}H_eq_o {H_eq_o}.
+remember step_o_d_f_init as y in H_step.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
+repeat concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl.
+- move => H_in_n H_in_n' H_in_f H_in_f'.  
+  rewrite /update.
+  break_if; break_if.
+  * move => d0 H_eq d1 H_eq'.
+    repeat find_inversion.
+    rewrite collate_ls_not_related; last exact: adjacent_to_irreflexive.
+    rewrite collate_map2snd_not_related; last exact: adjacent_to_irreflexive.
+    rewrite (Aggregation_self_channel_empty s1).
+    exact: (after_init s1).
+  * case: H_in_n' => H_in_n'; first by find_rewrite.
+    move => d0 H_eq d1 H_eq'.
+    repeat find_inversion.
+    rewrite collate_ls_neq_to; last by auto.
+    case (adjacent_to_dec h n') => H_dec.
+      rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+      rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+      rewrite collate_neq //; last by auto.
+      rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) //.
+      rewrite (Aggregation_inactive_no_incoming s1) //=.
+      exact: (after_init_fst_adjacent s1).
+    rewrite collate_map2snd_not_related //.
+    rewrite collate_ls_not_related //.
+    rewrite collate_neq //; last by auto.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) //.
+    rewrite (Aggregation_inactive_no_incoming s1) //.
+    exact: (after_init_fst_not_adjacent s1).
+  * move => d0 H_eq d1 H_eq'.
+    repeat find_inversion.
+    case: H_in_n => H_in_n; first by rewrite -H_in_n in n0.
+    case (adjacent_to_dec h n) => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq; last by auto.
+      rewrite collate_ls_neq_to; last by auto.
+      rewrite collate_map2snd_not_related //.
+      rewrite (Aggregation_inactive_no_incoming s1) //.
+      rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) //.
+      have H_adj: ~ adjacent_to n h.
+        move => H_adj.
+        case: H_dec.
+        exact: adjacent_to_symmetric.
+      have H_neq: h <> n by auto.
+      exact: (after_init_snd_not_adjacent s1).
+    rewrite collate_ls_live_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite collate_neq; last by auto.
+    rewrite collate_ls_neq_to; last by auto.
+    rewrite collate_map2snd_not_in_related //; last exact: (ordered_dynamic_nodes_no_dup s1).
+    rewrite (Aggregation_inactive_no_incoming s1) //.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) //=.
+    apply adjacent_to_symmetric in H_dec.
+    have H_neq: h <> n by auto.
+    exact: (after_init_snd_adjacent s1).
+  * move => d0 H_eq d1 H_eq'.
+    case: H_in_n => H_in_n; first by rewrite H_in_n in n0.
+    case: H_in_n' => H_in_n'; first by rewrite H_in_n' in n1.
+    rewrite collate_ls_neq_to; last by auto.
+    rewrite collate_neq; last by auto.
+    rewrite collate_ls_neq_to; last by auto.
+    rewrite collate_neq; last by auto.
+    exact: IHs1.
+- move => H_in_n H_in_n' H_in_f H_in_f'.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases.
+  * destruct_update; repeat find_injection.
+    + rewrite /update2 /=.
+      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_or_hyp => //.
+      case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
+      destruct d1.
+      simpl in *.
+      rewrite (Aggregation_self_channel_empty s1).
+      repeat find_rewrite.
+      case (adjacent_to_dec n from) => H_dec; last by find_rewrite_lem (Aggregation_not_adjacent_no_incoming s1 H_in_n H_in_f H_dec).
+      apply: (recv_aggregate_self s1); intuition eauto.
+      exact: adjacent_to_symmetric.
+    + case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
+      have H_hd: head (odnwPackets net from n') = Some (Aggregate x) by find_rewrite.
+      have H_ins := Aggregation_aggregate_head_in_adjacent s1 _ H1 H_in_f' _ H_hd H2.
+      have H_adj := Aggreation_in_adj_adjacent_to s1 _ H1 H_in_f' H2 H_ins.
+      rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         apply (recv_aggregate_snd s1) => //; first by find_apply_lem_hyp adjacent_to_symmetric.
+         rewrite H3.
+         exact: H5.
+      -- have H_neq: from <> n by intuition eauto.
+         have H_neq': from <> n' by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         by eapply (recv_aggregate_snd_other s1); eauto.
+    + case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
+      have H_hd: head (odnwPackets net from n) = Some (Aggregate x) by find_rewrite.
+      have H_ins := Aggregation_aggregate_head_in_adjacent s1 _ H1 H_in_f _ H_hd H2.
+      have H_adj := Aggreation_in_adj_adjacent_to s1 _ H1 H_in_f H2 H_ins.
+      rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         apply (recv_aggregate_fst s1); auto.
+         rewrite H3.
+         exact: H5.
+      -- have H_neq: from <> n' by intuition eauto.
+         have H_neq': from <> n by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         by eapply (recv_aggregate_fst_other s1); eauto.
+    + rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      exact: H5.
+  * have H_hd: head (odnwPackets net from to) = Some (Aggregate x) by find_rewrite.
+    have H_ins := Aggregation_aggregate_head_in_adjacent s1 _ H1 H0 _ H_hd H2.
+    have [m' H_bal] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H_ins.
+    by find_rewrite.
+  * destruct_update; repeat find_injection.
+    + rewrite /update2 /=.
+      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_or_hyp => //.
+      case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
+      case (In_dec name_eq_dec from failed0) => H_from_f; last first.
+        have H_f := Aggregation_not_failed_no_fail s1 _ H_from_in H_from_f n.
+        rewrite H3 in H_f.
+        by case: H_f; left.
+      destruct d1.
+      simpl in *.
+      rewrite (Aggregation_self_channel_empty s1).
+      repeat find_rewrite.
+      case (adjacent_to_dec n from) => H_dec; last by find_rewrite_lem (Aggregation_not_adjacent_no_incoming s1 H_in_n H_in_f H_dec).
+      apply: (recv_fail_self s1); intuition eauto.
+      exact: adjacent_to_symmetric.
+    + rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      -- have H_f := Aggregation_not_failed_no_fail s1 _ H_in_n H_in_f n'.
+         rewrite H3 in H_f.
+         by case: H_f; left.
+      -- have H_neq: from <> n by intuition eauto.
+         have H_neq': from <> n' by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
+         case (In_dec name_eq_dec from failed0) => H_from_f; last first.
+           have H_f := Aggregation_not_failed_no_fail s1 _ H_from_in H_from_f n'.
+           rewrite H3 in H_f.
+           by case: H_f; left.
+         case (adjacent_to_dec from n') => H_dec; last first.
+           rewrite (Aggregation_not_adjacent_no_incoming s1) // in H3.
+           move => H_adj.
+           case: H_dec.
+           exact: adjacent_to_symmetric.
+         by apply: (recv_fail_other_snd s1); eauto.
+    + rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      -- have H_f := Aggregation_not_failed_no_fail s1 _ H_in_n' H_in_f' n.
+         rewrite H3 in H_f.
+         by case: H_f; left.
+      -- have H_neq: from <> n' by intuition eauto.
+         have H_neq': from <> n by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
+         case (In_dec name_eq_dec from failed0) => H_from_f; last first.
+           have H_f := Aggregation_not_failed_no_fail s1 _ H_from_in H_from_f n.
+           rewrite H3 in H_f.
+           by case: H_f; left.
+         case (adjacent_to_dec from n) => H_dec; last first.
+           rewrite (Aggregation_not_adjacent_no_incoming s1) // in H3.
+           move => H_adj.
+           case: H_dec.
+           exact: adjacent_to_symmetric.
+         by apply: (recv_fail_other_fst s1); eauto.
+    + rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      exact: H5.
+  * have H_hd: head (odnwPackets net from to) = Some Fail by find_rewrite.
+    have H_ins := Aggregation_head_fail_then_adjacent s1 _ H1 H0 _ H_hd H2.
+    have [m' H_bal] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H_ins.
+    by find_rewrite.
+  * destruct_update; repeat find_injection.
+    + rewrite /update2 /=.
+      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_or_hyp => //.
+      case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).     
+      destruct d1.
+      simpl in *.
+      rewrite (Aggregation_self_channel_empty s1).
+      repeat find_rewrite.
+      case (adjacent_to_dec n from) => H_dec; last by find_rewrite_lem (Aggregation_not_adjacent_no_incoming s1 H_in_n H_in_f H_dec).
+      apply: (recv_new_self s1); intuition eauto.
+      exact: adjacent_to_symmetric.
+    + have H_adj: adjacent_to n' from.
+        apply adjacent_to_symmetric.
+        apply: (Aggregation_in_new_then_adjacent s1 _ H1 H0 from).
+        by rewrite H3; left.        
+      rewrite /update2 /=.      
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         apply: (recv_new_snd s1) => //.
+         rewrite H3.
+         exact: H11.
+      -- have H_neq: from <> n by intuition eauto.
+         have H_neq': from <> n' by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
+         by apply: (recv_new_snd_other s1); eauto => //; first by apply adjacent_to_symmetric in H_adj.
+    + have H_adj: adjacent_to from n.
+        apply: (Aggregation_in_new_then_adjacent s1 _ H1 H0 from).
+        by rewrite H3; left.
+      rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         apply: (recv_new_fst s1); eauto.
+         rewrite H3.
+         exact: H11.
+      -- have H_neq: from <> n' by intuition eauto.
+         have H_neq': from <> n by move => H_neq'; rewrite H_neq' (Aggregation_self_channel_empty s1) in H3.
+         destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
+         by apply: (recv_new_fst_other s1); eauto.
+    + rewrite /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      exact: H11.      
+- move => H_in_n H_in_n' H_in_f H_in_f'.
+  find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases.
+  * destruct_update; repeat find_injection.
+    + rewrite /= (Aggregation_self_channel_empty s1).
+      destruct d1.
+      simpl in *.
+      repeat find_rewrite.      
+      by apply: (recv_local_self _ s1); eauto.
+    + rewrite /=.
+      destruct d1.
+      simpl in *.
+      repeat find_rewrite.
+      by apply: (recv_local_snd _ s1); eauto.
+    + rewrite /=.
+      destruct d0.
+      simpl in *.
+      repeat find_rewrite.
+      by apply: (recv_local_fst _ s1); eauto.
+    + by eauto.
+  * destruct_update; repeat find_injection.
+    + rewrite /= /update2 /=.
+      repeat break_if; repeat break_and; subst => //; first by have H_ins := Aggregation_node_not_adjacent_self s1 H1 H0 H2.
+      break_or_hyp => //.
+      rewrite (Aggregation_self_channel_empty s1).
+      have H_adj := Aggreation_in_adj_adjacent_to s1 _ H_in_n H_in_f H2 H3.
+      have H_x_in: In x net.(odnwNodes).
+        have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H_in_n H_in_f H2 H3.
+        by break_or_hyp; break_and.
+      destruct d1.
+      simpl in *.
+      repeat find_rewrite.
+      apply: (send_aggregate_self s1) => //.
+      by eauto.
+    + rewrite /= /update2 /=.
+      have H_adj := Aggreation_in_adj_adjacent_to s1 _ H1 H0 H2 H3.
+      have H_x_in: In x net.(odnwNodes).
+        have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H_in_n' H_in_f' H2 H3.
+        by break_or_hyp; break_and.
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         apply: (send_aggregate_snd s1) => //; first by apply adjacent_to_symmetric.
+         by eauto.
+      -- have H_neq: x <> n by intuition eauto.
+         have H_neq': x <> n'. 
+           move => H_neq'.
+           rewrite H_neq' in H3.
+           contradict H3.
+           exact: (Aggregation_node_not_adjacent_self s1).
+         destruct d1.
+         simpl in *.
+         repeat find_rewrite.
+         apply: (send_aggregate_snd_other s1) => //.
+         by eauto.
+    + rewrite /= /update2 /=.
+      have H_adj := Aggreation_in_adj_adjacent_to s1 _ H1 H0 H2 H3.
+       have H_x_in: In x net.(odnwNodes).
+         have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H_in_n H_in_f H2 H3.
+         by break_or_hyp; break_and.
+      repeat break_if; repeat break_and; subst => //.
+      -- destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         by apply: (send_aggregate_fst s1); eauto.
+      -- have H_neq: x <> n' by intuition eauto.
+         have H_neq': x <> n. 
+           move => H_neq'.
+           rewrite H_neq' in H3.
+           contradict H3.
+           exact: (Aggregation_node_not_adjacent_self s1).
+         destruct d0.
+         simpl in *.
+         repeat find_rewrite.
+         by apply: (send_aggregate_fst_other s1); eauto.
+    + rewrite /= /update2 /=.
+      repeat break_if; repeat break_and; subst => //.
+      by eauto.
+  * have [m' H_bal] := Aggregation_in_set_exists_find_balance s1 _ H1 H0 H2 H.
+    by congruence.
+  * by destruct_update; repeat find_injection; eauto.
+  * by destruct_update; repeat find_injection; eauto.
+  * by destruct_update; repeat find_injection; eauto.
+- move => H_in_n H_in_n' H_in_f H_in_f'.
+  move => d0 H_eq d1 H_eq'.
+  have H_neq: h <> n by auto.
+  have H_neq': h <> n' by auto.
+  have H_in'_f: ~ In n failed0 by auto.
+  have H_in'_f': ~ In n' failed0 by auto.
+  rewrite collate_neq //.
+  rewrite collate_neq //.
+  exact: IHs1.
+Qed.
 
 End DualNodeInv.
 
@@ -2251,7 +2894,32 @@ Lemma Aggregation_send_aggregate_in :
    NSet.In n' d.(adjacent).
 Proof.
 move => net failed tr H_st.
-Admitted.
+move => n H_in_n H_f n' H_in_n' H_f'.
+move => m' H_in d0 H_eq.
+have [d1 H_eq'] := ordered_dynamic_initialized_state H_st _ H_in_n'.
+move: m' H_in.
+pose P_curr (d : Data) (d' : Data) (l : list Msg) (l' : list Msg) :=
+forall m' : m, In (Aggregate m') l -> NSet.In n' d.(adjacent).
+rewrite -/(P_curr _ d1 _ (odnwPackets net n' n)).
+move: H_eq'; generalize d1 => {d1}.
+move: H_eq; generalize d0 => {d0}.
+apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_in_n H_in_n' net}.
+- move => net failed tr H_st H_in_n H_f H_in_n' H_f' H_neq H_adj d H_eq m' H_in.
+  by break_or_hyp.
+- move => net failed tr H_st H_in_n H_f H_in_n' H_f' H_neq H_adj d H_eq m' H_in.
+  by break_or_hyp.
+- by eauto with set.
+- by eauto with set.
+- move => net failed tr ms H_st H_in_n H_f H_in_n' H_f' H_neq H_adj H_eq d0 H_eq_d0 d1 H_eq_d1 IH m' H_in.
+  apply: (IH m').
+  rewrite H_eq.
+  by right.
+- by eauto with set.
+- move => net failed tr ms m0 m' H_st H_in_n H_f H_in_n' H_f' H_neq H_adj H_eq d0 H_eq_d0 d1 H_eq_d1 H_find IH m1 H_in.
+  apply: (IH m1).
+  rewrite H_eq.
+  by right.
+Qed.
 
 (*
 Lemma not_in_aggregate_queue_ident : forall (V5 : V), ext_net_ok V5 ->
