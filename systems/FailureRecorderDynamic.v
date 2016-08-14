@@ -2105,4 +2105,51 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f
   by omega.
 Qed.
 
+Lemma Failure_inactive_not_in_adjacent :
+forall net failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, net) tr -> 
+  forall n, In n net.(odnwNodes) -> ~ In n failed ->
+  forall n', ~ In n' (odnwNodes net) ->
+  forall d0, odnwState net n = Some d0 ->
+  ~ NSet.In n' d0.(adjacent).
+Proof.
+move => net failed tr H.
+have H_eq_f: failed = fst (failed, net) by [].
+have H_eq_o: net = snd (failed, net) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {1 3 4}H_eq_o {H_eq_o}.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl.
+- move => n H_in H_f n' H_in' d0 H_eq H_ins {H1}.
+  destruct_update; repeat find_injection.
+  * unfold InitData in *.
+    simpl in *.
+    by find_apply_lem_hyp NSetFacts.empty_1.
+  * break_or_hyp => //.
+    have H_neq: h <> n' by eauto.
+    have H_inn: ~ In n' net0.(odnwNodes) by eauto.
+    contradict H_ins.
+    by eauto.
+- move {H1}.
+  find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases.
+  * destruct_update; repeat find_injection; last by eauto.
+    find_rewrite.
+    case (name_eq_dec from n') => H_dec; first by subst; find_apply_lem_hyp NSetFacts.remove_1.
+    find_apply_lem_hyp NSetFacts.remove_3.
+    by eauto.
+  * destruct_update; repeat find_injection; last by eauto.
+    find_rewrite.
+    case (name_eq_dec from n') => H_dec; first by subst; find_rewrite_lem (ordered_dynamic_no_outgoing_uninitialized H _ H10).
+    find_apply_lem_hyp NSetFacts.add_3 => //.
+    by eauto.
+- by find_apply_lem_hyp input_handlers_IOHandler.
+- by eauto.
+Qed.
+
 End FailureRecorder.

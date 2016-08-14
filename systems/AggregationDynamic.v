@@ -20,6 +20,8 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 
+Require Import AAC_tactics.AAC.
+
 Require Import OrderedLemmas.
 Require Import AggregationDefinitions.
 Require Import AggregatorDynamic.
@@ -838,6 +840,21 @@ rewrite /= map_id /id /= in H_inv'.
 apply: (H_inv' H_n H_f n').
 move: H_in.
 exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Aggregation_inactive_not_in_adjacent :
+forall net failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, net) tr -> 
+  forall n, In n net.(odnwNodes) -> ~ In n failed ->
+  forall n', ~ In n' (odnwNodes net) ->
+  forall d0, odnwState net n = Some d0 ->
+  ~ NSet.In n' d0.(adjacent).
+Proof.
+move => net failed tr H_st n H_in H_f n' H_n' d0 H_eq.
+have H_st' := Aggregation_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := @FR.Failure_inactive_not_in_adjacent _ _ _ H_st' n _ _ n' _ {| FR.adjacent := d0.(adjacent) |}.
+rewrite /= map_id /id /= H_eq /= in H_inv'.
+by repeat concludes.
 Qed.
 
 Lemma Aggregation_self_channel_empty : 
@@ -2921,35 +2938,188 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_
   by right.
 Qed.
 
-(*
-Lemma not_in_aggregate_queue_ident : forall (V5 : V), ext_net_ok V5 ->
-  forall (v5 v' : v), In v5 V5 -> In v' V5 ->
-  ~ ISet.In (ext_ident v') (ext_adj v5) ->
-  sum_aggregate_queue_ident (ext_mbox v') (ext_ident v5) = 1.
+Lemma not_adjacent_sum_aggregate_msg_1 : 
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
+   forall d, net.(odnwState) n = Some d ->
+   ~ NSet.In n' d.(adjacent) ->
+   sum_aggregate_msg (net.(odnwPackets) n n') = 1.
 Proof.
-*)
+move => net failed tr H_st.
+move => n H_in_n H_f n' H_in_n' H_f'.
+move => d0 H_eq H_ins.
+have [d1 H_eq'] := ordered_dynamic_initialized_state H_st _ H_in_n'.
+move: H_ins.
+pose P_curr (d : Data) (d' : Data) (l : list Msg) (l' : list Msg) :=
+~ NSet.In n' d.(adjacent) -> @sum_aggregate_msg AggregationMsg_Aggregation l = 1.
+rewrite -/(P_curr _ d1 _ (odnwPackets net n' n)).
+move: H_eq'; generalize d1 => {d1}.
+move: H_eq; generalize d0 => {d0}.
+apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_in_n H_in_n' net}.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins.
+  rewrite /aggregate_sum_fold /=.
+  by gsimpl.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins.
+  rewrite /aggregate_sum_fold /=.
+  by gsimpl.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_n H_neq_n' H_in_from H_in_from' H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins.
+  apply: IH.
+  move => H_ins'.
+  case: H_ins.
+  by auto with set.
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins.
+  case: H_ins.
+  by auto with set.
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins.
+  concludes.
+  find_rewrite.
+  simpl in *.
+  unfold aggregate_sum_fold in *.
+  simpl in *.
+  move: IH.
+  by gsimpl.
+- move => net failed tr from ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins.
+  rewrite IH //.
+  move => H_ins'.
+  case: H_ins.
+  by auto with set.
+- move => net failed tr ms m0 m' H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins.
+  have H_in: In (Aggregate m') (odnwPackets net n n') by rewrite H_eq; left.
+  by have H_ins' := Aggregation_send_aggregate_in H_st _ H_in_n H_in_f _ H_in_n' H_in_f' _ H_in H_eq_d0.
+Qed.
 
-(* 
-Lemma sent_received_one_not_in : forall (V5 : V), ext_net_ok V5 ->
-  forall (v5 v' : v), In v5 V5 -> In v' V5 ->
-  forall (m5 : m), ISet.In (ext_ident v') (ext_adj v5) ->
-  ~ ISet.In (ext_ident v5) (ext_adj v') ->
-  IMap.find (ext_ident v') (ext_map_sent v5) = Some m5 ->
-  m5 * (sum_drop_queue_ident (ext_mbox v5) (ext_ident v'))^-1 = sum_aggregate_queue_ident (ext_mbox v') (ext_ident v5).
-*)
-
-(*
-Lemma sent_received_other_not_in : forall (V5 : V), ext_net_ok V5 ->
-  forall (v5 v' : v), In v5 V5 -> In v' V5 ->
-  forall (m5 : m),
-  ISet.In (ext_ident v') (ext_adj v5) ->
-  ~ ISet.In (ext_ident v5) (ext_adj v') ->
-  IMap.find (ext_ident v') (ext_map_received v5) = Some m5 ->
-  (sum_drop_queue_ident (ext_mbox v') (ext_ident v5))^-1 = (sum_aggregate_queue_ident (ext_mbox v5) (ext_ident v')) * m5.
+Lemma sent_received_one_not_in : 
+forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
+   forall d0, net.(odnwState) n = Some d0 ->
+   forall d1, net.(odnwState) n' = Some d1 ->
+   NSet.In n' d0.(adjacent) ->
+   ~ NSet.In n d1.(adjacent) ->
+   forall m', NMap.find n' d0.(balance) = Some m' ->
+   sum_aggregate_msg (net.(odnwPackets) n n') = m'.
 Proof.
-*)
+move => net failed tr H_st.
+move => n H_in_n H_f n' H_in_n' H_f'.
+move => d0 H_eq d1 H_eq'.
+pose P_curr (d : Data) (d' : Data) (l : list Msg) (l' : list Msg) :=
+  NSet.In n' d.(adjacent) ->
+  ~ NSet.In n d'.(adjacent) -> 
+  forall m', NMap.find n' d.(balance) = Some m' -> 
+  @sum_aggregate_msg AggregationMsg_Aggregation l = m'.
+rewrite -/(P_curr _ _ _ (odnwPackets net n' n)).
+move: H_eq'; generalize d1 => {d1}.
+move: H_eq; generalize d0 => {d0}.
+apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_in_n H_in_n' net}.
+- move => onet failed tr H_st H_eq H_in_n H_in_f H_ins H_ins' H_find.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins H_ins' H_find.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins H_ins' H_find.
+  have H_adj' := Aggreation_in_adj_adjacent_to H_st _ H_in_n H_in_f H_eq H_ins.
+  by find_apply_lem_hyp adjacent_to_symmetric.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj d H_eq H_ins H_ins' H_find.
+  by have H_adj' := Aggregation_inactive_not_in_adjacent H_st _ H_in_n H_in_f H_in_n' H_eq.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_eq H_from H_from' H_neq H_adj H_eq'.
+  move => d H_eq_d H_find IH H_ins H_ins' H_find'.
+  by repeat find_rewrite.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq_n H_neq H_neq' H_from H_from' H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m' H_find'.
+  find_apply_lem_hyp NSetFacts.remove_3 => //.
+  rewrite NMapFacts.remove_neq_o // in H_find'.
+  repeat concludes.
+  exact: IH.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_in_from' H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m' H_find'.
+  have H_ins_n: ~ NSet.In n d1.(adjacent).
+    move => H_ins_n.
+    case: H_ins'.
+    by apply NSetFacts.remove_2.
+  repeat concludes.
+  exact: IH.
+- move => net failed tr from ms H_st H_in_n H_in_f H_eq H_in_from H_neq H_adj H_eq'.
+  move => d H_eq_d IH H_ins H_ins' m' H_find.
+  subst.  
+  have H_ins_n: ~ NSet.In n d.(adjacent).
+    move => H_ins_n.
+    case: H_ins'.
+    by apply NSetFacts.add_2.
+  by find_apply_lem_hyp NSetFacts.add_3.
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m' H_find.
+  move {IH H_ins}.
+  rewrite NMapFacts.add_eq_o // in H_find.
+  find_injection.
+  have H_in_new: In New (odnwPackets net n' n) by find_rewrite; left.
+  have H_ins_n := Aggregation_new_incoming_not_in_adj H_st _ H_in_n H_in_f H_in_new H_eq_d0.
+  exact: (not_adjacent_sum_aggregate_msg_1 H_st _ H_in_n H_in_f H_in_n' H_in_f' H_eq_d0 H_ins_n).
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m' H_find.
+  case: H_ins'.
+  by auto with set.
+- move => net failed tr from ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m' H_find.
+  find_apply_lem_hyp NSetFacts.add_3 => //.
+  rewrite NMapFacts.add_neq_o // in H_find.
+  repeat concludes.
+  exact: IH.
+- move => net failed tr from ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m' H_find.
+  have H_ins_n: ~ NSet.In n d1.(adjacent).
+    move => H_ins_n.
+    case: H_ins'.
+    by auto with set.
+  repeat concludes.
+  exact: IH.
+- move => net failed tr from ms m0 m1 H_st H_in_n H_in_f H_eq H_in_from H_neq H_adj H_eq'.
+  move => d0 H_eq_d0 d1 IH H_ins H_ins' m' H_find.
+  by subst.
+- move => net failed tr ms m0 m1 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m' H_find'.
+  have H_in: In (Aggregate m1) (odnwPackets net n' n) by rewrite H_eq; left.
+  by have H_agg := Aggregation_send_aggregate_in H_st _ H_in_n' H_in_f' _ H_in_n H_in_f _ H_in H_eq_d1.
+- move => net failed tr ms m0 m1 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m' H_find'.
+  have H_hd: head (odnwPackets net n n') = Some (Aggregate m1) by rewrite H_eq.
+  by have H_ins_n := Aggregation_aggregate_head_in_adjacent H_st _ H_in_n' H_in_f' _ H_hd H_eq_d1.
+- move => net failed tr from ms m0 m1 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m' H_find'.  
+  rewrite NMapFacts.add_neq_o // in H_find'.
+  repeat concludes.
+  exact: IH.
+- move => net failed tr m0 H_st H_in_n H_in_f H_eq d H_eq_d IH H_ins H_ins' H_find.
+  by subst.
+- move => net failed tr to m0 H_st H_in_n H_in_f H_eq H_in_to H_neq H_adj.
+  move => d H_eq_d H_find H_ins H_neq' IH H_ins' H_ins'' m' H_find'.
+  subst.
+  contradict H_ins'.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq' IH H_ins' H_ins'' m' H_find'.
+  rewrite NMapFacts.add_eq_o // in H_find'.
+  find_injection.
+  repeat concludes.
+  rewrite sum_aggregate_msg_split.
+  rewrite (IH _ H_find).
+  rewrite /sum_aggregate_msg /= /aggregate_sum_fold /=.
+  by gsimpl.
+- move => net failed tr to m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq_n H_neq_to H_neq_to' H_in_to H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq IH H_ins' H_ins'' m' H_find'.
+  rewrite NMapFacts.add_neq_o // in H_find'.
+  exact: IH.
+Qed.
 
-Lemma Aggregation_sent_received_eq : 
+Lemma Aggregation_sent_received_eq: 
   forall net failed tr,
     step_o_d_f_star step_o_d_f_init (failed, net) tr ->
     forall n, In n net.(odnwNodes) -> ~ In n failed ->
@@ -2962,28 +3132,204 @@ Lemma Aggregation_sent_received_eq :
     forall m1, NMap.find n' d.(balance) = Some m1 ->
     m0 * (sum_aggregate_msg (net.(odnwPackets) n n'))^-1 = (m1)^-1 * sum_aggregate_msg (net.(odnwPackets) n' n).
 Proof.
-Admitted.
+move => net failed tr H_st.
+move => n H_in_n H_f n' H_in_n' H_f'.
+move => d0 H_eq d1 H_eq'.
+pose P_curr (d : Data) (d' : Data) (l : list Msg) (l' : list Msg) :=
+  NSet.In n' d.(adjacent) ->
+  NSet.In n d'.(adjacent) ->
+  forall m0 : m, NMap.find n d'.(balance) = Some m0 ->
+  forall m1 : m, NMap.find n' d.(balance) = Some m1 ->
+  m0 * (@sum_aggregate_msg AggregationMsg_Aggregation l)^-1 = m1^-1 * @sum_aggregate_msg AggregationMsg_Aggregation l'.
+rewrite -/(P_curr _ _ _ _).
+move: H_eq'; generalize d1 => {d1}.
+move: H_eq; generalize d0 => {d0}.
+apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_in_n H_in_n' net}.
+- move => net failed tr H_st H_eq H_in_n H_in_f H_ins H_ins' m0 H_find m1 H_find'.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d H_eq_d H_ins H_ins' m0 H_find m1 H_find'.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_t H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d H_eq_d H_ins H_ins' m0 H_find m1 H_find'.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d H_eq_d H_ins H_ins' m0 H_find m1 H_find'.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d H_eq_d H_ins H_ins' m0 H_find m1 H_find'.
+  by find_apply_lem_hyp NSetFacts.empty_1.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_eq H_in_from H_in_from' H_neq H_adj H_eq'. 
+  move => d H_eq_d H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  subst.
+  find_apply_lem_hyp NSetFacts.remove_3.
+  contradict H_ins.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_from_neq H_from_neq' H_in_from H_in_from' H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.remove_neq_o // in H_find_m2.
+  find_apply_lem_hyp NSetFacts.remove_3.
+  exact: IH.
+- move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_in_from' H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.remove_neq_o // in H_find_m1.
+  find_apply_lem_hyp NSetFacts.remove_3.
+  exact: IH.
+- move => net faild tr from ms H_st H_in_n H_in_f H_eq H_in_from H_neq_from H_adj H_eq'.
+  move => d H_eq_d IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
+  subst.
+  find_apply_lem_hyp NSetFacts.add_3 => //.
+  contradict H_ins.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
+  rewrite NMapFacts.add_eq_o // in H_find_m1.
+  find_injection.
+  gsimpl.
+  have H_in: In New (odnwPackets net n' n) by rewrite H_eq; left.
+  have H_ins_n := Aggregation_new_incoming_not_in_adj H_st _ H_in_n H_in_f H_in H_eq_d0.
+  have H_eq_n := sent_received_one_not_in H_st H_in_n' H_in_f' H_in_n H_in_f H_eq_d1 H_eq_d0 H_ins' H_ins_n H_find_m0.
+  rewrite H_eq /= /aggregate_sum_fold /= in H_eq_n.
+  move: H_eq_n.
+  gsimpl.
+  move => H_eq_n.
+  rewrite H_eq_n.
+  rewrite (not_adjacent_sum_aggregate_msg_1 H_st _ H_in_n H_in_f H_in_n' H_in_f' H_eq_d0 H_ins_n).
+  by gsimpl.
+- move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m0 H_find m1 H_find'.
+  rewrite NMapFacts.add_eq_o // in H_find.
+  find_injection.
+  gsimpl.
+  have H_in: In New (odnwPackets net n n') by rewrite H_eq; left.
+  have H_ins_n' := Aggregation_new_incoming_not_in_adj H_st _ H_in_n' H_in_f' H_in H_eq_d1.
+  have H_eq_n' := sent_received_one_not_in H_st H_in_n H_in_f H_in_n' H_in_f' H_eq_d0 H_eq_d1 H_ins H_ins_n' H_find'.  
+  rewrite H_eq /= /aggregate_sum_fold /= in H_eq_n'.
+  move: H_eq_n'.
+  gsimpl.
+  move => H_eq_n'.
+  rewrite H_eq_n'.
+  rewrite (not_adjacent_sum_aggregate_msg_1 H_st _ H_in_n' H_in_f' H_in_n H_in_f H_eq_d1 H_ins_n').
+  by gsimpl.
+- move => net failed tr from ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
+  find_apply_lem_hyp NSetFacts.add_3 => //.
+  rewrite NMapFacts.add_neq_o // in H_find_m1.
+  exact: IH.
+- move => net failed tr from ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
+  find_apply_lem_hyp NSetFacts.add_3 => //.
+  rewrite NMapFacts.add_neq_o // in H_find_m0.
+  exact: IH.
+- move => net failed tr from ms m0 m' H_st H_in_n H_in_f H_eq H_in_from H_neq H_adj H_eq'.
+  move => d H_eq_d H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  subst.
+  contradict H_ins.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr ms m0 m' H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_eq_o // in H_find_m2.
+  find_injection.
+  gsimpl.
+  repeat concludes.
+  have IH' := IH _ H_find_m1 _ H_find.
+  rewrite H_eq /= /aggregate_sum_fold /= in IH'.
+  rewrite IH'.
+  gsimpl.
+  by aac_reflexivity.
+- move => net failed tr ms m0 m' H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_eq_o // in H_find_m1.
+  find_injection.
+  repeat concludes.
+  have IH' := IH _ H_find _ H_find_m2.
+  rewrite H_eq /= /aggregate_sum_fold /= in IH'.
+  rewrite -IH'.
+  by gsimpl.
+- move => net failed tr from ms m0 m' H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_neq_o // in H_find_m2.
+  exact: IH.
+- move => net failed tr from ms m0 m' H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_from H_neq_from' H_in_from H_adj H_eq.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_neq_o // in H_find_m1.
+  exact: IH.
+- move => net failed tr m' H_st H_in_n H_in_f H_eq d H_eq_d IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
+  subst.
+  contradict H_ins.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr to m0 H_st H_in_n H_in_f H_eq H_in_to H_neq H_adj.
+  move => d H_eq_d H_find H_ins H_neq_agg IH H_ins' H_ins'' m1 H_find_m1 m2 H_find_m2.
+  subst.
+  contradict H_ins'.
+  by eapply Aggregation_node_not_adjacent_self; eauto.
+- move => net failed tr m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq' IH H_ins' H_ins'' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_eq_o // in H_find_m2.
+  find_injection.
+  rewrite sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+  gsimpl.
+  repeat concludes.
+  have IH' := IH _ H_find_m1 _ H_find.
+  aac_rewrite IH'.
+  by aac_reflexivity.
+- move => net failed tr m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq_agg IH H_ins' H_ins'' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_eq_o // in H_find_m1.
+  find_injection.
+  rewrite sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+  gsimpl.
+  repeat concludes.
+  have IH' := IH _ H_find _ H_find_m2.
+  rewrite -IH'.
+  by aac_reflexivity.
+- move => net failed tr to m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_to H_neq_to' H_in_to H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq_agg IH H_ins' H_ins'' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_neq_o // in H_find_m2.
+  exact: IH.
+- move => net failed tr to m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_neq_to H_neq_to' H_in_to H_adj.
+  move => d0 H_eq_d0 d1 H_eq_d1 H_find H_ins H_neq_agg IH H_ins' H_ins'' m1 H_find_m1 m2 H_find_m2.
+  rewrite NMapFacts.add_neq_o // in H_find_m1.
+  exact: IH.
+Qed.
 
-(*
-Lemma sumM_sent_fail_active_eq_with_self : 
-  forall onet failed tr,
-   step_o_f_star step_o_f_init (failed, onet) tr ->
-   forall n, ~ In n failed ->
-   sumM (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) * 
-     (sum_fail_map_incoming nodes onet.(onwPackets) n (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent))^-1 =
-   sumM_active (onet.(onwState) n).(adjacent) (onet.(onwState) n).(sent) (exclude failed nodes).
+Lemma sumM_balance_fail_active_eq_with_self : 
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed ->
+   forall d, net.(odnwState) n = Some d ->
+   sumM d.(adjacent) d.(balance) * (sum_fail_map_incoming net.(odnwNodes) net.(odnwPackets) n d.(adjacent) d.(balance))^-1 =
+   sumM_active d.(adjacent) d.(balance) (remove_all name_eq_dec failed net.(odnwNodes)).
 Proof.
-*)
-
-(*
-Lemma sumM_received_fail_active_eq_with_self : 
-  forall onet failed tr,
-   step_o_f_star step_o_f_init (failed, onet) tr ->
-   forall n, ~ In n failed ->
-   sumM (onet.(onwState) n).(adjacent) (onet.(onwState) n).(received) * 
-     (sum_fail_map_incoming nodes onet.(onwPackets) n (onet.(onwState) n).(adjacent) (onet.(onwState) n).(received))^-1 =
-   sumM_active (onet.(onwState) n).(adjacent) (onet.(onwState) n).(received) (exclude failed nodes).
-Proof.
-*)
+move => net failed tr H_st n H_n H_f d H_eq_d.
+have H_ex_map := Aggregation_in_set_exists_find_balance H_st _ H_n H_f H_eq_d.
+have H_ex_nd := Aggregation_in_adj_or_incoming_fail H_st _ H_n H_f H_eq_d.
+assert (H_adj_in: forall (n' : name), NSet.In n' d.(adjacent) -> In n' net.(odnwNodes)).
+  move => n' H_ins.
+  have H_agg := Aggregation_in_adj_or_incoming_fail H_st _ H_n H_f H_eq_d H_ins.
+  by break_or_hyp; break_and.
+have H_n_nd := ordered_dynamic_nodes_no_dup H_st.
+have H := @sumM_remove_fail_ex_eq AggregationMsg_Aggregation _ net.(odnwPackets) _ _ n _ H_adj_in H_ex_map.
+have [adj' [H_eq [H_and H_or]]] := H H_n_nd.
+rewrite H_eq.
+have H_nd: NoDup (remove_all name_eq_dec failed net.(odnwNodes)) by apply NoDup_remove_all; apply H_n_nd.
+have H_eq' := sumM_sumM_active_eq _ _ H_nd _ H_and H_or H_ex_map.
+rewrite H_eq' //.
+  move => n' H_f' H_in.
+  contradict H_f'.
+  apply: (Aggregation_not_failed_no_fail H_st); first by eapply in_remove_all_was_in; eauto.
+  move => H_in'.
+  contradict H_in.
+  by eauto using in_remove_all_not_in.
+move => n' H_ins.
+apply H_or in H_ins.
+case: H_ins => H_ins; last by right.
+apply H_and in H_ins.
+move: H_ins => [H_ins H_f'].
+left.
+apply: in_remove_all_preserve; last exact: H_adj_in.
+apply H_ex_nd in H_ins.
+by case: H_ins => H_ins; break_and.
+Qed.
 
 End Aggregation.
