@@ -1547,11 +1547,10 @@ Instance AggregationMsg_Aggregation : AggregationMsg :=
 Lemma Aggregation_conserves_node_mass : 
 forall net failed tr,
  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
- forall n, ~ In n failed -> 
- forall d, net.(odnwState) n = Some d ->
+ forall n d, net.(odnwState) n = Some d ->
       conserves_node_mass d.
 Proof.
-move => onet failed tr H n H_f d H_eq.
+move => onet failed tr H n d H_eq.
 have H_st := Aggregation_step_o_d_f_tot_one_mapped_simulation_star_1 _ H H_eq.
 move: H_st => [tr' H_st].
 apply OA.Aggregator_conserves_node_mass in H_st.
@@ -3331,5 +3330,1316 @@ apply: in_remove_all_preserve; last exact: H_adj_in.
 apply H_ex_nd in H_ins.
 by case: H_ins => H_ins; break_and.
 Qed.
+
+Lemma Aggregation_sum_aggregate_msg_self :  
+  forall net failed tr,
+   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   forall n, In n net.(odnwNodes) -> ~ In n failed -> 
+        sum_aggregate_msg (net.(odnwPackets) n n) = 1.
+Proof.
+move => net failed tr H_st n H_in_n H_in_f.
+by rewrite (Aggregation_self_channel_empty H_st).
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_update2_aggregate : 
+  forall ns f from to ms m',
+    In from ns ->
+    NoDup ns ->
+    ~ In Fail (f from to) ->
+    f from to = Aggregate m' :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to * (m')^-1.
+Proof.
+move => ns f from to ms m' H_in H_nd H_f H_eq.
+by apply: sum_aggregate_msg_incoming_update2_aggregate; eauto.
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_update2_fail_eq : 
+  forall ns f from to ms m',
+    In from ns ->
+    NoDup ns ->
+    In Fail (f from to) ->
+    f from to = Aggregate m' :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to.
+Proof.
+move => ns f from to ms m' H_in H_nd H_in' H_eq.
+by apply: sum_aggregate_msg_incoming_update2_fail_eq; eauto.
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_update2_aggregate_in_fail_add :
+  forall ns f from to ms m' x x0 adj map,
+    NSet.In from adj ->
+    In from ns ->
+    NoDup ns ->
+    In Fail (f from to) -> 
+    f from to = Aggregate m' :: ms ->
+    NMap.find from map = Some x0 ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj (NMap.add from (x0 * x) map) =
+    sum_fail_map_incoming ns f to adj map * x.
+Proof.
+move => ns f from to ms m' x x0 adj map H_ins H_f H_nd H_in H_eq H_find.
+by apply: sum_aggregate_msg_incoming_update2_aggregate_in_fail_add; eauto.
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_update2_aggregate_in_fail :
+  forall ns f from to ms m' adj map,
+    In from ns ->
+    NoDup ns ->
+    f from to = Aggregate m' :: ms ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to adj map =
+    sum_fail_map_incoming ns f to adj map.
+Proof.
+move => ns f from to ms m' adj map H_in H_nd H_eq.
+by apply: sum_aggregate_msg_incoming_update2_aggregate_in_fail; eauto.
+Qed.
+
+Lemma Aggregation_sum_aggregate_ms_no_aggregate_1 : 
+  forall ms,
+  (forall m' : m, ~ In (Aggregate m') ms) -> 
+  sum_aggregate_msg ms = 1.
+Proof.
+move => ms H_in.
+apply: sum_aggregate_ms_no_aggregate_1.
+by case.
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_fail_update2_eq :
+  forall ns f from to ms,
+    (forall m', before_all (Aggregate m') Fail (f from to)) ->
+    In from ns ->
+    NoDup ns ->
+    ~ In Fail ms ->
+    f from to = Fail :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to.
+Proof.
+move => ns f from to ms H_bef H_in H_nd H_f H_eq.
+apply: sum_aggregate_msg_incoming_fail_update2_eq; eauto.
+by case.
+Qed.
+
+Lemma Aggregation_sum_fail_map_incoming_add_aggregate_eq :
+  forall ns f x h x0 m' adj map,
+    h <> x ->
+    In x ns ->
+    NoDup ns ->
+    In Fail (f x h) ->
+    NMap.find x map = Some x0 ->
+    NSet.In x adj ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f h x (f h x ++ [Aggregate m'])) h adj (NMap.add x (x0 * m') map) =
+    sum_fail_map_incoming ns f h adj map * m'.
+Proof.
+move => ns f x h x0 m' adj map H_neq H_in H_nd H_f H_find H_ins.
+by apply: sum_fail_map_incoming_add_aggregate_eq; eauto.
+Qed.
+
+Lemma Aggregation_sum_aggregate_msg_incoming_active_in_update2_app_eq :
+  forall ns0 ns1 f x h m',
+    NoDup ns0 ->
+    NoDup ns1 ->
+    In x ns0 ->
+    In h ns1 ->
+    ~ In h ns0 ->
+    ~ In Fail (f h x) ->
+    sum_aggregate_msg_incoming_active ns1 ns0 (update2 name_eq_dec f h x (f h x ++ [Aggregate m'])) =
+    sum_aggregate_msg_incoming_active ns1 ns0 f * m'.
+Proof.
+move => ns0 ns1 f x h m' H_nd H_nd' H_in H_in' H_not_in H_not_in'.
+by apply: sum_aggregate_msg_incoming_active_in_update2_app_eq.
+Qed.
+
+Lemma Aggregation_conserves_node_mass_all : 
+forall net failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ conserves_node_mass_all (Nodes_data_opt (remove_all name_eq_dec failed net.(odnwNodes)) net.(odnwState)).
+Proof.
+move => onet failed tr H_st.
+rewrite /conserves_node_mass_all.
+rewrite /Nodes_data_opt.
+elim: (odnwNodes onet) => /=; first by rewrite remove_all_nil.
+move => n l IH d.
+have H_cn := remove_all_cons name_eq_dec failed n l.
+break_or_hyp; break_and; find_rewrite; first exact: IH.
+move => H_or.
+simpl in *.
+break_match; last exact: IH.
+case: H_or => H_or; last exact: IH.
+rewrite -H_or.
+by apply: (Aggregation_conserves_node_mass H_st); eauto.
+Qed.
+
+Corollary Aggregate_conserves_mass_globally :
+forall onet failed tr,
+ step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+ conserves_mass_globally (Nodes_data_opt (remove_all name_eq_dec failed onet.(odnwNodes)) onet.(odnwState)).
+Proof.
+move => onet failed tr H_step.
+apply: global_conservation.
+exact: Aggregation_conserves_node_mass_all H_step.
+Qed.
+
+Lemma Nodes_data_opt_not_in_eq :
+  forall ns (state : name -> option data) to d,
+    ~ In to ns ->
+    Nodes_data_opt ns (update name_eq_dec state to (Some d)) =
+    Nodes_data_opt ns state.
+Proof.
+elim => //.
+move => n ns IH state to d H_in.
+rewrite /=.
+have H_neq: n <> to by move => H_eq; case: H_in; left.
+rewrite {1}/update.
+case name_eq_dec => H_dec //.
+rewrite IH //.
+move => H_in'.
+case: H_in.
+by right.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_split :
+  forall ns0 ns1 ns2 packets state,
+    sum_fail_balance_incoming_active_opt ns0 (ns1 ++ ns2) packets state = 
+    sum_fail_balance_incoming_active_opt ns0 ns1 packets state *
+    sum_fail_balance_incoming_active_opt ns0 ns2 packets state.
+Proof.
+move => ns0 ns1 ns2 packets state.
+elim: ns1 => //=; first by gsimpl.
+move => n ns1 IH.
+rewrite /= IH.
+by break_match; aac_reflexivity.
+Qed.
+
+Lemma sum_fail_map_incoming_balance_neq_eq :
+  forall ns packets from to ms n adj map,
+  n <> to ->
+  sum_fail_map_incoming ns (update2 name_eq_dec packets from to ms) n adj map =
+  sum_fail_map_incoming ns packets n adj map.
+Proof.
+elim => //=.
+move => n ns IH packets from to ms n0 adj map H_neq.
+rewrite IH //.
+rewrite /update2 /=.
+case (sumbool_and _ _ _ _) => H_dec' //.
+move: H_dec' => [H_eq H_eq'].
+by rewrite H_eq' in H_neq.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_not_in_eq :
+  forall ns0 ns1 packets state from to ms d,
+    ~ In to ns0 ->
+    sum_fail_balance_incoming_active_opt ns1 ns0 
+      (update2 name_eq_dec packets from to ms)
+      (update name_eq_dec state to (Some d)) =
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets state.
+Proof.
+elim => //.
+move => n ns IH ns1 packets state from to ms d H_in.
+rewrite /sum_fail_balance_incoming_active_opt /=.
+have H_neq: n <> to by move => H_eq; case: H_in; left.
+rewrite /update /=.
+case name_eq_dec => H_dec //.
+have H_in': ~ In to ns.
+  move => H_in'.
+  case: H_in.
+  by right.
+break_match.
+- have IH' := IH ns1 packets state from to ms d H_in'.
+  rewrite /update /= /sum_fail_balance_incoming_active_opt in IH'.
+  by rewrite IH' /= sum_fail_map_incoming_balance_neq_eq.
+- have IH' := IH ns1 packets state from to ms d H_in'.
+  rewrite /update /= /sum_fail_balance_incoming_active_opt in IH'.
+  by rewrite IH'.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_new_update2_eq : 
+  forall ns f from to ms,
+  f from to = New :: ms ->
+    sum_aggregate_msg_incoming ns (update2 name_eq_dec f from to ms) to =
+    sum_aggregate_msg_incoming ns f to.
+Proof.
+elim => //=.
+move => n ns IH f from to ms H_eq.
+case in_dec => /= H_dec; case in_dec => /= H_dec'.
+- by rewrite IH.
+- contradict H_dec.
+  rewrite /update2 /=.
+  break_if => //; break_and.
+  subst.
+  move => H_in.
+  case: H_dec'.
+  find_rewrite.
+  by right.
+- case: H_dec.
+  rewrite /update2 /=.
+  break_if => //; break_and.
+  subst.
+  find_rewrite.
+  by case: H_dec'.
+- rewrite IH //.
+  rewrite /update2 /=.
+  break_if => //.
+  break_and; subst.
+  rewrite H_eq /= /aggregate_sum_fold /=.
+  by gsimpl.
+Qed.
+
+Lemma sum_fail_map_incoming_new_eq :
+  forall ns f from to ms adj map,
+    ~ NSet.In from adj ->
+    f from to = New :: ms ->
+    sum_fail_map_incoming ns (update2 name_eq_dec f from to ms) to (NSet.add from adj) (NMap.add from 1 map) =
+    sum_fail_map_incoming ns f to adj map.
+Proof.
+elim => //=.
+move => n ns IH f from to ms adj map H_ins H_eq.
+rewrite {2}/update2 /=.
+break_if.
+- break_and; subst.
+  rewrite /sum_fail_map H_eq.
+  case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+  * repeat break_if => //.
+    + case: H_ins.
+      by auto with set.
+    + rewrite IH //.
+      rewrite /sum_fold /= NMapFacts.add_eq_o //.
+      by gsimpl.
+    + case: H_ins.
+      by auto with set.
+    + have H_ins': NSet.In n (NSet.add n adj) by auto with set.
+      find_apply_lem_hyp NSetFacts.mem_1.
+      by congruence.
+  * by rewrite IH; gsimpl.
+- break_or_hyp => //.
+  rewrite IH // /sum_fail_map.
+  case in_dec => /= H_dec //.
+  repeat break_if => //.
+  * by rewrite {1}/sum_fold NMapFacts.add_neq_o.
+  * find_apply_lem_hyp NSetFacts.mem_2.
+    find_apply_lem_hyp NSetFacts.add_3 => //.
+    find_apply_lem_hyp NSetFacts.mem_1.
+    by congruence.
+  * find_apply_lem_hyp NSetFacts.mem_2.
+    have H_ins': NSet.In n (NSet.add from adj) by auto with set.    
+    find_apply_lem_hyp NSetFacts.mem_1.
+    by congruence.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_not_in_eq_alt :
+forall ns1 ns0 packets state h d,
+  ~ In h ns1 ->
+  sum_fail_balance_incoming_active_opt ns0 ns1 packets (update name_eq_dec state h d) =
+  sum_fail_balance_incoming_active_opt ns0 ns1 packets state.
+Proof.
+elim => //=.
+move => n ns1 IH ns0 packets state h d H_in.
+have H_neq: n <> h by move => H_eq; case: H_in; left.
+have H_not_in: ~ In h ns1 by move => H_in'; case: H_in; right.
+rewrite IH //.
+rewrite /update.
+by case (name_eq_dec _ _) => H_dec.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_not_in_eq_alt2 :
+  forall ns0 ns1 packets state from to ms h d,
+    ~ In to ns0 ->
+    ~ In h ns0 ->
+    sum_fail_balance_incoming_active_opt ns1 ns0 (update2 name_eq_dec packets from to ms) (update name_eq_dec state h (Some d)) =
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets state.
+Proof.
+elim => //.
+move => n ns IH ns1 packets state from to ms h d H_in H_in'.
+rewrite /sum_fail_balance_incoming_active_opt /=.
+have H_neq: n <> to by move => H_eq; case: H_in; left.
+have H_neq': n <> h by move => H_eq; case: H_in'; left.
+destruct_update => //.
+have H_inn: ~ In to ns by move => H_inn; case: H_in; right.
+have H_inn': ~ In h ns by move => H_inn'; case: H_in'; right.
+break_match.
+- have IH' := IH ns1 packets state from to ms _ d H_inn H_inn'.
+  rewrite /sum_fail_balance_incoming_active_opt /= in IH'.
+  by rewrite IH' sum_fail_map_incoming_balance_neq_eq.
+- have IH' := IH ns1 packets state from to ms _ d H_inn H_inn'.
+  rewrite /sum_fail_balance_incoming_active_opt /= in IH'.
+  by rewrite IH'.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_update_not_in_eq :
+  forall ns0 ns1 packets state h d,
+    ~ In h ns0 ->
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets (update name_eq_dec state h d) =
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets state.
+Proof.
+elim => //=.
+move => n ns IH ns1 packets state h d H_in.
+have H_neq: n <> h by move => H_eq; case: H_in; left.
+have H_in': ~ In h ns by move => H_in'; case: H_in; right.
+rewrite IH //.
+rewrite /update.
+by case (name_eq_dec _ _) => H_dec.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_update2_app_eq :
+  forall ns0 ns1 packets state h x mg,
+    mg <> Fail ->
+    sum_fail_balance_incoming_active_opt ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [mg])) state =
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets state.
+Proof.
+elim => //=.
+move => n ns IH H_neq ns1 packets state h x m'.
+rewrite IH //.
+break_match => //.
+by rewrite sum_fail_map_incoming_update2_app_eq.
+Qed.
+
+Lemma Aggregation_sum_fail_balance_incoming_active_opt_update2_app_eq :
+  forall ns0 ns1 packets state h x m',
+    sum_fail_balance_incoming_active_opt ns1 ns0 (update2 name_eq_dec packets h x (packets h x ++ [Aggregate m'])) state =
+    sum_fail_balance_incoming_active_opt ns1 ns0 packets state.
+Proof.
+move => ns0 ns1 packets state h x m'.
+by apply: sum_fail_balance_incoming_active_opt_update2_app_eq.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_permutation_eq :
+  forall ns1 ns1' ns packets state,
+  Permutation ns1 ns1' ->
+  sum_fail_balance_incoming_active_opt ns1 ns packets state =
+  sum_fail_balance_incoming_active_opt ns1' ns packets state.
+Proof.
+move => ns1 ns1' ns.
+elim: ns ns1 ns1' => [|n ns IH] ns1 ns1' packets state H_pm //=.
+rewrite (IH _ _ _ _ H_pm).
+break_match => //.
+by rewrite (sum_fail_map_incoming_permutation_eq _ _ _ _ H_pm).
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_all_head_eq : 
+  forall ns ns' packets state n,
+  sum_fail_balance_incoming_active_opt (n :: ns) ns' packets state = 
+  sum_fail_balance_incoming_active_opt [n] ns' packets state * sum_fail_balance_incoming_active_opt ns ns' packets state.
+Proof.
+move => ns ns'.
+elim: ns' ns => /=.
+  move => ns packets state.
+  by gsimpl.
+move => n ns IH ns' packets state n'.
+rewrite IH.
+break_match => //.
+gsimpl.
+by aac_reflexivity.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_singleton_neq_update2_eq :
+  forall ns f g h n n' ms,
+    h <> n ->
+    sum_fail_balance_incoming_active_opt [n] ns f g =
+    sum_fail_balance_incoming_active_opt [n] ns (update2 name_eq_dec f h n' ms) g.
+Proof.
+elim => //=.
+move => n0 ns IH f g h n n' ms H_neq.
+gsimpl.
+rewrite -IH //.
+rewrite /update2.
+by case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq :
+  forall ns f g h n,
+  h <> n ->
+  sum_fail_balance_incoming_active_opt [n] ns f g = 
+  sum_fail_balance_incoming_active_opt [n] ns (collate name_eq_dec h f (map2snd Fail (filter_rel adjacent_to_dec h ns))) g.
+Proof.
+elim => //=.
+move => n' ns IH f g h n H_neq.
+case adjacent_to_dec => H_dec.
+  rewrite -IH //.
+  rewrite collate_neq //.
+  by break_match; gsimpl; rewrite -sum_fail_balance_incoming_active_opt_singleton_neq_update2_eq.
+break_match; gsimpl.
+  rewrite -IH //.
+  by rewrite collate_neq.
+by rewrite -IH.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_collate_update2_eq :
+  forall ns ns' h n f g l ms,
+  ~ In n ns ->
+  sum_fail_balance_incoming_active_opt ns' ns (collate name_eq_dec h (update2 name_eq_dec f h n ms) l) g =
+  sum_fail_balance_incoming_active_opt ns' ns (collate name_eq_dec h f l) g.
+Proof.
+elim => //=.
+move => n' ns IH ns' h n f g l ms H_in.
+have H_neq: n' <> n by move => H_in'; case: H_in; left.
+have H_in': ~ In n ns by move => H_in'; case: H_in; right.
+rewrite IH //.
+break_match => //.
+by rewrite sum_fail_map_incoming_collate_update2_eq.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_not_in_eq_alt_alt :
+  forall ns0 ns1 from to ms f g,
+  ~ In to ns0 ->
+  sum_fail_balance_incoming_active_opt ns1 ns0 (update2 name_eq_dec f from to ms) g =
+  sum_fail_balance_incoming_active_opt ns1 ns0 f g.
+Proof.
+elim => //.
+move => n ns IH ns1 from to ms f g H_in.
+have H_neq: to <> n by move => H_eq; case: H_in; left.
+have H_in': ~ In to ns by move => H_in'; case: H_in; right.
+rewrite /= IH //.
+break_match => //.
+by rewrite sum_fail_map_incoming_update2_not_eq_alt.
+Qed.
+
+Lemma Aggregation_adjacent_no_fail_not_in_adjacent_empty :
+  forall net failed tr,
+    step_o_d_f_star step_o_d_f_init (failed, net) tr -> 
+    forall n, In n (odnwNodes net) -> ~ In n failed ->
+    forall n', In n' (odnwNodes net) -> In n' failed ->
+    adjacent_to n n' ->
+    forall d, net.(odnwState) n = Some d ->
+         ~ In Fail (net.(odnwPackets) n' n) ->
+        ~ NSet.In n' (adjacent d) ->
+        net.(odnwPackets) n' n = [].
+Proof.
+move => net failed tr H_st.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 5 6 7.
+remember step_o_d_f_init as y in *.
+move: Heqy.
+induction H_st using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_in_n H_in_f n' H_in_n' H_in_f' H_adj d H_eq_d H_in H_ins.
+  have H_neq: n <> n' by move => H_eq; rewrite -H_eq in H_in_f'.
+  break_or_hyp; break_or_hyp => //.
+  * by case: H0; apply: ordered_dynamic_failed_then_initialized; eauto.
+  * rewrite collate_ls_not_in; last by apply not_in_not_in_filter_rel; eauto using in_remove_all_not_in.
+    rewrite collate_neq //.    
+    by apply: Aggregation_inactive_no_incoming; eauto.
+  * have H_neq_n: h <> n by move => H_eq; rewrite H_eq in H0.
+    have H_neq_n': h <> n' by move => H_eq; rewrite H_eq in H0.
+    rewrite collate_ls_not_in; last by apply not_in_not_in_filter_rel; eauto using in_remove_all_not_in.
+    rewrite collate_neq //.
+    destruct_update => //.
+    apply: IHH_st1; eauto.
+    move => H_in'.
+    case: H_in.
+    rewrite collate_ls_not_in; last by apply not_in_not_in_filter_rel; eauto using in_remove_all_not_in.
+    by rewrite collate_neq.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=.
+  * have H_hd: head (odnwPackets net0 from to) = Some (Aggregate x) by find_rewrite.
+    destruct_update; first find_injection.
+    + have H_adj := Aggregation_aggregate_head_in_adjacent H_st1 _ H4 H5 _ H_hd H2.
+      move: H10 {H_st2}.
+      rewrite /= /update2.
+      break_if; break_and; subst; repeat find_rewrite => //.
+      break_or_hyp => //.
+      move => H_in.
+      by apply: IHH_st1; eauto.
+    + move: H10 {H_st2}.
+      rewrite /= /update2.
+      break_if; break_and => //.
+      move => H_in.
+      by apply: IHH_st1; eauto.
+  * have H_hd: head (odnwPackets net0 from to) = Some (Aggregate x) by find_rewrite.
+    destruct_update; first find_injection.
+    + have H_adj := Aggregation_aggregate_head_in_adjacent H_st1 _ H1 H0 _ H_hd H2.
+      have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H_adj.
+      by congruence.
+    + have H_adj := Aggregation_aggregate_head_in_adjacent H_st1 _ H1 H0 _ H_hd H2.
+      have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H_adj.
+      by congruence.
+  * have H_hd: head (odnwPackets net0 from to) = Some Fail by find_rewrite.
+    destruct_update; first find_injection.
+    + have H_adj := Aggregation_head_fail_then_adjacent H_st1 _ H4 H5 _ H_hd H2.
+      move: H10 {H_st2}.
+      rewrite /= /update2.
+      break_if; break_and; subst; repeat find_rewrite => // H_in.
+      -- have H_bef_new := Aggregation_in_after_all_fail_new H_st1 _ H1 H0 n'.
+         find_rewrite.
+         simpl in *.
+         break_or_hyp; last by break_and.
+         have H_bef_agg := Aggregation_in_after_all_fail_aggregate H_st1 _ H1 H0 _ H6.
+         find_rewrite.
+         simpl in *.
+         destruct ms => //.
+         destruct m0.
+         ** have H_bef := H_bef_agg a.
+            break_or_hyp; last by break_and.
+            by case: H12; left.
+         ** by case: H_in; left.
+         ** by case: H9; left.
+      -- break_or_hyp => //.
+         repeat find_rewrite.         
+         apply: IHH_st1; eauto.
+         move => H_ins.
+         case: H11.
+         by auto with set.
+    + have H_adj := Aggregation_head_fail_then_adjacent H_st1 _ H1 H0 _ H_hd H2.
+      move: H10 {H_st2}.
+      rewrite /= /update2.
+      break_if; break_and; subst; repeat find_rewrite => // H_in.
+      by apply: IHH_st1; eauto.
+  * have H_hd: head (odnwPackets net0 from to) = Some Fail by find_rewrite.
+    destruct_update; first find_injection.
+    + have H_adj := Aggregation_head_fail_then_adjacent H_st1 _ H1 H0 _ H_hd H2.
+      have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H_adj.
+      by congruence.
+    + have H_adj := Aggregation_head_fail_then_adjacent H_st1 _ H1 H0 _ H_hd H2.
+      have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H_adj.
+      by congruence.
+  * have H_in: In New (odnwPackets net0 from to) by find_rewrite; left.
+    destruct_update; first find_injection.
+    + move: H16 {H_st2}.      
+      rewrite /= /update2.
+      break_if; break_and; subst; repeat find_rewrite => // H_in.
+      -- have H_in' := Aggregation_in_new_failed_incoming_fail H_st1 _ H9 H11 _ H13 H_in.
+         find_rewrite.
+         simpl in *.
+         by break_or_hyp.
+      -- break_or_hyp => //.
+         move => H_in'.
+         apply: IHH_st1; eauto.
+         move => H_ins.
+         repeat find_rewrite.
+         by auto with set.
+    + move: H16 {H_st2}.      
+      rewrite /= /update2.
+      break_if; break_and; subst; repeat find_rewrite => // H_in.
+      move => H_in'.
+      by apply: IHH_st1; eauto.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=.
+  * destruct_update; first find_injection.
+    + repeat find_rewrite.
+      by apply: IHH_st1; eauto.
+    + by apply: IHH_st1; eauto.
+  * destruct_update; first find_injection.
+    + repeat find_rewrite.
+      move: H9.
+      rewrite /= /update2 /=.
+      break_if; break_and; subst => // H_in.
+      by apply: IHH_st1; eauto.
+    + move: H9.
+      rewrite /= /update2 /=.
+      break_if; break_and; subst => // H_in.
+      by apply: IHH_st1; eauto.
+  * destruct_update; first find_injection.
+    + have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H.
+      by congruence.
+    + have [m' H_bal] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H0 H2 H.
+      by congruence.
+  * destruct_update; first find_injection.
+    + by apply: IHH_st1; eauto.
+    + by apply: IHH_st1; eauto.
+  * destruct_update; first find_injection.
+    + by apply: IHH_st1; eauto.
+    + by apply: IHH_st1; eauto.
+  * destruct_update; first find_injection.
+    + by apply: IHH_st1; eauto.
+    + by apply: IHH_st1; eauto.
+- move => n H_in_n H_in_f n' H_in_n' H_in_f' H_adj d H_eq_d H_in H_ins.
+  have H_neq: h <> n by auto.
+  have H_in_n_f: ~ In n failed by auto.
+  break_or_hyp.
+  * case: H_in.    
+    apply adjacent_to_symmetric in H_adj.
+    rewrite collate_map2snd_not_in_related //; last by apply: ordered_dynamic_nodes_no_dup; eauto.
+    apply in_or_app.
+    by right; left.
+  * have H_neq': h <> n' by move => H_eq; rewrite -H_eq in H.
+    rewrite collate_neq //.
+    apply: IHH_st1; eauto.
+    move => H_in'.
+    case: H_in.
+    by rewrite collate_neq.
+Qed.
+
+Require Import FunctionalExtensionality.
+
+Lemma Aggregation_conserves_network_mass : 
+  forall net failed tr,
+  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+  conserves_network_mass_opt (remove_all name_eq_dec failed net.(odnwNodes)) net.(odnwNodes) net.(odnwPackets) net.(odnwState).
+Proof.
+move => net failed tr H_step.
+rewrite /conserves_network_mass_opt.
+have H_cons := Aggregation_conserves_node_mass_all H_step.
+apply global_conservation in H_cons.
+rewrite /conserves_mass_globally in H_cons.
+rewrite H_cons {H_cons}.
+set sb := sum_balance _.
+set saa := sum_aggregate_msg_incoming_active _ _ _.
+set sfb := sum_fail_balance_incoming_active_opt _ _ _ _.
+suff H_suff: sb = saa * sfb by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
+rewrite /sb /saa /sfb {sb saa sfb}.
+remember step_o_d_f_init as y in *.
+have ->: failed = fst (failed, net) by [].
+have H_eq_o: net = snd (failed, net) by [].
+rewrite {2 3 4 6 7 8 10 11 12} H_eq_o {H_eq_o}.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init {H_init} /=; gsimpl.
+concludes.
+match goal with
+| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+end; simpl.
+- by admit.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  move {H_step2}.
+  rewrite /= in IHH_step1.
+  have H_inn : In to (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
+  apply in_split in H_inn.
+  move: H_inn => [ns0 [ns1 H_inn]].
+  have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
+  rewrite H_inn in H_nd.
+  have H_nin := NoDup_mid_not_in _ _ _ H_nd.
+  have H_to_nin: ~ In to ns0 by move => H_in; case: H_nin; apply in_or_app; left.
+  have H_to_nin': ~ In to ns1 by move => H_in; case: H_nin; apply in_or_app; right.
+  move: IHH_step1.
+  rewrite H_inn.
+  rewrite 2!Nodes_data_opt_split /=.
+  rewrite {2}/update.
+  case (name_eq_dec _ _) => H_dec {H_dec} //.
+  find_rewrite.
+  rewrite Nodes_data_opt_not_in_eq //.
+  rewrite Nodes_data_opt_not_in_eq //.  
+  rewrite 2!sum_balance_distr /=.
+  rewrite 2!sum_aggregate_msg_incoming_active_split /=.
+  rewrite 2!sum_fail_balance_incoming_active_opt_split /=.
+  find_rewrite.
+  rewrite {2}/update.
+  case name_eq_dec => H_dec {H_dec} //.
+  gsimpl.
+  move => IH.
+  case (in_dec name_eq_dec from net0.(odnwNodes)) => H_in_from; last by find_rewrite_lem (ordered_dynamic_no_outgoing_uninitialized H_step1 _ H_in_from).
+  net_handler_cases => //=.
+  * have H_hd: head (odnwPackets net0 from to) = Some (Aggregate x) by repeat find_rewrite.
+    have H_ins := Aggregation_aggregate_head_in_adjacent H_step1 _ H1 H0 _ H_hd H2.
+    rewrite sumM_add_map //.
+    aac_rewrite IH.
+    move {IH}.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
+    case (In_dec Msg_eq_dec Fail (net0.(odnwPackets) from to)) => H_in_fail.
+      rewrite (Aggregation_sum_aggregate_msg_incoming_update2_fail_eq _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1) _ H3) //.
+      rewrite (Aggregation_sum_aggregate_msg_incoming_update2_aggregate_in_fail_add _ _ _ H_ins _ (ordered_dynamic_nodes_no_dup H_step1) _ H3) //.
+      by gsimpl.
+    rewrite (Aggregation_sum_aggregate_msg_incoming_update2_aggregate _ _ _ H_in_from (ordered_dynamic_nodes_no_dup H_step1) H_in_fail H3).
+    rewrite (@no_fail_sum_fail_map_incoming_add_eq AggregationMsg_Aggregation _ _ _ _ _ _ _ _ _ H_in_from (ordered_dynamic_nodes_no_dup H_step1) H3 H_in_fail).
+    by aac_reflexivity.
+  * have H_hd: head (odnwPackets net0 from to) = Some (Aggregate x) by repeat find_rewrite.
+    have H_ins := Aggregation_aggregate_head_in_adjacent H_step1 _ H1 H0 _ H_hd H2.
+    have [m5 H_bal] := Aggregation_in_set_exists_find_balance H_step1 _ H1 H0 H2 H_ins.
+    by congruence.
+  * have H_in: In Fail (odnwPackets net0 from to) by find_rewrite; left.
+    have H_in': ~ In Fail ms.
+      have H_le := Aggregation_le_one_fail H_step1 _ H1 H0 from.
+      find_rewrite.
+      move: H_le.
+      rewrite /=.
+      case H_cnt: (count_occ _ _ _) => H_le; last by omega.
+      by apply count_occ_not_In in H_cnt.
+    have H_hd: head (odnwPackets net0 from to) = Some Fail by repeat find_rewrite.
+    have H_ins := Aggregation_head_fail_then_adjacent H_step1 _ H1 H0 _ H_hd H2.
+    rewrite (sumM_remove_remove H_ins H).
+    aac_rewrite IH.
+    move {IH}.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
+    have H_bef := Aggregation_in_after_all_fail_aggregate H_step1 _ H1 H0 from H_in_from.
+    rewrite (Aggregation_sum_aggregate_msg_incoming_fail_update2_eq _ _ _ H_bef _ (ordered_dynamic_nodes_no_dup H_step1)) //.
+    rewrite (@sum_fail_map_incoming_fail_remove_eq AggregationMsg_Aggregation _ _ _ _ _ _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1) H_ins _ H_in' H) //.
+    by gsimpl.
+  * have H_hd: head (odnwPackets net0 from to) = Some Fail by repeat find_rewrite.
+    have H_ins := Aggregation_head_fail_then_adjacent H_step1 _ H1 H0 _ H_hd H2.
+    have [m5 H_bal] := Aggregation_in_set_exists_find_balance H_step1 _ H1 H0 H2 H_ins.
+    by congruence.
+  * have H_in: In New (odnwPackets net0 from to) by find_rewrite; left.
+    have H_ins := Aggregation_new_incoming_not_in_adj H_step1 _ H1 H0 H_in H2.
+    rewrite (sumM_add_add _ _ H_ins).
+    gsimpl.
+    rewrite IH {IH}.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin).
+    rewrite (sum_fail_balance_incoming_active_opt_not_in_eq _ _ _ _ _ _ _ _ H_to_nin').
+    rewrite sum_aggregate_msg_incoming_new_update2_eq //.
+    by rewrite sum_fail_map_incoming_new_eq.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  move {H_step2}.
+  rewrite /= in IHH_step1.
+  have H_inn : In h (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
+  apply in_split in H_inn.
+  move: H_inn => [ns0 [ns1 H_inn]].
+  have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
+  rewrite H_inn in H_nd.
+  have H_nin := NoDup_mid_not_in _ _ _ H_nd.
+  have H_h_nin: ~ In h ns0 by move => H_in; case: H_nin; apply in_or_app; left.
+  have H_h_nin': ~ In h ns1 by move => H_in; case: H_nin; apply in_or_app; right.
+  move: IHH_step1.
+  rewrite H_inn.
+  rewrite 2!Nodes_data_opt_split /=.
+  rewrite {2}/update.
+  case (name_eq_dec _ _) => H_dec {H_dec} //.
+  find_rewrite.
+  rewrite Nodes_data_opt_not_in_eq //.
+  rewrite Nodes_data_opt_not_in_eq //.  
+  rewrite 2!sum_balance_distr /=.
+  rewrite 2!sum_aggregate_msg_incoming_active_split /=.
+  rewrite 2!sum_fail_balance_incoming_active_opt_split /=.
+  find_rewrite.
+  rewrite {2}/update.
+  case name_eq_dec => H_dec {H_dec} //.
+  gsimpl.
+  move => IH.
+  io_handler_cases => //=.
+  * rewrite sum_fail_balance_incoming_active_opt_not_in_eq_alt //.
+    by rewrite sum_fail_balance_incoming_active_opt_not_in_eq_alt.
+  * have H_x_nodes: In x net0.(odnwNodes).
+      have H_and := Aggregation_in_adj_or_incoming_fail H_step1 _ H1 H0 H2 H.
+      by break_or_hyp; break_and.    
+    have H_neq: h <> x.
+      move => H_eq.
+      have H_self := Aggregation_node_not_adjacent_self H_step1 H1 H0 H2.
+      by rewrite {1}H_eq in H_self.
+    rewrite (sumM_add_map _ H H5).
+    aac_rewrite IH.
+    move {IH}.
+    rewrite sum_aggregate_msg_incoming_neq_eq //.
+    case (In_dec name_eq_dec x failed0) => H_dec.
+      have H_or := Aggregation_in_adj_or_incoming_fail H_step1 _ H1 H0 H2 H.
+      case: H_or => H_or; first by break_and.
+      move: H_or => [H_dec' [H_n H_in]] {H_dec'}.
+      have H_x_ex: ~ In x (remove_all name_eq_dec failed0 net0.(odnwNodes)) by eauto using in_remove_all_not_in.
+      rewrite H_inn in H_x_ex.
+      have H_x_nin: ~ In x ns0 by move => H_x_in; case: H_x_ex; apply in_or_app; left.
+      have H_x_nin': ~ In x ns1 by move => H_x_in; case: H_x_ex; apply in_or_app; right; right.
+      rewrite sum_fail_balance_incoming_active_opt_not_in_eq_alt2 //.
+      rewrite sum_fail_balance_incoming_active_opt_not_in_eq_alt2 //.
+      rewrite (Aggregation_sum_fail_map_incoming_add_aggregate_eq _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1)) //.
+      rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+      rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+      by aac_reflexivity.
+    have H_in := Aggregation_not_failed_no_fail H_step1 _ H_x_nodes H_dec h.
+    have H_in' := Aggregation_not_failed_no_fail H_step1 _ H1 H0 x.
+    rewrite sum_fail_balance_incoming_active_opt_update_not_in_eq //.
+    rewrite sum_fail_balance_incoming_active_opt_update_not_in_eq //.    
+    rewrite Aggregation_sum_fail_balance_incoming_active_opt_update2_app_eq //.
+    rewrite Aggregation_sum_fail_balance_incoming_active_opt_update2_app_eq //.
+    rewrite (sum_fail_map_incoming_not_in_fail_add_update2_eq _ _ _ _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1)) //.
+    have H_in_x: In x (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
+    rewrite H_inn in H_in_x.
+    apply in_app_or in H_in_x.
+    case: H_in_x => H_in_x.
+      have H_nin_x: ~ In x ns1.
+        move => H_nin_x.
+        apply NoDup_remove_1 in H_nd.
+        contradict H_nin_x.
+        move: H_in_x.
+        exact: NoDup_in_not_in_right.
+      have H_nd': NoDup ns0 by move: H_nd; exact: NoDup_app_left.
+      rewrite (sum_aggregate_msg_incoming_active_not_in_eq ns1) //.
+      rewrite (Aggregation_sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1)) //.
+      by aac_reflexivity.
+    case: H_in_x => H_in_x //.
+    have H_nin_x: ~ In x ns0.
+      move => H_nin_x.
+      apply NoDup_remove_1 in H_nd.
+      contradict H_nin_x.
+      move: H_in_x.
+      exact: NoDup_in_not_in_left.
+    have H_nd': NoDup ns1.
+      apply NoDup_app_right in H_nd.
+      by inversion H_nd.
+    rewrite sum_aggregate_msg_incoming_active_not_in_eq //.
+    rewrite (Aggregation_sum_aggregate_msg_incoming_active_in_update2_app_eq _ _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1)) //.
+    by aac_reflexivity.
+  * have [m' H_snt] := Aggregation_in_set_exists_find_balance H_step1 _ H1 H0 H2 H.
+    by congruence.
+  * have H_eq: update name_eq_dec (odnwState net0) h (Some d) = odnwState net0.
+      apply functional_extensionality.
+      move => x0.
+      by destruct_update.
+    by rewrite H_eq.    
+  * have H_eq: update name_eq_dec (odnwState net0) h (Some d) = odnwState net0.
+      apply functional_extensionality.
+      move => x0.
+      by destruct_update.
+    by rewrite H_eq.
+  * have H_eq: update name_eq_dec (odnwState net0) h (Some d) = odnwState net0.
+      apply functional_extensionality.
+      move => x0.
+      by destruct_update.
+    by rewrite H_eq.
+- move {H_step2}.
+  rewrite /= in IHH_step1.
+  have H_inn : In h (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
+  apply in_split in H_inn.
+  move: H_inn => [ns0 [ns1 H_inn]].
+  have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
+  rewrite H_inn in H_nd.
+  have H_nin := NoDup_mid_not_in _ _ _ H_nd.
+  have H_to_nin: ~ In h ns0 by move => H_in; case: H_nin; apply in_or_app; left.
+  have H_to_nin': ~ In h ns1 by move => H_in; case: H_nin; apply in_or_app; right.    
+  move: IHH_step1.
+  have H_ex := remove_all_NoDup_split name_eq_dec _ _ _ _ (ordered_dynamic_nodes_no_dup H_step1) H_inn.
+  rewrite H_ex.  
+  rewrite H_inn.
+  have H_nd': NoDup ns0 by move: H_nd; exact: NoDup_app_left.
+  have H_nd'': NoDup ns1 by apply NoDup_app_right in H_nd; inversion H_nd.
+  have [d H_eq] := ordered_dynamic_initialized_state H_step1 _ H1.
+  rewrite 2!Nodes_data_opt_split /= H_eq.
+  rewrite 2!sum_balance_distr /=.
+  rewrite 2!sum_aggregate_msg_incoming_active_split /=.
+  rewrite 2!sum_fail_balance_incoming_active_opt_split /= H_eq.
+  gsimpl.
+  move => IH.
+  rewrite filter_rel_self_eq.
+  set l := collate _ _ _ _.
+  rewrite sum_balance_Nodes_data_opt_distr in IH.
+  rewrite sum_balance_Nodes_data_opt_distr.
+  move: IH.
+  rewrite -2!sum_aggregate_msg_incoming_active_split.
+  move => IH.
+  set sa := sum_aggregate_msg_incoming_active _ _ _.
+  set sf1 := sum_fail_balance_incoming_active_opt _ _ _ _.
+  set sf2 := sum_fail_balance_incoming_active_opt _ _ _ _.
+  have ->: sa * sf1 * sf2 =
+    sa * @sum_fail_balance_incoming_active_opt AggregationMsg_Aggregation _ AggregationData_Data net0.(odnwNodes) (ns0 ++ ns1) l (odnwState net0).
+    rewrite sum_fail_balance_incoming_active_opt_split.
+    by gsimpl.
+  rewrite /sa /sf1 /sf2 {sa sf1 sf2}.
+  move: IH.
+  set saa := sum_aggregate_msg_incoming_active _ _ _.
+  set sai := sum_aggregate_msg_incoming _ _ _.
+  set sf1 := sum_fail_balance_incoming_active_opt _ _ _ _.
+  set sf2 := sum_fail_balance_incoming_active_opt _ _ _ _.
+  set sfm := sum_fail_map_incoming _ _ _ _ _.
+  have ->: saa * sai * sf1 * sf2 * sfm = 
+    saa * sai * @sum_fail_balance_incoming_active_opt AggregationMsg_Aggregation _ AggregationData_Data net0.(odnwNodes) (ns0 ++ ns1) (odnwPackets net0) (odnwState net0) * sfm.
+    rewrite sum_fail_balance_incoming_active_opt_split.
+    by gsimpl.
+  rewrite /saa /sai /sf1 /sf2 /sfm {saa sai sf1 sf2 sfm}.
+  set sums := sumM _ _.
+  set sb := sum_balance _.
+  move => IH.
+  set sam := sum_aggregate_msg_incoming_active _ _ _.  
+  set sfbi := sum_fail_balance_incoming_active_opt _ _ _ _.
+  suff H_suff: sb * sums * sums^-1 = sam * sfbi by move: H_suff; gsimpl.
+  aac_rewrite IH.
+  move {IH}.
+  rewrite /sums /sb /sam /sfbi {sums sb sam sfbi}.
+  rewrite /l {l}.
+  have H_acs := sumM_balance_fail_active_eq_with_self H_step1 _ H1 H0 H_eq.
+  have H_pmn: Permutation (h :: ns0 ++ ns1) (remove_all name_eq_dec failed0 net0.(odnwNodes)) by rewrite H_inn; exact: Permutation_middle.
+  rewrite -(sumM_active_eq_sym _ _ H_pmn) /= /sum_active_fold in H_acs.
+  move: H_acs {H_pmn}.
+  case: ifP => H_mem; first by apply NSetFacts.mem_2 in H_mem; contradict H_mem; exact: (Aggregation_node_not_adjacent_self H_step1).
+  set s1 := sum_fail_map_incoming _ _ _ _ _.
+  move => H_acs {H_mem}.  
+  have H_acs': 
+    (sumM (adjacent d) (balance d))^-1 * s1 =
+    (sumM_active (adjacent d) (balance d) (ns0 ++ ns1))^-1.
+    rewrite -H_acs.
+    by gsimpl; aac_reflexivity.
+  aac_rewrite H_acs'.
+  move {H_acs H_acs' s1}.
+  apply NoDup_remove_1 in H_nd.
+  move: H_nd H_nin H_ex.
+  set ns := ns0 ++ ns1.
+  move => H_nd H_nin H_ex.
+  move {H_to_nin H_to_nin' H_nd' H_nd'' H_inn}.
+  move {H_nin H_nd}.  
+  have H_nd := ordered_dynamic_nodes_no_dup H_step1.
+  move: ns H_ex => ns H_ex {ns0 ns1}.
+  have H_in_nodes := H1.
+  apply in_split in H1.
+  move: H1 => [ns0 [ns1 H_in_from]].
+  have H_in_nd: forall n, In n (ns0 ++ ns1) -> In n net0.(odnwNodes).
+    move => n H_in.
+    rewrite H_in_from.
+    find_apply_lem_hyp in_app_or.
+    break_or_hyp; first by apply in_or_app; left.
+    apply in_or_app.
+    by right; right.
+  rewrite H_in_from in H_ex.
+  rewrite H_in_from in H_nd.
+  have H_nin: ~ In h (ns0 ++ ns1) by exact: NoDup_mid_not_in.
+  apply NoDup_remove_1 in H_nd.
+  rewrite remove_partition in H_ex.
+  have H_pm: Permutation net0.(odnwNodes) (h :: ns0 ++ ns1).
+    rewrite H_in_from.
+    apply Permutation_sym.
+    exact: Permutation_middle.
+  move {H_in_from}.
+  rewrite (sum_aggregate_msg_incoming_active_permutation_eq _ _ H_pm).
+  rewrite (sum_aggregate_msg_incoming_permutation_eq _ _ H_pm).
+  rewrite (sum_fail_balance_incoming_active_opt_permutation_eq _ _ _ H_pm).
+  rewrite (sum_aggregate_msg_incoming_active_permutation_eq _ _ H_pm).
+  rewrite (sum_fail_balance_incoming_active_opt_permutation_eq _ _ _ H_pm).
+  move: H_nd H_nin H_in_nd ns H_ex {H_pm}.
+  set ns' := ns0 ++ ns1.
+  move: H_eq => H_eq_d.
+  elim: ns' => /=; rewrite (Aggregation_self_channel_empty H_step1) //=; first by move => H_nd H_in H_in_nd ns H_eq; rewrite -H_eq remove_all_nil /=; gsimpl.
+  move => n ns' IH H_nd H_in H_in_nd ns.
+  inversion H_nd => {x H l H1}.
+  have H_neq: h <> n by move => H_eq; case: H_in; left.
+  have H_in': ~ In h ns' by move => H_in'; case: H_in; right.
+  have H_in_n_nd: In n net0.(odnwNodes) by auto.
+  have H_in_nd': forall n0, In n0 ns' -> In n0 net0.(odnwNodes) by auto.
+  move {H_in H_nd H_in_nd}.
+  case name_eq_dec => H_dec //=.
+  move => H_ex.
+  have H_cn := remove_all_cons name_eq_dec failed0 n (remove name_eq_dec h ns').
+  rewrite H_ex in H_cn => {H_ex}.
+  break_or_hyp; break_and.
+    match goal with | H : _ = remove_all _ _ _ |- _ => symmetry in H end.
+    move {H_dec}.
+    have IH' := IH H3 H_in' H_in_nd' _ H.
+    move {IH}.
+    move: IH'.
+    move => IH.
+    case in_dec => /= H_dec; case H_mem: (NSet.mem n d.(adjacent)).
+    - apply NSetFacts.mem_2 in H_mem.      
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns') in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq (n :: ns')).
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      aac_rewrite IH.
+      move {IH}.
+      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).      
+      rewrite -(sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq _ _ _ H_neq).
+      by gsimpl; aac_reflexivity.
+    - move/negP: H_mem => H_mem.
+      have H_ins: ~ NSet.In n (adjacent d).
+        move => H_ins.
+        find_apply_lem_hyp NSetFacts.mem_1.
+        by congruence.
+      (*
+      have H_new := Aggregation_incoming_fail_then_incoming_new_or_in_adjacent H_step1 _ H_in_nodes H0 _ H_dec H_eq_d.
+      break_or_hyp; break_and => //.
+      *)
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns') in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq (n :: ns')).
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      aac_rewrite IH.
+      move {IH}.
+      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq). 
+      rewrite -(sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq _ _ _ H_neq).
+      by gsimpl; aac_reflexivity.
+    - apply NSetFacts.mem_2 in H_mem.
+      have H_or := Aggregation_in_adj_or_incoming_fail H_step1 _ H_in_nodes H0 H_eq_d H_mem.
+      by case: H_or => H_or; break_and.
+    - move/negP: H_mem => H_mem.
+      have H_ins: ~ NSet.In n (adjacent d).
+        move => H_ins.
+        find_apply_lem_hyp NSetFacts.mem_1.
+        by congruence.
+      have H_eq_emp: odnwPackets net0 n h = [].
+        case (adjacent_to_dec h n) => H_adj; last by rewrite (Aggregation_not_adjacent_no_incoming H_step1).
+        by apply: (Aggregation_adjacent_no_fail_not_in_adjacent_empty H_step1); eauto.
+      have H_notin: forall m', ~ In (Aggregate m') (odnwPackets net0 n h) by rewrite H_eq_emp; auto.
+      rewrite (Aggregation_sum_aggregate_ms_no_aggregate_1 _ H_notin).
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+      rewrite sum_fail_balance_incoming_active_opt_all_head_eq in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns') in IH.
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq (n :: ns')).
+      rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+      rewrite sum_aggregate_msg_incoming_active_all_head_eq in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH.
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
+      rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+      aac_rewrite IH.
+      move {IH}.
+      rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
+      rewrite -(sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq _ _ _ H_neq).
+      by gsimpl; aac_reflexivity.
+  match goal with | H : _ = _ :: remove_all _ _ _ |- _ => symmetry in H end.
+  move: H.
+  move {H_dec}.
+  case: ns IH H2 H3 H_in' => //.
+  move => n' ns IH H_in H_nd H_nin H_ex.
+  have H_ex': remove_all name_eq_dec failed0 (remove name_eq_dec h ns') = ns by inversion H_ex.
+  have H_eq: n = n' by inversion H_ex.
+  rewrite -H_eq {n' H_eq H_ex}.
+  have IH' := IH H_nd H_nin H_in_nd' _ H_ex'.
+  move {IH}.
+  rewrite /=.
+  rewrite (Aggregation_self_channel_empty H_step1) //=.
+  rewrite {1 3}/sum_fail_map /=.
+  rewrite /sum_active_fold.
+  case (adjacent_to_dec _ _) => H_Adj; last first.
+    rewrite /=.
+    have H_Adj': ~ adjacent_to n h by move => H_Adj'; apply adjacent_to_symmetric in H_Adj'.
+    case: ifP => H_dec.
+      apply NSetFacts.mem_2 in H_dec.
+      case: H_Adj'.
+      by apply: (Aggreation_in_adj_adjacent_to H_step1); eauto.
+    move {H_dec}.
+    case in_dec => /= H_dec; first by contradict H_dec; exact: (Aggregation_not_failed_no_fail H_step1).
+    move {H_dec}.
+    case in_dec => /= H_dec; first by contradict H_dec; exact: (Aggregation_not_failed_no_fail H_step1).
+    move {H_dec}.
+    case in_dec => /= H_dec; first by contradict H_dec; rewrite collate_neq // (Aggregation_self_channel_empty H_step1).
+    move {H_dec}.
+    have [d' H_d'] := ordered_dynamic_initialized_state H_step1 _ H_in_n_nd.
+    rewrite H_d'.
+    have H_ins: ~ NSet.In h d'.(adjacent).
+      move => H_ins.
+      case: H_Adj.
+      move: H_ins.
+      exact: (Aggreation_in_adj_adjacent_to H_step1).
+    have H_ins': ~ NSet.In n d.(adjacent).
+      move => H_ins'.
+      case: H_Adj'.
+      move: H_ins'.
+      exact: (Aggreation_in_adj_adjacent_to H_step1).
+    case in_dec => /= H_dec.
+      rewrite collate_map2snd_not_related // in H_dec. 
+      by rewrite (Aggregation_not_adjacent_no_incoming H_step1) in H_dec.
+    move {H_dec}.
+    rewrite (collate_map2snd_not_related _ _ _ name_eq_dec _ _ _ _ _ _ H_Adj).
+    rewrite (collate_neq _ _ name_eq_dec _ _ _ _ _ H_neq) //.
+    rewrite (Aggregation_self_channel_empty H_step1) //=.
+    rewrite {2}/sum_fail_map /=.
+    have H_emp_hn: odnwPackets net0 h n = [] by rewrite (Aggregation_not_adjacent_no_incoming H_step1).
+    have H_emp_nh: odnwPackets net0 n h = [] by rewrite (Aggregation_not_adjacent_no_incoming H_step1).
+    rewrite H_emp_hn H_emp_nh /sum_fail_map /=.
+    rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+    rewrite sum_fail_balance_incoming_active_opt_all_head_eq in IH'.
+    rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+    rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns') in IH'.
+    rewrite (sum_fail_balance_incoming_active_opt_all_head_eq (n :: ns')).
+    rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+    rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+    rewrite sum_aggregate_msg_incoming_active_all_head_eq in IH'.
+    rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+    rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH'.
+    rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
+    rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+    aac_rewrite IH'.
+    move {IH'}.
+    rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
+    rewrite -(sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq _ _ _ H_neq).
+    rewrite (sum_fail_map_incoming_not_adjacent_collate_eq _ _ _ _ _ H_Adj).
+    rewrite (sum_aggregate_msg_incoming_not_adjacent_collate_eq _ _ _ H_Adj).
+    by gsimpl; aac_reflexivity.
+  rewrite /=.
+  have [d' H_d'] := ordered_dynamic_initialized_state H_step1 _ H_in_n_nd.
+  rewrite H_d'.
+  have H_adj': adjacent_to n h by apply adjacent_to_symmetric in H_Adj.
+  have H_in_f: ~ In Fail (net0.(odnwPackets) h n) by exact: (Aggregation_not_failed_no_fail H_step1).
+  have H_in_f': ~ In Fail (net0.(odnwPackets) n h) by exact: (Aggregation_not_failed_no_fail H_step1).
+  case in_dec => /= H_dec_f //.
+  move {H_dec_f}.
+  case in_dec => /= H_dec_f //.
+  move {H_dec_f}.
+  rewrite (collate_neq _ _ name_eq_dec _ _ _ _ _ H_neq) //.
+  case in_dec => /= H_dec_f.
+    contradict H_dec_f.
+    rewrite /update2.
+    case (sumbool_and _ _ _ _) => H_and; first by move: H_and => [H_and H_and'].
+    by rewrite (Aggregation_self_channel_empty H_step1).
+  move {H_dec_f}.
+  have H_in_n: ~ In n ns.
+    move => H_in_n.
+    rewrite -H_ex' in H_in_n.
+    rewrite remove_not_in // in H_in_n.
+    case: H_in.
+    move: H_in_n.
+    exact: in_remove_all_was_in.
+  case in_dec => /= H_dec_f; last first.
+    case: H_dec_f.
+    have H_a := collate_map2snd_related_not_in _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
+    move: H_a.
+    rewrite /=.
+    case adjacent_to_dec => /= H_dec // {H_dec}.
+    rewrite /=.
+    move => H_a.
+    by rewrite H_a; first by apply in_or_app; right; left.
+  move {H_dec_f}.
+  rewrite {3}/update2.
+  case sumbool_and => H_and; first by move: H_and => [H_eq H_eq'].
+  move {H_and}.
+  rewrite (Aggregation_self_channel_empty H_step1) //=.
+  gsimpl.
+  rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+  rewrite sum_fail_balance_incoming_active_opt_all_head_eq in IH'.
+  rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+  rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns') in IH'.
+  rewrite (sum_fail_balance_incoming_active_opt_all_head_eq (n :: ns')).
+  rewrite (sum_fail_balance_incoming_active_opt_all_head_eq ns').
+  rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+  rewrite sum_aggregate_msg_incoming_active_all_head_eq in IH'.
+  rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+  rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns') in IH'.
+  rewrite (sum_aggregate_msg_incoming_active_all_head_eq (n :: ns')).
+  rewrite (sum_aggregate_msg_incoming_active_all_head_eq ns').
+  move: IH'.
+  gsimpl.
+  move => IH.
+  set u2 := update2 _ _ _ _ _.
+  set cl := collate _ _ _ _.
+  rewrite -(sum_aggregate_msg_incoming_active_singleton_neq_collate_eq _ _ H_neq).
+  rewrite -(sum_fail_balance_incoming_active_opt_singleton_neq_collate_eq _ _ _ H_neq).
+  rewrite /sum_fail_map.
+  case in_dec => /= H_dec // {H_dec}.
+  case in_dec => /= H_dec; last first.
+    case: H_dec.
+    rewrite /cl /u2.
+    have H_a := collate_map2snd_related_not_in _ _ _ name_eq_dec adjacent_to_dec Fail _ _ _ _ H_Adj H_in_n.
+    move: H_a.
+    rewrite /=.
+    case adjacent_to_dec => /= H_dec // {H_dec}.
+    rewrite /=.
+    move => H_a.
+    rewrite H_a.
+    by apply in_or_app; right; left.
+  move {H_dec}.
+  rewrite sum_aggregate_msg_incoming_active_eq_not_in_eq //.
+  rewrite {1}/cl {1}/u2.
+  rewrite sum_aggregate_msg_incoming_active_collate_update2_eq //.
+  rewrite sum_aggregate_msg_incoming_active_collate_update2_eq //.
+  rewrite {1}/cl /u2.
+  rewrite sum_aggregate_msg_incoming_collate_update2_notin_eq //.
+  rewrite sum_aggregate_msg_incoming_collate_msg_for_notin_eq //.
+  rewrite {1 2}/cl /u2.
+  rewrite sum_fail_map_incoming_collate_not_in_eq //.
+  rewrite sum_fail_map_incoming_not_in_eq //. 
+  rewrite sum_fail_balance_incoming_active_opt_collate_update2_eq //.
+  rewrite sum_fail_balance_incoming_active_opt_collate_update2_eq //.  
+  rewrite sum_fail_balance_incoming_active_opt_not_in_eq_alt_alt //.
+  rewrite /cl {u2 cl}.
+  repeat break_if.
+  * find_apply_lem_hyp NSetFacts.mem_2.
+    find_apply_lem_hyp NSetFacts.mem_2.
+    have [m0 H_bal] := Aggregation_in_set_exists_find_balance H_step1 _ H_in_nodes H0 H_eq_d Heqb.
+    have [m1 H_bal_n] := Aggregation_in_set_exists_find_balance H_step1 _ H_in_n_nd H1 H_d' Heqb0.
+    rewrite /sum_fold H_bal H_bal_n.    
+    gsimpl.
+    aac_rewrite IH.
+    move {IH}.
+    gsimpl.
+    have H_eq := Aggregation_sent_received_eq H_step1 H_in_nodes H0 H_in_n_nd H1 H_eq_d H_d' Heqb Heqb0 H_bal_n H_bal.
+    aac_rewrite <- H_eq.
+    have H_agg: @sum_aggregate_msg AggregationMsg_Aggregation (odnwPackets net0 h n) * (@sum_aggregate_msg AggregationMsg_Aggregation (odnwPackets net0 h n))^-1 = 1 by gsimpl.
+    aac_rewrite H_agg.
+    move {H_agg}.
+    gsimpl.
+    set s1 := sum_fail_map_incoming _ _ _ _ _.
+    set s5 := sum_aggregate_msg_incoming_active _ _ _.
+    set s6 := sum_aggregate_msg_incoming _ _ _.
+    set s8 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s10 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s11 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s12 := sum_aggregate_msg_incoming_active _ _ _.
+    set s13 := sum_aggregate_msg_incoming_active _ _ _.
+    by aac_reflexivity.
+  * find_apply_lem_hyp NSetFacts.mem_2.
+    have H_ins: ~ NSet.In h d'.(adjacent).
+      move => H_ins.
+      find_apply_lem_hyp NSetFacts.mem_1.
+      by congruence.
+    have [m0 H_bal] := Aggregation_in_set_exists_find_balance H_step1 _ H_in_nodes H0 H_eq_d Heqb.
+    rewrite /sum_fold H_bal.
+    gsimpl.
+    aac_rewrite IH.
+    move {IH}.
+    gsimpl.
+    have H_eq := sent_received_one_not_in H_step1 H_in_nodes H0 H_in_n_nd H1 H_eq_d H_d' Heqb H_ins H_bal.
+    rewrite H_eq.
+    gsimpl.
+    have H_eq' := not_adjacent_sum_aggregate_msg_1 H_step1 _ H_in_n_nd H1 H_in_nodes H0 H_d' H_ins.
+    rewrite H_eq'.
+    gsimpl.
+    set s1 := sum_fail_map_incoming _ _ _ _ _.
+    set s5 := sum_aggregate_msg_incoming_active _ _ _.
+    set s6 := sum_aggregate_msg_incoming _ _ _.
+    set s8 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s10 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s11 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s12 := sum_aggregate_msg_incoming_active _ _ _.
+    set s13 := sum_aggregate_msg_incoming_active _ _ _.
+    by aac_reflexivity.
+  * find_apply_lem_hyp NSetFacts.mem_2.
+    have H_ins: ~ NSet.In n d.(adjacent).
+      move => H_ins.
+      find_apply_lem_hyp NSetFacts.mem_1.
+      by congruence.
+    have [m1 H_bal_n] := Aggregation_in_set_exists_find_balance H_step1 _ H_in_n_nd H1 H_d' Heqb0.
+    rewrite /sum_fold H_bal_n.
+    gsimpl.
+    aac_rewrite IH.
+    move {IH}.
+    gsimpl.
+    have H_eq := sent_received_one_not_in H_step1 H_in_n_nd H1 H_in_nodes H0 H_d' H_eq_d Heqb0 H_ins H_bal_n.
+    rewrite H_eq.
+    gsimpl.
+    have H_eq' := not_adjacent_sum_aggregate_msg_1 H_step1 _ H_in_nodes H0 H_in_n_nd H1 H_eq_d H_ins.
+    rewrite H_eq'.
+    gsimpl.
+    set s1 := sum_fail_map_incoming _ _ _ _ _.
+    set s5 := sum_aggregate_msg_incoming_active _ _ _.
+    set s6 := sum_aggregate_msg_incoming _ _ _.
+    set s8 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s10 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s11 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s12 := sum_aggregate_msg_incoming_active _ _ _.
+    set s13 := sum_aggregate_msg_incoming_active _ _ _.
+    by aac_reflexivity.
+  * have H_ins: ~ NSet.In h d'.(adjacent).
+      move => H_ins.
+      find_apply_lem_hyp NSetFacts.mem_1.
+      by congruence.
+    have H_ins': ~ NSet.In n d.(adjacent).
+      move => H_ins'.
+      find_apply_lem_hyp NSetFacts.mem_1.
+      by congruence.
+    aac_rewrite IH.
+    move {IH}.
+    have H_eq := not_adjacent_sum_aggregate_msg_1 H_step1 _ H_in_n_nd H1 H_in_nodes H0 H_d' H_ins.
+    rewrite H_eq.
+    have H_eq' := not_adjacent_sum_aggregate_msg_1 H_step1 _ H_in_nodes H0 H_in_n_nd H1 H_eq_d H_ins'.
+    rewrite H_eq'.
+    gsimpl.
+    set s1 := sum_fail_map_incoming _ _ _ _ _.
+    set s5 := sum_aggregate_msg_incoming_active _ _ _.
+    set s6 := sum_aggregate_msg_incoming _ _ _.
+    set s8 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s10 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s11 := sum_fail_balance_incoming_active_opt _ _ _ _.
+    set s12 := sum_aggregate_msg_incoming_active _ _ _.
+    set s13 := sum_aggregate_msg_incoming_active _ _ _.
+    by aac_reflexivity.
+Admitted.
 
 End Aggregation.

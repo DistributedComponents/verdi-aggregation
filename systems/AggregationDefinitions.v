@@ -632,6 +632,13 @@ forall d, In d l -> conserves_node_mass d.
 Definition Nodes_data (ns : list name) (state : name -> data) : list data :=
 fold_right (fun (n : name) (l' : list data) => n.(state) :: l') [] ns.
 
+Definition Nodes_data_opt (ns : list name) (state : name -> option data) : list data :=
+fold_right (fun (n : name) (l' : list data) => 
+              match state n with
+              | Some d => d :: l'
+              | None => l'
+              end) [] ns.
+
 End AggregationProps.
 
 Section AggregationDataProps.
@@ -667,6 +674,21 @@ rewrite IH /=.
 by gsimpl.
 Qed.
 
+Lemma sum_local_opt_app :
+  forall ns0 ns1 state n d,
+    state n = Some d ->
+    sum_local (Nodes_data_opt (ns0 ++ n :: ns1) state) =
+    d.(aggr_local) * sum_local (Nodes_data_opt (ns0 ++ ns1) state).
+Proof.
+elim => /=.
+  move => ns1 state n d H_eq.
+  rewrite H_eq /=.
+  by aac_reflexivity.
+move => n ns IH ns1 state n' d H_eq.
+have IH' := IH ns1 state _ _ H_eq.
+by break_match; rewrite /= IH'; first by gsimpl.
+Qed.
+
 Lemma sum_aggregate_split :
   forall ns0 ns1 state n,
     sum_aggregate (Nodes_data (ns0 ++ n :: ns1) state) =
@@ -676,6 +698,21 @@ elim => /=; first by move => ns1 state n; aac_reflexivity.
 move => n ns IH ns1 state n'.
 rewrite IH /=.
 by gsimpl.
+Qed.
+
+Lemma sum_aggregate_opt_app :
+  forall ns0 ns1 state n d,
+    state n = Some d ->
+    sum_aggregate (Nodes_data_opt (ns0 ++ n :: ns1) state) =
+    d.(aggr_aggregate) * sum_aggregate (Nodes_data_opt (ns0 ++ ns1) state).
+Proof.
+elim => /=.
+  move => ns1 state n d H_eq.
+  rewrite H_eq /=.
+  by aac_reflexivity.
+move => n ns IH ns1 state n' d H_eq.
+have IH' := IH ns1 state _ _ H_eq.
+by break_match; rewrite /= IH'; first by gsimpl.
 Qed.
 
 Lemma Nodes_data_not_in : 
@@ -709,6 +746,17 @@ rewrite /=.
 by rewrite IH.
 Qed.
 
+Lemma Nodes_data_opt_split :
+  forall ns0 ns1 (state : name -> option data),
+    Nodes_data_opt (ns0 ++ ns1) state =
+    Nodes_data_opt ns0 state ++ Nodes_data_opt ns1 state.
+Proof.
+elim => //.
+move => n ns0 IH ns1 state.
+rewrite /=.
+by break_match; rewrite IH.
+Qed.
+
 Lemma sum_balance_distr : 
   forall dl dl',
     sum_balance (dl ++ dl') = sum_balance dl * sum_balance dl'.
@@ -727,6 +775,15 @@ Proof.
 elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
 rewrite -IH.
 by aac_reflexivity.
+Qed.
+
+Lemma sum_balance_Nodes_data_opt_distr : 
+  forall ns0 ns1 state,
+    sum_balance (Nodes_data_opt ns0 state) * sum_balance (Nodes_data_opt ns1 state) =
+    sum_balance (Nodes_data_opt (ns0 ++ ns1) state).
+Proof.
+elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
+by break_match; rewrite /= -IH; aac_reflexivity.
 Qed.
 
 End AggregationDataProps.
@@ -769,11 +826,24 @@ Definition sum_fail_balance_incoming_active (allns : list name) (actns : list na
 fold_right (fun (n : name) (partial : m) => 
   partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_balance)) 1 actns.
 
+Definition sum_fail_balance_incoming_active_opt (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> option data) : m :=
+fold_right (fun (n : name) (partial : m) => 
+              match state n with
+              | Some d => partial * sum_fail_map_incoming allns packets n d.(aggr_adjacent) d.(aggr_balance)
+              | None => partial
+              end) 1 actns.
+
 Definition conserves_network_mass (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : Prop :=
 sum_local (Nodes_data actns state) = 
   sum_aggregate (Nodes_data actns state) * 
   sum_aggregate_msg_incoming_active allns actns packets * 
   sum_fail_balance_incoming_active allns actns packets state.
+
+Definition conserves_network_mass_opt (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> option data) : Prop :=
+sum_local (Nodes_data_opt actns state) = 
+  sum_aggregate (Nodes_data_opt actns state) * 
+  sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_balance_incoming_active_opt allns actns packets state.
 
 End MsgFolds.
 
@@ -803,6 +873,38 @@ move => n' H_in'.
 by rewrite H_in; last by right.
 Qed.
 
+Lemma sum_local_opt_aggr_local_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) ns,
+   (forall n, In n ns -> state n = None <-> state' n = None) ->
+   (forall n, In n ns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_local) = d1.(aggr_local)) ->
+    sum_local (Nodes_data_opt ns state) = sum_local (Nodes_data_opt ns state').
+Proof.
+move => state state'.
+elim => //=.
+move => n ns IH H_imp H_in.
+case H_n: state => [d0|]; case H_n': state' => [d1|].
+- rewrite /=.
+  rewrite (H_in n _ d0 _ d1) //; last by left.
+  rewrite IH //.
+  * move => n0 H_in'.
+    apply: H_imp.
+    by right.
+  * move => n0 H_in'.
+    apply: H_in.
+    by right.
+- apply H_imp in H_n'; last by left.
+  by congruence.
+- apply H_imp in H_n; last by left.
+  by congruence.
+- rewrite IH //.
+  * move => n0 H_in'.
+    apply: H_imp.
+    by right.
+  * move => n0 H_in'.
+    apply: H_in.
+    by right.
+Qed.
+
 Lemma sum_aggregate_aggr_aggregate_eq :
   forall (state : name -> data_fst) (state' : name -> data_snd) ns,
    (forall n, In n ns -> n.(state).(aggr_aggregate) = n.(state').(aggr_aggregate)) ->
@@ -815,6 +917,38 @@ rewrite /= H_in; last by left.
 rewrite IH //.
 move => n' H_in'.
 by rewrite H_in; last by right.
+Qed.
+
+Lemma sum_aggregate_opt_aggr_aggregate_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) ns,
+    (forall n, In n ns -> state n = None <-> state' n = None) ->
+   (forall n, In n ns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_aggregate) = d1.(aggr_aggregate)) ->
+    sum_aggregate (Nodes_data_opt ns state) = sum_aggregate (Nodes_data_opt ns state').
+Proof.
+move => state state'.
+elim => //=.
+move => n ns IH H_imp H_in.
+case H_n: state => [d0|]; case H_n': state' => [d1|].
+- rewrite /=.
+  rewrite (H_in n _ d0 _ d1) //; last by left.
+  rewrite IH //.
+  * move => n0 H_in'.
+    apply: H_imp.
+    by right.
+  * move => n0 H_in'.
+    apply: H_in.
+    by right.
+- apply H_imp in H_n'; last by left.
+  by congruence.
+- apply H_imp in H_n; last by left.
+  by congruence.
+- rewrite IH //.
+  * move => n0 H_in'.
+    apply: H_imp.
+    by right.
+  * move => n0 H_in'.
+    apply: H_in.
+    by right.
 Qed.
 
 Context {am_fst : AggregationMsg}.
@@ -863,6 +997,7 @@ move => n ns IH packets n' adj map.
 by rewrite sum_fail_map_map_msgs_eq // IH.
 Qed.
 
+(* FIXME: equivalence for balance instead of Leibniz equality *)
 Lemma sum_fail_balance_incoming_active_map_msgs_eq :
   forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
     (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
@@ -881,6 +1016,48 @@ rewrite IH //.
   by rewrite H_eq; last by right.
 move => n' H_in.
 by rewrite H_eq'; last by right.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_map_msgs_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+    (forall n, In n actns -> state n = None <-> state' n = None) ->
+    (forall n, In n actns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_adjacent) = d1.(aggr_adjacent)) ->
+    (forall n, In n actns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_balance) = d1.(aggr_balance)) ->
+    sum_fail_balance_incoming_active_opt allns actns packets state = 
+    sum_fail_balance_incoming_active_opt allns actns (fun src dst => map_msgs (packets src dst)) state'.
+Proof.
+move => state state' packets allns.
+elim => //=.
+move => n ns IH H_in H_eq_adj H_eq_bal.
+case H_n: state => [d0|]; case H_n': state' => [d1|].
+- rewrite sum_fail_map_incoming_map_msgs_eq //.
+  have H_eq_adj' := H_eq_adj n _ _ H_n _ H_n'.
+  rewrite (H_eq_adj n _ d0 _ d1) //; last by left.
+  rewrite (H_eq_bal n _ d0 _ d1) //; last by left.
+  rewrite IH //.
+  * move => n' H_in_n'.
+    apply: H_in.
+    by right.
+  * move => n' H_in_n'.
+    apply: H_eq_adj.
+    by right.
+  * move => n' H_in_n'.
+    apply: H_eq_bal.
+    by right.
+- apply H_in in H_n'; last by left.
+  by congruence.
+- apply H_in in H_n; last by left.
+  by congruence.
+- rewrite IH //.
+  * move => n' H_in_n'.
+    apply: H_in.
+    by right.
+  * move => n' H_in_n'.
+    apply: H_eq_adj.
+    by right.
+  * move => n' H_in_n'.
+    apply: H_eq_bal.
+    by right.
 Qed.
 
 End AggregationInstProps.
