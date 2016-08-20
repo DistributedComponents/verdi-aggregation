@@ -3962,6 +3962,524 @@ Qed.
 
 Require Import FunctionalExtensionality.
 
+Lemma sum_fail_map_incoming_collate_ls_filter_rel_not_in_eq :
+  forall l ns h f adj map,
+  ~ In h ns ->
+  NoDup l ->
+  sum_fail_map_incoming ns (collate_ls name_eq_dec l f h New) h adj map =
+  sum_fail_map_incoming ns f h adj map.
+Proof.
+elim => //=.
+move => n l IH ns h f adj map H_in H_nd.
+invc_NoDup.
+destruct ns => //=.
+rewrite IH; intuition.
+rewrite sum_fail_map_incoming_update2_app_eq //.
+rewrite /sum_fail_map /=.
+case in_dec => /= H_dec.
+  case (in_dec name_eq_dec n0 l) => H_dec'.
+    rewrite collate_ls_NoDup_in // in H_dec.
+    have H_neq: h <> n0.
+      move => H_in'.
+      rewrite H_in' in H_in.
+      case: H_in.
+      by left.
+    rewrite /update2 /= in H_dec.
+    move: H_dec.
+    break_if; break_and; subst => //.
+    break_or_hyp => //.
+    move => H_in'.
+    case in_dec => //= H_dec.
+    apply in_app_or in H_in'; break_or_hyp => //.
+    by simpl in *; break_or_hyp.
+  rewrite collate_ls_not_in // in H_dec.
+  rewrite /update2 /= in H_dec.
+  move: H_dec.
+  break_if; break_and; subst => //.
+    move => H_in'.
+    case in_dec => //= H_dec.
+    case: H_dec.
+    apply in_app_or in H_in'.
+    case: H_in' => H_in' //.
+    by case: H_in' => H_in'.
+  break_or_hyp => //.
+  move => H_in'.
+  by case in_dec.
+case (in_dec name_eq_dec n0 l) => H_dec'.
+  rewrite collate_ls_NoDup_in // in H_dec.
+  rewrite /update2 /= in H_dec.
+  move: H_dec.
+  break_if; break_and; subst => //.
+  move => H_dec.
+  case in_dec => //= H_dec''.
+  case: H_dec.
+  apply in_or_app.
+  by left.
+rewrite collate_ls_not_in // in H_dec.
+rewrite /update2 /= in H_dec.
+move: H_dec.
+break_if; break_and; subst => //.  
+  move => H_in'.
+  case in_dec => /= H_dec'' //.
+  case: H_in'.
+  apply in_or_app.
+  by left.
+break_or_hyp => //.
+move => H_dec.
+by case in_dec.
+Qed.
+
+Lemma sum_fail_map_incoming_empty :
+  forall ns f h map,
+    sum_fail_map_incoming ns f h NSet.empty map = 1.
+Proof.
+elim => //=.
+move => n ns IH f h map.
+rewrite IH /sum_fail_map /=.
+case in_dec => /= H_dec; last by gsimpl.
+break_if; last by gsimpl.
+find_apply_lem_hyp NSetFacts.mem_2.
+by find_apply_lem_hyp NSetFacts.empty_1.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_update2_new_eq :
+  forall ns f h x,
+  sum_aggregate_msg_incoming ns (update2 name_eq_dec f h x (f h x ++ [New])) x =
+  sum_aggregate_msg_incoming ns f x.
+Proof.
+elim => //=.
+move => n ns IH f h x.
+rewrite IH.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- case: H_dec'.
+  rewrite /update2 in H_dec.
+  break_if; break_and; subst => //.
+  find_apply_lem_hyp in_app_or.
+  break_or_hyp => //.
+  simpl in *.
+  by break_or_hyp.
+- case: H_dec.
+  rewrite /update2 /=.
+  break_if; break_and; subst => //.
+  by apply in_or_app; left.
+- rewrite /update2 /=.
+  break_if; break_and; subst => //.
+  rewrite sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+  by gsimpl.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_collate_ls_eq :
+  forall l ns h f,
+  sum_aggregate_msg_incoming ns (collate_ls name_eq_dec l f h New) h =
+  sum_aggregate_msg_incoming ns f h.
+Proof.
+elim => //=.
+move => n l IH ns h f.
+rewrite IH //.
+destruct ns => //=.
+rewrite sum_aggregate_msg_incoming_update2_new_eq.
+case in_dec => /= H_dec'.
+  rewrite /update2 /= in H_dec'.
+  move: H_dec'.
+  break_if; break_and; subst => H_in' //=; last by case in_dec => /= H_dec''.
+  apply in_app_or in H_in'.
+  case: H_in' => H_in'; last by case: H_in'.
+  by case: in_dec => /= H_dec'.
+rewrite /update2 /= in H_dec'.
+move: H_dec'.
+break_if; break_and; subst => H_in' //=.
+  have H_in'': ~ In Fail (f n0 h).
+    move => H_in''.
+    case: H_in'.
+    apply in_or_app.
+    by left.
+  case in_dec => /= H_dec' //.
+  rewrite /update2 /=.
+  break_if; break_and; subst => //=.
+  rewrite sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+  by gsimpl.
+break_or_hyp => //.
+case in_dec => /= H_dec' //.
+rewrite /update2 /=.
+by break_if; break_and.
+Qed.
+
+Lemma sum_aggregate_msg_collate_neq_eq :
+  forall l f h n n',
+    sum_aggregate_msg (collate name_eq_dec h f (map2snd New l) n' n) =
+    sum_aggregate_msg (f n' n).
+Proof.
+elim => //=.
+move => n0 l IH f h n n'.
+rewrite IH.
+rewrite /update2.
+case sumbool_and => H_and //.
+move: H_and => [H_eq' H_eq''].
+rewrite H_eq' H_eq'' sum_aggregate_msg_split /= /aggregate_sum_fold /=.
+by gsimpl.
+Qed.
+
+Lemma collate_map2snd_new_not_in :
+  forall n h ns f,
+    ~ In n ns ->
+    collate name_eq_dec h f (map2snd New ns) h n = f h n.
+Proof.
+move => n h ns f.
+move: f.
+elim: ns => //.
+move => n' ns IH f H_in.
+rewrite /=.
+have H_neq: n <> n'.
+  move => H_eq.
+  rewrite H_eq in H_in.
+  case: H_in.
+  by left.
+have H_in': ~ In n ns.
+  move => H_in'.
+  case: H_in.
+  by right.
+rewrite IH //.
+rewrite /update2.
+case (sumbool_and _ _) => H_and //.
+move: H_and => [H_and H_and'].
+rewrite H_and' in H_in.
+by case: H_in; left.
+Qed.
+
+Lemma collate_map2snd_new_cons_related_not_in :
+  forall n h ns f,
+    ~ In n ns ->
+    collate name_eq_dec h f (map2snd New (n :: ns)) h n = f h n ++ [New].
+Proof.
+move => n h ns f H_in /=.
+move: f n h H_in.
+elim: ns  => //=.
+  move => f n h H_in.
+  rewrite /update2.
+  case (sumbool_and _ _ _ _) => H_and //.
+  by case: H_and => H_and.
+move => n' ns IH f n h H_in.
+have H_in': ~ In n ns by move => H_in'; case: H_in; right.
+have H_neq: n <> n' by move => H_eq; case: H_in; left.
+rewrite {3}/update2.
+case sumbool_and => H_and; first by move: H_and => [H_and H_and'].
+have IH' := IH f.
+rewrite collate_map2snd_new_not_in //.
+rewrite /update2.
+case sumbool_and => H_and'; first by move: H_and' => [H_and' H_and'']; rewrite H_and'' in H_neq.
+case sumbool_and => H_and'' //.
+by case: H_and''.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_collate_eq :
+  forall ns l f h,
+   NoDup l ->
+   sum_aggregate_msg_incoming ns (collate name_eq_dec h f (map2snd New l)) h =
+   sum_aggregate_msg_incoming ns f h.
+Proof.
+elim => //=.
+move => n ns IH l f h H_nd.
+rewrite IH // sum_aggregate_msg_collate_neq_eq.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- case: H_dec'.
+  move: H_dec.
+  elim: l H_nd => //.
+  move => n' l IH' H_nd H_in.
+  invc_NoDup.
+  concludes.
+  apply: IH' => //.
+  case (name_eq_dec h n) => H_dec; last first.
+    rewrite /= collate_neq // in H_in.
+    rewrite /= /update2 in H_in.
+    break_if; break_and; subst => //.
+    exact: collate_in_in.
+  subst.
+  case (name_eq_dec n' n) => H_dec'; last by rewrite /= collate_neq_update2 // in H_in.
+  subst.
+  rewrite collate_map2snd_new_cons_related_not_in // in H_in.
+  apply: collate_in_in.
+  apply in_app_or in H_in.
+  case: H_in => H_in //.
+  simpl in *.
+  by break_or_hyp.
+- case: H_dec.
+  exact: collate_in_in.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_emp_1 :
+  forall ns f h,
+  (forall n, In n ns -> f n h = []) ->
+  sum_aggregate_msg_incoming ns f h = 1.
+Proof.
+elim => //=.
+move => n ns IH f h H_eq.
+rewrite H_eq /=; last by left.
+rewrite IH; first by gsimpl.
+move => n' H_in'.
+apply: H_eq.
+by right.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_collate_ls_singleton_eq :
+  forall ns l h f,
+  ~ In h ns ->
+  ~ In h l ->
+  sum_aggregate_msg_incoming_active [h] ns (collate_ls name_eq_dec l f h New) =
+  sum_aggregate_msg_incoming_active [h] ns f.
+Proof.
+elim => //=.
+move => n ns IH l h f H_in H_in'.
+have H_neq: n <> h by auto.
+have H_in'': ~ In h ns by auto.
+case in_dec => /= H_dec; case in_dec => /= H_dec'.
+- by rewrite IH.
+- case: H_dec'.
+  by rewrite collate_ls_neq_to in H_dec; last by auto.
+- case: H_dec.
+  by rewrite collate_ls_neq_to; last by auto.
+- rewrite IH //.
+  by rewrite collate_ls_neq_to; last by auto.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_singleton_new_eq :
+  forall ns l f h,
+    NoDup l ->
+    sum_aggregate_msg_incoming_active [h] ns (collate name_eq_dec h f (map2snd New l)) =
+    sum_aggregate_msg_incoming_active [h] ns f.
+Proof.
+elim => //=.
+move => n ns IH l f h H_nd.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- gsimpl.
+  by rewrite IH.
+- case: H_dec'.
+  move: H_dec.
+  elim: l H_nd => //.
+  move => n' l IH' H_nd H_in.
+  invc_NoDup.
+  concludes.
+  apply: IH' => //.
+  case (name_eq_dec n' n) => H_dec'; last by rewrite /= collate_neq_update2 // in H_in.
+  subst.
+  rewrite collate_map2snd_new_cons_related_not_in // in H_in.
+  rewrite collate_map2snd_new_not_in //.
+  apply in_app_or in H_in.
+  simpl in *.
+  by break_or_hyp => //; break_or_hyp.
+- case: H_dec.
+  move: H_dec'.
+  elim: l H_nd => //.
+  move => n' l IH' H_nd H_in.
+  invc_NoDup.
+  concludes.
+  concludes.
+  case (name_eq_dec n' n) => H_dec'; last by rewrite /= collate_neq_update2.
+  subst. 
+  rewrite collate_map2snd_new_cons_related_not_in //.
+  apply in_or_app.
+  by left.
+- gsimpl.
+  rewrite IH //.
+  by rewrite sum_aggregate_msg_collate_neq_eq.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_all_empty_1 :
+  forall ns h f,
+  (forall n, In n ns -> f h n = []) ->
+  sum_aggregate_msg_incoming_active [h] ns f = 1.
+Proof.
+elim => //=.
+move => n ns IH h f H_emp.
+case in_dec => /= H_dec.
+- by rewrite H_emp in H_dec; last by left.
+- rewrite IH.
+  * rewrite H_emp; last by left.
+    by gsimpl.
+  * move => n0 H_in.
+    apply: H_emp.
+    by right.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_collate_ls_not_in_eq : 
+  forall ns l f st h,
+  ~ In h ns ->
+  sum_fail_balance_incoming_active_opt [h] ns (collate_ls name_eq_dec l f h New) st =
+  sum_fail_balance_incoming_active_opt [h] ns f st.
+Proof.
+elim => //=.
+move => n ns IH l f st h H_in.
+have H_neq: h <> n by auto.
+have H_in': ~ In h ns by auto.
+break_match; last by rewrite IH.
+gsimpl.
+rewrite IH //.
+rewrite /sum_fail_map /=.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- case: H_dec'.
+  by rewrite collate_ls_neq_to // in H_dec.
+- case: H_dec.
+  by rewrite collate_ls_neq_to.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_collate_neq_eq :
+  forall ns l h f st,
+    NoDup l ->
+    sum_fail_balance_incoming_active_opt [h] ns (collate name_eq_dec h f (map2snd New l)) st = 
+    sum_fail_balance_incoming_active_opt [h] ns f st.
+Proof.
+elim => //=.
+move => n ns IH l h f st H_nd.
+break_match; last by rewrite IH.
+gsimpl.
+rewrite IH //.
+rewrite /sum_fail_map /=.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- case: H_dec'.
+  move: H_dec.
+  elim: l H_nd => //.
+  move => n' l IH' H_nd H_in.
+  invc_NoDup.
+  concludes.
+  apply: IH' => //.
+  case (name_eq_dec n' n) => H_dec'; last by rewrite /= collate_neq_update2 // in H_in.
+  subst.
+  rewrite collate_map2snd_new_cons_related_not_in // in H_in.
+  rewrite collate_map2snd_new_not_in //.
+  apply in_app_or in H_in.
+  simpl in *.
+  by break_or_hyp => //; break_or_hyp.  
+- case: H_dec.
+  exact: collate_in_in.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_emp_eq :  
+  forall ns h f st,
+  (forall n, In n ns -> f h n = []) ->
+  sum_fail_balance_incoming_active_opt [h] ns f st = 1.
+Proof.
+elim => //=.
+move => n ns IH h f st H_emp.
+break_match; last first.
+  rewrite IH //.
+  move => n0 H_in.
+  apply: H_emp.
+  by right.
+gsimpl.
+rewrite IH; last by move => n0 H_in; apply: H_emp; right.
+rewrite H_emp; last by left.
+by gsimpl.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_collate_ls_neq_eq :
+  forall l ns h n f,
+  n <> h ->
+  sum_aggregate_msg_incoming ns (collate_ls name_eq_dec l f h New) n =
+  sum_aggregate_msg_incoming ns f n.
+Proof.
+elim => //=.
+move => n l IH ns h n' f H_neq.
+rewrite IH //.
+by rewrite sum_aggregate_msg_incoming_neq_eq.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_collate_ls_not_in_eq :
+  forall ns ns' l f h,
+  ~ In h ns ->
+  sum_aggregate_msg_incoming_active ns' ns (collate_ls name_eq_dec l f h New) = 
+  sum_aggregate_msg_incoming_active ns' ns f.
+Proof.
+elim => //=.
+move => n ns IH ns' l f h H_in.
+have H_neq: n <> h by auto.
+have H_in'': ~ In h ns by auto.
+by rewrite IH //= sum_aggregate_msg_incoming_collate_ls_neq_eq.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_collate_neq_not_in_eq :
+ forall ns f h n ms,
+   ~ In h ns ->
+   sum_aggregate_msg_incoming ns (collate name_eq_dec h f ms) n = 
+   sum_aggregate_msg_incoming ns f n.
+Proof.
+elim => //=.
+move => n ns IH f h n' ms H_in.
+have H_neq': h <> n by auto.
+have H_in': ~ In h ns by auto.
+rewrite IH //.
+case in_dec => /= H_dec; case in_dec => /= H_dec' //.
+- case: H_dec'.
+  by rewrite collate_neq // in H_dec.
+- case: H_dec.
+  by rewrite collate_neq.
+- by rewrite collate_neq.
+Qed.
+
+Lemma sum_aggregate_msg_incoming_active_collate_not_in_allns_eq :
+  forall ns ns' f h ms,
+  ~ In h ns' ->
+  sum_aggregate_msg_incoming_active ns' ns (collate name_eq_dec h f ms) =
+  sum_aggregate_msg_incoming_active ns' ns f.
+Proof.
+elim => //=.
+move => n ns IH ns' f h ms H_in.
+rewrite IH //.
+by rewrite sum_aggregate_msg_incoming_collate_neq_not_in_eq.
+Qed.
+
+Lemma sum_fail_map_incoming_collate_ls_neq_eq :
+  forall ns l f h n adj map,
+    h <> n ->
+    sum_fail_map_incoming ns (collate_ls name_eq_dec l f h New) n adj map = 
+    sum_fail_map_incoming ns f n adj map.
+Proof.
+elim => //=.
+move => n ns IH l f h n' adj map H_neq.
+rewrite IH //.
+rewrite /sum_fail_map.
+by rewrite collate_ls_neq_to.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_collate_ls_not_in_eq :
+  forall ns ns' l f h st,
+    ~ In h ns ->
+    sum_fail_balance_incoming_active_opt ns' ns (collate_ls name_eq_dec l f h New) st =
+    sum_fail_balance_incoming_active_opt ns' ns f st.
+Proof.
+elim => //=.
+move => n ns IH ns' l f h st H_in.
+have H_neq: h <> n by auto.
+have H_in'': ~ In h ns by auto.
+break_match; rewrite IH //=.
+by rewrite sum_fail_map_incoming_collate_ls_neq_eq.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_not_in_allns_eq :
+  forall ns ns' f st h ms,
+  ~ In h ns' ->
+  sum_fail_balance_incoming_active_opt ns' ns (collate name_eq_dec h f ms) st =
+  sum_fail_balance_incoming_active_opt ns' ns f st.
+Proof.
+elim => //=.
+move => n ns IH ns' f st h ms H_in.
+rewrite IH //.
+break_match => //.
+by rewrite sum_fail_map_incoming_collate_not_in_eq.
+Qed.
+
+Lemma sum_fail_balance_incoming_active_opt_update_not_in :
+  forall ns ns' f st h d,
+    ~ In h ns ->
+    sum_fail_balance_incoming_active_opt ns' ns f (update name_eq_dec st h (Some d)) = 
+    sum_fail_balance_incoming_active_opt ns' ns f st.
+Proof.
+elim => //=.
+move => n ns IH ns' f st h d H_in.
+have H_neq: n <> h by auto.
+have H_in': ~ In h ns by auto.
+rewrite IH //.
+by destruct_update.
+Qed.
+
 Lemma Aggregation_conserves_network_mass : 
   forall net failed tr,
   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
@@ -3987,14 +4505,68 @@ induction H_step using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_
 concludes.
 match goal with
 | [ H : step_o_d_f _ _ _ |- _ ] => invc H
-end; simpl.
-- by admit.
+end; simpl in *.
+- move {H_step2}.
+  have H_f: ~ In h failed0.
+    move => H_f.
+    case: H0.
+    by apply: ordered_dynamic_failed_then_initialized; eauto.
+  have H_cn := remove_all_cons name_eq_dec failed0 h (odnwNodes net0).
+  break_or_hyp; break_and => //.
+  find_rewrite.
+  rewrite /=.
+  destruct_update => //.
+  have H_inn : ~ In h (remove_all name_eq_dec failed0 net0.(odnwNodes)) by move => H_in; eauto using in_remove_all_was_in.
+  rewrite Nodes_data_opt_not_in_eq //.
+  rewrite /InitData /= sumM_empty; last by auto with set.
+  gsimpl.
+  rewrite IHH_step1 {IHH_step1}.
+  case in_dec => /= H_dec.
+    contradict H_dec.
+    rewrite collate_ls_not_in; last exact: not_in_not_in_filter_rel.
+    rewrite collate_map2snd_not_in //.
+    by rewrite (Aggregation_inactive_no_incoming H_step1).
+  move {H_dec}.  
+  rewrite sum_fail_balance_incoming_active_opt_all_head_eq.
+  rewrite sum_aggregate_msg_incoming_active_all_head_eq.
+  rewrite collate_ls_not_in; last exact: not_in_not_in_filter_rel.
+  rewrite collate_map2snd_not_in //.
+  rewrite (Aggregation_inactive_no_incoming H_step1) //=.
+  gsimpl.
+  rewrite sum_fail_map_incoming_collate_ls_filter_rel_not_in_eq //; last by apply: NoDup_filter_rel; apply: NoDup_remove_all; apply: ordered_dynamic_nodes_no_dup; eauto.
+  rewrite sum_fail_map_incoming_collate_not_in_eq //.
+  rewrite sum_fail_map_incoming_empty.
+  rewrite sum_aggregate_msg_incoming_collate_ls_eq.
+  rewrite sum_aggregate_msg_incoming_collate_eq; last by apply: NoDup_filter_rel; apply: NoDup_remove_all; apply: ordered_dynamic_nodes_no_dup; eauto.
+  rewrite sum_aggregate_msg_incoming_emp_1; last by move => n H_in; apply: Aggregation_inactive_no_incoming; eauto.
+  gsimpl.
+  have H_not_in: ~ In h (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed0 (odnwNodes net0))).
+    move => H_in.
+    find_apply_lem_hyp filter_rel_related.
+    break_and.
+    by find_apply_lem_hyp adjacent_to_irreflexive.
+  rewrite sum_aggregate_msg_incoming_active_collate_ls_singleton_eq //.
+  rewrite sum_aggregate_msg_incoming_active_singleton_new_eq; last by apply: NoDup_filter_rel; apply: NoDup_remove_all; apply: ordered_dynamic_nodes_no_dup; eauto.
+  rewrite sum_aggregate_msg_incoming_active_all_empty_1; last by move => n H_in; apply: ordered_dynamic_no_outgoing_uninitialized; eauto.
+  gsimpl.
+  rewrite sum_fail_balance_incoming_active_opt_collate_ls_not_in_eq //.
+  rewrite sum_fail_balance_incoming_active_opt_collate_neq_eq; last by apply: NoDup_filter_rel; apply: NoDup_remove_all; apply: ordered_dynamic_nodes_no_dup; eauto.
+  rewrite sum_fail_balance_incoming_active_opt_emp_eq; last by move => n H_in; apply: ordered_dynamic_no_outgoing_uninitialized; eauto.
+  gsimpl.
+  rewrite sum_aggregate_msg_incoming_active_collate_ls_not_in_eq //.
+  rewrite sum_aggregate_msg_incoming_active_collate_not_in_allns_eq //.
+  rewrite sum_fail_balance_incoming_active_collate_ls_not_in_eq //.
+  rewrite sum_fail_balance_incoming_active_opt_not_in_allns_eq //.
+  by rewrite sum_fail_balance_incoming_active_opt_update_not_in.
 - find_apply_lem_hyp net_handlers_NetHandler.
   move {H_step2}.
   rewrite /= in IHH_step1.
   have H_inn : In to (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].
+  move: H_step1 => H_step1'.  
+  have H_step1: @step_o_d_f_star _ _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed0, net0) tr1 by auto.
+  move {H_step1'}.
   have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
   rewrite H_inn in H_nd.
   have H_nin := NoDup_mid_not_in _ _ _ H_nd.
@@ -4080,6 +4652,9 @@ end; simpl.
   have H_inn : In h (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].
+  move: H_step1 => H_step1'.  
+  have H_step1: @step_o_d_f_star _ _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed0, net0) tr1 by auto.
+  move {H_step1'}.
   have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
   rewrite H_inn in H_nd.
   have H_nin := NoDup_mid_not_in _ _ _ H_nd.
@@ -4185,6 +4760,9 @@ end; simpl.
   have H_inn : In h (remove_all name_eq_dec failed0 net0.(odnwNodes)) by exact: in_remove_all_preserve.
   apply in_split in H_inn.
   move: H_inn => [ns0 [ns1 H_inn]].
+  move: H_step1 => H_step1'.  
+  have H_step1: @step_o_d_f_star _ _ _ _ Aggregation_FailMsgParams step_o_d_f_init (failed0, net0) tr1 by auto.
+  move {H_step1'}.
   have H_nd := NoDup_remove_all name_eq_dec failed0 (ordered_dynamic_nodes_no_dup H_step1).
   rewrite H_inn in H_nd.
   have H_nin := NoDup_mid_not_in _ _ _ H_nd.
@@ -4640,6 +5218,6 @@ end; simpl.
     set s12 := sum_aggregate_msg_incoming_active _ _ _.
     set s13 := sum_aggregate_msg_incoming_active _ _ _.
     by aac_reflexivity.
-Admitted.
+Qed.
 
 End Aggregation.
