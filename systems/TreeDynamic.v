@@ -167,12 +167,7 @@ NSet.fold (send_level_fold lvo) fs nop.
 Definition RootIOHandler (i : Input) : Handler Data :=
 st <- get ;;
 match i with
-| Broadcast => 
-  when st.(broadcast)
-  (send_level_adjacent (Some 0) st.(adjacent) ;;
-   put {| adjacent := st.(adjacent);
-          broadcast := false;
-          levels := st.(levels) |})
+| Broadcast => nop
 | LevelRequest => 
   write_output (LevelResponse (Some 0))
 end.
@@ -496,17 +491,15 @@ Qed.
 Lemma IOHandler_cases :
   forall h i st u out st' ms,
       IOHandler h i st = (u, out, st', ms) ->
-      (root h /\ i = Broadcast /\ st.(broadcast) = true /\
-       st'.(adjacent) = st.(adjacent) /\
-       st'.(broadcast) = false /\
-       st'.(levels) = st.(levels) /\
-       out = [] /\ ms = level_adjacent (Some 0) st.(adjacent)) \/
+      (root h /\ i = Broadcast /\ 
+       st' = st /\
+       out = [] /\ ms = []) \/
       (~ root h /\ i = Broadcast /\ st.(broadcast) = true /\
        st'.(adjacent) = st.(adjacent) /\
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
-      (i = Broadcast /\ st.(broadcast) = false /\
+      (~ root h /\ i = Broadcast /\ st.(broadcast) = false /\
        st' = st /\
        out = [] /\ ms = []) \/
       (root h /\ i = LevelRequest /\
@@ -521,11 +514,7 @@ rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
 case: i; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat break_match; repeat break_if; repeat find_injection.
 - by right; right; right; left.
 - by right; right; right; right.
-- find_rewrite_lem send_level_adjacent_eq.
-  find_injection.
-  left.
-  by rewrite app_nil_l -2!app_nil_end.
-- by right; right; left.
+- by left.
 - find_rewrite_lem send_level_adjacent_eq.
   find_injection.
   right; left.

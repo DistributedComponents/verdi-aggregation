@@ -268,15 +268,7 @@ match i with
 | SendAggregate => nop
 | AggregateRequest => 
   write_output (AggregateResponse st.(aggregate))
-| Broadcast => 
-  when st.(broadcast)
-  (send_level_adjacent (Some 0) st.(adjacent) ;;
-   put {| local := st.(local) ;
-          aggregate := st.(aggregate) ;
-          adjacent := st.(adjacent) ;
-          balance := st.(balance) ;
-          broadcast := false ;
-          levels := st.(levels) |})
+| Broadcast => nop  
 | LevelRequest => 
   write_output (LevelResponse (Some 0))
 end.
@@ -761,14 +753,8 @@ Lemma IOHandler_cases :
       (i = AggregateRequest /\ 
        st' = st /\ 
        out = [AggregateResponse (aggregate st)] /\ ms = []) \/
-      (root h /\ i = Broadcast /\ st.(broadcast) = true /\
-       st'.(local) = st.(local) /\
-       st'.(aggregate) = st.(aggregate) /\ 
-       st'.(adjacent) = st.(adjacent) /\
-       st'.(balance) = st.(balance) /\
-       st'.(broadcast) = false /\
-       st'.(levels) = st.(levels) /\
-       out = [] /\ ms = level_adjacent (Some 0) st.(adjacent)) \/
+      (root h /\ i = Broadcast /\ st' = st /\
+       out = [] /\ ms = []) \/
       (~ root h /\ i = Broadcast /\ st.(broadcast) = true /\
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) /\ 
@@ -777,7 +763,7 @@ Lemma IOHandler_cases :
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
-      (i = Broadcast /\ st.(broadcast) = false /\
+      (~ root h /\ i = Broadcast /\ st.(broadcast) = false /\
        st' = st /\
        out = [] /\ ms = []) \/
       (root h /\ i = LevelRequest /\
@@ -785,7 +771,7 @@ Lemma IOHandler_cases :
        out = [LevelResponse (Some 0)] /\ ms = []) \/
       (~ root h /\ i = LevelRequest /\
        st' = st /\
-       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).      
+       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
 move => h i st u out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
@@ -813,11 +799,7 @@ case: i => [m_msg||||]; monad_unfold; case root_dec => /= H_dec H_eq; repeat bre
 - by right; right; right; right; right; right; left.
 - by right; right; right; right; right; right; right; right; right; right; left.
 - by right; right; right; right; right; right; right; right; right; right; right.
-- find_rewrite_lem send_level_adjacent_eq.
-  find_injection.
-  right; right; right; right; right; right; right; left.
-  by rewrite app_nil_l -2!app_nil_end.
-- by right; right; right; right; right; right; right; right; right; left.
+- by right; right; right; right; right; right; right; left.
 - find_rewrite_lem send_level_adjacent_eq.
   find_injection.
   right; right; right; right; right; right; right; right; left.
@@ -957,8 +939,7 @@ Proof.
   destruct u.
   destruct st'.
   io_handler_cases; simpl in *; unfold is_left in *; repeat break_if; try break_match; try congruence.
-  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
-  * by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
+  by rewrite pt_ext_map_name_msgs_level_adjacent_empty.
 Qed.
 
 Instance TreeAggregation_Aggregation_fail_msg_params_pt_ext_map_congruency : FailMsgParamsPartialMapCongruency TreeAggregation_FailMsgParams AG.Aggregation_FailMsgParams TreeAggregation_Aggregation_params_pt_msg_map := 
@@ -1135,14 +1116,6 @@ Proof.
   unfold id in *.
   destruct u, u0, st, st'.
   io_handler_cases; TR.io_handler_cases; simpl in *; try congruence.
-    set ptl := pt_map_name_msgs _.
-    set ptl' := level_adjacent _ _.
-    suff H_suff: ptl = ptl' by repeat find_rewrite.
-    rewrite /ptl /ptl' /level_adjacent 2!NSet.fold_spec.
-    elim: NSet.elements => //=.
-    move => n ns IH.
-    rewrite (@fold_left_level_fold_eq TreeAggregation_TreeMsg) pt_map_name_msgs_app_distr /= /id /=.
-    by rewrite (@fold_left_level_fold_eq TR.Tree_TreeMsg) /= IH.
   set ptl := pt_map_name_msgs _.
   set ptl' := level_adjacent _ _.
   suff H_suff: ptl = ptl' by repeat find_rewrite.

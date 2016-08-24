@@ -19,6 +19,9 @@ Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
+Require Import FMapFacts.
+Module NMapFacts := Facts NMap.
+
 Definition lv := nat.
 Definition lv_eq_dec := Nat.eq_dec.
 
