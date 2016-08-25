@@ -4,7 +4,7 @@ Require Import PeanoNat.
 Require Import StructTact.Fin.
 
 Require Import NameOverlay.
-Require Import TreeStatic.
+Require Import TreeDynamic.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
@@ -51,4 +51,4 @@ Module RNT_N5 := FinRootNameType N5 FN_N5.
 Module T := Tree FN_N5 NOT_N5 N5Set NOTC_N5 N5Map RNT_N5 ANC_N5.
 Import T.
 
-Extraction "extraction/aggregation/coq/Tree.ml" seq Tree_BaseParams Tree_MultiParams.
+Extraction "extraction/aggregation-dynamic/coq/Tree.ml" seq Tree_BaseParams Tree_MultiParams.

@@ -223,6 +223,111 @@ Class TreeMsg :=
     tree_level : option lv -> tree_msg
   }.
 
+Lemma level_spec_none : 
+  forall ns nl, level ns nl = None ->
+  ~ exists n, exists lv', level_in ns nl n lv'.
+Proof.
+move => ns nl.
+rewrite /level.
+case lev => //.
+by case => /= lv' H_lv H_eq.
+Qed.
+
+Lemma level_spec_some : 
+  forall ns nl lv5, level ns nl = Some lv5 ->
+  exists n, exists lv', min_level ns nl n lv' /\ lv5 = lv' + 1.
+Proof.
+move => ns nl lv5.
+rewrite /level.
+case lev => //.
+case => /= lv' H_ex H_eq.
+by find_injection.
+Qed.
+
+Lemma level_add_bot_eq : forall ns nl n,
+  NMap.find n nl = None ->
+  level ns nl = level (NSet.add n ns) nl.
+Proof.
+move => ns nl n H_find.
+case H_eq: level => [lv5|].
+  apply level_spec_some in H_eq as [n' [lv6 [H_min H_eq]]].
+  inversion H_min; subst.
+  inversion H; subst.
+  case H_eq': level => [lv7|].
+    apply level_spec_some in H_eq' as [n'' [lv8 [H_min' H_eq']]].
+    inversion H_min'; subst.
+    inversion H3; subst.
+    apply NSetFacts.add_3 in H5; last by move => H_eq'; rewrite -H_eq' H_find in H6.
+    case (lv_eq_dec lv6 lv8) => H_eq; first by rewrite H_eq.
+    contradict H_eq.
+    have H_lt_lv6: ~ lv8 < lv6.
+      apply (H0 _ n'').
+      exact: in_level_in.
+    have H_lt_lv8: ~ lv6 < lv8.
+      apply (H4 _ n').
+      apply: in_level_in => //.
+      exact: NSetFacts.add_2.
+    case (lt_eq_lt_dec lv6 lv8) => //.
+    by case.
+  apply level_spec_none in H_eq'.
+  case: H_eq'.
+  exists n'; exists lv6.
+  apply: in_level_in => //.
+  exact: NSetFacts.add_2.
+apply level_spec_none in H_eq.
+case H_eq': level => [lv6|] //.
+apply level_spec_some in H_eq' as [n' [lv7 [H_min H_eq']]].
+inversion H_min; subst.
+inversion H; subst.
+apply NSetFacts.add_3 in H1.
+  case: H_eq.
+  exists n'; exists lv7.
+  exact: in_level_in.
+move => H_eq'.
+by rewrite -H_eq' H_find in H2.
+Qed.
+
+Lemma level_empty_map_none : 
+  forall ns, level ns (NMap.empty lv) = None.
+Proof.
+move => ns.
+case H_eq: level => [lv5|] //.
+apply level_spec_some in H_eq.
+move: H_eq => [n [lv' [H_min H_eq]]].
+inversion H_min.
+inversion H.
+apply NMapFacts.find_mapsto_iff in H2.
+by apply NMapFacts.empty_mapsto_iff in H2.
+Qed.
+
+Lemma levels_some_level_ge : 
+  forall ns nl n lv5,
+  NSet.In n ns ->
+  NMap.find n nl = Some lv5 ->
+  exists lv', level ns nl = Some lv' /\ lv' <= lv5 + 1.
+Proof.
+move => ns nl n lv5 H_ins H_find.
+rewrite /level.
+case lev.
+  case => lv' /=.
+  move => [n' [lv'0 [H_min H_eq]]].
+  rewrite H_eq {H_eq}.
+  case (lt_eq_lt_dec lv5 lv'0) => H_dec; first case: H_dec => H_dec.
+  - inversion H_min.
+    have H_lv: level_in ns nl n lv5 by exact: in_level_in.
+    by apply H0 in H_lv.
+  - rewrite H_dec.
+    by exists (lv'0 + 1).
+  - exists (lv'0 + 1).
+    split => //.
+    by auto with arith.
+move => H_ex.
+case: H_ex.
+exists n; exists lv5.
+rewrite /=.
+exact: in_level_in.
+Qed.
+
 Section LevelFolds.
 
 Context {tr_msg : TreeMsg}.
