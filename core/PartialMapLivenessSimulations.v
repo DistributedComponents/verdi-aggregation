@@ -66,11 +66,11 @@ Context {name_map_bijective : MultiParamsNameTotalMapBijective name_map}.
 Context {multi_map_congr : MultiParamsPartialMapCongruency base_map name_map msg_map}.
 Context {multi_map_lb_congr : LabeledMultiParamsPartialMapCongruency base_map name_map msg_map label_map}.
 
-Theorem lb_step_f_pt_mapped_simulation_1_non_silent :
+Theorem lb_step_failure_pt_mapped_simulation_1_non_silent :
   forall net net' failed failed' lb tr,
     tot_map_label lb <> label_silent ->
-    @lb_step_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_net net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_net net') (pt_map_trace tr).
+    @lb_step_failure _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
+    @lb_step_failure _ labeled_multi_snd (List.map tot_map_name failed, pt_map_net net) (tot_map_label lb) (List.map tot_map_name failed', pt_map_net net') (pt_map_trace tr).
 Proof.
 move => net net' failed failed' lb tr H_neq H_step.
 have H_neq': lb <> label_silent.
@@ -92,7 +92,7 @@ invcs H_step => //=.
     break_match => //.
     by find_injection.
   rewrite H_eq_n.
-  apply (@LSF_deliver _ _ _ _ _ _ (pt_map_packets xs) (pt_map_packets ys) (pt_map_outputs out) (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LStepFailure_deliver _ _ _ _ _ _ (pt_map_packets xs) (pt_map_packets ys) (pt_map_outputs out) (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
   * rewrite /pt_map_net /=.
     find_rewrite.
     by rewrite pt_map_packets_app_distr /= H_m.
@@ -120,7 +120,7 @@ invcs H_step => //=.
     rewrite /tot_mapped_lb_input_handlers_label /= in H_q.
     repeat break_let.
     by tuple_inversion.
-  apply (@LSF_input _ _ _ _ _ _ _ _ (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LStepFailure_input _ _ _ _ _ _ _ _ (pt_map_data d) (@pt_map_name_msgs _ _ _ _ _ msg_map l)).
   * exact: not_in_failed_not_in.
   * have H_q := @pt_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h _ (nwState net h) _ H_i.
     rewrite /pt_mapped_input_handlers /input_handlers /= /unlabeled_input_handlers in H_q.
@@ -137,11 +137,11 @@ invcs H_step => //=.
     by rewrite -(@pt_map_update_eq  _ _ _ _ _ _ name_map_bijective).
 Qed.
 
-Theorem lb_step_f_pt_mapped_simulation_1_silent :
+Theorem lb_step_failure_pt_mapped_simulation_1_silent :
   forall net net' failed failed' lb tr,
     tot_map_label lb = label_silent ->
-    @lb_step_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_f _ labeled_multi_snd (List.map tot_map_name failed, pt_map_net net) label_silent (List.map tot_map_name failed', pt_map_net net') [] /\ pt_trace_remove_empty_out (pt_map_trace tr) = [].
+    @lb_step_failure _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
+    @lb_step_failure _ labeled_multi_snd (List.map tot_map_name failed, pt_map_net net) label_silent (List.map tot_map_name failed', pt_map_net net') [] /\ pt_trace_remove_empty_out (pt_map_trace tr) = [].
 Proof.
 move => net net' failed failed' lb tr H_eq H_step.
 invcs H_step => //=.
@@ -188,7 +188,7 @@ invcs H_step => //=.
     by break_if; first by rewrite H e.
   rewrite -H_eq_s /s1 {s1 s2 H_eq_s}.
   split => //.
-  exact: LSF_stutter.
+  exact: LStepFailure_stutter.
 - case H_i: (pt_map_input inp) => [inp'|].
     have H_q := @pt_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h _ (nwState net h) _ H_i.
     rewrite /pt_mapped_input_handlers /input_handlers /= /unlabeled_input_handlers in H_q.
@@ -220,9 +220,9 @@ invcs H_step => //=.
     rewrite /update.
     by break_if; first by rewrite H e.
   rewrite -H_eq_s /s1 {s1 s2 H_eq_s}.
-  split; first exact: LSF_stutter.
+  split; first exact: LStepFailure_stutter.
   by repeat find_rewrite.
-- split => //; exact: LSF_stutter.
+- split => //; exact: LStepFailure_stutter.
 Qed.
 
 Theorem lb_step_o_f_pt_mapped_simulation_1_non_silent :

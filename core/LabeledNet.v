@@ -273,26 +273,26 @@ End LabeledStepExecution.
 Section LabeledStepFailure.
   Context `{labeled_multi_params : LabeledMultiParams}.
 
-  Inductive lb_step_f : lb_step_relation (list name * network) label (name * (input + list output)) :=
-  | LSF_deliver : forall net net' failed p xs ys out d l lb,
+  Inductive lb_step_failure : lb_step_relation (list name * network) label (name * (input + list output)) :=
+  | LStepFailure_deliver : forall net net' failed p xs ys out d l lb,
                      nwPackets net = xs ++ p :: ys ->
                      ~ In (pDst p) failed ->
                      lb_net_handlers (pDst p) (pSrc p) (pBody p) (nwState net (pDst p)) = (lb, out, d, l) ->
                      net' = mkNetwork (send_packets (pDst p) l ++ xs ++ ys)
                                       (update name_eq_dec (nwState net) (pDst p) d) ->
-                     lb_step_f (failed, net) lb (failed, net') [(pDst p, inr out)]
-  | LSF_input : forall h net net' failed out inp d l lb,
+                     lb_step_failure (failed, net) lb (failed, net') [(pDst p, inr out)]
+  | LStepFailure_input : forall h net net' failed out inp d l lb,
                   ~ In h failed ->
                   lb_input_handlers h inp (nwState net h) = (lb, out, d, l) ->
                   net' = mkNetwork (send_packets h l ++ nwPackets net)
                                    (update name_eq_dec (nwState net) h d) ->
-                  lb_step_f (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)]
-  | LSF_stutter : forall net failed, lb_step_f (failed, net) label_silent (failed, net) [].
+                  lb_step_failure (failed, net) lb (failed, net') [(h, inl inp); (h, inr out)]
+  | LStepFailure_stutter : forall net failed, lb_step_failure (failed, net) label_silent (failed, net) [].
   
   Context {failure_params : FailureParams unlabeled_multi_params}.
 
-  Lemma step_f_star_lb_step_reachable :
-    step_star_lb_step_reachable lb_step_f step_f step_f_init.
+  Lemma step_failure_star_lb_step_reachable :
+    step_star_lb_step_reachable lb_step_failure step_failure step_failure_init.
   Proof.
     rewrite /step_star_lb_step_reachable.
     case => failed net l.
@@ -302,7 +302,7 @@ Section LabeledStepFailure.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       have ->: [(pDst p, inr out)] = [(pDst p, inr out)] ++ [] by [].
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: (@SF_deliver _ _ _ _ _ _ _ xs ys _ d l0) => //.
+      apply: (@StepFailure_deliver _ _ _ _ _ _ _ xs ys _ d l0) => //.
       rewrite /net_handlers /= /unlabeled_net_handlers /=.
       repeat break_let.
       by tuple_inversion.
@@ -310,20 +310,20 @@ Section LabeledStepFailure.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       have ->: [(h, inl inp); (h, inr out)] = [(h, inl inp); (h, inr out)] ++ [] by [].
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: SF_input => //.
+      apply: StepFailure_input => //.
       rewrite /input_handlers /= /unlabeled_input_handlers /=.
       repeat break_let.
       by tuple_inversion.
     - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 
-  Lemma step_f_star_lb_step_execution :
-    forall s, event_step_star step_f step_f_init (hd s) ->
-         lb_step_execution lb_step_f s ->
-         always (now (event_step_star step_f step_f_init)) s.
+  Lemma step_failure_star_lb_step_execution :
+    forall s, event_step_star step_failure step_failure_init (hd s) ->
+         lb_step_execution lb_step_failure s ->
+         always (now (event_step_star step_failure step_failure_init)) s.
   Proof.
   apply: step_star_lb_step_execution.
-  exact: step_f_star_lb_step_reachable.
+  exact: step_failure_star_lb_step_reachable.
   Qed.
 End LabeledStepFailure.
 

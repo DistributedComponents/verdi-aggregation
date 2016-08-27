@@ -171,11 +171,11 @@ Qed.
 
 Theorem ghost_simulation_1 :
   forall net net' failed failed' out,
-    @step_f _ _ refined_failure_params (failed, net) (failed', net') out ->
-    @step_f _ _ failure_params (failed, deghost net) (failed', deghost net') out.
+    @step_failure _ _ refined_failure_params (failed, net) (failed', net') out ->
+    @step_failure _ _ failure_params (failed, deghost net) (failed', deghost net') out.
 Proof.
 move => net net' failed failed' out H_step.
-apply step_f_tot_mapped_simulation_1 in H_step.
+apply step_failure_tot_mapped_simulation_1 in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
 rewrite /tot_map_trace_occ /= /id /= in H_step.
 rewrite /tot_map_packet /= /id /= in H_step.
@@ -198,13 +198,14 @@ Qed.
 
 Theorem ghost_simulation_2 :
   forall net net' failed failed' out gnet,
-    @step_f _ _ failure_params (failed, net) (failed', net') out ->
+    @step_failure _ _ failure_params (failed, net) (failed', net') out ->
     deghost gnet = net ->
-    exists gnet', step_f (failed, gnet) (failed', gnet') out /\
+    exists gnet',
+      step_failure (failed, gnet) (failed', gnet') out /\
       deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-eapply step_f_tot_mapped_simulation_2 in H_step => //.
+eapply step_failure_tot_mapped_simulation_2 in H_step => //.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
   split; eauto.
@@ -267,11 +268,11 @@ Qed.
 Theorem ghost_invariant_lift :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       @step_f _ _ failure_params (failed, net) (failed', net') out ->
+       @step_failure _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net') ->
     (forall net net' failed failed' out,
-       step_f (failed, net) (failed', net') out ->
+       step_failure (failed, net) (failed', net') out ->
        P (deghost net) ->
        P (deghost net')).
 Proof.
@@ -281,11 +282,11 @@ Qed.
 Theorem ghost_invariant_lower :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       step_f (failed, net) (failed', net') out ->
+       step_failure (failed, net) (failed', net') out ->
        P (deghost net) ->
        P (deghost net')) ->
     (forall net net' failed failed' out,
-       @step_f _ _ failure_params (failed, net) (failed', net') out ->
+       @step_failure _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net').
 Proof.
@@ -469,11 +470,11 @@ Qed.
 
 Theorem mgv_ghost_simulation_1 :
   forall net net' failed failed' out,
-    @step_f _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
-    @step_f _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
+    @step_failure _ _ mgv_refined_failure_params (failed, net) (failed', net') out ->
+    @step_failure _ _ failure_params (failed, mgv_deghost net) (failed', mgv_deghost net') out.
 Proof.
 move => net net' failed failed' out H_step.
-apply step_f_tot_mapped_simulation_1 in H_step.
+apply step_failure_tot_mapped_simulation_1 in H_step.
 rewrite /tot_map_name /tot_map_net /= 2!map_id /id /= in H_step.
 rewrite /tot_map_trace_occ /= /id /= in H_step.
 rewrite /tot_map_packet /= /id /= in H_step.
@@ -524,13 +525,14 @@ Qed.
 
 Theorem mgv_ghost_simulation_2 :
   forall net net' failed failed' out gnet,
-    @step_f _ _ failure_params (failed, net) (failed', net') out ->
+    @step_failure _ _ failure_params (failed, net) (failed', net') out ->
     mgv_deghost gnet = net ->
-    exists gnet', step_f (failed, gnet) (failed', gnet') out /\
+    exists gnet',
+      step_failure (failed, gnet) (failed', gnet') out /\
       mgv_deghost gnet' = net'.
 Proof.
 move => net net' failed failed' out gnet H_step H_eq.
-eapply step_f_tot_mapped_simulation_2 in H_step => //.
+eapply step_failure_tot_mapped_simulation_2 in H_step => //.
 - move: H_step => [gnet' [H_step H_eq_net]].
   exists gnet'.
   split; eauto.
@@ -565,11 +567,11 @@ Qed.
 Theorem mgv_ghost_invariant_lift :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       @step_f _ _ failure_params (failed, net) (failed', net') out ->
+       @step_failure _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net') ->
     (forall net net' failed failed' out,
-       step_f (failed, net) (failed', net') out ->
+       step_failure (failed, net) (failed', net') out ->
        P (mgv_deghost net) ->
        P (mgv_deghost net')).
 Proof.
@@ -579,11 +581,11 @@ Qed.
 Theorem mgv_ghost_invariant_lower :
   forall P : _ -> Prop,
     (forall net net' failed failed' out,
-       step_f (failed, net) (failed', net') out ->
+       step_failure (failed, net) (failed', net') out ->
        P (mgv_deghost net) ->
        P (mgv_deghost net')) ->
     (forall net net' failed failed' out,
-       @step_f _ _ failure_params (failed, net) (failed', net') out ->
+       @step_failure _ _ failure_params (failed, net) (failed', net') out ->
        P net ->
        P net').
 Proof.

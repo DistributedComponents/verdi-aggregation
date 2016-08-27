@@ -279,10 +279,10 @@ Definition pt_trace_remove_empty_out :=
                 | _ => e :: l
                 end) [].
 
-Theorem step_m_pt_mapped_simulation_1 :
+Theorem step_async_pt_mapped_simulation_1 :
   forall net net' tr,
-    @step_m _ multi_fst net net' tr ->
-    @step_m _ multi_snd (pt_map_net net) (pt_map_net net') (pt_map_trace tr) \/ 
+    @step_async _ multi_fst net net' tr ->
+    @step_async _ multi_snd (pt_map_net net) (pt_map_net net') (pt_map_trace tr) \/ 
     (pt_map_net net' = pt_map_net net /\ pt_trace_remove_empty_out (pt_map_trace tr) = []).
 Proof.
 move => net net' tr.
@@ -296,7 +296,7 @@ case => {net net' tr}.
       by inversion H_m.
     left.
     rewrite H_eq' /=.
-    apply (@SM_deliver _ _ _ _ _ (pt_map_packets ms) (pt_map_packets ms') (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@StepAsync_deliver _ _ _ _ _ (pt_map_packets ms) (pt_map_packets ms') (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)).
     * rewrite /= H_eq pt_map_packets_app_distr /=.
       case H_p: (pt_map_packet _) => [p0|].
         rewrite H_p in H_m.
@@ -343,7 +343,7 @@ case => {net net' tr}.
   rewrite /pt_map_trace /=.  
   case H_i: (pt_map_input inp) => [inp'|].
     left.
-    apply (@SM_input _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@StepAsync_input _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
       rewrite /=.
       have H_q := pt_input_handlers_some h inp (nwState net h) H_i.
       rewrite /pt_mapped_input_handlers /= in H_q.
@@ -403,25 +403,25 @@ rewrite /= IH.
 by case: out.
 Qed.
 
-Corollary step_m_pt_mapped_simulation_star_1 :
+Corollary step_async_pt_mapped_simulation_star_1 :
   forall net tr,
-    @step_m_star _ multi_fst step_m_init net tr ->
-    exists tr', @step_m_star _ multi_snd step_m_init (pt_map_net net) tr' /\ 
+    @step_async_star _ multi_fst step_async_init net tr ->
+    exists tr', @step_async_star _ multi_snd step_async_init (pt_map_net net) tr' /\ 
      pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => net tr H_step.
-remember step_m_init as y in *.
+remember step_async_init as y in *.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
   rewrite H_init.
-  rewrite /step_m_init /= /pt_map_net /=.
+  rewrite /step_async_init /= /pt_map_net /=.
   rewrite pt_init_handlers_fun_eq.
   exists [].
   split => //.
   exact: RT1nTBase.
 concludes.
 rewrite H_init in H_step2 H_step1.
-apply step_m_pt_mapped_simulation_1 in H.
+apply step_async_pt_mapped_simulation_1 in H.
 case: H => H.
   move: IHH_step1 => [tr' [H_star H_eq_tr]].
   exists (tr' ++ pt_map_trace tr2).
@@ -446,10 +446,10 @@ Context {fail_fst : FailureParams multi_fst}.
 Context {fail_snd : FailureParams multi_snd}.
 Context {fail_map_congr : FailureParamsPartialMapCongruency fail_fst fail_snd base_map}.
 
-Theorem step_f_pt_mapped_simulation_1 :
+Theorem step_failure_pt_mapped_simulation_1 :
   forall net net' failed failed' tr,
-    @step_f _ _ fail_fst (failed, net) (failed', net') tr ->
-    @step_f _ _ fail_snd (map tot_map_name failed, pt_map_net net) (map tot_map_name failed', pt_map_net net') (pt_map_trace tr) \/ 
+    @step_failure _ _ fail_fst (failed, net) (failed', net') tr ->
+    @step_failure _ _ fail_snd (map tot_map_name failed, pt_map_net net) (map tot_map_name failed', pt_map_net net') (pt_map_trace tr) \/ 
     (pt_map_net net' = pt_map_net net /\ failed = failed' /\ pt_trace_remove_empty_out (pt_map_trace tr) = []).
 Proof.
 move => net net' failed failed' tr H_step.
@@ -466,7 +466,7 @@ invcs H_step.
     rewrite /pt_map_net /= H3 pt_map_packets_app_distr /= H_m /= 2!pt_map_packets_app_distr {H3}.
     set p' := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
     have ->: tot_map_name pDst = Net.pDst p' by [].    
-    apply (@SF_deliver _ _ _ _ _ _ _ (pt_map_packets xs) (pt_map_packets ys) (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)) => //=.
+    apply (@StepFailure_deliver _ _ _ _ _ _ _ (pt_map_packets xs) (pt_map_packets ys) (pt_map_outputs out) (pt_map_data d) (pt_map_name_msgs l)) => //=.
     * exact: not_in_failed_not_in.
     * rewrite /= -(pt_net_handlers_some _ _ _ _ H_m)  /pt_mapped_net_handlers /= tot_map_name_inv_inverse.
       repeat break_let.
@@ -502,7 +502,7 @@ invcs H_step.
 - rewrite /= /pt_map_net /=.
   case H_i: pt_map_input => [inp'|].
     left.
-    apply (@SF_input _ _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
+    apply (@StepFailure_input _ _ _ _ _ _ _ _ _ (pt_map_data d) (pt_map_name_msgs l)).
     * exact: not_in_failed_not_in.
     * rewrite /= -(pt_input_handlers_some _ _ _ H_i)  /pt_mapped_input_handlers /= tot_map_name_inv_inverse.
       repeat break_let.
@@ -540,7 +540,7 @@ invcs H_step.
     set p := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
     move => H_eq.
     set p' := {| pSrc := _ ; pDst := _ ; pBody := _ |}.
-    exact: (@SF_drop _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
+    exact: (@StepFailure_drop _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
   right.
   split => //.
   rewrite /pt_map_net /=.
@@ -551,13 +551,13 @@ invcs H_step.
   case H_p: pt_map_packet => [p'|]; last by right.
   left.
   rewrite pt_map_packets_app_distr /= H_p.
-  exact: (@SF_dup _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
+  exact: (@StepFailure_dup _ _ _ _ _ _ p' (pt_map_packets xs) (pt_map_packets ys)).
 - left.
-  exact: SF_fail.
+  exact: StepFailure_fail.
 - rewrite remove_tot_map_eq /=.
   left.
   rewrite {2}/pt_map_net /=.
-  apply: (SF_reboot (tot_map_name h)) => //; first exact: in_failed_in.
+  apply: (StepFailure_reboot (tot_map_name h)) => //; first exact: in_failed_in.
   set nwS1 := fun _ => _.
   set nwS2 := fun _ => _.
   suff H_suff: nwS1 = nwS2 by rewrite H_suff.
@@ -569,14 +569,14 @@ invcs H_step.
   * by rewrite e tot_map_name_inv_inverse in n0.
 Qed.
 
-Corollary step_f_pt_mapped_simulation_star_1 :
+Corollary step_failure_pt_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_f_star _ _ fail_fst step_f_init (failed, net) tr ->
-    exists tr', @step_f_star _ _ fail_snd step_f_init (map tot_map_name failed, pt_map_net net) tr' /\ 
+    @step_failure_star _ _ fail_fst step_failure_init (failed, net) tr ->
+    exists tr', @step_failure_star _ _ fail_snd step_failure_init (map tot_map_name failed, pt_map_net net) tr' /\ 
      pt_trace_remove_empty_out (pt_map_trace tr) = pt_trace_remove_empty_out tr'.
 Proof.
 move => net failed tr H_step.
-remember step_f_init as y in *.
+remember step_failure_init as y in *.
 have H_eq_f: failed = fst (failed, net) by [].
 have H_eq_n: net = snd (failed, net) by [].
 rewrite H_eq_f {H_eq_f}.
@@ -584,7 +584,7 @@ rewrite {2}H_eq_n {H_eq_n}.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
   rewrite H_init.
-  rewrite /step_f_init /= /pt_map_net /=.
+  rewrite /step_failure_init /= /pt_map_net /=.
   rewrite -pt_init_handlers_fun_eq.
   exists [].
   split => //.
@@ -595,7 +595,7 @@ case: x' H IHH_step1 H_step1 => failed' net'.
 case: x'' H_step2 => failed'' net''.
 rewrite /=.
 move => H_step2 H IHH_step1 H_step1.
-apply step_f_pt_mapped_simulation_1 in H.
+apply step_failure_pt_mapped_simulation_1 in H.
 case: H => H.
   move: IHH_step1 => [tr' [H_star H_eq_tr]].
   exists (tr' ++ pt_map_trace tr2).

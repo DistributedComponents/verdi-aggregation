@@ -145,10 +145,10 @@ move {H_eq H_eq'}.
 exact: pt_ext_map_update_eq.
 Qed.
 
-Theorem step_m_pt_ext_mapped_simulation_1 :
+Theorem step_async_pt_ext_mapped_simulation_1 :
   forall net net' tr,
-    @step_m _ multi_fst net net' tr ->
-    (exists tr, @step_m _ multi_snd (pt_ext_map_net net) (pt_ext_map_net net') tr) \/ pt_ext_map_net net' = pt_ext_map_net net.
+    @step_async _ multi_fst net net' tr ->
+    (exists tr, @step_async _ multi_snd (pt_ext_map_net net) (pt_ext_map_net net') tr) \/ pt_ext_map_net net' = pt_ext_map_net net.
 Proof.
 move => net net' tr.
 case => {net net' tr}.
@@ -162,7 +162,7 @@ case => {net net' tr}.
       by inversion H_m.
     case H_n: (net_handlers (pDst p') (pSrc p') (pBody p') (pt_ext_map_data (nwState net (pDst p)) (pDst p))) => [[out' d'] ps].
     exists [(pDst p', inr out')].
-    apply SM_deliver with (xs := pt_map_packets ms) (ys := pt_map_packets ms') (d0 := pt_ext_map_data d (pDst p)) (l0 := pt_map_name_msgs l).
+    apply StepAsync_deliver with (xs := pt_map_packets ms) (ys := pt_map_packets ms') (d0 := pt_ext_map_data d (pDst p)) (l0 := pt_map_name_msgs l).
     * rewrite /= H_eq pt_map_packets_app_distr /=.
       case H_p: (pt_map_packet _) => [p0|]; last by rewrite H_p in H_m.
       by rewrite H_p in H_m; injection H_m => H_eq_p; rewrite H_eq_p.
@@ -205,7 +205,7 @@ case => {net net' tr}.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (nwState net h) h)) => [[out' d'] ps].
     exists [(tot_map_name h, inl inp'); (tot_map_name h, inr out')].
-    apply (@SM_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)).
+    apply (@StepAsync_input _ _ _ _ _ _ _ (pt_ext_map_data d h) (pt_map_name_msgs l)).
       rewrite /=.
       have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (nwState net h) _ _ _ _ H_i H_h.
       rewrite /pt_ext_mapped_input_handlers /= in H_q.
@@ -230,23 +230,23 @@ case => {net net' tr}.
     by rewrite H_eq_s.
 Qed.
 
-Corollary step_m_pt_ext_mapped_simulation_star_1 :
+Corollary step_async_pt_ext_mapped_simulation_star_1 :
   forall net tr,
-    @step_m_star _ multi_fst step_m_init net tr ->
-    exists tr', @step_m_star _ multi_snd step_m_init (pt_ext_map_net net) tr'.
+    @step_async_star _ multi_fst step_async_init net tr ->
+    exists tr', @step_async_star _ multi_snd step_async_init (pt_ext_map_net net) tr'.
 Proof.
 move => net tr H_step.
-remember step_m_init as y in *.
+remember step_async_init as y in *.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
   rewrite H_init.
-  rewrite /step_m_init /= /pt_ext_map_net /=.
+  rewrite /step_async_init /= /pt_ext_map_net /=.
   rewrite pt_ext_init_handlers_fun_eq.
   exists [].  
   exact: RT1nTBase.
 concludes.
 rewrite H_init in H_step2 H_step1.
-apply step_m_pt_ext_mapped_simulation_1 in H.
+apply step_async_pt_ext_mapped_simulation_1 in H.
 case: H => H.
   move: IHH_step1 => [tr' H_star].
   move: H => [tr'' H].
