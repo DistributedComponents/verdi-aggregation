@@ -164,22 +164,22 @@ Ltac io_handler_cases :=
 
 Lemma Failure_node_not_adjacent_self : 
 forall net failed tr n, 
- step_o_f_star step_o_f_init (failed, net) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
  ~ In n failed ->
  ~ NSet.In n (onwState net n).(adjacent).
 Proof.
 move => net failed tr n H.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 have ->: failed = fst (failed, net) by [].
 have ->: net = snd (failed, net) by [].
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init /=.
-  rewrite H_init /step_o_f_init /=.
+  rewrite H_init /step_ordered_failure_init /=.
   move => H_f.
   exact: not_adjacent_self.
 move => H_f.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   rewrite /update /=.
@@ -194,7 +194,7 @@ Qed.
 
 Lemma Failure_self_channel_empty : 
 forall onet failed tr, 
- step_o_f_star step_o_f_init (failed, onet) tr -> 
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
  forall n, ~ In n failed ->
    onet.(onwPackets) n n = [].
 Proof.
@@ -203,12 +203,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
@@ -230,7 +230,7 @@ Qed.
 
 Lemma Failure_not_failed_no_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
   ~ In n failed ->
   ~ In Fail (onet.(onwPackets) n n').
@@ -240,13 +240,13 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 concludes.
 move => n n' H_in.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
   net_handler_cases.
@@ -277,7 +277,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variable n : name.
 
@@ -289,7 +289,7 @@ Hypothesis after_init : P (InitData n).
 
 Hypothesis recv_fail : 
   forall onet failed tr n',
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     P (onet.(onwState) n) ->
     P (mkData (NSet.remove n' (onet.(onwState) n).(adjacent))).
@@ -303,14 +303,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_init /= => H_in_f.
+  rewrite H_init /step_ordered_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
@@ -340,7 +340,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -352,7 +352,7 @@ Hypothesis after_init : P (InitData n) [].
 
 Hypothesis recv_fail_from_eq :
   forall onet failed tr ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   In n' failed ->
   n' <> n ->
@@ -362,7 +362,7 @@ Hypothesis recv_fail_from_eq :
 
 Hypothesis recv_fail_from_neq :
   forall onet failed tr from ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   In from failed ->
   from <> n ->
@@ -380,14 +380,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_f_init /= => H_in_f.
+  rewrite H_init /step_ordered_failure_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
@@ -452,7 +452,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -464,7 +464,7 @@ Hypothesis after_init : P (InitData n) [].
 
 Hypothesis recv_fail_neq :
   forall onet failed tr ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   In n' failed ->
   n <> n' ->
@@ -474,7 +474,7 @@ Hypothesis recv_fail_neq :
 
 Hypothesis recv_fail_other_neq :
   forall onet failed tr from ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   n <> from ->
   n' <> from ->
@@ -484,7 +484,7 @@ Hypothesis recv_fail_other_neq :
 
 Hypothesis fail_adjacent :
   forall onet failed tr,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     n' <> n ->
     ~ In n failed ->
     ~ In n' failed ->
@@ -501,14 +501,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_f_init /= => H_in_f.
+  rewrite H_init /step_ordered_failure_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
@@ -569,7 +569,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -584,7 +584,7 @@ Hypothesis after_init : P (InitData n) (InitData n') [] [].
 
 Hypothesis recv_fail_self :
   forall onet failed tr from ms,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     n' = n ->
     ~ In n failed ->
     onet.(onwPackets) from n = Fail :: ms ->
@@ -596,7 +596,7 @@ Hypothesis recv_fail_self :
 
 Hypothesis recv_fail_other :
   forall onet failed tr from ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     ~ In n' failed ->
     onet.(onwPackets) from n = Fail :: ms ->
@@ -609,7 +609,7 @@ Hypothesis recv_fail_other :
 
 Hypothesis recv_other_fail :
   forall onet failed tr from ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     ~ In n' failed ->
     onet.(onwPackets) from n' = Fail :: ms ->
@@ -629,14 +629,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {3 4 5 6}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_f_init /= => H_in_f H_in_f'.
+  rewrite H_init /step_ordered_failure_init /= => H_in_f H_in_f'.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - rewrite /= in IHH'_step1.
   move {H'_step2}.
@@ -749,7 +749,7 @@ End DualNodeInv.
 
 Lemma Failure_in_adj_adjacent_to :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall (n n' : name),
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -772,7 +772,7 @@ Qed.
 
 Lemma Failure_in_adj_or_incoming_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -783,7 +783,7 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 5}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => /= H_init.
   rewrite H_init /= {H_init}.
@@ -791,7 +791,7 @@ induction H using refl_trans_1n_trace_n1_ind => /= H_init.
   by left.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n n' H_in_f H_ins.
   find_apply_lem_hyp net_handlers_NetHandler; break_exists.
@@ -856,7 +856,7 @@ Qed.
 
 Lemma Failure_le_one_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     count_occ Msg_eq_dec (onet.(onwPackets) n' n) Fail <= 1.
@@ -885,7 +885,7 @@ Qed.
 
 Lemma Failure_adjacent_to_in_adj :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     ~ In n' failed ->
@@ -915,7 +915,7 @@ Qed.
 
 Lemma Failure_in_queue_fail_then_adjacent : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     In Fail (onet.(onwPackets) n' n) ->
@@ -943,7 +943,7 @@ Qed.
 
 Lemma Failure_first_fail_in_adj : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     head (onet.(onwPackets) n' n) = Some Fail ->
@@ -974,7 +974,7 @@ Qed.
 
 Lemma Failure_adjacent_failed_incoming_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -987,12 +987,12 @@ case: H_or => H_or //.
 by move: H_or => [H_in H_in'].
 Qed.
 
-Lemma Failure_lb_step_o_f_RecvFail_neq_src_enabled :
+Lemma Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst src src',
-  lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
-  lb_step_o_f (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
+  lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
   src <> src' ->
-  enabled lb_step_o_f (RecvFail dst src') (failed', net').
+  enabled lb_step_ordered_failure (RecvFail dst src') (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src src' H_st H_st' H_neq.
 invcs H_st => //.
@@ -1019,18 +1019,18 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   rewrite /d' /update.
   by break_if.
 set tr := [].
-apply: LSOF_deliver; eauto => //=.
+apply: LStepOrderedFailure_deliver; eauto => //=.
 rewrite /net' /= /update2.
 break_if; first by break_and.
 by eassumption.
 Qed.
 
-Lemma Failure_lb_step_o_f_RecvFail_neq_dst_enabled :
+Lemma Failure_lb_step_ordered_failure_RecvFail_neq_dst_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst dst' src src',
-    lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
-    lb_step_o_f (failed, net) (RecvFail dst' src') (failed'', net'') tr' ->
+    lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
+    lb_step_ordered_failure (failed, net) (RecvFail dst' src') (failed'', net'') tr' ->
     dst <> dst' -> 
-    enabled lb_step_o_f (RecvFail dst' src') (failed', net').
+    enabled lb_step_ordered_failure (RecvFail dst' src') (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst dst' src src' H_st H_st' H_neq.
 invcs H_st => //.
@@ -1058,15 +1058,15 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   break_if => //.
   rewrite e in H_neq.
   by case: H_neq.
-apply: LSOF_deliver => //; eauto.
+apply: LStepOrderedFailure_deliver => //; eauto.
 rewrite /net' /= /update2.
 by break_if; first by break_and.
 Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
-  forall s, lb_step_execution lb_step_o_f s ->
-       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_o_f (RecvFail dst src))) 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
+                  weak_until (now (l_enabled lb_step_ordered_failure (RecvFail dst src))) 
                              (now (occurred (RecvFail dst src))) 
                              s.
 Proof.
@@ -1106,7 +1106,7 @@ case (name_eq_dec dst dst') => H_eq.
   destruct x.
   simpl in *.
   move: H2 H H_eq'.
-  exact: Failure_lb_step_o_f_RecvFail_neq_src_enabled.
+  exact: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled.
 apply: W_tl; first by [].
 apply: c => //=.
 rewrite /l_enabled /=.
@@ -1116,13 +1116,13 @@ rewrite /l_enabled /enabled /= in H_en.
 break_exists.
 destruct x.
 move: H2 H H_eq.
-exact: Failure_lb_step_o_f_RecvFail_neq_dst_enabled.
+exact: Failure_lb_step_ordered_failure_RecvFail_neq_dst_enabled.
 Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
-  forall s, lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
-       forall src dst, l_enabled lb_step_o_f (RecvFail dst src) (hd s) ->
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
@@ -1136,11 +1136,11 @@ destruct s as [x s].
 by apply always_now in H_al.
 Qed.
 
-Lemma lb_step_o_f_count_occ_Fail_neq_eq : 
+Lemma lb_step_ordered_failure_count_occ_Fail_neq_eq : 
   forall net net' failed failed' lb src dst k tr,
   lb <> RecvFail dst src ->
   count_occ msg_eq_dec (net.(onwPackets) src dst) Fail = k ->
-  lb_step_o_f (failed, net) lb (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) lb (failed', net') tr ->
   count_occ msg_eq_dec (net'.(onwPackets) src dst) Fail = k.
 Proof.
 move => net net' failed failed' lb src dst k tr H_neq H_cnt H_step.
@@ -1152,10 +1152,10 @@ break_and; subst.
 by case: H_neq.
 Qed.
 
-Lemma lb_step_o_f_count_occ_Fail_recv : 
+Lemma lb_step_ordered_failure_count_occ_Fail_recv : 
   forall net net' failed failed' src dst k tr,  
   count_occ msg_eq_dec (net.(onwPackets) src dst) Fail = S k ->
-  lb_step_o_f (failed, net) (RecvFail dst src) (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
   count_occ msg_eq_dec (net'.(onwPackets) src dst) Fail = k.
 Proof.
 move => net net' failed failed' src dst k tr H_cnt H_step.
@@ -1170,10 +1170,10 @@ find_injection.
 by break_or_hyp.
 Qed.
 
-Lemma lb_step_o_f_count_occ_Fail_le_monotonic : 
+Lemma lb_step_ordered_failure_count_occ_Fail_le_monotonic : 
   forall net net' failed failed' lb src dst k tr,
   count_occ msg_eq_dec (net.(onwPackets) src dst) Fail <= k ->
-  lb_step_o_f (failed, net) lb (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) lb (failed', net') tr ->
   count_occ msg_eq_dec (net'.(onwPackets) src dst) Fail <= k.
 Proof.
 move => net net' failed failed' lb src dst k tr H_cnt H_step.
@@ -1187,10 +1187,10 @@ rewrite H3 /= in H_cnt.
 by auto with arith.
 Qed.
 
-Lemma lb_step_o_f_not_in_failed :
+Lemma lb_step_ordered_failure_not_in_failed :
   forall net net' failed failed' lb tr h,
   ~ In h failed ->
-  lb_step_o_f (failed, net) lb (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) lb (failed', net') tr ->
   ~ In h failed'.
 Proof.
 move => net net' failed failed' lb tr h H_in_f H_step.
@@ -1198,7 +1198,7 @@ by invcs H_step.
 Qed.
 
 Lemma Failure_not_in_failed_always : 
-  forall s, lb_step_execution lb_step_o_f s ->
+  forall s, lb_step_execution lb_step_ordered_failure s ->
        forall h, ~ In h (fst (hd s).(evt_a)) ->
        always (now (fun e => ~ In h (fst e.(evt_a)))) s.
 Proof.
@@ -1212,11 +1212,11 @@ apply: c; first by [].
 rewrite /=.
 destruct e, e', evt_a, evt_a0.
 simpl in *.
-by eapply lb_step_o_f_not_in_failed; eauto.
+by eapply lb_step_ordered_failure_not_in_failed; eauto.
 Qed.
 
-Lemma Failure_lb_step_o_f_fails_occ_monotonic : 
-  forall s, lb_step_execution lb_step_o_f s ->
+Lemma Failure_lb_step_ordered_failure_fails_occ_monotonic : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
        forall src dst k, 
          count_occ Msg_eq_dec ((snd (hd s).(evt_a)).(onwPackets) src dst) Fail <= k ->
          always (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail <= k)) s.
@@ -1231,14 +1231,14 @@ rewrite /=.
 destruct e, e', evt_a, evt_a0.
 simpl in *.
 move: H.
-exact: lb_step_o_f_count_occ_Fail_le_monotonic.
+exact: lb_step_ordered_failure_count_occ_Fail_le_monotonic.
 Qed.
 
 Lemma count_occ_fail_head :
   forall e src dst k,
   ~ In dst (fst (evt_a e)) ->
   count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail = S k ->
-  l_enabled lb_step_o_f (RecvFail dst src) e.
+  l_enabled lb_step_ordered_failure (RecvFail dst src) e.
 Proof.
 case => /= [[failed net] lb] tr src dst k H_in_f H_cnt.
 rewrite /l_enabled /= /enabled.
@@ -1250,12 +1250,12 @@ rewrite /lb_net_handlers /= in H_hnd.
 net_handler_cases.
 exists (failed, {| onwPackets := update2 Net.name_eq_dec (onwPackets net) src dst ms; onwState := update name_eq_dec (onwState net) dst d |}).
 exists [].
-by apply: LSOF_deliver; eauto.
+by apply: LStepOrderedFailure_deliver; eauto.
 Qed.
 
 Lemma Failure_eventually_fewer_Fail :
-  forall s, lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
        forall src dst k, ~ In dst (fst (hd s).(evt_a)) ->
                     count_occ Msg_eq_dec (onwPackets (snd (hd s).(evt_a)) src dst) Fail = S k ->
                     eventually (now (fun e => count_occ Msg_eq_dec (onwPackets (snd e.(evt_a)) src dst) Fail = k)) s.
@@ -1275,7 +1275,7 @@ elim: H_en => {s}.
   rewrite /=.
   inversion H_exec; subst_max.
   simpl in *.
-  by eapply lb_step_o_f_count_occ_Fail_recv; eauto.
+  by eapply lb_step_ordered_failure_count_occ_Fail_recv; eauto.
 move => e s H_ev IH H_exec H_fair H_in H_cnt.
 inversion H_exec; subst.
 destruct e, e'.
@@ -1287,18 +1287,18 @@ case (Label_eq_dec (RecvFail dst src) evt_l) => H_eq.
   apply: E_next.
   apply: E0.
   rewrite /=.
-  by eapply lb_step_o_f_count_occ_Fail_recv; eauto.
+  by eapply lb_step_ordered_failure_count_occ_Fail_recv; eauto.
 apply E_next.
 apply IH.
 - by [].
 - by apply weak_local_fairness_invar in H_fair.
-- by eapply lb_step_o_f_not_in_failed; eauto.
-- by eapply lb_step_o_f_count_occ_Fail_neq_eq; eauto.
+- by eapply lb_step_ordered_failure_not_in_failed; eauto.
+- by eapply lb_step_ordered_failure_count_occ_Fail_neq_eq; eauto.
 Qed.
 
-Lemma Failure_lb_step_o_f_eventually_le_0_fail :
-  forall s, lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
+Lemma Failure_lb_step_ordered_failure_eventually_le_0_fail :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        eventually (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail = 0)) s.
@@ -1330,25 +1330,25 @@ apply: H_ev'.
   destruct e, e'.
   destruct evt_a, evt_a0.
   simpl in *.
-  by apply: lb_step_o_f_not_in_failed; eauto.
+  by apply: lb_step_ordered_failure_not_in_failed; eauto.
 Qed.
 
-Lemma Failure_lb_step_o_f_continuously_no_fail :
-  forall s, lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
+Lemma Failure_lb_step_ordered_failure_continuously_no_fail :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_exec H_fair src dst H_in_f.
-have H_ev := Failure_lb_step_o_f_eventually_le_0_fail H_exec H_fair src dst H_in_f.
+have H_ev := Failure_lb_step_ordered_failure_eventually_le_0_fail H_exec H_fair src dst H_in_f.
 move: H_exec H_fair {H_in_f}.
 elim: H_ev.
 - move => s0 H_n H_exec H_fair.
   apply: E0.
   inversion H_exec.
   rewrite -H2 /now in H_n.
-  have H_al := Failure_lb_step_o_f_fails_occ_monotonic H_exec src dst.
+  have H_al := Failure_lb_step_ordered_failure_fails_occ_monotonic H_exec src dst.
   rewrite -H2 /= in H_al.
   have H_le_n: count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail <= 0 by rewrite H_n.
   have H_al' := H_al _ H_le_n.
@@ -1367,23 +1367,23 @@ elim: H_ev.
   by apply weak_local_fairness_invar in H_fair.
 Qed.
 
-Lemma Failure_lb_step_o_f_no_fails_step_star_ex :
-  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
+Lemma Failure_lb_step_ordered_failure_no_fails_step_star_ex :
+  forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
+       lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
-         event_step_star step_o_f step_o_f_init e /\ 
+         event_step_star step_ordered_failure step_ordered_failure_init e /\ 
          ~ In dst (fst e.(evt_a)) /\ 
          ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_star H_exec H_fair src dst H_in_f.
-have H_al := step_o_f_star_lb_step_execution H_star H_exec.
+have H_al := step_ordered_failure_star_lb_step_execution H_star H_exec.
 have H_al' := Failure_not_in_failed_always H_exec _ H_in_f.
 apply always_continuously in H_al.
 apply always_continuously in H_al'.
-have H_cny := Failure_lb_step_o_f_continuously_no_fail H_exec H_fair src _ H_in_f.
+have H_cny := Failure_lb_step_ordered_failure_continuously_no_fail H_exec H_fair src _ H_in_f.
 have H_both := continuously_and_tl H_al H_al'.
 have H_both' := continuously_and_tl H_both H_cny.
 move: H_both'.
@@ -1393,10 +1393,10 @@ unfold now, and_tl in H_and.
 by break_and.
 Qed.
 
-Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
-  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
+Lemma Failure_lb_step_ordered_failure_continuously_adj_not_failed :
+  forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
+       lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
@@ -1404,7 +1404,7 @@ Lemma Failure_lb_step_o_f_continuously_adj_not_failed :
          ~ In n' (fst e.(evt_a)) /\ adjacent_to n' n)) s.
 Proof.
 move => s H_star H_exec H_fair n n' H_in_f.
-have H_cny := Failure_lb_step_o_f_no_fails_step_star_ex H_star H_exec H_fair n' _ H_in_f.
+have H_cny := Failure_lb_step_ordered_failure_no_fails_step_star_ex H_star H_exec H_fair n' _ H_in_f.
 move: H_cny.
 apply continuously_monotonic.
 case => /= e s0 H_and H_ins.

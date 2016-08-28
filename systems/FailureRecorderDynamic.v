@@ -161,17 +161,17 @@ Ltac io_handler_cases :=
 
 Lemma Failure_self_channel_empty : 
 forall onet failed tr, 
- step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
  forall n, onet.(odnwPackets) n n = [].
 Proof.
 move => onet failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: onet = snd (failed, onet) by [].
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n.
   case (name_eq_dec h n) => H_dec; last by rewrite collate_ls_neq_to // collate_neq.
@@ -193,7 +193,7 @@ Qed.
 
 Lemma Failure_not_failed_no_fail :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   forall n, In n (odnwNodes onet) -> ~ In n failed ->
   forall n', ~ In Fail (onet.(odnwPackets) n n').
 Proof.
@@ -202,12 +202,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n H_a H_f n'.
   simpl in *.
@@ -289,18 +289,18 @@ Qed.
 
 Lemma Failure_inactive_no_incoming :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   forall n, ~ In n (odnwNodes onet) ->
   forall n', onet.(odnwPackets) n' n = [].
 Proof.
 move => onet failed tr H.
 have ->: onet = snd (failed, onet) by [].
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl in *.
 - move => n H_in n'.
   have H_neq: h <> n by eauto.
@@ -340,7 +340,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr.
 
 Variable n : name.
 
@@ -354,7 +354,7 @@ Hypothesis after_init : P (InitData n).
 
 Hypothesis recv_fail : 
   forall onet failed tr n',
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n onet.(odnwNodes) ->
     ~ In n failed ->
     forall d, onet.(odnwState) n = Some d ->
@@ -363,7 +363,7 @@ Hypothesis recv_fail :
 
 Hypothesis recv_new : 
   forall onet failed tr n',
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n onet.(odnwNodes) ->
     ~ In n failed ->
     forall d, onet.(odnwState) n = Some d ->
@@ -379,12 +379,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in H_step.
+remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_o_d_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
 repeat concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_a H_f d.
   rewrite /update /=.
@@ -426,7 +426,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr.
 
 Variable n n' : name.
 
@@ -442,7 +442,7 @@ Hypothesis after_init_adjacent : P (InitData n) [New].
 
 Hypothesis after_adjacent :
   forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n' onet.(odnwNodes) ->
   ~ In n failed ->
@@ -452,7 +452,7 @@ Hypothesis after_adjacent :
 
 Hypothesis recv_fail_from_eq :
   forall onet failed tr ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
@@ -466,7 +466,7 @@ Hypothesis recv_fail_from_eq :
 
 Hypothesis recv_fail_from_neq :
   forall onet failed tr from ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In from onet.(odnwNodes) ->
@@ -480,7 +480,7 @@ Hypothesis recv_fail_from_neq :
 
 Hypothesis recv_new_from_eq :
   forall onet failed tr ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
@@ -493,7 +493,7 @@ Hypothesis recv_new_from_eq :
 
 Hypothesis recv_new_from_neq :
   forall onet failed tr from ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In from onet.(odnwNodes) ->
@@ -506,7 +506,7 @@ Hypothesis recv_new_from_neq :
 
 Hypothesis recv_new_from_out_eq :
   forall onet failed tr ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
@@ -527,12 +527,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in H_step.
+remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_o_d_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
 repeat concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl in *.
 - move => H_a H_f d.
   rewrite /update /=.
@@ -665,7 +665,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr.
 
 Variable n n' : name.
 
@@ -679,7 +679,7 @@ Hypothesis after_init : P (InitData n) [].
 
 Hypothesis after_init_new :
   forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n' onet.(odnwNodes) ->
   ~ In n' failed ->
   adjacent_to n' n ->  
@@ -687,7 +687,7 @@ Hypothesis after_init_new :
 
 Hypothesis after_adjacent :
   forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   ~ In n' onet.(odnwNodes) ->  
@@ -698,7 +698,7 @@ Hypothesis after_adjacent :
 
 Hypothesis recv_fail_from_eq :
   forall onet failed tr ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
@@ -711,7 +711,7 @@ Hypothesis recv_fail_from_eq :
 
 Hypothesis recv_fail_from_neq :
   forall onet failed tr from ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In from onet.(odnwNodes) ->
@@ -725,7 +725,7 @@ Hypothesis recv_fail_from_neq :
 
 Hypothesis recv_new_from_eq :
   forall onet failed tr ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In n' onet.(odnwNodes) ->
@@ -737,7 +737,7 @@ Hypothesis recv_new_from_eq :
 
 Hypothesis recv_new_from_neq :
   forall onet failed tr from ms,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
   In n onet.(odnwNodes) ->
   ~ In n failed ->
   In from onet.(odnwNodes) ->
@@ -750,7 +750,7 @@ Hypothesis recv_new_from_neq :
 
 Hypothesis send_fail : 
   forall onet failed tr,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n onet.(odnwNodes) ->
     ~ In n failed ->
     In n' onet.(odnwNodes) ->
@@ -770,12 +770,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in H_step.
+remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_o_d_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
 repeat concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl in *.
 - move => H_a H_f d.
   rewrite /update /=.
@@ -889,7 +889,7 @@ End SingleNodeInvIn.
 
 Lemma Failure_node_not_adjacent_self : 
 forall net failed tr,
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
  forall n, In n (odnwNodes net) ->
  ~ In n failed ->
  forall d, odnwState net n = Some d ->
@@ -910,7 +910,7 @@ Qed.
 
 Lemma Failure_in_after_all_fail_new : 
 forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
    forall n, In n (odnwNodes net) ->
         ~ In n failed ->
         forall (n' : name), before_all New Fail (net.(odnwPackets) n' n).
@@ -940,7 +940,7 @@ Qed.
 
 Lemma Failure_le_one_new : 
 forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
    forall n, In n (odnwNodes net) -> ~ In n failed ->
    forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) New <= 1.
 Proof.
@@ -965,7 +965,7 @@ Qed.
 
 Lemma Failure_le_one_fail : 
 forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
    forall n, In n (odnwNodes net) -> ~ In n failed ->
    forall (n' : name), count_occ Msg_eq_dec (net.(odnwPackets) n' n) Fail <= 1.
 Proof.
@@ -995,7 +995,7 @@ Qed.
 
 Lemma Failure_not_adjacent_no_incoming : 
   forall onet failed tr,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
     forall n, In n (odnwNodes onet) -> ~ In n failed ->
          forall n', ~ adjacent_to n n' ->
                onet.(odnwPackets) n' n = [].
@@ -1023,7 +1023,7 @@ Qed.
 
 Lemma Failure_in_new_failed_incoming_fail : 
   forall onet failed tr,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
     forall n, In n (odnwNodes onet) -> ~ In n failed ->
          forall n', In n' failed ->
                In New (onet.(odnwPackets) n' n) ->
@@ -1034,12 +1034,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 4 5}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n H_in_n H_in_f n' H_in_f'.
   have H_neq: n <> n' by move => H_eq; rewrite H_eq in H_in_f.
@@ -1109,7 +1109,7 @@ Qed.
 
 Lemma Failure_in_adj_adjacent_to :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   forall n n', In n (odnwNodes onet) -> ~ In n failed ->
           forall d, onet.(odnwState) n = Some d ->
                NSet.In n' d.(adjacent) ->
@@ -1145,7 +1145,7 @@ Qed.
  
 Lemma Failure_in_adj_or_incoming_fail :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   forall n n', In n (odnwNodes onet) -> ~ In n failed ->
        forall d, onet.(odnwState) n = Some d ->
             NSet.In n' d.(adjacent) ->
@@ -1156,12 +1156,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4 6 8}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n n' H_or H_in_f d H_eq H_ins.
   move: H_eq.
@@ -1257,7 +1257,7 @@ Qed.
 
 Lemma Failure_new_incoming_not_in_adj :
 forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
    forall n, In n (odnwNodes net) ->
         ~ In n failed ->        
         forall (n' : name), In New (net.(odnwPackets) n' n) ->
@@ -1305,7 +1305,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_d_f_star step_o_d_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -1321,7 +1321,7 @@ Variable P : Data -> Data -> list msg -> list msg -> Prop.
 
 Hypothesis after_init : 
   forall onet failed tr,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     n' = n ->
     ~ In n (odnwNodes onet) -> 
     ~ In n failed ->
@@ -1329,7 +1329,7 @@ Hypothesis after_init :
 
 Hypothesis after_init_fst_not_adjacent :
    forall onet failed tr,
-     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     ~ In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1341,7 +1341,7 @@ Hypothesis after_init_fst_not_adjacent :
 
 Hypothesis after_init_snd_not_adjacent :
    forall onet failed tr,
-     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
      In n (odnwNodes onet) -> 
      ~ In n failed ->
      ~ In n' (odnwNodes onet) ->
@@ -1353,7 +1353,7 @@ Hypothesis after_init_snd_not_adjacent :
       
 Hypothesis after_init_fst_adjacent :
    forall onet failed tr,
-     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     ~ In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1365,7 +1365,7 @@ Hypothesis after_init_fst_adjacent :
 
 Hypothesis after_init_snd_adjacent :
    forall onet failed tr,
-     step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
      In n (odnwNodes onet) -> 
     ~ In n failed ->
     ~ In n' (odnwNodes onet) ->
@@ -1377,7 +1377,7 @@ Hypothesis after_init_snd_adjacent :
 
 Hypothesis recv_fail_self :
   forall onet failed tr from ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     n' = n ->
@@ -1394,7 +1394,7 @@ Hypothesis recv_fail_self :
 
 Hypothesis recv_fail_other_fst :
   forall onet failed tr from ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1414,7 +1414,7 @@ Hypothesis recv_fail_other_fst :
 
 Hypothesis recv_fail_other_snd :
   forall onet failed tr from ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1434,7 +1434,7 @@ Hypothesis recv_fail_other_snd :
 
 Hypothesis recv_new_self :
   forall onet failed tr from ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     n' = n ->
@@ -1450,7 +1450,7 @@ Hypothesis recv_new_self :
 
 Hypothesis recv_new_fst :
   forall onet failed tr ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1466,7 +1466,7 @@ Hypothesis recv_new_fst :
 
 Hypothesis recv_new_snd :
   forall onet failed tr ms,
-    step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
     In n (odnwNodes onet) -> 
     ~ In n failed ->
     In n' (odnwNodes onet) ->
@@ -1482,7 +1482,7 @@ Hypothesis recv_new_snd :
 
 Hypothesis recv_new_fst_other :
   forall onet failed tr from ms,
-   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
    In n (odnwNodes onet) -> 
    ~ In n failed ->
    In n' (odnwNodes onet) ->
@@ -1501,7 +1501,7 @@ Hypothesis recv_new_fst_other :
 
 Hypothesis recv_new_snd_other :
   forall onet failed tr from ms,
-   step_o_d_f_star step_o_d_f_init (failed, onet) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr ->
    In n (odnwNodes onet) -> 
    ~ In n failed ->
    In n' (odnwNodes onet) ->
@@ -1530,12 +1530,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 2 5 6 7 8}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in H_step.
+remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
 repeat concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_n H_in_n' H_in_f H_in_f'.  
   rewrite /update.
@@ -1778,7 +1778,7 @@ End DualNodeInv.
 
 Lemma Failure_adjacent_to_no_incoming_new_n_adjacent :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n n', 
         In n net.(odnwNodes) -> ~ In n failed ->
         In n' net.(odnwNodes) -> ~ In n' failed ->
@@ -1810,7 +1810,7 @@ Qed.
 
 Lemma Failure_incoming_fail_then_incoming_new_or_in_adjacent : 
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n, In n net.(odnwNodes) -> ~ In n failed ->
       forall n', In Fail (net.(odnwPackets) n' n) ->
       forall d, net.(odnwState) n = Some d ->
@@ -1881,7 +1881,7 @@ Qed.
 
 Lemma Failure_incoming_fail_then_new_or_adjacent :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n, In n net.(odnwNodes) -> ~ In n failed ->
       forall n', In Fail (net.(odnwPackets) n' n) ->
       forall d, net.(odnwState) n = Some d ->
@@ -1896,7 +1896,7 @@ Qed.
 
 Lemma Failure_head_fail_then_adjacent :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
    forall n, In n net.(odnwNodes) -> ~ In n failed ->
    forall n', head (net.(odnwPackets) n' n) = Some Fail ->
    forall d, net.(odnwState) n = Some d -> 
@@ -1937,7 +1937,7 @@ Qed.
 
 Lemma Failure_adjacent_or_incoming_new_reciprocal :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n n', 
         In n net.(odnwNodes) -> ~ In n failed ->
         In n' net.(odnwNodes) -> ~ In n' failed ->
@@ -2022,7 +2022,7 @@ Qed.
 
 Lemma Failure_adjacent_then_adjacent_or_new_incoming :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n n', 
         In n net.(odnwNodes) -> ~ In n failed ->
         In n' net.(odnwNodes) -> ~ In n' failed ->
@@ -2040,7 +2040,7 @@ Qed.
 
 Lemma Failure_fail_head_no_new :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n, In n net.(odnwNodes) -> ~ In n failed ->
         forall n', head (net.(odnwPackets) n' n) = Some Fail ->
         ~ In New (net.(odnwPackets) n' n).
@@ -2064,7 +2064,7 @@ Qed.
 
 Lemma Failure_failed_adjacent_fail :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n, In n net.(odnwNodes) -> ~ In n failed ->
       forall n', In n' failed ->
       forall d0, odnwState net n = Some d0 ->
@@ -2081,7 +2081,7 @@ Qed.
 
 Lemma Failure_in_new_then_adjacent :
   forall net failed tr,
-   step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+   step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
       forall n, In n net.(odnwNodes) -> ~ In n failed ->
       forall n', In New (odnwPackets net n' n) ->
             adjacent_to n' n.
@@ -2107,7 +2107,7 @@ Qed.
 
 Lemma Failure_inactive_not_in_adjacent :
 forall net failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, net) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr -> 
   forall n, In n net.(odnwNodes) -> ~ In n failed ->
   forall n', ~ In n' (odnwNodes net) ->
   forall d0, odnwState net n = Some d0 ->
@@ -2118,12 +2118,12 @@ have H_eq_f: failed = fst (failed, net) by [].
 have H_eq_o: net = snd (failed, net) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init.
 concludes.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => n H_in H_f n' H_in' d0 H_eq H_ins {H1}.
   destruct_update; repeat find_injection.

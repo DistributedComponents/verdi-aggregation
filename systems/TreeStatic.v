@@ -624,17 +624,17 @@ Instance Tree_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverl
 
 Theorem Tree_Failed_pt_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_o_f_star _ _ _ Tree_FailMsgParams step_o_f_init (failed, net) tr ->
-    @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ Tree_FailMsgParams step_ordered_failure_init (failed, net) tr ->
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
-apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
 Lemma Tree_node_not_adjacent_self : 
 forall net failed tr n, 
- step_o_f_star step_o_f_init (failed, net) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
  ~ In n failed ->
  ~ NSet.In n (onwState net n).(adjacent).
 Proof.
@@ -645,7 +645,7 @@ Qed.
 
 Lemma Tree_not_failed_no_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
   ~ In n failed ->
   ~ In Fail (onet.(onwPackets) n n').
@@ -662,7 +662,7 @@ Qed.
 
 Lemma Tree_in_adj_adjacent_to :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -682,7 +682,7 @@ Qed.
 
 Lemma Tree_in_adj_or_incoming_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -702,7 +702,7 @@ Qed.
 
 Lemma Tree_le_one_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     count_occ Msg_eq_dec (onet.(onwPackets) n' n) Fail <= 1.
@@ -722,7 +722,7 @@ Qed.
 
 Lemma Tree_adjacent_to_in_adj :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     ~ In n' failed ->
@@ -736,7 +736,7 @@ Qed.
 
 Lemma Tree_in_queue_fail_then_adjacent : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     In Fail (onet.(onwPackets) n' n) ->
@@ -753,7 +753,7 @@ Qed.
 
 Lemma Tree_first_fail_in_adj : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     head (onet.(onwPackets) n' n) = Some Fail ->
@@ -770,7 +770,7 @@ Qed.
 
 Lemma Tree_adjacent_failed_incoming_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -786,7 +786,7 @@ Qed.
 (* bfs_net_ok_root_levels_empty *)
 Lemma Tree_root_levels_empty :
   forall net failed tr,
-  step_o_f_star step_o_f_init (failed, net) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
   forall n, ~ In n failed -> 
   root n ->
   (net.(onwState) n).(levels) = NMap.empty lv.
@@ -796,7 +796,7 @@ Admitted.
 (* bfs_net_ok_root_levels_bot *)
 Lemma Tree_root_levels_bot : 
 forall net failed tr,
-  step_o_f_star step_o_f_init (failed, net) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
   forall n, root n ->
   forall n', NMap.find n' (net.(onwState) n).(levels) = None.
 Proof.
@@ -805,7 +805,7 @@ Admitted.
 (* in_after_all_fail_status *)
 Lemma Tree_in_after_all_fail_level : 
 forall onet failed tr,
- step_o_f_star step_o_f_init (failed, onet) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
  forall (n : name), ~ In n failed ->
  forall (n' : name) lvo', before_all (Level lvo') Fail (onet.(onwPackets) n' n).
 Proof.
@@ -814,7 +814,7 @@ Admitted.
 (* in_queue_status_then_new *)
 Lemma Tree_level_msg_dst_adjacent_src : 
   forall onet failed tr, 
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     forall n, ~ In n failed ->
      forall n' lvo', In (Level lvo') (onet.(onwPackets) n' n) ->
      NSet.In n' (onet.(onwState) n).(adjacent).
@@ -824,7 +824,7 @@ Admitted.
 (* bfs_net_ok_notins_levels_bot *)
 Lemma Tree_notins_levels_bot :
   forall net failed tr,
-  step_o_f_star step_o_f_init (failed, net) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
   forall n, ~ In n failed ->
   forall n', ~ NSet.In n' (net.(onwState) n).(adjacent) ->
   NMap.find n' (net.(onwState) n).(levels) = None.
@@ -834,7 +834,7 @@ Admitted.
 (* bfs_net_ok_root_status_in_queue *)
 Lemma Tree_root_incoming_level_0 :
   forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr -> 
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
     forall n, ~ In n failed -> 
     root n ->
     forall n' lvo', In (Level lvo') (net.(onwPackets) n n') ->
@@ -845,7 +845,7 @@ Admitted.
 (* bfs_net_ok_notin_adj_not_sent_status *)
 Lemma Tree_notin_adjacent_not_sent_level :
   forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr -> 
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
     forall n, ~ In n failed ->
     forall n', ~ NSet.In n' (net.(onwState) n).(adjacent) ->
     forall lvo', ~ In (Level lvo') (net.(onwPackets) n n').
@@ -855,7 +855,7 @@ Admitted.
 (* bfs_net_ok_notin_adj_find_none *)
 Lemma Tree_notin_adjacent_find_none :
   forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr -> 
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
     forall n, ~ In n failed ->
     forall n', ~ In n' failed ->
     ~ NSet.In n' (net.(onwState) n).(adjacent) ->
@@ -866,7 +866,7 @@ Admitted.
 (* bfs_net_ok_root_have_level *)
 Lemma Tree_root_have_level :
   forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr -> 
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
     forall n, ~ In n failed ->
     forall n', ~ In n' failed ->
     root n ->
@@ -888,7 +888,7 @@ Admitted.
 (*
 Lemma Tree_nonroot_have_level : 
  forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr -> 
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
     forall n, ~ In n failed ->    
     forall n', ~ In n' failed ->
     ~ root n ->

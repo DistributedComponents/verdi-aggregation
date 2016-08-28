@@ -398,11 +398,11 @@ Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : Na
 
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ _ Aggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    @step_o_f_star _ _ _ FR.FailureRecorder_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ Aggregation_FailMsgParams step_ordered_failure_init (failed, net) tr ->
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
-apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
@@ -428,7 +428,7 @@ Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap
 
 Lemma Aggregation_node_not_adjacent_self : 
 forall net failed tr n, 
- step_o_f_star step_o_f_init (failed, net) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
  ~ In n failed ->
  ~ NSet.In n (onwState net n).(adjacent).
 Proof.
@@ -439,7 +439,7 @@ Qed.
 
 Lemma Aggregation_not_failed_no_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
   ~ In n failed ->
   ~ In Fail (onet.(onwPackets) n n').
@@ -456,7 +456,7 @@ Qed.
 
 Lemma Aggregation_in_adj_adjacent_to :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -476,7 +476,7 @@ Qed.
 
 Lemma Aggregation_in_adj_or_incoming_fail :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -496,7 +496,7 @@ Qed.
 
 Lemma Aggregation_le_one_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     count_occ Msg_eq_dec (onet.(onwPackets) n' n) Fail <= 1.
@@ -516,7 +516,7 @@ Qed.
 
 Lemma Aggregation_adjacent_to_in_adj :
 forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     ~ In n' failed ->
@@ -530,7 +530,7 @@ Qed.
 
 Lemma Aggregation_in_queue_fail_then_adjacent : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     In Fail (onet.(onwPackets) n' n) ->
@@ -547,7 +547,7 @@ Qed.
 
 Lemma Aggregation_first_fail_in_adj : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     head (onet.(onwPackets) n' n) = Some Fail ->
@@ -564,7 +564,7 @@ Qed.
 
 Lemma Aggregation_adjacent_failed_incoming_fail : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr -> 
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
   forall n n',
     ~ In n failed ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -579,7 +579,7 @@ Qed.
 
 Lemma Aggregation_in_set_exists_find_balance : 
 forall net failed tr, 
- step_o_f_star step_o_f_init (failed, net) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
  forall n, ~ In n failed ->
  forall n', NSet.In n' (net.(onwState) n).(adjacent) -> 
        exists m5 : m, NMap.find n' (net.(onwState) n).(balance) = Some m5.
@@ -589,7 +589,7 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init {failed}.
   rewrite H_init /=.
@@ -601,7 +601,7 @@ induction H using refl_trans_1n_trace_n1_ind => H_init {failed}.
   by exists 1.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=.
@@ -707,7 +707,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variable n : name.
 
@@ -719,7 +719,7 @@ Hypothesis after_init : P (InitData n).
 
 Hypothesis recv_aggregate : 
   forall onet failed tr n' m' m0,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     NMap.find n' (onet.(onwState) n).(balance) = Some m0 ->
     P (onet.(onwState) n) ->
@@ -727,7 +727,7 @@ Hypothesis recv_aggregate :
 
 Hypothesis recv_fail : 
   forall onet failed tr n' m_bal,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     NMap.find n' (onet.(onwState) n).(balance) = Some m_bal ->
     P (onet.(onwState) n) ->
@@ -735,14 +735,14 @@ Hypothesis recv_fail :
 
 Hypothesis recv_local_weight : 
   forall onet failed tr m',
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   P (onet.(onwState) n) ->
   P (mkData m' ((onwState onet n).(aggregate) * m' * ((onwState onet n).(local))^-1) (onwState onet n).(adjacent) (onwState onet n).(balance)).
 
 Hypothesis recv_send_aggregate : 
   forall onet failed tr n' m',
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     NSet.In n' (onwState onet n).(adjacent) ->
     (onwState onet n).(aggregate) <> 1 ->
@@ -759,14 +759,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_init /= => H_in_f.
+  rewrite H_init /step_ordered_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
@@ -823,7 +823,7 @@ onet.(onwPackets) n n = [].
 
 Lemma Aggregation_self_channel_empty : 
 forall onet failed tr, 
- step_o_f_star step_o_f_init (failed, onet) tr -> 
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
  forall n, ~ In n failed ->
    self_channel_empty n onet.
 Proof.
@@ -832,14 +832,14 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_o_f_init /=.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init /step_ordered_failure_init /=.
 rewrite /self_channel_empty in IHrefl_trans_1n_trace1.
 rewrite /self_channel_empty.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=.
@@ -887,7 +887,7 @@ Qed.
 
 Lemma Aggregation_in_after_all_fail_aggregate : 
 forall onet failed tr,
- step_o_f_star step_o_f_init (failed, onet) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
  forall (n : name), ~ In n failed ->
  forall (n' : name) m', before_all (Aggregate m') Fail (onet.(onwPackets) n' n).
 Proof.
@@ -896,12 +896,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   move {H1}.
@@ -974,7 +974,7 @@ Qed.
 
 Lemma Aggregation_aggregate_msg_dst_adjacent_src : 
   forall onet failed tr, 
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     forall n, ~ In n failed ->
      forall n' m5, In (Aggregate m5) (onet.(onwPackets) n' n) ->
      NSet.In n' (onet.(onwState) n).(adjacent).
@@ -984,12 +984,12 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   move {H1}.
@@ -1162,7 +1162,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -1174,7 +1174,7 @@ Hypothesis after_init : P (InitData n) [].
 
 Hypothesis recv_aggregate_neq_from :
   forall onet failed tr from m' m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   from <> n ->
   NMap.find from (onwState onet n).(balance) = Some m0 ->
@@ -1184,7 +1184,7 @@ Hypothesis recv_aggregate_neq_from :
 
 Hypothesis recv_aggregate_neq :
   forall onet failed tr from m' m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   n <> n' ->
   from <> n ->
@@ -1195,7 +1195,7 @@ Hypothesis recv_aggregate_neq :
 
 Hypothesis recv_aggregate_neq_other_some :
   forall onet failed tr m' m0 ms,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     n <> n' ->
     NMap.find n ((onet.(onwState) n').(balance)) = Some m0 ->
@@ -1205,7 +1205,7 @@ Hypothesis recv_aggregate_neq_other_some :
 
 Hypothesis recv_fail_neq_from :
   forall onet failed tr from m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   In from failed ->
   from <> n ->
@@ -1216,7 +1216,7 @@ Hypothesis recv_fail_neq_from :
 
 Hypothesis recv_fail_neq :
   forall onet failed tr from m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   In from failed ->
   n <> n' ->
@@ -1228,14 +1228,14 @@ Hypothesis recv_fail_neq :
 
 Hypothesis recv_local : 
   forall onet failed tr m_local,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     P (onet.(onwState) n) (onet.(onwPackets) n n') ->
     P (mkData m_local ((onet.(onwState) n).(aggregate) * m_local * (onet.(onwState) n).(local)^-1) (onet.(onwState) n).(adjacent) (onet.(onwState) n).(balance)) (onet.(onwPackets) n n').
 
 Hypothesis recv_local_eq_some :
   forall onet failed tr m',
-      step_o_f_star step_o_f_init (failed, onet) tr ->
+      step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
       ~ In n failed ->
       n <> n' ->
       (onet.(onwState) n).(aggregate) <> 1 ->
@@ -1246,7 +1246,7 @@ Hypothesis recv_local_eq_some :
 
 Hypothesis recv_local_neq_some :
   forall onet failed tr to m',
-      step_o_f_star step_o_f_init (failed, onet) tr ->
+      step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
       ~ In n failed ->
       to <> n ->
       to <> n' ->
@@ -1265,14 +1265,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_f_init /= => H_in_f.
+  rewrite H_init /step_ordered_failure_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
@@ -1441,7 +1441,7 @@ Variable failed : list name.
 
 Variable tr : list (name * (input + output)).
 
-Hypothesis H_step : step_o_f_star step_o_f_init (failed, onet) tr.
+Hypothesis H_step : step_ordered_failure_star step_ordered_failure_init (failed, onet) tr.
 
 Variables n n' : name.
 
@@ -1453,7 +1453,7 @@ Hypothesis after_init : P (InitData n) [].
 
 Hypothesis recv_aggregate : 
   forall onet failed tr m' m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   n <> n' ->
   NMap.find n' (onet.(onwState) n).(balance) = Some m0 ->
@@ -1463,7 +1463,7 @@ Hypothesis recv_aggregate :
 
 Hypothesis recv_aggregate_other : 
   forall onet failed tr m' from m0 ms,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   from <> n' ->
   NMap.find from (onwState onet n).(balance) = Some m0 ->
@@ -1473,7 +1473,7 @@ Hypothesis recv_aggregate_other :
 
 Hypothesis recv_fail : 
   forall onet failed tr m0 ms,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     In n' failed ->
     n <> n' ->
@@ -1484,7 +1484,7 @@ Hypothesis recv_fail :
 
 Hypothesis recv_fail_other : 
   forall onet failed tr from m0 ms,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     In from failed ->
     from <> n' ->
@@ -1495,14 +1495,14 @@ Hypothesis recv_fail_other :
 
 Hypothesis recv_local : 
   forall onet failed tr m_local,
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     P (onet.(onwState) n) (onet.(onwPackets) n' n) ->
     P (mkData m_local ((onet.(onwState) n).(aggregate) * m_local * (onet.(onwState) n).(local)^-1) (onet.(onwState) n).(adjacent) (onet.(onwState) n).(balance)) (onet.(onwPackets) n' n).
 
 Hypothesis recv_send_aggregate : 
   forall onet failed tr m',
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     n <> n' ->
     NSet.In n' (onet.(onwState) n).(adjacent) ->
@@ -1513,7 +1513,7 @@ Hypothesis recv_send_aggregate :
 
 Hypothesis recv_send_aggregate_other : 
   forall onet failed tr to m',
-    step_o_f_star step_o_f_init (failed, onet) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
     ~ In n failed ->
     to <> n ->
     to <> n' ->
@@ -1525,7 +1525,7 @@ Hypothesis recv_send_aggregate_other :
 
 Hypothesis recv_send_aggregate_neq :
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   ~ In n' failed ->
   n <> n' ->
@@ -1536,7 +1536,7 @@ Hypothesis recv_send_aggregate_neq :
 
 Hypothesis recv_fail_neq :
   forall onet failed tr ms m',
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   ~ In n failed ->
   n <> n' ->
   NMap.find n' (onet.(onwState) n).(balance) = Some m' ->
@@ -1546,7 +1546,7 @@ Hypothesis recv_fail_neq :
 
 Hypothesis fail_adjacent :
   forall onet failed tr,
-step_o_f_star step_o_f_init (failed, onet) tr ->
+step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
 ~ In n failed ->
 ~ In n' failed ->
 n' <> n ->
@@ -1563,14 +1563,14 @@ have H_eq_f: failed' = fst (failed', onet') by [].
 have H_eq_o: onet' = snd (failed', onet') by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {2 3}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in H'_step.
+remember step_ordered_failure_init as y in H'_step.
 move: Heqy.
 induction H'_step using refl_trans_1n_trace_n1_ind => /= H_init.
-  rewrite H_init /step_o_f_init /= => H_in_f.
+  rewrite H_init /step_ordered_failure_init /= => H_in_f.
   exact: after_init.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move => H_in_f.
   find_apply_lem_hyp net_handlers_NetHandler.
@@ -1732,13 +1732,13 @@ Proof.
 Qed.
 
 (* FIXME: trace projected for node *)
-Lemma Aggregation_step_o_f_tot_one_mapped_simulation_star_1 :
+Lemma Aggregation_step_ordered_failure_tot_one_mapped_simulation_star_1 :
   forall n net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
     exists tr', @step_s_star _ (OA.Aggregator_SingleNodeParams n) (@init_handler _ (OA.Aggregator_SingleNodeParams n)) (tot_s_map_data (net.(onwState) n)) tr'.
 Proof.
 move => n.
-apply: step_o_f_tot_one_mapped_simulation_star_1.
+apply: step_ordered_failure_tot_one_mapped_simulation_star_1.
 move => net failed tr src m ms out st' ps out' st'' H_star H_eq H_in_f H_hnd H_inp.
 unfold input_handlers, input_handler in *.  
 simpl in *.
@@ -1783,11 +1783,11 @@ Instance AggregationMsg_Aggregation : AggregationMsg :=
 
 Lemma Aggregation_conserves_node_mass : 
 forall onet failed tr,
- step_o_f_star step_o_f_init (failed, onet) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
  forall n, ~ In n failed -> conserves_node_mass (onet.(onwState) n).
 Proof.
 move => onet failed tr H n H_f.
-apply (Aggregation_step_o_f_tot_one_mapped_simulation_star_1 n) in H.
+apply (Aggregation_step_ordered_failure_tot_one_mapped_simulation_star_1 n) in H.
 move: H => [tr' H_st].
 apply OA.Aggregator_conserves_node_mass in H_st.
 by rewrite /= /conserves_node_mass /= in H_st.
@@ -1795,7 +1795,7 @@ Qed.
 
 Lemma Aggregation_conserves_node_mass_all : 
 forall onet failed tr,
- step_o_f_star step_o_f_init (failed, onet) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
  conserves_node_mass_all (Nodes_data (remove_all name_eq_dec failed nodes) onet.(onwState)).
 Proof.
 move => onet failed tr H_st.
@@ -1815,7 +1815,7 @@ Qed.
 
 Corollary Aggregate_conserves_mass_globally :
 forall onet failed tr,
- step_o_f_star step_o_f_init (failed, onet) tr ->
+ step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
  conserves_mass_globally (Nodes_data (remove_all name_eq_dec failed nodes) onet.(onwState)).
 Proof.
 move => onet failed tr H_step.
@@ -1825,7 +1825,7 @@ Qed.
 
 Lemma Aggregation_sum_aggregate_msg_self :  
   forall onet failed tr,
-   step_o_f_star step_o_f_init (failed, onet) tr ->
+   step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
    forall n, ~ In n failed -> sum_aggregate_msg (onet.(onwPackets) n n) = 1.
 Proof.
 move => onet failed tr H_step n H_in_f.
@@ -1835,7 +1835,7 @@ Qed.
 Lemma sum_local_step_o_init :
   forall ns, sum_local (Nodes_data ns init_handlers) = 1.
 Proof.
-rewrite /Nodes_data /step_o_init /=.
+rewrite /Nodes_data /step_ordered_init /=.
 elim => //.
 move => n l IH.
 rewrite /= IH.
@@ -2002,7 +2002,7 @@ Qed.
 
 Lemma sumM_sent_fail_active_eq_with_self : 
   forall onet failed tr,
-   step_o_f_star step_o_f_init (failed, onet) tr ->
+   step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
    forall n, ~ In n failed ->
    sumM (onet.(onwState) n).(adjacent) (onet.(onwState) n).(balance) * 
      (sum_fail_map_incoming nodes onet.(onwPackets) n (onet.(onwState) n).(adjacent) (onet.(onwState) n).(balance))^-1 =
@@ -2039,7 +2039,7 @@ Qed.
 
 Lemma Aggregation_sent_received_eq : 
   forall net failed tr,
-    step_o_f_star step_o_f_init (failed, net) tr ->
+    step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
     forall n n' m0 m1,
      ~ In n failed ->
      ~ In n' failed ->
@@ -2054,7 +2054,7 @@ have H_eq_f: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite H_eq_f {H_eq_f}.
 rewrite {3 4 5 6 7 8}H_eq_o {H_eq_o}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 move: Heqy.
 induction H_st using refl_trans_1n_trace_n1_ind => /= H_init.
   rewrite H_init /= {H_init}.
@@ -2072,7 +2072,7 @@ induction H_st using refl_trans_1n_trace_n1_ind => /= H_init.
   by gsimpl.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - move {H_st2}.
   rewrite /= in IHH_st1.
@@ -2278,7 +2278,7 @@ Qed.
 
 Lemma Aggregation_conserves_network_mass : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   conserves_network_mass (remove_all name_eq_dec failed nodes) nodes onet.(onwPackets) onet.(onwState).
 Proof.
 move => onet failed tr H_step.
@@ -2292,7 +2292,7 @@ set saa := sum_aggregate_msg_incoming_active _ _ _.
 set sfb := sum_fail_balance_incoming_active _ _ _ _.
 suff H_suff: sb = saa * sfb by aac_rewrite H_suff; rewrite /Nodes_data /=; aac_reflexivity.
 rewrite /sb /saa /sfb {sb saa sfb}.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 have ->: failed = fst (failed, onet) by [].
 have H_eq_o: onet = snd (failed, onet) by [].
 rewrite {2 4 6 7} H_eq_o {H_eq_o}.
@@ -2305,7 +2305,7 @@ induction H_step using refl_trans_1n_trace_n1_ind => H_init.
   by gsimpl.
 concludes.
 match goal with
-| [ H : step_o_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
   move {H_step2}.

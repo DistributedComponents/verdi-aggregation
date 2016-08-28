@@ -130,14 +130,14 @@ invcs H_step => //=.
   exact: LStepFailure_stutter.
 Qed.
 
-Theorem lb_step_o_f_tot_mapped_simulation_1 :
+Theorem lb_step_ordered_failure_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
-    @lb_step_o_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_onet net') (List.map tot_map_trace tr).
+    @lb_step_ordered_failure _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
+    @lb_step_ordered_failure _ labeled_multi_snd (List.map tot_map_name failed, tot_map_onet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_onet net') (List.map tot_map_trace tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
-- apply (@LSOF_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
+- apply (@LStepOrderedFailure_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
   * rewrite /tot_map_onet /=.
     rewrite 2!tot_map_name_inv_inverse.
     by find_rewrite.
@@ -164,7 +164,7 @@ invcs H_step => //=.
     by rewrite H_eq_f.
   * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite /tot_map_onet /=.
-  apply (@LSOF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
+  apply (@LStepOrderedFailure_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (@tot_map_name_msgs _ _ _ _ _ msg_map l)).
   * exact: not_in_failed_not_in.
   * rewrite /tot_map_onet /= tot_map_name_inv_inverse.
     have H_q := @tot_input_handlers_eq _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h).
@@ -188,18 +188,18 @@ invcs H_step => //=.
     by rewrite H_eq_f.
   * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite tot_lb_label_silent_fst_snd.
-  exact: LSOF_stutter.
+  exact: LStepOrderedFailure_stutter.
 Qed.
 
-Theorem lb_step_o_d_f_tot_mapped_simulation_1 :
+Theorem lb_step_ordered_dynamic_failure_tot_mapped_simulation_1 :
   forall net net' failed failed' lb tr,
-    @lb_step_o_d_f _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
-    @lb_step_o_d_f _ labeled_multi_snd (List.map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_odnet net') (List.map tot_map_trace tr).
+    @lb_step_ordered_dynamic_failure _ labeled_multi_fst (failed, net) lb (failed', net') tr ->
+    @lb_step_ordered_dynamic_failure _ labeled_multi_snd (List.map tot_map_name failed, tot_map_odnet net) (tot_map_label lb) (List.map tot_map_name failed', tot_map_odnet net') (List.map tot_map_trace tr).
 Proof.
 move => net net' failed failed' lb tr H_step.
 invcs H_step => //=.
 - rewrite /tot_map_odnet /=.
-  apply (@LSODF_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
+  apply (@LStepOrderedDynamicFailure_deliver _ _ _ _ _ _ (@tot_map_msg _ _ _ _ msg_map m) (List.map (@tot_map_msg _ _ _ _ msg_map) ms) (List.map tot_map_output out) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l) (@tot_map_name _ _ _ _ name_map from) (@tot_map_name _ _ _ _ name_map to)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -225,7 +225,7 @@ invcs H_step => //=.
     by rewrite H_eq_f.
   * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite /tot_map_odnet /=.
-  apply (@LSODF_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l)) => //=.
+  apply (@LStepOrderedDynamicFailure_input _ _ (@tot_map_name _ _ _ _ name_map h) _ _ _ _ (List.map tot_map_output out) (tot_map_input inp) (tot_map_data d) (tot_map_data d') (@tot_map_name_msgs _ _ _ _ _ msg_map l)) => //=.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in. 
   * rewrite tot_map_name_inv_inverse.
@@ -251,7 +251,7 @@ invcs H_step => //=.
     by rewrite H_eq_f.
   * by rewrite (@map_tot_map_trace_eq _ _ _ _ _ name_map).
 - rewrite tot_lb_label_silent_fst_snd.
-  exact: LSODF_stutter.
+  exact: LStepOrderedDynamicFailure_stutter.
 Qed.
 
 Hypothesis tot_map_label_injective : 
@@ -357,9 +357,9 @@ Proof.
 by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
-Lemma lb_step_execution_lb_step_o_f_tot_map_onet_infseq : forall s,
-  lb_step_execution lb_step_o_f s ->
-  lb_step_execution lb_step_o_f (map tot_map_onet_event s).
+Lemma lb_step_execution_lb_step_ordered_failure_tot_map_onet_infseq : forall s,
+  lb_step_execution lb_step_ordered_failure s ->
+  lb_step_execution lb_step_ordered_failure (map tot_map_onet_event s).
 Proof.
 cofix c.
 move => s H_exec.
@@ -367,7 +367,7 @@ rewrite -tot_map_onet_event_map_unfold {1}/tot_map_onet_event /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_onet_event_map_unfold /= /tot_map_onet_event /=.
 apply: (@Cons_lb_step_exec _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
-- apply: lb_step_o_f_tot_mapped_simulation_1.
+- apply: lb_step_ordered_failure_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
   find_rewrite.
@@ -425,18 +425,18 @@ Context {fail_msg_fst : FailMsgParams (@unlabeled_multi_params _ labeled_multi_f
 Context {fail_msg_snd : FailMsgParams (@unlabeled_multi_params _ labeled_multi_snd)}.
 Context {fail_msg_map_congr : FailMsgParamsTotalMapCongruency fail_msg_fst fail_msg_snd msg_map}.
   
-Lemma tot_map_onet_hd_step_o_f_star_always : 
-  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
-       always (now (event_step_star step_o_f step_o_f_init)) (map tot_map_onet_event s).
+Lemma tot_map_onet_hd_step_ordered_failure_star_always : 
+  forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
+       lb_step_execution lb_step_ordered_failure s ->
+       always (now (event_step_star step_ordered_failure step_ordered_failure_init)) (map tot_map_onet_event s).
 Proof.
 case => e s H_star H_exec.
-apply: step_o_f_star_lb_step_execution.
+apply: step_ordered_failure_star_lb_step_execution.
   rewrite /=.
   rewrite /tot_map_onet_event /= /event_step_star /=.
-  apply: step_o_f_tot_mapped_simulation_star_1.
+  apply: step_ordered_failure_tot_mapped_simulation_star_1.
   by rewrite -prod_fst_snd_eq.
-exact: lb_step_execution_lb_step_o_f_tot_map_onet_infseq.
+exact: lb_step_execution_lb_step_ordered_failure_tot_map_onet_infseq.
 Qed.
 
 Definition tot_map_odnet_event e :=
@@ -450,9 +450,9 @@ Proof.
 by move => s; rewrite -map_Cons /= -{3}(recons s).
 Qed.
 
-Lemma lb_step_execution_lb_step_o_d_f_tot_map_odnet_infseq : forall s,
-  lb_step_execution lb_step_o_d_f s ->
-  lb_step_execution lb_step_o_d_f (map tot_map_odnet_event s).
+Lemma lb_step_execution_lb_step_ordered_dynamic_failure_tot_map_odnet_infseq : forall s,
+  lb_step_execution lb_step_ordered_dynamic_failure s ->
+  lb_step_execution lb_step_ordered_dynamic_failure (map tot_map_odnet_event s).
 Proof.
 cofix c.
 move => s H_exec.
@@ -460,7 +460,7 @@ rewrite -tot_map_odnet_event_map_unfold {1}/tot_map_odnet_event /=.
 inversion H_exec; subst => /=.
 rewrite -tot_map_odnet_event_map_unfold /= /tot_map_odnet_event /=.
 apply: (@Cons_lb_step_exec _ _ _ _ _ _ (List.map tot_map_trace tr)) => /=.
-- apply: lb_step_o_d_f_tot_mapped_simulation_1.
+- apply: lb_step_ordered_dynamic_failure_tot_mapped_simulation_1.
   by rewrite -2!prod_fst_snd_eq.
 - simpl in *.
   find_rewrite.
@@ -514,18 +514,18 @@ Context {new_msg_fst : NewMsgParams (@unlabeled_multi_params _ labeled_multi_fst
 Context {new_msg_snd : NewMsgParams (@unlabeled_multi_params _ labeled_multi_snd)}.
 Context {new_msg_map_congr : NewMsgParamsTotalMapCongruency new_msg_fst new_msg_snd msg_map}.
 
-Lemma tot_map_odnet_hd_step_o_d_f_star_always : 
-  forall s, event_step_star step_o_d_f step_o_d_f_init (hd s) ->
-       lb_step_execution lb_step_o_d_f s ->
-       always (now (event_step_star step_o_d_f step_o_d_f_init)) (map tot_map_odnet_event s).
+Lemma tot_map_odnet_hd_step_ordered_dynamic_failure_star_always : 
+  forall s, event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+       lb_step_execution lb_step_ordered_dynamic_failure s ->
+       always (now (event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init)) (map tot_map_odnet_event s).
 Proof.
 case => e s H_star H_exec.
-apply: step_o_d_f_star_lb_step_execution.
+apply: step_ordered_dynamic_failure_star_lb_step_execution.
   rewrite /=.
   rewrite /tot_map_odnet_event /= /event_step_star /=.
-  apply: step_o_d_f_tot_mapped_simulation_star_1.
+  apply: step_ordered_dynamic_failure_tot_mapped_simulation_star_1.
   by rewrite -prod_fst_snd_eq.
-exact: lb_step_execution_lb_step_o_d_f_tot_map_odnet_infseq.
+exact: lb_step_execution_lb_step_ordered_dynamic_failure_tot_map_odnet_infseq.
 Qed.
 
 End TotalMapLivenessSimulations.

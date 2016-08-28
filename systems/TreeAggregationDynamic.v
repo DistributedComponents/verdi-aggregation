@@ -959,11 +959,11 @@ Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : Na
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_d_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_NewMsgParams AG.Aggregation_FailMsgParams step_o_d_f_init (failed, pt_ext_map_odnet net) tr'.
+    @step_ordered_dynamic_failure_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_ordered_dynamic_failure_init (failed, net) tr ->
+    exists tr', @step_ordered_dynamic_failure_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_NewMsgParams AG.Aggregation_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_ext_map_odnet net) tr'.
 Proof.
 move => net failed tr H_st.
-apply step_o_d_f_pt_ext_mapped_simulation_star_1 in H_st.
+apply step_ordered_dynamic_failure_pt_ext_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' H_st].
 rewrite map_id in H_st.
 by exists tr'.
@@ -1010,7 +1010,7 @@ Defined.
 
 Lemma TreeAggregation_conserves_network_mass :
   forall net failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
   conserves_network_mass_opt (remove_all name_eq_dec failed net.(odnwNodes)) net.(odnwNodes) net.(odnwPackets) net.(odnwState).
 Proof.
 move => net failed tr H_st.
@@ -1149,11 +1149,11 @@ Instance TreeAggregation_Tree_name_overlay_params_tot_map_congruency : NameOverl
 
 Theorem TreeAggregation_Tree_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_d_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_o_d_f_init (failed, net) tr ->
-    @step_o_d_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_NewMsgParams TR.Tree_FailMsgParams step_o_d_f_init (failed, pt_map_odnet net) (pt_map_traces tr).
+    @step_ordered_dynamic_failure_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_NewMsgParams TreeAggregation_FailMsgParams step_ordered_dynamic_failure_init (failed, net) tr ->
+    @step_ordered_dynamic_failure_star _ _ TR.Tree_NameOverlayParams TR.Tree_NewMsgParams TR.Tree_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_map_odnet net) (pt_map_traces tr).
 Proof.
 move => net failed tr H_st.
-apply step_o_d_f_pt_mapped_simulation_star_1 in H_st.
+apply step_ordered_dynamic_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 

@@ -330,29 +330,29 @@ End LabeledStepFailure.
 Section LabeledStepOrder.
   Context `{labeled_multi_params : LabeledMultiParams}.
 
-  Inductive lb_step_o_f : lb_step_relation (list name * ordered_network) label (name * (input + output)) :=
-  | LSOF_deliver : forall net net' failed tr m ms out d l from to lb,
+  Inductive lb_step_ordered_failure : lb_step_relation (list name * ordered_network) label (name * (input + output)) :=
+  | LStepOrderedFailure_deliver : forall net net' failed tr m ms out d l from to lb,
                      onwPackets net from to = m :: ms ->
                      ~ In to failed ->
                      lb_net_handlers to from m (onwState net to) = (lb, out, d, l) ->
                      net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l)
                                        (update name_eq_dec (onwState net) to d) ->
                      tr = map2fst to (map inr out) ->
-                     lb_step_o_f (failed, net) lb (failed, net') tr
-  | LSOF_input : forall h net net' failed tr out inp d l lb,
+                     lb_step_ordered_failure (failed, net) lb (failed, net') tr
+  | LStepOrderedFailure_input : forall h net net' failed tr out inp d l lb,
                    ~ In h failed ->
                    lb_input_handlers h inp (onwState net h) = (lb, out, d, l) ->
                    net' = mkONetwork (collate name_eq_dec h (onwPackets net) l)
                                      (update name_eq_dec (onwState net) h d) ->
                    tr = (h, inl inp) :: map2fst h (map inr out) ->
-                   lb_step_o_f (failed, net) lb (failed, net') tr
-  | LSOF_stutter : forall net failed, lb_step_o_f (failed, net) label_silent (failed, net) [].
+                   lb_step_ordered_failure (failed, net) lb (failed, net') tr
+  | LStepOrderedFailure_stutter : forall net failed, lb_step_ordered_failure (failed, net) label_silent (failed, net) [].
 
   Context {overlay_params : NameOverlayParams unlabeled_multi_params}.
   Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
 
-  Lemma step_o_f_star_lb_step_reachable :
-    step_star_lb_step_reachable lb_step_o_f step_o_f step_o_f_init.
+  Lemma step_ordered_failure_star_lb_step_reachable :
+    step_star_lb_step_reachable lb_step_ordered_failure step_ordered_failure step_ordered_failure_init.
   Proof.
     rewrite /step_star_lb_step_reachable.
     case => failed net l.
@@ -362,7 +362,7 @@ Section LabeledStepOrder.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       rewrite (app_nil_end (map2fst _ _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: (SOF_deliver _ _ _ H3) => //.
+      apply: (StepOrderedFailure_deliver _ _ _ H3) => //.
       rewrite /net_handlers /= /unlabeled_net_handlers /=.
       repeat break_let.
       by tuple_inversion.
@@ -370,28 +370,28 @@ Section LabeledStepOrder.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       rewrite (app_nil_end (_ :: _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: SOF_input => //; first by [].
+      apply: StepOrderedFailure_input => //; first by [].
       rewrite /input_handlers /= /unlabeled_input_handlers /=.
       repeat break_let.
       by tuple_inversion.
     - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 
-  Lemma step_o_f_star_lb_step_execution :
-    forall s, event_step_star step_o_f step_o_f_init (hd s) ->
-         lb_step_execution lb_step_o_f s ->
-         always (now (event_step_star step_o_f step_o_f_init)) s.
+  Lemma step_ordered_failure_star_lb_step_execution :
+    forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
+         lb_step_execution lb_step_ordered_failure s ->
+         always (now (event_step_star step_ordered_failure step_ordered_failure_init)) s.
   Proof.
   apply: step_star_lb_step_execution.
-  exact: step_o_f_star_lb_step_reachable.
+  exact: step_ordered_failure_star_lb_step_reachable.
   Qed.
 End LabeledStepOrder.
 
 Section LabeledStepOrderDynamic.
   Context `{labeled_multi_params : LabeledMultiParams}.
 
-  Inductive lb_step_o_d_f : lb_step_relation (list name * ordered_dynamic_network) label (name * (input + output)) :=
-  | LSODF_deliver : forall net net' failed tr m ms out d d' l from to lb,
+  Inductive lb_step_ordered_dynamic_failure : lb_step_relation (list name * ordered_dynamic_network) label (name * (input + output)) :=
+  | LStepOrderedDynamicFailure_deliver : forall net net' failed tr m ms out d d' l from to lb,
       ~ In to failed ->
       In to (odnwNodes net) ->
       odnwState net to = Some d ->
@@ -401,8 +401,8 @@ Section LabeledStepOrderDynamic.
                 odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
                 odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
       tr = map2fst to (map inr out) ->
-      lb_step_o_d_f (failed, net) lb (failed, net') tr
-  | LSODF_input : forall h net net' failed tr out inp d d' l lb,
+      lb_step_ordered_dynamic_failure (failed, net) lb (failed, net') tr
+  | LStepOrderedDynamicFailure_input : forall h net net' failed tr out inp d d' l lb,
       ~ In h failed ->
       In h (odnwNodes net) ->
       odnwState net h = Some d ->
@@ -411,15 +411,15 @@ Section LabeledStepOrderDynamic.
                 odnwPackets := collate name_eq_dec h (odnwPackets net) l;
                 odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
       tr = (h, inl inp) :: map2fst h (map inr out) ->
-      lb_step_o_d_f (failed, net) lb (failed, net') tr
-  | LSODF_stutter : forall net failed, lb_step_o_d_f (failed, net) label_silent (failed, net) [].
+      lb_step_ordered_dynamic_failure (failed, net) lb (failed, net') tr
+  | LStepOrderedDynamicFailure_stutter : forall net failed, lb_step_ordered_dynamic_failure (failed, net) label_silent (failed, net) [].
 
   Context {overlay_params : NameOverlayParams unlabeled_multi_params}.
   Context {fail_msg_params : FailMsgParams unlabeled_multi_params}.
   Context {new_msg_params : NewMsgParams unlabeled_multi_params}.
 
-  Lemma step_o_d_f_star_lb_step_reachable :
-    step_star_lb_step_reachable lb_step_o_d_f step_o_d_f step_o_d_f_init.
+  Lemma step_ordered_dynamic_failure_star_lb_step_reachable :
+    step_star_lb_step_reachable lb_step_ordered_dynamic_failure step_ordered_dynamic_failure step_ordered_dynamic_failure_init.
   Proof.
     rewrite /step_star_lb_step_reachable.
     case => failed net l.
@@ -429,7 +429,7 @@ Section LabeledStepOrderDynamic.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       rewrite (app_nil_end (map2fst _ _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: (SODF_deliver _ _ _ _ _ H5 H6) => //.
+      apply: (StepOrderedDynamicFailure_deliver _ _ _ _ _ H5 H6) => //.
       rewrite /net_handlers /= /unlabeled_net_handlers /=.
       repeat break_let.
       by tuple_inversion.
@@ -437,20 +437,20 @@ Section LabeledStepOrderDynamic.
       apply (@refl_trans_1n_trace_trans _ _ _ _ (failed', net)) => //.
       rewrite (app_nil_end (_ :: _)).
       apply: (@RT1nTStep _ _ _ _ (failed', net')); last exact: RT1nTBase.
-      apply: (SODF_input _ _ _ _ H5) => //.
+      apply: (StepOrderedDynamicFailure_input _ _ _ _ H5) => //.
       rewrite /input_handlers /= /unlabeled_input_handlers /=.
       repeat break_let.
       by tuple_inversion.
     - by have ->: tr' ++ [] = tr' by auto with datatypes.
   Qed.
 
-  Lemma step_o_d_f_star_lb_step_execution :
-    forall s, event_step_star step_o_d_f step_o_d_f_init (hd s) ->
-         lb_step_execution lb_step_o_d_f s ->
-         always (now (event_step_star step_o_d_f step_o_d_f_init)) s.
+  Lemma step_ordered_dynamic_failure_star_lb_step_execution :
+    forall s, event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+         lb_step_execution lb_step_ordered_dynamic_failure s ->
+         always (now (event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init)) s.
   Proof.
     apply: step_star_lb_step_execution.
-    exact: step_o_d_f_star_lb_step_reachable.
+    exact: step_ordered_dynamic_failure_star_lb_step_reachable.
   Qed.
 End LabeledStepOrderDynamic.
 

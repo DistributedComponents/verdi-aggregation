@@ -267,10 +267,10 @@ Definition pt_ext_map_onet (onet : @ordered_network _ multi_fst) : @ordered_netw
 mkONetwork (fun src dst => pt_map_msgs (onet.(onwPackets) (tot_map_name_inv src) (tot_map_name_inv dst)))
            (fun n => pt_ext_map_data (onet.(onwState) (tot_map_name_inv n)) (tot_map_name_inv n)).
 
-Theorem step_o_pt_ext_mapped_simulation_1 :
+Theorem step_ordered_pt_ext_mapped_simulation_1 :
   forall net net' tr,
-    @step_o _ multi_fst net net' tr ->
-    (exists tr', @step_o _ multi_snd (pt_ext_map_onet net) (pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net.
+    @step_ordered _ multi_fst net net' tr ->
+    (exists tr', @step_ordered _ multi_snd (pt_ext_map_onet net) (pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net.
 Proof.
 move => net net' tr.
 case => {net net' tr}.
@@ -280,7 +280,7 @@ case => {net net' tr}.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
     exists (map2fst (tot_map_name to) (map inr out')).
     rewrite H_eq' /= /pt_ext_map_onet /=.
-    apply (@SO_deliver _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
+    apply (@StepOrdered_deliver _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
     * rewrite 2!tot_map_name_inv_inverse H_eq /=.
       case H_m0: pt_map_msg => [m0|]; last by rewrite H_m0 in H_m.
       rewrite H_m0 in H_m.
@@ -321,7 +321,7 @@ case => {net net' tr}.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
     exists ((tot_map_name h, inl inp') :: map2fst (tot_map_name h) (map inr out')).
-    apply (@SO_input _ _ (tot_map_name h) _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=; last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
+    apply (@StepOrdered_input _ _ (tot_map_name h) _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=; last by rewrite H_eq /pt_ext_map_onet /= pt_ext_map_update_eq collate_pt_map_eq.
     have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
     rewrite /pt_ext_mapped_input_handlers /= in H_q.
     rewrite tot_map_name_inv_inverse.
@@ -343,23 +343,23 @@ case => {net net' tr}.
   by rewrite H_eq_n.
 Qed.
 
-Corollary step_o_pt_ext_mapped_simulation_star_1 :
+Corollary step_ordered_pt_ext_mapped_simulation_star_1 :
   forall net tr,
-    @step_o_star _ multi_fst step_o_init net tr ->
-    exists tr', @step_o_star _ multi_snd step_o_init (pt_ext_map_onet net) tr'.
+    @step_ordered_star _ multi_fst step_ordered_init net tr ->
+    exists tr', @step_ordered_star _ multi_snd step_ordered_init (pt_ext_map_onet net) tr'.
 Proof.
 move => net tr H_step.
-remember step_o_init as y in *.
+remember step_ordered_init as y in *.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
   rewrite H_init.
-  rewrite /step_o_init /= /pt_ext_map_net /=.
+  rewrite /step_ordered_init /= /pt_ext_map_net /=.
   rewrite pt_ext_init_handlers_fun_eq.
   exists [].  
   exact: RT1nTBase.
 concludes.
 rewrite H_init in H_step2 H_step1.
-apply step_o_pt_ext_mapped_simulation_1 in H.
+apply step_ordered_pt_ext_mapped_simulation_1 in H.
 case: H => H.
   move: IHH_step1 => [tr' H_star].
   move: H => [tr'' H].
@@ -383,10 +383,10 @@ Context {fail_msg_fst : FailMsgParams multi_fst}.
 Context {fail_msg_snd : FailMsgParams multi_snd}.
 Context {fail_msg_map_congr : FailMsgParamsPartialMapCongruency fail_msg_fst fail_msg_snd msg_map}.
 
-Theorem step_o_f_pt_ext_mapped_simulation_1 :
+Theorem step_ordered_failure_pt_ext_mapped_simulation_1 :
   forall net net' failed failed' tr,
-    @step_o_f _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    (exists tr', @step_o_f _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_onet net) (map tot_map_name failed', pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net /\ failed = failed'.
+    @step_ordered_failure _ _ overlay_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    (exists tr', @step_ordered_failure _ _ overlay_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_onet net) (map tot_map_name failed', pt_ext_map_onet net') tr') \/ pt_ext_map_onet net' = pt_ext_map_onet net /\ failed = failed'.
 Proof.
 move => net net' failed failed' tr H_step.
 invcs H_step.
@@ -395,7 +395,7 @@ invcs H_step.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data (onwState net to) to)) => [[out' d'] ps].
     exists (map2fst (tot_map_name to) (map inr out')).
     rewrite /pt_ext_map_onet /=.
-    apply (@SOF_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
+    apply (@StepOrderedFailure_deliver _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
     * rewrite 2!tot_map_name_inv_inverse /= H3 /=.
       case H_m0: (pt_map_msg _) => [m0|]; last by rewrite H_m in H_m0.
       rewrite H_m in H_m0.
@@ -435,7 +435,7 @@ invcs H_step.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data (onwState net h) h)) => [[out' d'] ps].
     exists ((tot_map_name h, inl inp') :: map2fst (tot_map_name h) (map inr out')).
-    apply (@SOF_input _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=.
+    apply (@StepOrderedFailure_input _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_map_name_msgs l)) => //=.
     * exact: not_in_failed_not_in.
     * rewrite /= tot_map_name_inv_inverse.
       have H_q := @pt_ext_input_handlers_some _ _ _ _ _ _ _ multi_map_congr h inp (onwState net h) _ _ _ _ H_i H_h.
@@ -471,20 +471,20 @@ invcs H_step.
     move => nm nm' H_in H_in'.
     by rewrite (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in) (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in').
   exists [].
-  apply: SOF_fail => //.
+  apply: StepOrderedFailure_fail => //.
   * exact: not_in_failed_not_in.
   * rewrite /=.
     rewrite /l collate_pt_map_eq /pt_map_name_msgs.
     by rewrite (NoDup_Permutation_collate_eq _ _ _ _ _ _ _ H_nd (pt_map_map_pair_eq msg_fail h failed pt_fail_msg_fst_snd)).
 Qed.
 
-Corollary step_o_f_pt_ext_mapped_simulation_star_1 :
+Corollary step_ordered_failure_pt_ext_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_o_f_star _ _ overlay_fst fail_msg_fst step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ overlay_snd fail_msg_snd step_o_f_init (map tot_map_name failed, pt_ext_map_onet net) tr'.
+    @step_ordered_failure_star _ _ overlay_fst fail_msg_fst step_ordered_failure_init (failed, net) tr ->
+    exists tr', @step_ordered_failure_star _ _ overlay_snd fail_msg_snd step_ordered_failure_init (map tot_map_name failed, pt_ext_map_onet net) tr'.
 Proof.
 move => net failed tr H_step.
-remember step_o_f_init as y in *.
+remember step_ordered_failure_init as y in *.
 have H_eq_f: failed = fst (failed, net) by [].
 have H_eq_n: net = snd (failed, net) by [].
 rewrite H_eq_f {H_eq_f}.
@@ -492,7 +492,7 @@ rewrite {2}H_eq_n {H_eq_n}.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
   rewrite H_init.
-  rewrite /step_o_f_init /= /pt_ext_map_onet /=.
+  rewrite /step_ordered_failure_init /= /pt_ext_map_onet /=.
   exists [].
   rewrite -pt_ext_init_handlers_fun_eq.
   exact: RT1nTBase.
@@ -502,7 +502,7 @@ case: x' H IHH_step1 H_step1 => failed' net'.
 case: x'' H_step2 => failed'' net''.
 rewrite /=.
 move => H_step2 H IHH_step1 H_step1.
-apply step_o_f_pt_ext_mapped_simulation_1 in H.
+apply step_ordered_failure_pt_ext_mapped_simulation_1 in H.
 case: H => H.
   move: IHH_step1 => [tr' H_star].
   move: H => [tr'' H].
@@ -530,18 +530,18 @@ Definition pt_ext_map_odnet (net : @ordered_dynamic_network _ multi_fst) : @orde
                          | Some d => Some (pt_ext_map_data d (tot_map_name_inv n))
                          end |}.
 
-Theorem step_o_d_f_pt_ext_mapped_simulation_1 :
+Theorem step_ordered_dynamic_failure_pt_ext_mapped_simulation_1 :
   forall net net' failed failed' tr,
     NoDup (odnwNodes net) ->
-    @step_o_d_f _ _ overlay_fst new_msg_fst fail_msg_fst (failed, net) (failed', net') tr ->
-    (exists tr', @step_o_d_f _ _ overlay_snd new_msg_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_odnet net) (map tot_map_name failed', pt_ext_map_odnet net') tr') \/ (pt_ext_map_odnet net' = pt_ext_map_odnet net /\ failed = failed').
+    @step_ordered_dynamic_failure _ _ overlay_fst new_msg_fst fail_msg_fst (failed, net) (failed', net') tr ->
+    (exists tr', @step_ordered_dynamic_failure _ _ overlay_snd new_msg_snd fail_msg_snd (map tot_map_name failed, pt_ext_map_odnet net) (map tot_map_name failed', pt_ext_map_odnet net') tr') \/ (pt_ext_map_odnet net' = pt_ext_map_odnet net /\ failed = failed').
 Proof.
 move => net net' failed failed' tr H_nd H_step.
 invcs H_step.
 - left.
   rewrite /pt_ext_map_odnet.
   exists [].
-  apply (@SODF_start _ _ _ _ _ _ _ _ (tot_map_name h)) => /=; first exact: not_in_failed_not_in.
+  apply (@StepOrderedDynamicFailure_start _ _ _ _ _ _ _ _ (tot_map_name h)) => /=; first exact: not_in_failed_not_in.
   set p1 := fun _ _ => _.
   set p2 := collate_ls _ _ _ _ _.
   set s1 := fun _ => _.
@@ -607,7 +607,7 @@ invcs H_step.
     case H_n: (net_handlers (tot_map_name to) (tot_map_name from) m' (pt_ext_map_data d to)) => [[out' d''] ps].
     exists (map2fst (tot_map_name to) (map inr out')).
     rewrite /pt_ext_map_onet /=.
-    apply (@SODF_deliver _ _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
+    apply (@StepOrderedDynamicFailure_deliver _ _ _ _ _ _ _ _ _ m' (pt_map_msgs ms) out' (pt_ext_map_data d to) (pt_ext_map_data d' to) (pt_map_name_msgs l) (tot_map_name from) (tot_map_name to)) => //=.
     * exact: not_in_failed_not_in.
     * exact: in_failed_in.
     * by rewrite /= tot_map_name_inv_inverse /= H5.
@@ -658,7 +658,7 @@ invcs H_step.
     left.
     case H_h: (input_handlers (tot_map_name h) inp' (pt_ext_map_data d h)) => [[out' d''] ps].
     exists ((tot_map_name h, inl inp') :: map2fst (tot_map_name h) (map inr out')).
-    apply (@SODF_input _ _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_map_name_msgs l)) => //=.
+    apply (@StepOrderedDynamicFailure_input _ _ _ _ _ (tot_map_name h) _ _ _ _ out' inp' (pt_ext_map_data d h) (pt_ext_map_data d' h) (pt_map_name_msgs l)) => //=.
     * exact: not_in_failed_not_in.
     * exact: in_failed_in. 
     * by rewrite /pt_ext_map_odnet /= tot_map_name_inv_inverse H5.
@@ -704,7 +704,7 @@ invcs H_step.
     move => nm nm' H_in H_in'.
     by rewrite (pt_map_in_snd  _ _ _ _ pt_fail_msg_fst_snd H_in) (pt_map_in_snd _ _ _ _ pt_fail_msg_fst_snd H_in').
   exists [].
-  apply: SODF_fail => //.
+  apply: StepOrderedDynamicFailure_fail => //.
   * exact: not_in_failed_not_in.
   * exact: in_failed_in.
   * rewrite /=.
@@ -715,18 +715,18 @@ invcs H_step.
     by rewrite H_eq.
 Qed.
 
-Corollary step_o_d_f_pt_ext_mapped_simulation_star_1 :
+Corollary step_ordered_dynamic_failure_pt_ext_mapped_simulation_star_1 :
   forall net failed tr,
-    @step_o_d_f_star _ _ overlay_fst new_msg_fst fail_msg_fst step_o_d_f_init (failed, net) tr ->
-    exists tr', @step_o_d_f_star _ _ overlay_snd new_msg_snd fail_msg_snd step_o_d_f_init (map tot_map_name failed, pt_ext_map_odnet net) tr'.
+    @step_ordered_dynamic_failure_star _ _ overlay_fst new_msg_fst fail_msg_fst step_ordered_dynamic_failure_init (failed, net) tr ->
+    exists tr', @step_ordered_dynamic_failure_star _ _ overlay_snd new_msg_snd fail_msg_snd step_ordered_dynamic_failure_init (map tot_map_name failed, pt_ext_map_odnet net) tr'.
 Proof.
 move => net failed tr H_step.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 change failed with (fst (failed, net)).
 change net with (snd (failed, net)) at 2.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init /=.
-  rewrite H_init /step_o_d_f_init /= /step_o_init.
+  rewrite H_init /step_ordered_dynamic_failure_init /= /step_ordered_init.
   exists [].
   exact: RT1nTBase.
 concludes.
@@ -735,7 +735,7 @@ case: x' H IHH_step1 H_step1 => failed' net'.
 case: x'' H_step2 => failed'' net''.
 rewrite /=.
 move => H_step2 H IHH_step1 H_step1.
-find_apply_lem_hyp step_o_d_f_pt_ext_mapped_simulation_1; last by move: H_step1; apply: ordered_dynamic_nodes_no_dup.
+find_apply_lem_hyp step_ordered_dynamic_failure_pt_ext_mapped_simulation_1; last by move: H_step1; apply: ordered_dynamic_nodes_no_dup.
 case: H => H.
   move: IHH_step1 => [tr' H_star].
   move: H => [tr'' H].

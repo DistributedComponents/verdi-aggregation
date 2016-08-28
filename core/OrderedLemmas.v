@@ -20,18 +20,18 @@ Context {fail_msg_params : FailMsgParams multi_params}.
 
 Lemma ordered_dynamic_uninitialized_state :
 forall net failed tr,
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
  forall n, ~ In n (odnwNodes net) ->
  odnwState net n = None.
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: net = snd (failed, net) by [].
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init /=; first by rewrite H_init.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - move => n H_in.
   rewrite /= in IHrefl_trans_1n_trace1.
@@ -59,19 +59,19 @@ Qed.
 
 Lemma ordered_dynamic_initialized_state :
 forall net failed tr,
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
  forall n, In n (odnwNodes net) ->
  exists d, odnwState net n = Some d.
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: net = snd (failed, net) by [].
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init /=; first by rewrite H_init.
 repeat find_rewrite.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - move => n H_in.
   case: H_in => H_in.
@@ -99,12 +99,12 @@ Qed.
 
 Lemma ordered_dynamic_failed_then_initialized :
 forall net failed tr,
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
  forall n, In n failed ->
  In n (odnwNodes net).
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: failed = fst (failed, net) by [].
 have H_eq_o: net = snd (failed, net) by [].
 rewrite {2}H_eq_o {H_eq_o}.
@@ -113,7 +113,7 @@ induction H using refl_trans_1n_trace_n1_ind => H_init /=; first by rewrite H_in
 repeat find_rewrite.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - move => n H_in.
   right.
@@ -129,12 +129,12 @@ Qed.
 
 Lemma ordered_dynamic_state_not_initialized_not_failed : 
 forall net failed tr,
- step_o_d_f_star step_o_d_f_init (failed, net) tr ->
+ step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
  forall n, ~ In n (odnwNodes net) ->
  ~ In n failed.
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: failed = fst (failed, net) by [].
 have H_eq_o: net = snd (failed, net) by [].
 rewrite {1}H_eq_o {H_eq_o}.
@@ -143,7 +143,7 @@ induction H using refl_trans_1n_trace_n1_ind => H_init /=; first by rewrite H_in
 repeat find_rewrite.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - move => n H_in.
   have H_not_in: ~ In n (odnwNodes net0) by move => H_in'; case: H_in; right.
@@ -161,18 +161,18 @@ Qed.
 
 Lemma ordered_dynamic_no_outgoing_uninitialized :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   forall n, ~ In n (odnwNodes onet) ->
   forall n', onet.(odnwPackets) n n' = [].
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: net = snd (failed, net) by [].
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init /=; first by rewrite H_init.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite /=.
 - move => n H_a n'. 
   have H_neq: h <> n by eauto.
@@ -204,11 +204,11 @@ Qed.
 
 Lemma ordered_dynamic_nodes_no_dup :
 forall onet failed tr,
-  step_o_d_f_star step_o_d_f_init (failed, onet) tr -> 
+  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, onet) tr -> 
   NoDup (odnwNodes onet).
 Proof.
 move => net failed tr H.
-remember step_o_d_f_init as y in *.
+remember step_ordered_dynamic_failure_init as y in *.
 have ->: net = snd (failed, net) by [].
 move: Heqy.
 induction H using refl_trans_1n_trace_n1_ind => H_init.
@@ -216,7 +216,7 @@ induction H using refl_trans_1n_trace_n1_ind => H_init.
   exact: NoDup_nil.
 concludes => {H_init}.
 match goal with
-| [ H : step_o_d_f _ _ _ |- _ ] => invc H
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; rewrite //=.
 exact: NoDup_cons.
 Qed.

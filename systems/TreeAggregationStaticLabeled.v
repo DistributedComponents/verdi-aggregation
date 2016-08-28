@@ -1071,11 +1071,11 @@ Instance TreeAggregation_Aggregation_name_overlay_params_tot_map_congruency : Na
 
 Theorem TreeAggregation_Aggregation_pt_ext_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    exists tr', @step_o_f_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_o_f_init (failed, pt_ext_map_onet net) tr'.
+    @step_ordered_failure_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_ordered_failure_init (failed, net) tr ->
+    exists tr', @step_ordered_failure_star _ _ AG.Aggregation_NameOverlayParams AG.Aggregation_FailMsgParams step_ordered_failure_init (failed, pt_ext_map_onet net) tr'.
 Proof.
 move => onet failed tr H_st.
-apply step_o_f_pt_ext_mapped_simulation_star_1 in H_st.
+apply step_ordered_failure_pt_ext_mapped_simulation_star_1 in H_st.
 move: H_st => [tr' H_st].
 rewrite map_id in H_st.
 by exists tr'.
@@ -1187,11 +1187,11 @@ Instance TreeAggregation_Tree_name_overlay_params_tot_map_congruency : NameOverl
 
 Theorem TreeAggregation_Tree_pt_mapped_simulation_star_1 :
 forall net failed tr,
-    @step_o_f_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_o_f_init (failed, net) tr ->
-    @step_o_f_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_o_f_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ TreeAggregation_NameOverlayParams TreeAggregation_FailMsgParams step_ordered_failure_init (failed, net) tr ->
+    @step_ordered_failure_star _ _ TR.Tree_NameOverlayParams TR.Tree_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
 Proof.
 move => onet failed tr H_st.
-apply step_o_f_pt_mapped_simulation_star_1 in H_st.
+apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
@@ -1233,7 +1233,7 @@ Defined.
 
 Lemma TreeAggregation_conserves_network_mass : 
   forall onet failed tr,
-  step_o_f_star step_o_f_init (failed, onet) tr ->
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr ->
   conserves_network_mass (remove_all name_eq_dec failed nodes) nodes onet.(onwPackets) onet.(onwState).
 Proof.
 move => onet failed tr H_st.
@@ -1300,41 +1300,41 @@ Proof.
 Qed.
 
 Lemma TreeAggregation_Tree_lb_step_execution_pt_map : forall s,
-  lb_step_execution lb_step_o_f s ->
-  lb_step_execution lb_step_o_f (map pt_map_onet_event s).
+  lb_step_execution lb_step_ordered_failure s ->
+  lb_step_execution lb_step_ordered_failure (map pt_map_onet_event s).
 Proof.
-apply: lb_step_execution_lb_step_o_f_pt_map_onet_infseq.
+apply: lb_step_execution_lb_step_ordered_failure_pt_map_onet_infseq.
 exact: TR.Label_eq_dec.
 Qed.
 
-Lemma TreeAggregation_Tree_pt_map_onet_hd_step_o_f_star_ex_always : 
-  forall s, event_step_star step_o_f step_o_f_init (hd s) ->
-       lb_step_execution lb_step_o_f s ->
-       always (now (event_step_star step_o_f step_o_f_init)) (map pt_map_onet_event s).
+Lemma TreeAggregation_Tree_pt_map_onet_hd_step_ordered_failure_star_ex_always : 
+  forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
+       lb_step_execution lb_step_ordered_failure s ->
+       always (now (event_step_star step_ordered_failure step_ordered_failure_init)) (map pt_map_onet_event s).
 Proof.
-apply: pt_map_onet_hd_step_o_f_star_always.
+apply: pt_map_onet_hd_step_ordered_failure_star_always.
 exact: TR.Label_eq_dec.
 Qed.
 
 Lemma TreeAggregation_Tree_enabled :  
   forall l, tot_map_label l <> TR.Tau ->
   forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
-    lb_step_o_f (failed, net) l (failed0, net0) tr0 ->
-    lb_step_o_f (failed, net) l' (failed', net') tr ->
-    lb_step_o_f (List.map tot_map_name failed', pt_map_onet net') (tot_map_label l) (pt_failed, pt_net) ptr ->
-    enabled lb_step_o_f l (failed', net').
+    lb_step_ordered_failure (failed, net) l (failed0, net0) tr0 ->
+    lb_step_ordered_failure (failed, net) l' (failed', net') tr ->
+    lb_step_ordered_failure (List.map tot_map_name failed', pt_map_onet net') (tot_map_label l) (pt_failed, pt_net) ptr ->
+    enabled lb_step_ordered_failure l (failed', net').
 Proof.
 case => //= [dst src|dst src|h|h|h] H_neq net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l' {H_neq}; rewrite map_id /=.
 Admitted.
 
 (* input labels are enabled right away, need to show other's enabledness depend only on message availability *)
 (* suffices: if message is incoming, eventually it is the first message *)
-Lemma TreeAggregation_Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually :
+Lemma TreeAggregation_Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> TR.Tau ->
-  forall s, lb_step_execution lb_step_o_f s ->
-  weak_local_fairness lb_step_o_f label_silent s ->
-  l_enabled lb_step_o_f (tot_map_label l) (pt_map_onet_event (hd s)) ->
-  eventually (now (l_enabled lb_step_o_f l)) s.
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  l_enabled lb_step_ordered_failure (tot_map_label l) (pt_map_onet_event (hd s)) ->
+  eventually (now (l_enabled lb_step_ordered_failure l)) s.
 Proof.
 case => //= [dst src|dst src|h|h|h] H_neq {H_neq} s H_exec H_fair H_en.
 - by admit.
@@ -1376,12 +1376,12 @@ case => //= [dst src|dst src|h|h|h] H_neq {H_neq} s H_exec H_fair H_en.
 Admitted.
 
 Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
-  forall s, lb_step_execution lb_step_o_f s ->
-       weak_local_fairness lb_step_o_f label_silent s ->
-       weak_local_fairness lb_step_o_f label_silent (map pt_map_onet_event s).
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
 apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
-- exact: TreeAggregation_Tree_lb_step_o_f_enabled_weak_fairness_pt_map_onet_eventually.
+- exact: TreeAggregation_Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.
 - by admit.
 - case.
   * by exists Tau.

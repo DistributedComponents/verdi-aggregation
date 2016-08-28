@@ -428,175 +428,6 @@ Section StepFailure.
   Definition step_failure_init : list name * network := ([], step_async_init).
 End StepFailure.
 
-Section StepOrder.
-  Context `{params : MultiParams}.
-
-  Notation src := name (only parsing).
-  Notation dst := name (only parsing).
-
-  Record ordered_network :=
-    mkONetwork
-       { onwPackets : src -> dst -> list msg;
-         onwState   : name -> data
-       }.
-
-  Inductive step_o : step_relation ordered_network (name * (input + output)) :=
-  | SO_deliver : forall net net' tr m ms out d l from to,
-                     onwPackets net from to = m :: ms ->
-                     net_handlers to from m (onwState net to) = (out, d, l) ->
-                     net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l)
-                                      (update name_eq_dec (onwState net) to d) ->
-                     tr = map2fst to (map inr out) ->
-                     step_o net net' tr
-  | SO_input : forall h net net' tr out inp d l,
-                   input_handlers h inp (onwState net h) = (out, d, l) ->
-                   net' = mkONetwork (collate name_eq_dec h (onwPackets net) l)
-                                     (update name_eq_dec (onwState net) h d) ->
-                   tr = (h, inl inp) :: map2fst h (map inr out) ->
-                   step_o net net' tr.
-
-  Definition step_o_star := refl_trans_1n_trace step_o.
-
-  Definition step_o_init : ordered_network := mkONetwork (fun _ _ => []) init_handlers.
-End StepOrder.
-
-Section StepOrderFailure.
-  Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : NameOverlayParams multi_params}.
-  Context {fail_msg_params : FailMsgParams multi_params}.
-
-  Inductive step_o_f : step_relation (list name * ordered_network) (name * (input + output)) :=
-  | SOF_deliver : forall net net' failed tr m ms out d l from to,
-                     onwPackets net from to = m :: ms ->
-                     ~ In to failed ->
-                     net_handlers to from m (onwState net to) = (out, d, l) ->
-                     net' = {| onwPackets := collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l;
-                               onwState := update name_eq_dec (onwState net) to d |} ->
-                     tr = map2fst to (map inr out) ->
-                     step_o_f (failed, net) (failed, net') tr
-  | SOF_input : forall h net net' failed tr out inp d l,
-                   ~ In h failed ->
-                   input_handlers h inp (onwState net h) = (out, d, l) ->
-                   net' = {| onwPackets := collate name_eq_dec h (onwPackets net) l;
-                             onwState := update name_eq_dec (onwState net) h d |} ->
-                   tr = (h, inl inp) :: map2fst h (map inr out) ->
-                   step_o_f (failed, net) (failed, net') tr
-  | SOF_fail :  forall h net net' failed,
-                 ~ In h failed ->
-                 net' = {| onwPackets := collate name_eq_dec h (onwPackets net) 
-                             (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes)));
-                           onwState := onwState net |} ->
-                 step_o_f (failed, net) (h :: failed, net') [].
-
-  Definition step_o_f_star := refl_trans_1n_trace step_o_f.
-
-  Definition step_o_f_init : list name * ordered_network := ([], step_o_init).
-End StepOrderFailure.
-
-Section StepOrderDynamic.
-  Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : NameOverlayParams multi_params}.
-  Context {new_msg_params : NewMsgParams multi_params}.
-
-  Notation src := name (only parsing).
-  Notation dst := name (only parsing).
-
-  Record ordered_dynamic_network :=
-    mkODNetwork
-       {
-         odnwNodes : list name;
-         odnwPackets : src -> dst -> list msg;
-         odnwState : name -> option data
-       }.
-
-  Inductive step_o_d : step_relation ordered_dynamic_network (name * (input + output)) :=
-  | SOD_start : forall net net' h,
-      ~ In h (odnwNodes net) ->
-      net' = {| odnwNodes := h :: odnwNodes net;
-                odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (odnwNodes net))
-                               (collate name_eq_dec h (odnwPackets net) 
-                                 (map2snd msg_new (filter_rel adjacent_to_dec h (odnwNodes net)))) h msg_new;
-                odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
-      step_o_d net net' []
-  | SOD_deliver : forall net net' tr m ms out d d' l from to,
-      In to (odnwNodes net) ->
-      odnwState net to = Some d ->
-      odnwPackets net from to = m :: ms ->
-      net_handlers to from m d = (out, d', l) ->
-      net' = {| odnwNodes := odnwNodes net;
-                odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
-                odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
-      tr = map2fst to (map inr out) ->
-      step_o_d net net' tr
-  | SOD_input : forall h net net' tr out inp d d' l,
-      In h (odnwNodes net) ->
-      odnwState net h = Some d ->
-      input_handlers h inp d = (out, d', l) ->
-      net' = {| odnwNodes := odnwNodes net;
-                odnwPackets := collate name_eq_dec h (odnwPackets net) l;
-                odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
-      tr = (h, inl inp) :: map2fst h (map inr out) ->
-      step_o_d net net' tr.
-
-  Definition step_o_d_star := refl_trans_1n_trace step_o_d.
-
-  Definition step_o_d_init : ordered_dynamic_network := mkODNetwork [] (fun _ _ => []) (fun _ => None).
-End StepOrderDynamic.
-
-Section StepOrderDynamicFailure.
-  Context {base_params : BaseParams}.
-  Context {multi_params : MultiParams base_params}.
-  Context {overlay_params : NameOverlayParams multi_params}.
-  Context {new_msg_params : NewMsgParams multi_params}.
-  Context {fail_msg_params : FailMsgParams multi_params}.
-
-  Inductive step_o_d_f : step_relation (list name * ordered_dynamic_network) (name * (input + output)) :=
-  | SODF_start : forall net net' failed h,
-      ~ In h (odnwNodes net) ->
-      net' = {| odnwNodes := h :: odnwNodes net;
-                odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net)))
-                                (collate name_eq_dec h (odnwPackets net) 
-                                  (map2snd msg_new (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))))) h msg_new;
-                odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
-      step_o_d_f (failed, net) (failed, net') []
-  | SODF_deliver : forall net net' failed tr m ms out d d' l from to,
-      ~ In to failed ->
-      In to (odnwNodes net) ->
-      odnwState net to = Some d ->
-      odnwPackets net from to = m :: ms ->
-      net_handlers to from m d = (out, d', l) ->
-      net' = {| odnwNodes := odnwNodes net;
-                odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
-                odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
-      tr = map2fst to (map inr out) ->
-      step_o_d_f (failed, net) (failed, net') tr
-  | SODF_input : forall h net net' failed tr out inp d d' l,
-      ~ In h failed ->
-      In h (odnwNodes net) ->
-      odnwState net h = Some d ->
-      input_handlers h inp d = (out, d', l) ->
-      net' = {| odnwNodes := odnwNodes net;
-                odnwPackets := collate name_eq_dec h (odnwPackets net) l;
-                odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
-      tr = (h, inl inp) :: map2fst h (map inr out) ->
-      step_o_d_f (failed, net) (failed, net') tr
-  | SODF_fail : forall h net net' failed,
-      ~ In h failed ->
-      In h (odnwNodes net) ->
-      net' = {| odnwNodes := odnwNodes net;
-                odnwPackets := collate name_eq_dec h (odnwPackets net) 
-                                (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))));
-                odnwState := odnwState net |} ->
-      step_o_d_f (failed, net) (h :: failed, net') [].
-
-  Definition step_o_d_f_star := refl_trans_1n_trace step_o_d_f.
-
-  Definition step_o_d_f_init : list name * ordered_dynamic_network :=
-    ([], mkODNetwork [] (fun _ _ => []) (fun _ => None)).
-End StepOrderDynamicFailure.
-
 Section StepDynamic.
   Context `{multi_params : MultiParams}.
 
@@ -694,3 +525,169 @@ Section StepDynamicFailure.
 
   Definition step_dynamic_failure_init : list name * dynamic_network := ([], step_dynamic_init).
 End StepDynamicFailure.
+
+Section StepOrdered.
+  Context `{params : MultiParams}.
+
+  Notation src := name (only parsing).
+  Notation dst := name (only parsing).
+
+  Record ordered_network :=
+    mkONetwork
+       { onwPackets : src -> dst -> list msg;
+         onwState   : name -> data
+       }.
+
+  Inductive step_ordered : step_relation ordered_network (name * (input + output)) :=
+  | StepOrdered_deliver : forall net net' tr m ms out d l from to,
+      onwPackets net from to = m :: ms ->
+      net_handlers to from m (onwState net to) = (out, d, l) ->
+      net' = mkONetwork (collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l)
+                        (update name_eq_dec (onwState net) to d) ->
+      tr = map2fst to (map inr out) ->
+      step_ordered net net' tr
+  | StepOrdered_input : forall h net net' tr out inp d l,
+      input_handlers h inp (onwState net h) = (out, d, l) ->
+      net' = mkONetwork (collate name_eq_dec h (onwPackets net) l)
+                        (update name_eq_dec (onwState net) h d) ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
+      step_ordered net net' tr.
+
+  Definition step_ordered_star := refl_trans_1n_trace step_ordered.
+
+  Definition step_ordered_init : ordered_network := mkONetwork (fun _ _ => []) init_handlers.
+End StepOrdered.
+
+Section StepOrderedFailure. 
+  Context `{multi_params : MultiParams}.
+  Context {overlay_params : NameOverlayParams multi_params}.
+  Context {fail_msg_params : FailMsgParams multi_params}.
+
+  Inductive step_ordered_failure : step_relation (list name * ordered_network) (name * (input + output)) :=
+  | StepOrderedFailure_deliver : forall net net' failed tr m ms out d l from to,
+      onwPackets net from to = m :: ms ->
+      ~ In to failed ->
+      net_handlers to from m (onwState net to) = (out, d, l) ->
+      net' = {| onwPackets := collate name_eq_dec to (update2 name_eq_dec (onwPackets net) from to ms) l;
+                onwState := update name_eq_dec (onwState net) to d |} ->
+      tr = map2fst to (map inr out) ->
+      step_ordered_failure (failed, net) (failed, net') tr
+  | StepOrderedFailure_input : forall h net net' failed tr out inp d l,
+      ~ In h failed ->
+      input_handlers h inp (onwState net h) = (out, d, l) ->
+      net' = {| onwPackets := collate name_eq_dec h (onwPackets net) l;
+                onwState := update name_eq_dec (onwState net) h d |} ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
+      step_ordered_failure (failed, net) (failed, net') tr
+  | StepOrderedFailure_fail :  forall h net net' failed,
+      ~ In h failed ->
+      net' = {| onwPackets := collate name_eq_dec h (onwPackets net)
+                  (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed nodes))) ;
+                onwState := onwState net |} ->
+      step_ordered_failure (failed, net) (h :: failed, net') [].
+
+  Definition step_ordered_failure_star := refl_trans_1n_trace step_ordered_failure.
+
+  Definition step_ordered_failure_init : list name * ordered_network := ([], step_ordered_init).
+End StepOrderedFailure.
+
+Section StepOrderedDynamic.
+  Context `{multi_params : MultiParams}.
+  Context {overlay_params : NameOverlayParams multi_params}.
+  Context {new_msg_params : NewMsgParams multi_params}.
+
+  Notation src := name (only parsing).
+  Notation dst := name (only parsing).
+
+  Record ordered_dynamic_network :=
+    mkODNetwork
+       {
+         odnwNodes : list name;
+         odnwPackets : src -> dst -> list msg;
+         odnwState : name -> option data
+       }.
+
+  Inductive step_ordered_dynamic : step_relation ordered_dynamic_network (name * (input + output)) :=
+  | StepOrderedDynamic_start : forall net net' h,
+      ~ In h (odnwNodes net) ->
+      net' = {| odnwNodes := h :: odnwNodes net;
+                odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (odnwNodes net))
+                               (collate name_eq_dec h (odnwPackets net) 
+                                 (map2snd msg_new (filter_rel adjacent_to_dec h (odnwNodes net)))) h msg_new;
+                odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
+      step_ordered_dynamic net net' []
+  | StepOrderedDynamic_deliver : forall net net' tr m ms out d d' l from to,
+      In to (odnwNodes net) ->
+      odnwState net to = Some d ->
+      odnwPackets net from to = m :: ms ->
+      net_handlers to from m d = (out, d', l) ->
+      net' = {| odnwNodes := odnwNodes net;
+                odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
+                odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
+      tr = map2fst to (map inr out) ->
+      step_ordered_dynamic net net' tr
+  | StepOrderedDynamic_input : forall h net net' tr out inp d d' l,
+      In h (odnwNodes net) ->
+      odnwState net h = Some d ->
+      input_handlers h inp d = (out, d', l) ->
+      net' = {| odnwNodes := odnwNodes net;
+                odnwPackets := collate name_eq_dec h (odnwPackets net) l;
+                odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
+      step_ordered_dynamic net net' tr.
+
+  Definition step_ordered_dynamic_star := refl_trans_1n_trace step_ordered_dynamic.
+
+  Definition step_ordered_dynamic_init : ordered_dynamic_network := mkODNetwork [] (fun _ _ => []) (fun _ => None).
+End StepOrderedDynamic.
+
+Section StepOrderedDynamicFailure.
+  Context `{multi_params : MultiParams}.
+  Context {overlay_params : NameOverlayParams multi_params}.
+  Context {new_msg_params : NewMsgParams multi_params}.
+  Context {fail_msg_params : FailMsgParams multi_params}.
+
+  Inductive step_ordered_dynamic_failure : step_relation (list name * ordered_dynamic_network) (name * (input + output)) :=
+  | StepOrderedDynamicFailure_start : forall net net' failed h,
+      ~ In h (odnwNodes net) ->
+      net' = {| odnwNodes := h :: odnwNodes net;
+                odnwPackets := collate_ls name_eq_dec (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net)))
+                                (collate name_eq_dec h (odnwPackets net)
+                                  (map2snd msg_new (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net))))) h msg_new;
+                odnwState := update name_eq_dec (odnwState net) h (Some (init_handlers h)) |} ->
+      step_ordered_dynamic_failure (failed, net) (failed, net') []
+  | StepOrderedDynamicFailure_deliver : forall net net' failed tr m ms out d d' l from to,
+      ~ In to failed ->
+      In to (odnwNodes net) ->
+      odnwState net to = Some d ->
+      odnwPackets net from to = m :: ms ->
+      net_handlers to from m d = (out, d', l) ->
+      net' = {| odnwNodes := odnwNodes net;
+                odnwPackets := collate name_eq_dec to (update2 name_eq_dec (odnwPackets net) from to ms) l;
+                odnwState := update name_eq_dec (odnwState net) to (Some d') |} ->
+      tr = map2fst to (map inr out) ->
+      step_ordered_dynamic_failure (failed, net) (failed, net') tr
+  | StepOrderedDynamicFailure_input : forall h net net' failed tr out inp d d' l,
+      ~ In h failed ->
+      In h (odnwNodes net) ->
+      odnwState net h = Some d ->
+      input_handlers h inp d = (out, d', l) ->
+      net' = {| odnwNodes := odnwNodes net;
+                odnwPackets := collate name_eq_dec h (odnwPackets net) l;
+                odnwState := update name_eq_dec (odnwState net) h (Some d') |} ->
+      tr = (h, inl inp) :: map2fst h (map inr out) ->
+      step_ordered_dynamic_failure (failed, net) (failed, net') tr
+  | StepOrderedDynamicFailure_fail : forall h net net' failed,
+      ~ In h failed ->
+      In h (odnwNodes net) ->
+      net' = {| odnwNodes := odnwNodes net;
+                odnwPackets := collate name_eq_dec h (odnwPackets net)
+                                (map2snd msg_fail (filter_rel adjacent_to_dec h (remove_all name_eq_dec failed (odnwNodes net)))) ;
+                odnwState := odnwState net |} ->
+      step_ordered_dynamic_failure (failed, net) (h :: failed, net') [].
+
+  Definition step_ordered_dynamic_failure_star := refl_trans_1n_trace step_ordered_dynamic_failure.
+
+  Definition step_ordered_dynamic_failure_init : list name * ordered_dynamic_network :=
+    ([], mkODNetwork [] (fun _ _ => []) (fun _ => None)).
+End StepOrderedDynamicFailure.
