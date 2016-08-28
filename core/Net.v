@@ -596,3 +596,101 @@ Section StepOrderDynamicFailure.
   Definition step_o_d_f_init : list name * ordered_dynamic_network :=
     ([], mkODNetwork [] (fun _ _ => []) (fun _ => None)).
 End StepOrderDynamicFailure.
+
+Section StepDynamic.
+  Context `{multi_params : MultiParams}.
+
+  Record dynamic_network := mkDNetwork
+    {
+      dnwNodes : list name;
+      dnwPackets : list packet;
+      dnwState : name -> option data
+    }.
+
+  Inductive step_dynamic : step_relation dynamic_network (name * (input + list output)) :=
+  | StepDynamic_start : forall net net' h,
+      ~ In h (dnwNodes net) ->
+      net' = {| dnwNodes := h :: dnwNodes net ;
+                dnwPackets := dnwPackets net ;
+                dnwState := update name_eq_dec (dnwState net) h (Some (init_handlers h)) |} ->
+      step_dynamic net net' []
+  | StepDynamic_deliver : forall net net' p xs ys out d d' l,
+      dnwPackets net = xs ++ p :: ys ->
+      In (pDst p) (dnwNodes net) ->
+      dnwState net (pDst p) = Some d ->
+      net_handlers (pDst p) (pSrc p) (pBody p) d = (out, d', l) ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := send_packets (pDst p) l ++ xs ++ ys ;
+                dnwState := update name_eq_dec (dnwState net) (pDst p) (Some d') |} ->
+      step_dynamic net net' [(pDst p, inr out)]
+  | StepDynamic_input : forall h net net' out inp d d' l,
+      In h (dnwNodes net) ->
+      dnwState net h = Some d ->
+      input_handlers h inp d = (out, d', l) ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := send_packets h l ++ dnwPackets net ;
+                dnwState := update name_eq_dec (dnwState net) h (Some d') |} ->
+      step_dynamic net net' [(h, inl inp); (h, inr out)].
+
+  Definition step_dynamic_star := refl_trans_1n_trace step_dynamic.
+
+  Definition step_dynamic_init : dynamic_network := mkDNetwork [] [] (fun _ => None).
+End StepDynamic.
+
+Section StepDynamicFailure.
+  Context `{params : FailureParams}.
+
+  Inductive step_dynamic_failure : step_relation (list name * dynamic_network) (name * (input + list output)) :=
+  | StepDynamicFailure_start : forall net net' failed h,
+      ~ In h (dnwNodes net) ->
+      net' = {| dnwNodes := h :: dnwNodes net ;
+                dnwPackets := dnwPackets net ;
+                dnwState := update name_eq_dec (dnwState net) h (Some (init_handlers h)) |} ->
+      step_dynamic_failure (failed, net) (failed, net') []
+  | StepDynamicFailure_deliver : forall net net' failed p xs ys out d d' l,
+      dnwPackets net = xs ++ p :: ys ->
+      In (pDst p) (dnwNodes net) ->
+      ~ In (pDst p) failed ->
+      dnwState net (pDst p) = Some d ->
+      net_handlers (pDst p) (pSrc p) (pBody p) d = (out, d', l) ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := send_packets (pDst p) l ++ xs ++ ys ;
+                dnwState := update name_eq_dec (dnwState net) (pDst p) (Some d') |} ->
+      step_dynamic_failure (failed, net) (failed, net') [(pDst p, inr out)]
+  | StepDynamicFailure_input : forall h net net' failed out inp d d' l,
+      In h (dnwNodes net) ->
+      ~ In h failed ->
+      dnwState net h = Some d ->
+      input_handlers h inp d = (out, d', l) ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := send_packets h l ++ dnwPackets net ;
+                dnwState := update name_eq_dec (dnwState net) h (Some d') |} ->
+      step_dynamic_failure (failed, net) (failed, net') [(h, inl inp); (h, inr out)]
+  | StepDynamicFailure_drop : forall net net' failed p xs ys,
+      dnwPackets net = xs ++ p :: ys ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := xs ++ ys ;
+                dnwState := dnwState net |} ->
+      step_dynamic_failure (failed, net) (failed, net') []
+  | StepDynamicFailure_dup : forall net net' failed p xs ys,
+      dnwPackets net = xs ++ p :: ys ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := p :: xs ++ p :: ys ;
+                dnwState := dnwState net |} ->
+      step_dynamic_failure (failed, net) (failed, net') []
+  | StepDynamicFailure_fail :  forall h net failed,
+      In h (dnwNodes net) ->
+      step_dynamic_failure (failed, net) (h :: failed, net) []
+  | StepDynamicFailure_reboot : forall h net net' failed failed' d,
+      In h failed ->
+      dnwState net h = Some d ->
+      failed' = remove name_eq_dec h failed ->
+      net' = {| dnwNodes := dnwNodes net ;
+                dnwPackets := dnwPackets net ;
+                dnwState := fun nm => if name_eq_dec nm h then Some (reboot d) else dnwState net nm |} ->
+      step_dynamic_failure (failed, net) (failed', net') [].
+
+  Definition step_dynamic_failure_star := refl_trans_1n_trace step_dynamic_failure.
+
+  Definition step_dynamic_failure_init : list name * dynamic_network := ([], step_dynamic_init).
+End StepDynamicFailure.
