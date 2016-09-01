@@ -10,8 +10,8 @@ Require Import InfSeqExt.map.
 
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
-Require Import TotalMapLivenessSimulations.
-Require Import PartialMapLivenessSimulations.
+Require Import TotalMapExecutionSimulations.
+Require Import PartialMapExecutionSimulations.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 

@@ -71,7 +71,7 @@ move => A B ab.
 by destruct ab.
 Qed.
 
-Section TotalMapLivenessSimulations.
+Section TotalMapExecutionSimulations.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
@@ -528,4 +528,4 @@ apply: step_ordered_dynamic_failure_star_lb_step_execution.
 exact: lb_step_execution_lb_step_ordered_dynamic_failure_tot_map_odnet_infseq.
 Qed.
 
-End TotalMapLivenessSimulations.
+End TotalMapExecutionSimulations.

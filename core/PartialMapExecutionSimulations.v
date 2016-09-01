@@ -14,7 +14,7 @@ Require Import FunctionalExtensionality.
 
 Require Import TotalMapSimulations.
 Require Import PartialMapSimulations.
-Require Import TotalMapLivenessSimulations.
+Require Import TotalMapExecutionSimulations.
 
 Require Import InfSeqExt.infseq.
 Require Import InfSeqExt.map.
@@ -52,7 +52,7 @@ Class LabeledMultiParamsPartialMapCongruency
       tot_mapped_lb_input_handlers_label me inp st = label_silent
   }.
 
-Section PartialMapLivenessSimulations.
+Section PartialMapExecutionSimulations.
 
 Context {base_fst : BaseParams}.
 Context {base_snd : BaseParams}.
@@ -898,4 +898,4 @@ apply: step_ordered_dynamic_failure_star_lb_step_execution; first exact: pt_map_
 exact: lb_step_execution_lb_step_ordered_dynamic_failure_pt_map_odnet_infseq.
 Qed.
 
-End PartialMapLivenessSimulations.
+End PartialMapExecutionSimulations.
