@@ -641,6 +641,19 @@ apply step_ordered_dynamic_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
+Lemma Tree_node_not_adjacent_self_lift :
+forall net failed n,
+(In n (odnwNodes (pt_map_odnet net)) -> ~ In n failed -> 
+forall d, odnwState (pt_map_odnet net) n = Some d -> ~ NSet.In n (FR.adjacent d)) ->
+(In n (odnwNodes net) -> ~ In n failed -> 
+ forall d, odnwState net n = Some d -> ~ NSet.In n d.(adjacent)).
+Proof.
+move => net failed n H_p H_in H_in' d H_eq.
+rewrite /= /id /= map_id H_eq /= in H_p.
+have H_p' := H_p H_in H_in' {| FR.adjacent := d.(adjacent) |}.
+exact: H_p'.
+Qed.
+
 Lemma Tree_node_not_adjacent_self : 
 forall net failed tr,
  step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
@@ -652,10 +665,7 @@ Proof.
 move => net failed tr H_st n H_n H_f d H_eq.
 have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
 have H_inv' := @FR.Failure_node_not_adjacent_self _ _ _ H_st' n.
-rewrite /= /id /= map_id H_eq in H_inv'.
-have IH_inv'' := H_inv' H_n H_f {| FR.adjacent := d.(adjacent) |}.
-rewrite /= in IH_inv''.
-exact: IH_inv''.
+eapply Tree_node_not_adjacent_self_lift in H_inv'; eauto.
 Qed.
 
 Lemma Tree_not_failed_no_fail :
@@ -1268,7 +1278,57 @@ Lemma Tree_root_levels_empty :
   forall d, net.(odnwState) n = Some d ->
   d.(levels) = NMap.empty lv.
 Proof.
-Admitted.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3.
+remember step_ordered_dynamic_failure_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_in_n H_in_f H_r d H_d.
+  destruct_update; first by find_injection.
+  break_or_hyp => //.
+  by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=.
+  * destruct_update; last by eauto.
+    find_injection.
+    find_rewrite.
+    by eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+  * destruct_update; last by eauto.
+    find_injection.
+    by eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+  * destruct_update; last by eauto.
+    find_injection.
+    find_rewrite.
+    by eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; try by eauto.
+  * destruct_update; last by eauto.
+    find_injection.
+    by eauto.
+  * by destruct_update; eauto.
+  * by destruct_update; eauto.
+  * destruct_update; last by eauto.
+    find_injection.
+    by eauto.
+  * by destruct_update; eauto.
+- move => n H_in_n H_in_f H_r d H_eq.
+  have H_neq: h <> n by auto.
+  have H_in: ~ In n failed by auto.
+  by eauto.
+Qed. 
 
 (* bfs_net_ok_root_levels_bot *)
 Lemma Tree_root_levels_bot : 
@@ -1278,15 +1338,152 @@ forall net failed tr,
   forall d, net.(odnwState) n = Some d ->
   forall n', NMap.find n' d.(levels) = None.
 Proof.
-Admitted.
+move => net failed tr H_st.
+move => n H_in_n H_in_f H_r d H_d n'.
+have H_emp := Tree_root_levels_empty H_st H_in_n H_in_f H_r H_d.
+rewrite H_emp /=.
+apply NMapFacts.not_find_in_iff.
+move => H_in.
+by apply NMapFacts.empty_in_iff in H_in.
+Qed.
 
 (* in_after_all_fail_status *)
 Lemma Tree_in_after_all_fail_level : 
   forall net failed tr,
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
     forall (n : name), In n net.(odnwNodes) -> ~ In n failed ->
-    forall (n' : name) lvo', before_all (Level lvo') Fail (net.(odnwPackets) n' n).
+    forall n', In n' net.(odnwNodes) ->
+    forall lvo', before_all (Level lvo') Fail (net.(odnwPackets) n' n).
 Proof.
+move => net failed tr H.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 4.
+remember step_ordered_dynamic_failure_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f n' H_n' lvo'.
+  break_or_hyp; break_or_hyp.
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
+    rewrite collate_map2snd_not_in; last by eauto using in_remove_all_was_in.
+    by rewrite (Tree_self_channel_empty H).
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
+    case (adjacent_to_dec n' n) => H_dec; last first.
+      rewrite collate_map2snd_not_related //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H).
+    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
+    rewrite collate_map2snd_not_in_related //.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H) //=.
+    by left.
+  * have H_neq: n <> n' by move => H_eq; find_reverse_rewrite.
+    case (adjacent_to_dec n n') => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Tree_inactive_no_incoming H).
+    case (in_dec name_eq_dec n' failed) => H_dec'; last first.
+      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
+      rewrite collate_ls_live_related //.
+      rewrite collate_neq //.
+      rewrite (Tree_inactive_no_incoming H) //=.
+      by left.
+    rewrite collate_ls_in_remove_all //.
+    rewrite collate_neq //.
+    by rewrite (Tree_inactive_no_incoming H).
+  * have H_neq: h <> n by move => H_eq; find_reverse_rewrite.
+    have H_neq': h <> n' by move => H_eq; repeat find_rewrite.
+    rewrite collate_ls_neq_to //.
+    rewrite collate_neq //.
+    by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
+  * have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H14 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H6 H8 _ H9 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H0 H8 _ H9 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H6 H8 _ H9 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in.
+    by break_and.
+  * have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H3 lvo'.    
+    have H_neq: n <> n'.
+      move => H_eq.
+      rewrite H_eq in H5.
+      by rewrite (Tree_self_channel_empty H) in H5.             
+    break_if; first by break_and.
+    apply: before_all_not_in_append.
+    by apply: Tree_not_failed_no_fail; eauto.
+  * break_if; last by eauto.
+    break_and; subst.
+    have H_neq: n <> n' by break_or_hyp; auto.      
+    have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H14 lvo'.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp; last by break_and.
+    exact: before_all_not_in.
+  * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp; last by break_and.
+    exact: before_all_not_in.
+  * have H_neq: n <> n'.
+      move => H_eq.
+      rewrite H_eq in H5.
+      by rewrite (Tree_self_channel_empty H) in H5.
+    break_if; first by break_and; subst_max.
+    apply: before_all_not_in_append.
+    by apply: Tree_not_failed_no_fail; eauto.
+  * break_if; last by eauto.
+    break_and; subst.
+    have H_neq: n <> n' by break_or_hyp; auto.      
+    have IH := IHrefl_trans_1n_trace1 _ H7 H9 _ H10 lvo'.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp; last by break_and.
+    exact: before_all_not_in.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  io_handler_cases => //=; try by eauto.
+  by admit.
+- move => n H_n H_f n' H_n' lvo'.
+  have H_neq: h <> n by auto.
+  have H_f': ~ In n failed by auto.
+  case (name_eq_dec h n') => H_dec; last first.
+    rewrite collate_neq //.
+    by eauto.
+  subst_max.
+  case (adjacent_to_dec n' n) => H_dec; last first.
+    rewrite collate_map2snd_not_related //.
+    by eauto.
+  rewrite collate_map2snd_not_in_related //.
+    apply: before_all_neq_append => //.
+    by eauto.
+  exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Admitted.
 
 Lemma Tree_in_level_adjacent_or_incoming_new :
