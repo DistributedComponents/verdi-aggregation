@@ -18,30 +18,12 @@ Require Import mathcomp.algebra.zmodp.
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
 
-Extract Inlined Constant leb => "(<=)".
-Extract Inlined Constant negb => "not".
-Extract Inlined Constant fst => "fst".
-Extract Inlined Constant snd => "snd".
+Require Import ExtrOcamlBasicExt.
+Require Import ExtrOcamlNatIntExt.
 
-Extract Inlined Constant Nat.max => "Pervasives.max".
-Extract Inlined Constant Nat.min => "Pervasives.min".
-Extract Inlined Constant Nat.ltb => "(<)".
-Extract Inlined Constant Nat.pred => "(fun n -> if n <= 0 then 0 else n - 1)".
-
-Extract Inlined Constant length => "List.length".
-Extract Inlined Constant app => "List.append".
-Extract Inlined Constant map => "List.map".
-Extract Inlined Constant rev => "List.rev".
-Extract Inlined Constant filter => "List.filter".
-Extract Inlined Constant fold_left => "(fun a b c -> List.fold_left a c b)".
-Extract Inlined Constant in_dec => "(fun h -> List.mem)".
-
-Extract Inlined Constant fin => int.
-Extract Inlined Constant fin_eq_dec => "(fun _ -> (=))".
-Extract Inlined Constant all_fin => "(fun n -> (Obj.magic (seq 1 n)))".
-Extract Inlined Constant fin_compare => "(fun _ n m -> if n = m then EQ else if n < m then LT else GT)".
-Extract Inlined Constant fin_comparison => "(fun _ n m -> if n = m then Eq else if n < m then Lt else Gt)".
-Extract Inlined Constant fin_to_nat => "(fun _ n -> n)".
+Require Import ExtrOcamlBool.
+Require Import ExtrOcamlList.
+Require Import ExtrOcamlFin.
 
 Module N5 : NatValue. Definition n := 5. End N5.
 Module FN_N5 : FinNameType N5 := FinName N5.
@@ -63,6 +45,8 @@ End CFG.
 
 Module TA := TreeAggregation FN_N5 NOT_N5 N5Set NOTC_N5 N5Map RNT_N5 CFG ANC_N5.
 Import TA.
+
+Extraction "extraction/aggregation/coq/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.
 
 (*  
 The default network has 5 nodes and is fully connected:
@@ -98,5 +82,4 @@ Definition input_2_node_2 := SendAggregate.
 (* check root aggregate, should return (TA.AggregateResponse 13) *)
 Definition input_4_node_0 := AggregateRequest.
 
-Extraction "extraction/aggregation/coq/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.
 Extraction "extraction/aggregation/coq/TreeAggregationSetup.ml" input_0_node_0 input_0_node_1 input_0_node_2 input_0_node_3 input_0_node_4 input_1_node_0 input_2_node_0 input_3_node_0 input_1_node_2 input_2_node_2 input_4_node_0.
