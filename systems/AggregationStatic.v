@@ -1,16 +1,20 @@
-(* at recovery time, send new to all existing neighbors, handle problem with unprocessed fail messages for recovery *)
-(* higher-level language like ott/lem for protocols that exports to handlers? *)
-(* must use v8.5 branch of https://github.com/coq-contribs/aac-tactics *)
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.DynamicNetLemmas.
+Require Import Verdi.SingleSimulations.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
+Require Import AggregationDefinitions.
+Require Import AggregatorStatic.
+Require Import FailureRecorderStatic.
 
 Require Import Sumbool.
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
+Require Import Sorting.Permutation.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -19,18 +23,9 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-
-Require Import Sorting.Permutation.
-
 Require Import AAC_tactics.AAC.
 
-Require Import OrderedLemmas.
-Require Import AggregationDefinitions.
-Require Import AggregatorStatic.
-Require Import FailureRecorderStatic.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -406,7 +401,7 @@ apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
 by rewrite map_id in H_st.
 Qed.
 
-Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
+Instance Aggregation_Aggregator_multi_single_map : MultiSingleParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
   {
     tot_s_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(balance) ;
     tot_s_map_input := fun n i => 
@@ -1713,7 +1708,7 @@ Qed.
 
 End SingleNodeInvIn.
 
-Instance Aggregation_Aggregator_congr (n : name) : MultiParamsSingleTotalMapCongruency (OA.Aggregator_SingleNodeParams n) Aggregation_Aggregator_multi_single_map n :=
+Instance Aggregation_Aggregator_congr (n : name) : MultiSingleParamsTotalMapCongruency (OA.Aggregator_SingleParams n) Aggregation_Aggregator_multi_single_map n :=
   {
     tot_s_init_handlers_eq := _ ;
     tot_s_input_handlers_eq := _
@@ -1735,7 +1730,7 @@ Qed.
 Lemma Aggregation_step_ordered_failure_tot_one_mapped_simulation_star_1 :
   forall n net failed tr,
     step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
-    exists tr', @step_s_star _ (OA.Aggregator_SingleNodeParams n) (@init_handler _ (OA.Aggregator_SingleNodeParams n)) (tot_s_map_data (net.(onwState) n)) tr'.
+    exists tr', @step_s_star _ (OA.Aggregator_SingleParams n) (@init_handler _ (OA.Aggregator_SingleParams n)) (tot_s_map_data (net.(onwState) n)) tr'.
 Proof.
 move => n.
 apply: step_ordered_failure_tot_one_mapped_simulation_star_1.

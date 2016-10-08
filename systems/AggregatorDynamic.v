@@ -1,8 +1,16 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
+
+Require Import AggregationDefinitions.
+Require Import AggregationAux.
+
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
+Require Import Sumbool.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -10,15 +18,6 @@ Require Import mathcomp.ssreflect.eqtype.
 Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
-
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-
-Require Import Sumbool.
-
-Require Import AggregationDefinitions.
-Require Import AggregationAux.
 
 Require Import AAC_tactics.AAC.
 
@@ -137,7 +136,7 @@ Instance Aggregator_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance Aggregator_SingleNodeParams : SingleNodeParams Aggregator_BaseParams :=
+Instance Aggregator_SingleParams : SingleParams Aggregator_BaseParams :=
   {
     init_handler := InitData ;
     input_handler := fun i d => runGenHandler1_ignore (IOHandler i) d

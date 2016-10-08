@@ -1,3 +1,6 @@
 coq/*.ml
 coq/*.mli
 lib
+_build
+Tree.native
+TreeAggregation.native

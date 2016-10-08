@@ -1,17 +1,13 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
-
-Require Import Sumbool.
-
-Require Import TotalMapSimulations.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.DynamicNetLemmas.
 
 Require Import MSetFacts.
 Require Import MSetProperties.
+Require Import Sumbool.
 
 Require Import mathcomp.ssreflect.ssreflect.
-
-Require Import OrderedLemmas.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
@@ -381,7 +377,7 @@ rewrite H_eq_f {H_eq_f}.
 rewrite {1 3}H_eq_o {H_eq_o}.
 remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_failure_init /= => H_in_f.
 repeat concludes.
 match goal with
 | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
@@ -529,7 +525,7 @@ rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
 remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_failure_init /= => H_in_f.
 repeat concludes.
 match goal with
 | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
@@ -772,7 +768,7 @@ rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
 remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_failure_init /= => H_in_f.
 repeat concludes.
 match goal with
 | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H

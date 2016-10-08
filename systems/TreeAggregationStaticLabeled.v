@@ -1,22 +1,29 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.LabeledNet.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.PartialExtendedMapSimulations.
+Require Import Verdi.TotalMapExecutionSimulations.
+Require Import Verdi.PartialMapExecutionSimulations.
 
-Require Import LabeledNet.
+Require Import NameAdjacency.
+Require Import AggregationDefinitions.
+Require Import AggregationAux.
+Require Import AggregationStatic.
+Require Import TreeAux.
+Require Import TreeStaticLabeled.
+
 Require Import InfSeqExt.infseq.
 Require Import InfSeqExt.classical.
 Require Import InfSeqExt.exteq.
 Require Import InfSeqExt.map.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-Require Import PartialExtendedMapSimulations.
-Require Import TotalMapLivenessSimulations.
-Require Import PartialMapLivenessSimulations.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
-
 Require Import Sumbool.
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -25,18 +32,9 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-
 Require Import AAC_tactics.AAC.
 
-Require Import AggregationDefinitions.
-Require Import AggregationAux.
-Require Import AggregationStatic.
-
-Require Import TreeAux.
-Require Import TreeStaticLabeled.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -113,8 +111,7 @@ Record Data :=  mkData {
   local : m ; 
   aggregate : m ; 
   adjacent : NS ; 
-  sent : NM ; 
-  received : NM ;
+  balance : NM ;
   broadcast : bool ; 
   levels : NL
 }.
@@ -124,16 +121,14 @@ if root_dec n then
   {| local := 1 ;
      aggregate := 1 ;
      adjacent := adjacency n nodes ;
-     sent := init_map (adjacency n nodes) ;
-     received := init_map (adjacency n nodes) ;
+     balance := init_map (adjacency n nodes) ;
      broadcast := true ;
      levels := NMap.empty lv |}
 else
   {| local := 1 ;
      aggregate := 1 ;
      adjacent := adjacency n nodes ;
-     sent := init_map (adjacency n nodes) ;
-     received := init_map (adjacency n nodes) ;
+     balance := init_map (adjacency n nodes) ;
      broadcast := false ;
      levels := NMap.empty lv |}.
 
@@ -159,35 +154,32 @@ Definition RootNetHandler (me src : name) (msg : Msg) : Handler Data :=
 st <- get ;;
 match msg with 
 | Aggregate m_msg => 
-  match NMap.find src st.(received) with
+  match NMap.find src st.(balance) with
   | None => nop
   | Some m_src => 
     put {| local := st.(local) ;
            aggregate := st.(aggregate) * m_msg ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := NMap.add src (m_src * m_msg) st.(received) ;
+           balance := NMap.add src (m_src * (m_msg)^-1) st.(balance) ;
            broadcast := st.(broadcast) ;
-           levels := st.(levels) |}    
+           levels := st.(levels) |}
   end ;;
   ret (RecvAggregate me src)
-| Level _ => ret (RecvLevel me src) 
-| Fail => 
-  match NMap.find src st.(sent), NMap.find src st.(received) with
-  | Some m_snt, Some m_rcd =>    
+| Level _ => ret (RecvLevel me src)
+| Fail =>
+  match NMap.find src st.(balance) with
+  | Some m_bal =>    
     put {| local := st.(local) ;
-           aggregate := st.(aggregate) * m_snt * (m_rcd)^-1 ;
+           aggregate := st.(aggregate) * m_bal ;
            adjacent := NSet.remove src st.(adjacent) ;
-           sent := NMap.remove src st.(sent) ;
-           received := NMap.remove src st.(received) ;
+           balance := NMap.remove src st.(balance) ;
            broadcast := st.(broadcast) ;
-           levels := st.(levels) |}    
-  | _, _ =>
+           levels := st.(levels) |}
+  | None =>
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := NSet.remove src st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) ;
+           balance := st.(balance) ;
            broadcast := st.(broadcast) ;
            levels := st.(levels) |}
   end ;; 
@@ -198,14 +190,13 @@ Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
 st <- get ;;
 match msg with
 | Aggregate m_msg => 
-  match NMap.find src st.(received) with
+  match NMap.find src st.(balance) with
   | None => nop
   | Some m_src => 
     put {| local := st.(local) ;
            aggregate := st.(aggregate) * m_msg ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := NMap.add src (m_src * m_msg) st.(received) ;
+           balance := NMap.add src (m_src * (m_msg)^-1) st.(balance) ;
            broadcast := st.(broadcast) ;
            levels := st.(levels) |}
   end ;;
@@ -215,16 +206,14 @@ match msg with
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) ;
+           balance := st.(balance) ;
            broadcast := st.(broadcast) ;
            levels := NMap.remove src st.(levels) |}
   else 
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) ;
+           balance := st.(balance) ;
            broadcast := true ;
            levels := NMap.remove src st.(levels) |}) ;; 
   ret (RecvLevel me src)
@@ -233,53 +222,47 @@ match msg with
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) ;
+           balance := st.(balance) ;
            broadcast := st.(broadcast) ;
            levels := NMap.add src lv' st.(levels) |}
   else
     put {| local := st.(local) ;
            aggregate := st.(aggregate) ;
            adjacent := st.(adjacent) ;
-           sent := st.(sent) ;
-           received := st.(received) ;
+           balance := st.(balance) ;
            broadcast := true ;
-           levels := NMap.add src lv' st.(levels) |}) ;;
+           levels := NMap.add src lv' st.(levels) |}) ;; 
   ret (RecvLevel me src)
 | Fail => 
-  match NMap.find src st.(sent), NMap.find src st.(received) with
-  | Some m_snt, Some m_rcd =>    
+  match NMap.find src st.(balance) with
+  | Some m_bal =>    
     if olv_eq_dec (level st.(adjacent) st.(levels)) (level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels))) then
       put {| local := st.(local) ;
-             aggregate := st.(aggregate) * m_snt * (m_rcd)^-1 ;
+             aggregate := st.(aggregate) * m_bal ;
              adjacent := NSet.remove src st.(adjacent) ;
-             sent := NMap.remove src st.(sent) ;
-             received := NMap.remove src st.(received) ;
+             balance := NMap.remove src st.(balance) ;
              broadcast := st.(broadcast) ;
              levels := NMap.remove src st.(levels) |}
     else
       put {| local := st.(local) ;
-             aggregate := st.(aggregate) * m_snt * (m_rcd)^-1 ;
+             aggregate := st.(aggregate) * m_bal ;
              adjacent := NSet.remove src st.(adjacent) ;
-             sent := NMap.remove src st.(sent) ;
-             received := NMap.remove src st.(received) ;
+             balance := NMap.remove src st.(balance) ;
              broadcast := true ;
              levels := NMap.remove src st.(levels) |}
-  | _, _ => 
+  | None => 
     if olv_eq_dec (level st.(adjacent) st.(levels)) (level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels))) then
       put {| local := st.(local) ;
              aggregate := st.(aggregate) ;
              adjacent := NSet.remove src st.(adjacent) ;
-             sent := st.(sent) ;
-             received := st.(received) ;
+             balance := st.(balance) ;
              broadcast := st.(broadcast) ;
              levels := NMap.remove src st.(levels) |}
     else
       put {| local := st.(local) ;
              aggregate := st.(aggregate) ;
              adjacent := NSet.remove src st.(adjacent) ;
-             sent := st.(sent) ;
-             received := st.(received) ;
+             balance := st.(balance) ;
              broadcast := true ;
              levels := NMap.remove src st.(levels) |}
   end ;; 
@@ -303,10 +286,9 @@ match i with
   put {| local := m_msg;
          aggregate := st.(aggregate) * m_msg * st.(local)^-1;
          adjacent := st.(adjacent);
-         sent := st.(sent);
-         received := st.(received);
+         balance := st.(balance);
          broadcast := st.(broadcast);
-         levels := st.(levels) |} ;;
+         levels := st.(levels) |}  ;;
   ret (DeliverLocal me)
 | SendAggregate => 
   ret (DeliverSendAggregate me)
@@ -315,14 +297,13 @@ match i with
   ret (DeliverAggregateRequest me)
 | Broadcast => 
   if st.(broadcast) then
-    send_level_adjacent (Some 0) st.(adjacent) ;;
-    put {| local := st.(local);
-           aggregate := st.(aggregate);
-           adjacent := st.(adjacent);
-           sent := st.(sent);
-           received := st.(received);
-           broadcast := false;
-           levels := st.(levels) |} ;;
+  (send_level_adjacent (Some 0) st.(adjacent) ;;
+   put {| local := st.(local);
+          aggregate := st.(aggregate);
+          adjacent := st.(adjacent);
+          balance := st.(balance);
+          broadcast := false;
+          levels := st.(levels) |}) ;;
     ret (DeliverBroadcastTrue me)
   else
     ret (DeliverBroadcastFalse me)
@@ -338,32 +319,30 @@ match i with
   put {| local := m_msg; 
          aggregate := st.(aggregate) * m_msg * st.(local)^-1;
          adjacent := st.(adjacent); 
-         sent := st.(sent);
-         received := st.(received);
+         balance := st.(balance);
          broadcast := st.(broadcast);
-         levels := st.(levels) |} ;;
+         levels := st.(levels) |}  ;;
   ret (DeliverLocal me)
 | SendAggregate => 
   when (sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match parent st.(adjacent) st.(levels) with
   | None => nop
   | Some dst => 
-    match NMap.find dst st.(sent) with
+    match NMap.find dst st.(balance) with
     | None => nop
     | Some m_dst =>   
       send (dst, (Aggregate st.(aggregate))) ;;
       put {| local := st.(local);
              aggregate := 1;
              adjacent := st.(adjacent);
-             sent := NMap.add dst (m_dst * st.(aggregate)) st.(sent);
-             received := st.(received);
+             balance := NMap.add dst (m_dst * st.(aggregate)) st.(balance);
              broadcast := st.(broadcast);
              levels := st.(levels) |}
     end
-  end) ;;
+  end)  ;;
   ret (DeliverSendAggregate me)
 | AggregateRequest => 
-  write_output (AggregateResponse st.(aggregate)) ;;
+  write_output (AggregateResponse st.(aggregate))  ;;
   ret (DeliverAggregateRequest me)
 | Broadcast =>
   if st.(broadcast) then
@@ -371,10 +350,9 @@ match i with
     put {| local := st.(local);
            aggregate := st.(aggregate);
            adjacent := st.(adjacent);
-           sent := st.(sent);
-           received := st.(received);
+           balance := st.(balance);
            broadcast := false;
-           levels := st.(levels) |} ;;
+           levels := st.(levels) |}  ;;
     ret (DeliverBroadcastTrue me)
   else
     ret (DeliverBroadcastFalse me)
@@ -444,78 +422,68 @@ Qed.
 Lemma NetHandler_cases : 
   forall dst src msg st lb out st' ms,
     NetHandler dst src msg st = (lb, out, st', ms) ->
-    (exists m_msg m_src, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\
-     NMap.find src st.(received) = Some m_src /\
+    (exists m_msg m_src, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\ NMap.find src st.(balance) = Some m_src /\
      st'.(local) = st.(local) /\
      st'.(aggregate) = st.(aggregate) * m_msg /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\     
-     st'.(received) = NMap.add src (m_src * m_msg) st.(received) /\
+     st'.(balance) = NMap.add src (m_src * (m_msg)^-1) st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (exists m_msg, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\
-     NMap.find src st.(received) = None /\ 
+    (exists m_msg, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\ NMap.find src st.(balance) = None /\ 
      st' = st /\ 
      out = [] /\ ms = []) \/
-    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\
-     exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
+    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\ exists m_bal, NMap.find src st.(balance) = Some m_bal /\
      st'.(local) = st.(local) /\ 
-     st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
+     st'.(aggregate) = st.(aggregate) * m_bal /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = NMap.remove src st.(sent) /\
-     st'.(received) = NMap.remove src st.(received) /\
+     st'.(balance) = NMap.remove src st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
     (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\
-     exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
+     exists m_bal, NMap.find src st.(balance) = Some m_bal /\
      level st.(adjacent) st.(levels) = level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
-     st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
+     st'.(aggregate) = st.(aggregate) * m_bal /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = NMap.remove src st.(sent) /\
-     st'.(received) = NMap.remove src st.(received) /\
+     st'.(balance) = NMap.remove src st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
     (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\
-     exists m_snt m_rcd, NMap.find src st.(sent) = Some m_snt /\ NMap.find src st.(received) = Some m_rcd /\
+     exists m_bal, NMap.find src st.(balance) = Some m_bal /\
      level st.(adjacent) st.(levels) <> level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
-     st'.(aggregate) = st.(aggregate) * m_snt * (m_rcd)^-1 /\
+     st'.(aggregate) = st.(aggregate) * m_bal /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = NMap.remove src st.(sent) /\
-     st'.(received) = NMap.remove src st.(received) /\
+     st'.(balance) = NMap.remove src st.(balance) /\
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (root dst /\ msg = Fail /\ lb = RecvFail dst src /\ NMap.find src st.(balance) = None /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ NMap.find src st.(balance) = None /\
      level st.(adjacent) st.(levels) = level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ (NMap.find src st.(sent) = None \/ NMap.find src st.(received) = None) /\
+    (~ root dst /\ msg = Fail /\ lb = RecvFail dst src /\ NMap.find src st.(balance) = None /\
      level st.(adjacent) st.(levels) <> level (NSet.remove src st.(adjacent)) (NMap.remove src st.(levels)) /\
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.remove src st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
@@ -527,8 +495,7 @@ Lemma NetHandler_cases :
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.add src lv_msg st.(levels) /\
      out = [] /\ ms = []) \/
@@ -537,8 +504,7 @@ Lemma NetHandler_cases :
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = true /\
      st'.(levels) = NMap.add src lv_msg st.(levels) /\
      out = [] /\ ms = []) \/
@@ -547,8 +513,7 @@ Lemma NetHandler_cases :
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = st.(broadcast) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
@@ -557,111 +522,59 @@ Lemma NetHandler_cases :
      st'.(local) = st.(local) /\ 
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
-     st'.(sent) = st.(sent) /\
-     st'.(received) = st.(received) /\
+     st'.(balance) = st.(balance) /\
      st'.(broadcast) = true /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []).
 Proof.
-move => dst src msg st lb out st' ms.
+move => dst src msg st out st' ms.
 rewrite /NetHandler /RootNetHandler /NonRootNetHandler.
-case: msg => [m_msg||olv_msg]; monad_unfold.
-- case root_dec => /= H_dec; case H_find: (NMap.find _ _) => [m_src|] /= H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-  * by left; exists m_msg; exists m_src.
-  * by right; left; exists m_msg.
-  * by left; exists m_msg; exists m_src.
-  * by right; left; exists m_msg.
-- case root_dec => /= H_dec; case H_find: (NMap.find _ _) => [m_snt|]; case H_find': (NMap.find _ _) => [m_rcd|] /=.
-  * move => H_eq.
-    find_injection.
-    right; right; left.
-    rewrite /=.
-    split => //.
-    split => //.
-    split => //.
-    by exists m_snt; exists m_rcd.
-  * move => H_eq.
-    find_injection.
-    rewrite /=.
-    right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split => //; first by right.
-  * move => H_eq.
-    find_injection.
-    rewrite /=.
-    right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split => //; first by left.
-  * move => H_eq.
-    find_injection.
-    right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split => //; first by left.
-  * case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-      right; right; right; left.
-      split => //.
-      split => //.
-      split => //.
-      by exists m_snt; exists m_rcd.
-    right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by exists m_snt; exists m_rcd.
-  * case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-      right; right; right; right; right; right; left.
-      split => //.
-      split => //.
-      split => //.
-      by split; first by right.
-    right; right; right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split; first by right.
-  * case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-      right; right; right; right; right; right; left.
-      split => //.
-      split => //.
-      split => //.
-      by split; first by left.
-    right; right; right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split; first by left.
-  * case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-      right; right; right; right; right; right; left.
-      split => //.
-      split => //.
-      split => //.
-      by split; first by left.
-    right; right; right; right; right; right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    by split; first by left.
-- case root_dec => /= H_dec.
-    move => H_eq.
-    injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-    right; right; right; right; right; right; right; right; left.
-    split => //.    
-    by exists olv_msg.
-  case H_olv_dec: olv_msg => [lv_msg|]; case olv_eq_dec => /= H_dec' H_eq; injection H_eq => H_ms H_st H_out; rewrite -H_st /=.
-  * right; right; right; right; right; right; right; right; right; left.
-    split => //.
-    by exists lv_msg.
-  * right; right; right; right; right; right; right; right; right; right; left.
-    split => //.
-    by exists lv_msg.
-  * by right; right; right; right; right; right; right; right; right; right; right; left.
-  * by right; right; right; right; right; right; right; right; right; right; right; right.
+case: msg => [m_msg||olv_msg]; monad_unfold; case root_dec => /= H_dec; repeat break_let; repeat find_injection; try (break_match; repeat find_injection); try (break_if; repeat find_injection).
+- by left; exists m_msg, a.
+- by right; left; exists m_msg.
+- by left; exists m_msg, a.
+- by right; left; exists m_msg.
+- right; right; left.
+  repeat split => //.
+  by exists a.
+- by right; right; right; right; right; left.
+- right; right; right; left.
+  repeat split => //.
+  exists a.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; left.
+  repeat split => //.
+  exists a.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; right; right; left.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; right; right; right; left.
+  move: Heqb.
+  by case: olv_eq_dec.
+- move => ms0 H_eq.
+  find_injection.
+  right; right; right; right; right; right; right; right; left.
+  split => //.
+  by exists olv_msg.
+- right; right; right; right; right; right; right; right; right; left.
+  split => //.
+  exists l2.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; right; right; right; right; right; right; left.
+  split => //.
+  exists l2.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; right; right; right; right; right; right; right; left.
+  move: Heqb.
+  by case: olv_eq_dec.
+- right; right; right; right; right; right; right; right; right; right; right; right.
+  move: Heqb.
+  by case: olv_eq_dec.
 Qed.
 
 Lemma input_handlers_IOHandler :
@@ -818,8 +731,7 @@ Lemma IOHandler_cases :
          st'.(local) = m_msg /\ 
          st'.(aggregate) = st.(aggregate) * m_msg * st.(local)^-1 /\ 
          st'.(adjacent) = st.(adjacent) /\
-         st'.(sent) = st.(sent) /\
-         st'.(received) = st.(received) /\
+         st'.(balance) = st.(balance) /\
          st'.(broadcast) = st.(broadcast) /\
          st'.(levels) = st.(levels) /\
          out = [] /\ ms = []) \/
@@ -828,12 +740,11 @@ Lemma IOHandler_cases :
          out = [] /\ ms = []) \/
       (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 1 /\ 
-       exists dst m_dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(sent) = Some m_dst /\
+       exists dst m_dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(balance) = Some m_dst /\
        st'.(local) = st.(local) /\
        st'.(aggregate) = 1 /\ 
        st'.(adjacent) = st.(adjacent) /\
-       st'.(sent) = NMap.add dst (m_dst * st.(aggregate)) st.(sent) /\
-       st'.(received) = st.(received) /\
+       st'.(balance) = NMap.add dst (m_dst * st.(aggregate)) st.(balance) /\
        st'.(broadcast) = st.(broadcast) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
@@ -848,7 +759,7 @@ Lemma IOHandler_cases :
        out = [] /\ ms = []) \/
       (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 1 /\
-       exists dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(sent) = None /\ 
+       exists dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(balance) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
       (i = AggregateRequest /\ lb = DeliverAggregateRequest h /\
@@ -858,8 +769,7 @@ Lemma IOHandler_cases :
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) /\ 
        st'.(adjacent) = st.(adjacent) /\
-       st'.(sent) = st.(sent) /\
-       st'.(received) = st.(received) /\
+       st'.(balance) = st.(balance) /\
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (Some 0) st.(adjacent)) \/
@@ -867,8 +777,7 @@ Lemma IOHandler_cases :
        st'.(local) = st.(local) /\
        st'.(aggregate) = st.(aggregate) /\ 
        st'.(adjacent) = st.(adjacent) /\
-       st'.(sent) = st.(sent) /\
-       st'.(received) = st.(received) /\
+       st'.(balance) = st.(balance) /\
        st'.(broadcast) = false /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
@@ -882,53 +791,43 @@ Lemma IOHandler_cases :
        st' = st /\
        out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
-move => h i st lb out st' ms.
+move => h i st u out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
-case: i => [m_msg||||]; monad_unfold.
-- by case root_dec => /= H_dec H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; left; exists m_msg.
-- case root_dec => /= H_dec. 
-    by move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; right; left.
-  case sumbool_not => /= H_not; last first. 
-    by move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; right; right; right; left.
-  case H_p: parent => [dst|]; last first. 
-    by move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; right; right; right; right; left.
-  case H_find: NMap.find => [m_dst|] H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
-    right; right; left.
-    split => //.
-    split => //.
-    split => //.
-    split => //.
-    by exists dst; exists m_dst.
+case: i => [m_msg||||]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat find_injection; repeat break_match; repeat break_let; repeat find_injection.
+- by left; exists m_msg.
+- by left; exists m_msg.
+- by right; left.
+- unfold sumbool_not in *.
+  break_match => //.
+  right; right; left.
+  repeat split => //.
+  by exists n, a.
+- unfold sumbool_not in *.
+  break_match => //.
   right; right; right; right; right; left.
-  split => //.
-  split => //.
-  split => //.
-  split => //.
-  by exists dst.
-- by case root_dec => /= H_dec H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=; right; right; right; right; right; right; left.
-- case root_dec => /= H_dec H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
-    by right; right; right; right; right; right; right; right; right; right; left.
-  by right; right; right; right; right; right; right; right; right; right; right.
-- case root_dec => /= H_dec; case H_b: broadcast => /=.
-  * right; right; right; right; right; right; right; left.
-    repeat break_let.
-    repeat find_injection.
-    rewrite /= -2!app_nil_end.
-    have H_eq := send_level_adjacent_eq st.(adjacent) (Some 0) st.
-    find_rewrite.
-    by tuple_inversion.
-  * right; right; right; right; right; right; right; right; right; left.
-    by tuple_inversion.
-  * right; right; right; right; right; right; right; right; left.
-    repeat break_let.
-    repeat tuple_inversion.
-    rewrite /= -2!app_nil_end.
-    have H_eq := send_level_adjacent_eq st.(adjacent) (level st.(adjacent) st.(levels)) st.
-    find_rewrite.
-    by tuple_inversion.
-  * right; right; right; right; right; right; right; right; right; left.
-    injection H => H_ms H_st H_o H_tt.
-    by rewrite H_st H_o H_ms.
+  repeat split => //.
+  by exists n.
+- unfold sumbool_not in *.
+  break_match => //.
+  by right; right; right; right; left.
+- unfold sumbool_not in *.
+  break_match => //.
+  by right; right; right; left.
+- by right; right; right; right; right; right; left.
+- by right; right; right; right; right; right; left.
+- by right; right; right; right; right; right; right; right; right; right; left.
+- by right; right; right; right; right; right; right; right; right; right; right.
+- find_rewrite_lem send_level_adjacent_eq.
+  find_injection.
+  right; right; right; right; right; right; right; left.
+  by rewrite app_nil_l -2!app_nil_end.
+- by right; right; right; right; right; right; right; right; right; left.
+- find_rewrite_lem send_level_adjacent_eq.
+  find_injection.
+  right; right; right; right; right; right; right; right; left.
+  simpl.
+  by rewrite -app_nil_end.
+- by right; right; right; right; right; right; right; right; right; left.
 Qed.
 
 Ltac net_handler_cases := 
@@ -965,11 +864,10 @@ Instance TreeAggregation_Aggregation_params_pt_msg_map : MultiParamsMsgPartialMa
       end   
   }.
 
-
 Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExtendedMap TreeAggregation_MultiParams AG.Aggregation_MultiParams :=
   {
     pt_ext_map_data := fun d _ => 
-      AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(sent) d.(received) ;
+      AG.mkData d.(local) d.(aggregate) d.(adjacent) d.(balance) ;
     pt_ext_map_input := fun i n d =>
       match i with 
       | Local m => Some (AG.Local m)
@@ -1200,8 +1098,7 @@ Instance AggregationData_Data : AggregationData Data :=
     aggr_local := local ;
     aggr_aggregate := aggregate ;
     aggr_adjacent := adjacent ;
-    aggr_sent := sent ;
-    aggr_received := received
+    aggr_balance := balance
   }.
 
 Instance AggregationMsg_TreeAggregation : AggregationMsg :=
@@ -1249,8 +1146,7 @@ move => H_inv.
 rewrite H_inv {H_inv}.
 rewrite (sum_aggregate_aggr_aggregate_eq _ (onwState onet)) //.
 rewrite sum_aggregate_msg_incoming_active_map_msgs_eq /map_msgs /= -/packets.
-rewrite (sum_fail_sent_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets //.
-by rewrite (sum_fail_received_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets.
+rewrite (sum_fail_balance_incoming_active_map_msgs_eq _ state) /map_msgs /= -/packets //.
 Qed.
 
 Instance TreeAggregation_Tree_label_tot_map : LabeledMultiParamsLabelTotalMap TreeAggregation_LabeledMultiParams TR.Tree_LabeledMultiParams :=
@@ -1316,6 +1212,7 @@ apply: pt_map_onet_hd_step_ordered_failure_star_always.
 exact: TR.Label_eq_dec.
 Qed.
 
+(*
 Lemma TreeAggregation_Tree_enabled :  
   forall l, tot_map_label l <> TR.Tau ->
   forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
@@ -1326,9 +1223,11 @@ Lemma TreeAggregation_Tree_enabled :
 Proof.
 case => //= [dst src|dst src|h|h|h] H_neq net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l' {H_neq}; rewrite map_id /=.
 Admitted.
+*)
 
 (* input labels are enabled right away, need to show other's enabledness depend only on message availability *)
 (* suffices: if message is incoming, eventually it is the first message *)
+(*
 Lemma TreeAggregation_Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> TR.Tau ->
   forall s, lb_step_execution lb_step_ordered_failure s ->
@@ -1374,6 +1273,18 @@ case => //= [dst src|dst src|h|h|h] H_neq {H_neq} s H_exec H_fair H_en.
   find_injection.
   by admit.
 Admitted.
+*)
+
+Lemma TreeAggregation_Tree_pt_map_onet_always_weak_local_fairness_continuously :
+forall l : label,
+  tot_map_label l <> label_silent ->
+  forall s : infseq (event (list Net.name * ordered_network) label (Net.name * (input + output))),
+  lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  always (now (l_enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
+  continuously (now (l_enabled lb_step_ordered_failure l)) s.
+Proof.
+Admitted.
 
 Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
@@ -1381,8 +1292,6 @@ Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_local_fair
        weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
 apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
-- exact: TreeAggregation_Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.
-- by admit.
 - case.
   * by exists Tau.
   * by move => dst src; exists (RecvFail dst src).
@@ -1390,6 +1299,7 @@ apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
   * by move => h; exists (DeliverBroadcastTrue h).
   * by move => h; exists (DeliverBroadcastFalse h).
   * by move => h; exists (DeliverLevelRequest h).
-Admitted.
+- exact: TreeAggregation_Tree_pt_map_onet_always_weak_local_fairness_continuously.
+Qed.
 
 End TreeAggregation.

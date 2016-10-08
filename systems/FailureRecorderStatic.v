@@ -1,17 +1,14 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+
+Require Import NameAdjacency.
 
 Require Import Sumbool.
-
-Require Import TotalMapSimulations.
-
 Require Import MSetFacts.
 Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
-
-Require Import OrderedLemmas.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 

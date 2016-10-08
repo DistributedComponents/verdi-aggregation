@@ -1,13 +1,19 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.DynamicNetLemmas.
+Require Import Verdi.SingleSimulations.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
+Require Import AggregationDefinitions.
+Require Import AggregatorDynamic.
+Require Import FailureRecorderDynamic.
 
 Require Import Sumbool.
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -16,16 +22,9 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-
 Require Import AAC_tactics.AAC.
 
-Require Import OrderedLemmas.
-Require Import AggregationDefinitions.
-Require Import AggregatorDynamic.
-Require Import FailureRecorderDynamic.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -1434,7 +1433,7 @@ break_or_hyp => //.
 by break_and.
 Qed.
 
-Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
+Instance Aggregation_Aggregator_multi_single_map : MultiSingleParamsTotalMap Aggregation_MultiParams OA.Aggregator_BaseParams := 
   {
     tot_s_map_data := fun d => OA.mkData d.(local) d.(aggregate) d.(adjacent) d.(balance) ;
     tot_s_map_input := fun n i => 
@@ -1455,7 +1454,7 @@ Instance Aggregation_Aggregator_multi_single_map : MultiSingleNodeParamsTotalMap
                         end
   }.
 
-Instance Aggregation_Aggregator_congr (n : name) : MultiParamsSingleTotalMapCongruency OA.Aggregator_SingleNodeParams Aggregation_Aggregator_multi_single_map n :=
+Instance Aggregation_Aggregator_congr (n : name) : MultiSingleParamsTotalMapCongruency OA.Aggregator_SingleParams Aggregation_Aggregator_multi_single_map n :=
   {
     tot_s_init_handlers_eq := _ ;
     tot_s_input_handlers_eq := _
@@ -1477,10 +1476,10 @@ Lemma Aggregation_step_ordered_dynamic_failure_tot_one_mapped_simulation_star_1 
   forall n net failed tr,
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
     forall d, net.(odnwState) n = Some d ->
-    exists tr', @step_s_star _ OA.Aggregator_SingleNodeParams (@init_handler _ OA.Aggregator_SingleNodeParams) (tot_s_map_data d) tr'.
+    exists tr', @step_s_star _ OA.Aggregator_SingleParams (@init_handler _ OA.Aggregator_SingleParams) (tot_s_map_data d) tr'.
 Proof.
 move => n.
-apply: Aggregation_step_ordered_dynamic_failure_tot_one_mapped_simulation_star_1.
+apply: step_ordered_dynamic_failure_tot_one_mapped_simulation_star_1.
 move => net failed tr src mg ms d out st' ps out' st'' H_star H_eq H_in_f H_eq' H_hnd H_inp.
 unfold input_handlers, input_handler in *.  
 simpl in *.
@@ -1818,7 +1817,7 @@ rewrite H_eq_f {H_eq_f}.
 rewrite {1 3 4}H_eq_o {H_eq_o}.
 remember step_ordered_dynamic_failure_init as y in H_step.
 move: Heqy.
-induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_init /= => H_in_f.
+induction H_step using refl_trans_1n_trace_n1_ind => /= H_init; first by rewrite H_init /step_ordered_dynamic_failure_init /= => H_in_f.
 repeat concludes.
 match goal with
 | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H

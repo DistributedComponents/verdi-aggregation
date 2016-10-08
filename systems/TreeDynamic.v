@@ -1,28 +1,25 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.DynamicNetLemmas.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-
-Require Import OrderedLemmas.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
+Require Import NameAdjacency.
+Require Import TreeAux.
+Require Import FailureRecorderDynamic.
 
 Require Import Sumbool.
-
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrbool.
-
 Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 Require Import FMapInterface.
-
 Require Import Sorting.Permutation.
 
-Require Import TreeAux.
-Require Import FailureRecorderDynamic.
+Require Import mathcomp.ssreflect.ssreflect.
+Require Import mathcomp.ssreflect.ssrbool.
+
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 

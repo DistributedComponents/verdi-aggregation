@@ -1,25 +1,22 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.LabeledNet.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.TotalMapExecutionSimulations.
+Require Import Verdi.PartialMapExecutionSimulations.
 
-Require Import LabeledNet.
+Require Import NameAdjacency.
+Require Import TreeAux.
+Require Import FailureRecorderStaticLabeled.
+
 Require Import InfSeqExt.infseq.
 Require Import InfSeqExt.classical.
 Require Import InfSeqExt.exteq.
 Require Import InfSeqExt.map.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-Require Import TotalMapExecutionSimulations.
-Require Import PartialMapExecutionSimulations.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
-
 Require Import Sumbool.
-
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrbool.
-
 Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
@@ -27,8 +24,10 @@ Require Import FMapInterface.
 
 Require Import Sorting.Permutation.
 
-Require Import TreeAux.
-Require Import FailureRecorderStaticLabeled.
+Require Import mathcomp.ssreflect.ssreflect.
+Require Import mathcomp.ssreflect.ssrbool.
+
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 
@@ -884,6 +883,7 @@ simpl in *.
 move {H6}.
 Admitted.
 
+(*
 Lemma Tree_FailureRecorder_enabled :  
   forall l, tot_map_label l <> FR.Tau ->
   forall net net' net0 pt_net failed failed' failed0 pt_failed tr0 tr ptr l',    
@@ -906,7 +906,9 @@ net_handler_cases => //=; find_injection.
 - by admit.
 - by admit.
 Admitted.
+*)
 
+(*
 Lemma Tree_FailureRecorder_pt_map_onet_always_l_enabled : 
    forall l, tot_map_label l <> label_silent -> 
      forall s, lb_step_execution lb_step_ordered_failure s ->
@@ -949,6 +951,17 @@ rewrite -/(enabled _ _ _).
 destruct x, x1.
 by eapply Tree_FailureRecorder_enabled; eauto.
 Qed.
+*)
+
+Lemma Tree_pt_map_onet_always_enabled_continuously :
+forall l : label,
+  tot_map_label l <> label_silent ->
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  always (now (l_enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
+  continuously (now (l_enabled lb_step_ordered_failure l)) s.
+Proof.
+Admitted.
 
 Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
@@ -956,11 +969,10 @@ Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness :
        weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
 apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
-- exact: Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.
-- exact: Tree_FailureRecorder_pt_map_onet_always_l_enabled.
 - case; first by exists Tau.
   move => dst src.
   by exists (RecvFail dst src).
+- exact: Tree_pt_map_onet_always_enabled_continuously.
 Qed.
 
 Lemma Tree_lb_step_ordered_failure_continuously_no_fail :

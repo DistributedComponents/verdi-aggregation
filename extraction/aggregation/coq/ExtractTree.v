@@ -1,10 +1,9 @@
-Require Import Verdi.
-Require Import NPeano.
-Require Import PeanoNat.
-Require Import StructTact.Fin.
+Require Import Verdi.Verdi.
+Require Import Verdi.NameOverlay.
 
-Require Import NameOverlay.
 Require Import TreeStatic.
+
+Require Import StructTact.Fin.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.

@@ -1,22 +1,18 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.LabeledNet.
 
-Require Import LabeledNet.
+Require Import NameAdjacency.
 
 Require Import InfSeqExt.infseq.
 Require Import InfSeqExt.classical.
 
 Require Import Sumbool.
-
-Require Import TotalMapSimulations.
-
 Require Import MSetFacts.
 Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
-
-Require Import OrderedLemmas.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
@@ -1019,7 +1015,7 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   rewrite /d' /update.
   by break_if.
 set tr := [].
-apply: LStepOrderedFailure_deliver; eauto => //=.
+apply: LabeledStepOrderedFailure_deliver; eauto => //=.
 rewrite /net' /= /update2.
 break_if; first by break_and.
 by eassumption.
@@ -1058,7 +1054,7 @@ have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fai
   break_if => //.
   rewrite e in H_neq.
   by case: H_neq.
-apply: LStepOrderedFailure_deliver => //; eauto.
+apply: LabeledStepOrderedFailure_deliver => //; eauto.
 rewrite /net' /= /update2.
 by break_if; first by break_and.
 Qed.
@@ -1250,7 +1246,7 @@ rewrite /lb_net_handlers /= in H_hnd.
 net_handler_cases.
 exists (failed, {| onwPackets := update2 Net.name_eq_dec (onwPackets net) src dst ms; onwState := update name_eq_dec (onwState net) dst d |}).
 exists [].
-by apply: LStepOrderedFailure_deliver; eauto.
+by apply: LabeledStepOrderedFailure_deliver; eauto.
 Qed.
 
 Lemma Failure_eventually_fewer_Fail :

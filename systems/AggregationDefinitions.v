@@ -1,5 +1,10 @@
-Require Import Verdi.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.NameOverlay.
+
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
+Require Import FMapInterface.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrfun.
@@ -9,11 +14,6 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 
 Require Import mathcomp.fingroup.fingroup.
-
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-Require Import FMapInterface.
 
 Require Import AAC_tactics.AAC.
 

@@ -1,14 +1,21 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+Require Import Verdi.TotalMapSimulations.
+Require Import Verdi.PartialMapSimulations.
+Require Import Verdi.PartialExtendedMapSimulations.
 
-Require Import TotalMapSimulations.
-Require Import PartialMapSimulations.
-Require Import PartialExtendedMapSimulations.
-
-Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
+Require Import NameAdjacency.
+Require Import AggregationDefinitions.
+Require Import AggregationAux.
+Require Import AggregationStatic.
+Require Import TreeAux.
+Require Import TreeStatic.
 
 Require Import Sumbool.
+Require Import Orders.
+Require Import MSetFacts.
+Require Import MSetProperties.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -17,18 +24,9 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
-Require Import Orders.
-Require Import MSetFacts.
-Require Import MSetProperties.
-
 Require Import AAC_tactics.AAC.
 
-Require Import AggregationDefinitions.
-Require Import AggregationAux.
-Require Import AggregationStatic.
-
-Require Import TreeAux.
-Require Import TreeStatic.
+Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
 

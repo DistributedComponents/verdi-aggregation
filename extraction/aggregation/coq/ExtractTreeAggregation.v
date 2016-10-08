@@ -1,12 +1,11 @@
-Require Import Verdi.
-Require Import NPeano.
-Require Import PeanoNat.
-Require Import StructTact.Fin.
+Require Import Verdi.Verdi.
+Require Import Verdi.NameOverlay.
 
-Require Import NameOverlay.
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import TreeAggregationStatic.
+
+Require Import StructTact.Fin.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrfun.

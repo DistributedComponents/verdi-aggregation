@@ -1,6 +1,8 @@
-Require Import Verdi.
-Require Import HandlerMonad.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.HandlerMonad.
+Require Import Verdi.NameOverlay.
+
+Require Import NameAdjacency.
 
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
@@ -131,7 +133,7 @@ Instance Aggregator_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance Aggregator_SingleNodeParams (n : name) : SingleNodeParams Aggregator_BaseParams :=
+Instance Aggregator_SingleParams (n : name) : SingleParams Aggregator_BaseParams :=
   {
     init_handler := InitData n;
     input_handler := fun i d => runGenHandler1_ignore (IOHandler i) d
@@ -256,7 +258,7 @@ Definition conserves_node_mass (d : data) : Prop :=
 d.(local) = d.(aggregate) * sumM d.(adjacent) d.(balance).
 
 Lemma Aggregator_conserves_node_mass : 
- forall n st tr, @step_s_star _ (Aggregator_SingleNodeParams n) (@init_handler _ (Aggregator_SingleNodeParams n))  st tr ->
+ forall n st tr, @step_s_star _ (Aggregator_SingleParams n) (@init_handler _ (Aggregator_SingleParams n))  st tr ->
   conserves_node_mass st.
 Proof.
 move => n st tr H_st.

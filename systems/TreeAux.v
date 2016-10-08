@@ -1,5 +1,5 @@
-Require Import Verdi.
-Require Import NameOverlay.
+Require Import Verdi.Verdi.
+Require Import Verdi.NameOverlay.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
