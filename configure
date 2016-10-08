@@ -3,8 +3,13 @@
 ## Configures and calls coqproject.sh (https://github.com/dwoos/coqproject)
 
 ## Configuration options for coqproject.sh
-DEPS=(StructTact AAC_tactics InfSeqExt)
-DIRS=(core lib systems raft raft-proofs extraction/vard/coq extraction/aggregation/coq extraction/aggregation-dynamic/coq)
-CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi" "AAC_tactics.AAC" "Verdi requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi")
-EXTRA=(raft/RaftState.v)
+DEPS=(StructTact Verdi AAC_tactics InfSeqExt)
+DIRS=(systems extraction/aggregation/coq extraction/aggregation-dynamic/coq)
+CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Raft requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation")
+Verdi_PATH=${Verdi_PATH:="../verdi"}
+ln -sfn $Verdi_PATH/extraction/ocaml extraction/aggregation/lib
+ln -sfn $Verdi_PATH/extraction/ocaml extraction/aggregation-dynamic/lib
+Verdi_DIRS=(core lib systems extraction/coq)
+NAMESPACE_Verdi_lib="\"\""
+NAMESPACE_Verdi_extraction_coq="\"\""
 source script/coqproject.sh

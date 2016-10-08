@@ -1,16 +1,10 @@
 language: c
 env:
   - MODE=build
-  - MODE=analytics
 script: bash -ex .travis-ci.sh
 sudo: false
-before_install:
-  - openssl aes-256-cbc -K $encrypted_130bc391cda8_key -iv $encrypted_130bc391cda8_iv -in .travis/travis_rsa.enc -out .travis/travis_rsa -d
-  - cp .travis/travis_rsa ~/.ssh
-  - chmod 600 ~/.ssh/travis_rsa
-  - cp .travis/ssh_config ~/.ssh/config
 notifications:
   slack:
     on_start: always
     rooms:
-      - secure: QNV6vNowWxm2I9HkiZWSMvzuCF0IZ0DkOtrSjSeca2HhSZ5tmk7/bo6Yg21+ADJzoFeiFGqV8Zs+5BAZDDWik9DO6yS5IFPPqtQAtiHy5xeVjjfZtdBLgGnDBkCGyIcJCsM9f3x6H6atnLTs2u3LGqhsL0+AJULXteNRQ03XiU0=
+      - secure: "T242nWLwd3mR3pIQabXxl9jV9grQJrRBTVpzMTm6aWwQw4pUJd9zwJ5rzW567fngaZdrnxH/5hHildh1uIhUSTeC3g1WtmNZFg+P41j3ppKWXNGMsYJIo/QVDfwCTwuPcLbnEKP9ARiv/QECWTyzoE3jkU9U+xpVTWB7RG4R4cyXCKePStsVbYIiudpyHjAw+mY0PTWiSfqTDnhV0XE9/59lh+X624tfNrjIsYMJrQtNOfNDKOe2MHxt5WZV7bjY5dC6U6shz37sLxntURpW7FsAfRf81fnzFFgD+g7/Kzghh5t9duM8BJGSbLEHe8YJealRGOnNcJIG9xgP3dF0nwFxzrua2KtRWeLZlRDmto0Kt0oVVoQgYaMJS0kds7DWjnm3dX8KriPEywAixj+PSRar7o6jpiH2Jd3afDMq0r4PNjyjTYoqm/uuUIYzYV03O9ntZ2tKTDIH/uIXlQynQjSoe9Xkn+ql6kulQT56WmM+zlXluarDA5rw1GVRK4n3hkNGAXukYk1Wvu/KvRqxeVgqdAUTXs3A6CtcvXtguHfgYzNyuoJJnDlenKHmJq/jteNnwMIZR29LqL47vRpkI5zRrpfxf6c9BYl97elh2tnKBVP98n3VEdXqxpkqHVcW0lXlemyuso9bMkS5v6lpxDtFkZMjQuZJrk/WQ0DJGhY="

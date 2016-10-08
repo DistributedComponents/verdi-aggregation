@@ -2,7 +2,12 @@ PYTHON=python2.7
 COQVERSION := $(shell coqc --version|grep "version 8.5")
 
 ifeq "$(COQVERSION)" ""
-$(error "Verdi is only compatible with Coq version 8.5")
+$(error "Verdi Raft is only compatible with Coq version 8.5")
+endif
+
+COQPROJECT_EXISTS=$(wildcard _CoqProject)
+ifeq "$(COQPROJECT_EXISTS)" ""
+$(error "Run ./configure before running make")
 endif
 
 CHECKPATH := $(shell ./script/checkpaths.sh)
@@ -14,6 +19,9 @@ endif
 
 default: Makefile.coq
 	$(MAKE) -f Makefile.coq
+
+quick: Makefile.coq
+	$(MAKE) -f Makefile.coq quick
 
 proofalytics:
 	$(MAKE) -C proofalytics clean
@@ -27,9 +35,12 @@ proofalytics-aux: Makefile.coq
 	mv Makefile.coq_tmp Makefile.coq
 	$(MAKE) -f Makefile.coq
 
+ASSUMPTIONS_DEPS='script/assumptions.v raft-proofs/EndToEndLinearizability.vo'
+ASSUMPTIONS_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) script/assumptions.v'
 Makefile.coq: hacks _CoqProject
-	test -s _CoqProject || { echo "Run ./configure before running make"; exit 1; }
-	coq_makefile -f _CoqProject -o Makefile.coq
+	coq_makefile -f _CoqProject -o Makefile.coq \
+	  -extra 'script/assumptions.vo' $(ASSUMPTIONS_DEPS) $(ASSUMPTIONS_COMMAND) \
+	  -extra 'script/assumptions.glob' $(ASSUMPTIONS_DEPS) $(ASSUMPTIONS_COMMAND)
 
 hacks: raft/RaftState.v
 
