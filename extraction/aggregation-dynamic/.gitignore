@@ -1,5 +1,3 @@
 coq/*.ml
 coq/*.mli
-_build
-vard.native
 lib
