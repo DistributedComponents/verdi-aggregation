@@ -35,17 +35,8 @@ proofalytics-aux: Makefile.coq
 	mv Makefile.coq_tmp Makefile.coq
 	$(MAKE) -f Makefile.coq
 
-ASSUMPTIONS_DEPS='script/assumptions.v raft-proofs/EndToEndLinearizability.vo'
-ASSUMPTIONS_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) script/assumptions.v'
-Makefile.coq: hacks _CoqProject
-	coq_makefile -f _CoqProject -o Makefile.coq \
-	  -extra 'script/assumptions.vo' $(ASSUMPTIONS_DEPS) $(ASSUMPTIONS_COMMAND) \
-	  -extra 'script/assumptions.glob' $(ASSUMPTIONS_DEPS) $(ASSUMPTIONS_COMMAND)
-
-hacks: raft/RaftState.v
-
-raft/RaftState.v:
-	$(PYTHON) script/extract_record_notation.py raft/RaftState.v.rec raft_data > raft/RaftState.v
+Makefile.coq: _CoqProject
+	coq_makefile -f _CoqProject -o Makefile.coq
 
 clean:
 	if [ -f Makefile.coq ]; then \
@@ -54,16 +45,6 @@ clean:
 	find . -name '*.buildtime' -delete
 	$(MAKE) -C proofalytics clean
 
-vard:
-	@echo "To build everything (including vard) use the default target."
-	@echo "To quickly provision vard use the vard-quick target."
-
-vard-quick: Makefile.coq
-	$(MAKE) -f Makefile.coq systems/VarD.vo
-	$(MAKE) -f Makefile.coq raft/Raft.vo
-	$(MAKE) -f Makefile.coq extraction/vard/coq/ExtractVarDRaft.vo
-	cd extraction/vard; make
-
 lint:
 	@echo "Possible use of hypothesis names:"
 	find . -name '*.v' -exec grep -Hn 'H[0-9][0-9]*' {} \;
@@ -71,4 +52,4 @@ lint:
 distclean: clean
 	rm -f _CoqProject
 
-.PHONY: default clean vard vard-quick lint hacks proofalytics distclean
+.PHONY: default clean lint proofalytics distclean
