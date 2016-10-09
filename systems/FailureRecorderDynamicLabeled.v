@@ -2159,4 +2159,626 @@ end; simpl.
 - by eauto.
 Qed.
 
+Definition head_message_enables_label m src dst l :=
+  forall net failed, 
+  In dst net.(odnwNodes) ->
+  ~ In dst failed ->
+  forall d, net.(odnwState) dst = Some d ->
+  head (net.(odnwPackets) src dst) = Some m ->
+  enabled lb_step_ordered_dynamic_failure l (failed, net).
+
+Lemma Fail_enables_RecvFail :
+  forall src dst, head_message_enables_label Fail src dst (RecvFail dst src).
+Proof.
+move => src dst.
+rewrite /head_message_enables_label.
+move => net failed H_in H_in_f d H_d H_eq.
+case H_eq_p: (odnwPackets net src dst) => [|m ms]; first by find_rewrite.
+find_rewrite.
+simpl in *.
+find_injection.
+rewrite /enabled.
+case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src Fail d) => [[[lb' out] d'] l].
+have H_lb := H_hnd.
+rewrite /lb_net_handlers /= in H_hnd.
+net_handler_cases => //.
+exists (failed, {| odnwNodes := net.(odnwNodes); odnwPackets := update2 Net.name_eq_dec (odnwPackets net) src dst ms; odnwState := update name_eq_dec (odnwState net) dst (Some d') |}).
+exists [].
+apply: LabeledStepOrderedDynamicFailure_deliver; eauto.
+Qed.
+
+Lemma New_enables_RecvNew :
+  forall src dst, head_message_enables_label New src dst (RecvNew dst src).
+Proof.
+move => src dst.
+rewrite /head_message_enables_label.
+move => net failed H_in H_in_f d H_d H_eq.
+case H_eq_p: (odnwPackets net src dst) => [|m ms]; first by find_rewrite.
+find_rewrite.
+simpl in *.
+find_injection.
+rewrite /enabled.
+case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src New d) => [[[lb' out] d'] l].
+have H_lb := H_hnd.
+rewrite /lb_net_handlers /= in H_hnd.
+net_handler_cases => //.
+exists (failed, {| odnwNodes := net.(odnwNodes); odnwPackets := update2 Net.name_eq_dec (odnwPackets net) src dst ms; odnwState := update name_eq_dec (odnwState net) dst (Some d') |}).
+exists [].
+apply: LabeledStepOrderedDynamicFailure_deliver; eauto.
+Qed.
+
+Lemma Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled :
+  forall net net' net'' failed failed' failed'' tr tr' dst src l,
+  l <> RecvFail dst src ->
+  lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
+  lb_step_ordered_dynamic_failure (failed, net) (RecvFail dst src) (failed'', net'') tr' ->
+  enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (failed', net').
+Proof.
+move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
+destruct l => //.
+- invcs H_st => //. 
+  * by net_handler_cases.
+  * exists (failed'', net'').
+    exists [].
+    invcs H_st' => //.
+    net_handler_cases => //.
+    find_injection.
+    apply: LabeledStepOrderedDynamicFailure_deliver; eauto => //=.
+    destruct d'.
+    simpl in *.
+    by find_rewrite.
+- invcs H_st => //.
+  net_handler_cases => //.
+  invcs H_st' => //.
+  net_handler_cases => //.
+  find_injection.
+  set net' := {| odnwNodes := _ ; odnwState := _ ; odnwPackets := _ |}.
+  have H_hd: head (odnwPackets net' from0 to0) = Some Fail.
+    rewrite /net' /= /update2.
+    break_if => //.
+    * break_and.
+      subst.
+      by contradict H_neq.
+    * by find_rewrite.          
+  have H_en := Fail_enables_RecvFail from0 to0 net' failed'' H10 H9 _ H_hd.
+  rewrite /net' /= /update in H_en.
+  by break_if; apply: H_en; eauto.
+- invcs H_st => //.
+  net_handler_cases => //.
+  invcs H_st' => //.
+  net_handler_cases => //.
+  find_injection.
+  find_injection.
+  set net' := {| odnwNodes := _ ; odnwState := _ ; odnwPackets := _ |}.
+  have H_hd: head (odnwPackets net' from0 to0) = Some Fail.
+    rewrite /net' /= /update2.
+    break_if => //.
+    * break_and.
+      subst.
+      by find_rewrite.
+    * by find_rewrite.          
+  have H_en := Fail_enables_RecvFail from0 to0 net' failed'' H10 H9 _ H_hd.
+  rewrite /net' /= /update in H_en.
+  by break_if; apply: H_en; eauto.
+Qed.
+
+Lemma Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled :
+  forall net net' net'' failed failed' failed'' tr tr' dst src l,
+  l <> RecvNew dst src ->
+  lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
+  lb_step_ordered_dynamic_failure (failed, net) (RecvNew dst src) (failed'', net'') tr' ->
+  enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (failed', net').
+Proof.
+move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
+destruct l => //.
+- invcs H_st => //. 
+  * by net_handler_cases.
+  * exists (failed'', net'').
+    exists [].
+    invcs H_st' => //.
+    net_handler_cases => //.
+    find_injection.
+    apply: LabeledStepOrderedDynamicFailure_deliver; eauto => //=.
+    destruct d'.
+    simpl in *.
+    by find_rewrite.
+- invcs H_st => //.
+  net_handler_cases => //.
+  invcs H_st' => //.
+  net_handler_cases => //.
+  find_injection.
+  set net' := {| odnwNodes := _ ; odnwState := _ ; odnwPackets := _ |}.
+  have H_hd: head (odnwPackets net' from0 to0) = Some New.
+    rewrite /net' /= /update2.
+    break_if => //.
+    * break_and.
+      subst.
+      by find_rewrite.
+    * by find_rewrite.          
+  have H_en := New_enables_RecvNew from0 to0 net' failed'' H10 H9 _ H_hd.
+  rewrite /net' /= /update in H_en.
+  by break_if; apply: H_en; eauto.
+- invcs H_st => //.
+  net_handler_cases => //.
+  invcs H_st' => //.
+  net_handler_cases => //.
+  find_injection.
+  find_injection.
+  set net' := {| odnwNodes := _ ; odnwState := _ ; odnwPackets := _ |}.
+  have H_hd: head (odnwPackets net' from0 to0) = Some New.
+    rewrite /net' /= /update2.
+    break_if => //.
+    * break_and.
+      subst.
+      by contradict H_neq.
+    * by find_rewrite.          
+  have H_en := New_enables_RecvNew from0 to0 net' failed'' H10 H9 _ H_hd.
+  rewrite /net' /= /update in H_en.
+  by break_if; apply: H_en; eauto.
+Qed.
+
+Lemma Failure_RecvFail_enabled_weak_until_occurred :
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
+                  weak_until (now (l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src))) 
+                             (now (occurred (RecvFail dst src))) 
+                             s.
+Proof.
+cofix c.
+case => /=.
+case; case => failed net.
+case => [|dst src|dst src].
+- move => tr.
+  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
+  inversion H_exec; subst_max.
+  inversion H2; subst_max.
+  * unfold lb_net_handlers in *.
+    simpl in *.
+    by net_handler_cases.
+  * unfold lb_input_handlers in *.
+    simpl in *.
+    by io_handler_cases.
+  * apply: W_tl; first by [].
+    simpl.
+    exact: c.
+- move => tr.
+  case => /=.
+  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
+  inversion H_exec; subst_max.
+  case (name_eq_dec dst dst') => H_eq.
+  * subst_max.
+    case (name_eq_dec src src') => H_eq'.
+      subst_max.
+      exact: W0.
+    apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /= /enabled.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvFail dst' src <> RecvFail dst' src'.
+      move => H_eq.
+      by find_injection.
+    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
+  * apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /=.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvFail dst src <> RecvFail dst' src'.
+      move => H_eq'.
+      by find_injection.
+    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
+- move => tr.
+  case => /=.
+  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
+  inversion H_exec; subst_max.
+  case (name_eq_dec dst dst') => H_eq.
+  * subst_max.
+    case (name_eq_dec src src') => H_eq'.
+      subst_max.
+      simpl in *.
+      rewrite /l_enabled /enabled in H_en.
+      break_exists.
+      simpl in *.
+      invcs H => //.
+      net_handler_cases => //.
+      invcs H2 => //.
+      net_handler_cases => //.
+      by congruence.
+    simpl in *.
+    apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /= /enabled.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvNew dst' src <> RecvFail dst' src' by [].
+    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
+  * apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /=.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvNew dst src <> RecvFail dst' src' by [].
+    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
+Qed.
+
+Lemma Failure_RecvNew_enabled_weak_until_occurred :
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
+                  weak_until (now (l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src))) 
+                             (now (occurred (RecvNew dst src))) 
+                             s.
+Proof.
+cofix c.
+case => /=.
+case; case => failed net.
+case => [|dst src|dst src].
+- move => tr.
+  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
+  inversion H_exec; subst_max.
+  inversion H2; subst_max.
+  * unfold lb_net_handlers in *.
+    simpl in *.
+    by net_handler_cases.
+  * unfold lb_input_handlers in *.
+    simpl in *.
+    by io_handler_cases.
+  * apply: W_tl; first by [].
+    simpl.
+    exact: c.
+- move => tr.
+  case => /=.
+  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
+  inversion H_exec; subst_max.
+  case (name_eq_dec dst dst') => H_eq.
+  * subst_max.
+    case (name_eq_dec src src') => H_eq'.
+      subst_max.
+      simpl in *.
+      rewrite /l_enabled /enabled in H_en.
+      break_exists.
+      simpl in *.
+      invcs H => //.
+      net_handler_cases => //.
+      invcs H2 => //.
+      net_handler_cases => //.
+      by congruence.
+    simpl in *.
+    apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /= /enabled.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvFail dst' src <> RecvNew dst' src' by [].
+    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
+  * apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /=.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvFail dst src <> RecvNew dst' src' by [].
+    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
+- move => tr.
+  case => /=.
+  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
+  inversion H_exec; subst_max.
+  case (name_eq_dec dst dst') => H_eq.
+  * subst_max.
+    case (name_eq_dec src src') => H_eq'.
+      subst_max.
+      exact: W0.
+    apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /= /enabled.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvNew dst' src <> RecvNew dst' src'.
+      move => H_eq.
+      by find_injection.
+    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
+  * apply: W_tl; first by [].
+    apply: c => //=.
+    rewrite /l_enabled /=.
+    move {s H4 H_exec}.
+    rewrite -/(enabled _ _ _).
+    rewrite /l_enabled /enabled /= in H_en.
+    break_exists.
+    destruct x.
+    simpl in *.
+    have H_neq: RecvNew dst src <> RecvNew dst' src'.
+      move => H_eq'.
+      by find_injection.
+    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
+Qed.
+
+Lemma Failure_RecvFail_eventually_occurred :
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       weak_local_fairness lb_step_ordered_dynamic_failure label_silent s ->
+       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
+                  eventually (now (occurred (RecvFail dst src))) s.
+Proof.
+move => s H_exec H_fair src dst H_en.
+have H_wu := Failure_RecvFail_enabled_weak_until_occurred H_exec H_en.
+apply weak_until_until_or_always in H_wu.
+case: H_wu; first exact: until_eventually.
+move => H_al.
+apply always_continuously in H_al.
+apply H_fair in H_al => //.
+destruct s as [x s].
+by apply always_now in H_al.
+Qed.
+
+Lemma Failure_RecvNew_eventually_occurred :
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       weak_local_fairness lb_step_ordered_dynamic_failure label_silent s ->
+       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
+                  eventually (now (occurred (RecvNew dst src))) s.
+Proof.
+move => s H_exec H_fair src dst H_en.
+have H_wu := Failure_RecvNew_enabled_weak_until_occurred H_exec H_en.
+apply weak_until_until_or_always in H_wu.
+case: H_wu; first exact: until_eventually.
+move => H_al.
+apply always_continuously in H_al.
+apply H_fair in H_al => //.
+destruct s as [x s].
+by apply always_now in H_al.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_Fail_neq_eq : 
+  forall net net' failed failed' lb src dst k tr,
+  lb <> RecvFail dst src ->
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) Fail = k ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) Fail = k.
+Proof.
+move => net net' failed failed' lb src dst k tr H_neq H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+- rewrite /collate /= /update2.
+  break_if => //.
+  break_and; subst.
+  by case: H_neq.
+- rewrite /collate /= /update2.
+  break_if => //.
+  break_and; subst.
+  by rewrite H6.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_New_neq_eq : 
+  forall net net' failed failed' lb src dst k tr,
+  lb <> RecvNew dst src ->
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) New = k ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) New = k.
+Proof.
+move => net net' failed failed' lb src dst k tr H_neq H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+- rewrite /collate /= /update2.
+  break_if => //.
+  break_and; subst.
+  by rewrite H6.
+- rewrite /collate /= /update2.
+  break_if => //.
+  break_and; subst.
+  by case: H_neq.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_Fail_recv : 
+  forall net net' failed failed' src dst k tr,  
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) Fail = S k ->
+  lb_step_ordered_dynamic_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) Fail = k.
+Proof.
+move => net net' failed failed' src dst k tr H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+rewrite /= /update2.
+break_if.
+  break_and; subst.    
+  rewrite H6 /= in H_cnt.
+  by auto with arith.
+find_injection.
+by break_or_hyp.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_New_recv : 
+  forall net net' failed failed' src dst k tr,  
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) New = S k ->
+  lb_step_ordered_dynamic_failure (failed, net) (RecvNew dst src) (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) New = k.
+Proof.
+move => net net' failed failed' src dst k tr H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+rewrite /= /update2.
+break_if.
+  break_and; subst.    
+  rewrite H6 /= in H_cnt.
+  by auto with arith.
+find_injection.
+by break_or_hyp.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_Fail_le_monotonic : 
+  forall net net' failed failed' lb src dst k tr,
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) Fail <= k ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) Fail <= k.
+Proof.
+move => net net' failed failed' lb src dst k tr H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+- rewrite /update2 /=.
+  break_if => //.
+  break_and.
+  repeat find_rewrite.
+  rewrite H6 /= in H_cnt.
+  by auto with arith.
+- rewrite /update2 /=.
+  break_if => //.
+  break_and; subst.
+  by rewrite H6 /= in H_cnt.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_count_occ_New_le_monotonic : 
+  forall net net' failed failed' lb src dst k tr,
+  count_occ msg_eq_dec (net.(odnwPackets) src dst) New <= k ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  count_occ msg_eq_dec (net'.(odnwPackets) src dst) New <= k.
+Proof.
+move => net net' failed failed' lb src dst k tr H_cnt H_step.
+invcs H_step => //=.
+net_handler_cases => //.
+- rewrite /update2 /=.
+  break_if => //.
+  break_and; subst.
+  by rewrite H6 /= in H_cnt.
+- rewrite /update2 /=.
+  break_if => //.
+  break_and.
+  repeat find_rewrite.
+  rewrite H6 /= in H_cnt.
+  by auto with arith.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_not_in_failed :
+  forall net net' failed failed' lb tr h,
+  ~ In h failed ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  ~ In h failed'.
+Proof.
+move => net net' failed failed' lb tr h H_in_f H_step.
+by invcs H_step.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_in_nodes :
+  forall net net' failed failed' lb tr h,
+  In h net.(odnwNodes) ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  In h net'.(odnwNodes).
+Proof.
+move => net net' failed failed' lb tr h H_in_f H_step.
+by invcs H_step.
+Qed.
+
+Lemma lb_step_ordered_dynamic_failure_not_in_nodes :
+  forall net net' failed failed' lb tr h,
+  ~ In h net.(odnwNodes) ->
+  lb_step_ordered_dynamic_failure (failed, net) lb (failed', net') tr ->
+  ~ In h net'.(odnwNodes).
+Proof.
+move => net net' failed failed' lb tr h H_in_f H_step.
+by invcs H_step.
+Qed.
+
+Lemma Failure_not_in_failed_always : 
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       forall h, ~ In h (fst (hd s).(evt_a)) ->
+       always (now (fun e => ~ In h (fst e.(evt_a)))) s.
+Proof.
+cofix c.
+move => s H_exec.
+inversion H_exec => /=.
+move => h H_in_f.
+apply: Always; first by [].
+rewrite /=.
+apply: c; first by [].
+rewrite /=.
+destruct e, e', evt_a, evt_a0.
+simpl in *.
+by eapply lb_step_ordered_dynamic_failure_not_in_failed; eauto.
+Qed.
+
+Lemma Failure_lb_step_ordered_dynamic_failure_fail_occ_monotonic : 
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       forall src dst k, 
+         count_occ Msg_eq_dec ((snd (hd s).(evt_a)).(odnwPackets) src dst) Fail <= k ->
+         always (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(odnwPackets) src dst) Fail <= k)) s.
+Proof.
+cofix c.
+move => s H_exec.
+inversion H_exec => /=.
+move => src dst k H_cnt.
+apply: Always; first by [].
+apply: c; first by [].
+rewrite /=.
+destruct e, e', evt_a, evt_a0.
+simpl in *.
+move: H.
+exact: lb_step_ordered_dynamic_failure_count_occ_Fail_le_monotonic.
+Qed.
+
+Lemma Failure_lb_step_ordered_dynamic_failure_new_occ_monotonic : 
+  forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
+       forall src dst k, 
+         count_occ Msg_eq_dec ((snd (hd s).(evt_a)).(odnwPackets) src dst) New <= k ->
+         always (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(odnwPackets) src dst) New <= k)) s.
+Proof.
+cofix c.
+move => s H_exec.
+inversion H_exec => /=.
+move => src dst k H_cnt.
+apply: Always; first by [].
+apply: c; first by [].
+rewrite /=.
+destruct e, e', evt_a, evt_a0.
+simpl in *.
+move: H.
+exact: lb_step_ordered_dynamic_failure_count_occ_New_le_monotonic.
+Qed.
+
+(*
+Lemma count_occ_fail_head :
+  forall e src dst k,
+  In dst (odnwNodes (snd (evt_a e))) ->
+  ~ In dst (fst (evt_a e)) ->
+  forall d, odnwState (snd (evt_a e)) dst = Some d ->
+  count_occ Msg_eq_dec (odnwPackets (snd (evt_a e)) src dst) Fail = S k ->
+  l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src) e.
+Proof.
+case => /= [[failed net] lb] tr src dst k H_in H_in_f d H_d H_cnt.
+rewrite /l_enabled /= /enabled.
+case H_m: (odnwPackets net src dst) => [|m ms]; first by rewrite H_m in H_cnt.
+destruct m.
+- case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src Fail d) => [[[lb' out] d'] l].
+  have H_lb := H_hnd.
+  rewrite /lb_net_handlers /= in H_hnd.
+  net_handler_cases => //.
+  exists (failed, {| odnwNodes := net.(odnwNodes) ; odnwPackets := update2 Net.name_eq_dec (odnwPackets net) src dst ms; odnwState := update name_eq_dec (odnwState net) dst (Some d') |}).
+  exists [].
+  by apply: LabeledStepOrderedDynamicFailure_deliver; eauto.
+- 
+Qed.
+*)
+
 End FailureRecorder.
