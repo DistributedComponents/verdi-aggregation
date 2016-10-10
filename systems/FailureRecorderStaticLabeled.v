@@ -983,80 +983,57 @@ case: H_or => H_or //.
 by move: H_or => [H_in H_in'].
 Qed.
 
-Lemma Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled :
-  forall net net' net'' failed failed' failed'' tr tr' dst src src',
-  lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
-  lb_step_ordered_failure (failed, net) (RecvFail dst src') (failed'', net'') tr' ->
-  src <> src' ->
-  enabled lb_step_ordered_failure (RecvFail dst src') (failed', net').
+Definition head_message_enables_label m src dst l :=
+  forall net failed, 
+  ~ In dst failed ->
+  head (net.(onwPackets) src dst) = Some m ->
+  enabled lb_step_ordered_failure l (failed, net).
+
+Lemma Fail_enables_RecvFail :
+  forall src dst, head_message_enables_label Fail src dst (RecvFail dst src).
 Proof.
-move => net net' net'' failed failed' failed'' tr tr' dst src src' H_st H_st' H_neq.
-invcs H_st => //.
-net_handler_cases.
+move => src dst.
+rewrite /head_message_enables_label.
+move => net failed H_f H_eq.
+case H_eq_p: (onwPackets net src dst) => [|m ms]; first by find_rewrite.
+find_rewrite.
+simpl in *.
 find_injection.
-invcs H_st' => //.
-net_handler_cases.
-find_injection.
-set net' := {| onwPackets := _ ; onwState := _ |}.
-pose d' := {| adjacent := NSet.remove from0 d.(adjacent) |}.
-pose onwPackets_net'' := collate name_eq_dec to0 (update2 name_eq_dec  (onwPackets net') from0 to0 ms0) [].
-pose onwState_net'' := update name_eq_dec (onwState net') to0 d'.
-pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
-exists (failed'', net'').
-exists [].
-have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d', []).
-  case H_n: lb_net_handlers => [[[lb out] d1] l].
-  rewrite /lb_net_handlers /= in H_n.
-  monad_unfold.
-  net_handler_cases.
-  destruct d1.
-  simpl in *.
-  find_rewrite.
-  rewrite /d' /update.
-  by break_if.
-set tr := [].
-apply: LabeledStepOrderedFailure_deliver; eauto => //=.
-rewrite /net' /= /update2.
-break_if; first by break_and.
-by eassumption.
+rewrite /enabled.
+case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src Fail (onwState net dst)) => [[[lb' out] d'] l].
+have H_lb := H_hnd.
+rewrite /lb_net_handlers /= in H_hnd.
+by net_handler_cases => //;
+ exists (failed, {| onwPackets := update2 Net.name_eq_dec (onwPackets net) src dst ms; onwState := update name_eq_dec (onwState net) dst d' |}), []; apply: LabeledStepOrderedFailure_deliver; eauto.
 Qed.
 
-Lemma Failure_lb_step_ordered_failure_RecvFail_neq_dst_enabled :
-  forall net net' net'' failed failed' failed'' tr tr' dst dst' src src',
-    lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed', net') tr ->
-    lb_step_ordered_failure (failed, net) (RecvFail dst' src') (failed'', net'') tr' ->
-    dst <> dst' -> 
-    enabled lb_step_ordered_failure (RecvFail dst' src') (failed', net').
+Lemma Tree_lb_step_ordered_failure_RecvFail_enabled :
+  forall net net' net'' failed failed' failed'' tr tr' dst src l,
+  l <> RecvFail dst src ->
+  lb_step_ordered_failure (failed, net) l (failed', net') tr ->
+  lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed'', net'') tr' ->
+  enabled lb_step_ordered_failure (RecvFail dst src) (failed', net').
 Proof.
-move => net net' net'' failed failed' failed'' tr tr' dst dst' src src' H_st H_st' H_neq.
-invcs H_st => //.
-net_handler_cases.
-find_injection.
-invcs H_st' => //.
-net_handler_cases.
-find_injection.
-set net' := {| onwPackets := _ ; onwState := _ |}.
-pose onwPackets_net'' := collate name_eq_dec to0 (update2 name_eq_dec (onwPackets net') from0 to0 ms0) [].
-pose onwState_net'' := update name_eq_dec (onwState net') to0 d0.
-pose net'' := @mkONetwork _ FailureRecorder_MultiParams onwPackets_net'' onwState_net''.
-exists (failed'', net'').
-exists [].
-have H_eq_n: @lb_net_handlers _ FailureRecorder_LabeledMultiParams to0 from0 Fail (onwState net' to0) = (RecvFail to0 from0, [], d0, []).
-  case H_n: lb_net_handlers => [[[lb out] d1] l].
-  rewrite /lb_net_handlers /= in H_n.
-  monad_unfold.
-  net_handler_cases.
-  destruct d1, d0.
-  simpl in *.
-  find_rewrite.
-  find_rewrite.
-  rewrite /update.
-  break_if => //.
-  rewrite e in H_neq.
-  by case: H_neq.
-apply: LabeledStepOrderedFailure_deliver => //; eauto.
-rewrite /net' /= /update2.
-by break_if; first by break_and.
+move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
+destruct l => //.
+- invcs H_st => //. 
+  * by net_handler_cases.
+  * invcs H_st' => //.
+    have H_hd: head (onwPackets net' src dst) = Some Fail by net_handler_cases => //; find_injection; find_rewrite.
+    have H_f: ~ In dst failed'' by net_handler_cases => //; find_injection; find_rewrite.
+    exact: Fail_enables_RecvFail.
+- invcs H_st' => //.
+  have H_eq: onwPackets net src dst = Fail :: ms by net_handler_cases => //; find_injection; find_rewrite.
+  have H_f: ~ In dst failed'' by net_handler_cases => //; find_injection; find_rewrite.
+  invcs H_st => //.
+  set net' := {| onwPackets := _ ; onwState := _ |}.
+  have H_hd': head (onwPackets net' src dst) = Some Fail.
+    rewrite /net' /=.
+    net_handler_cases => //=; rewrite /update2.
+    * break_if.
+      + by break_and; subst; intuition.
+      + by find_rewrite.
+  exact: Fail_enables_RecvFail.
 Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
@@ -1068,51 +1045,23 @@ Lemma Failure_RecvFail_enabled_weak_until_occurred :
 Proof.
 cofix c.
 case => /=.
-case; case => failed net.
-case => [|dst src].
-  move => tr.
-  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
-  inversion H_exec; subst_max.
-  inversion H2; subst_max.
-  - unfold lb_net_handlers in *.
-    simpl in *.
-    by net_handler_cases.
-  - unfold lb_input_handlers in *.
-    simpl in *.
-    by io_handler_cases.
-  - apply: W_tl; first by [].
-    simpl.
-    exact: c.
-move => tr.
-case => /=.
-case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
-inversion H_exec; subst_max.
-case (name_eq_dec dst dst') => H_eq.
-  subst_max.
-  case (name_eq_dec src src') => H_eq'.
-    subst_max.
-    exact: W0.
-  apply: W_tl; first by [].
-  apply: c => //=.
-  rewrite /l_enabled /= /enabled.
-  move {s H4 H_exec}.
-  rewrite -/(enabled _ _ _).
-  rewrite /l_enabled /enabled /= in H_en.
+case; case => failed net l tr s H_exec src dst.
+case (Label_eq_dec l (RecvFail dst src)) => H_eq H_en.
+- find_rewrite.
+  exact: W0.
+- apply: W_tl; first by [].
+  apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
+  unfold l_enabled in *.
+  unfold enabled in H_en.
   break_exists.
+  destruct s as [e s].
+  inversion H_exec; subst_max.
+  inversion H5; subst.  
+  destruct e, evt_a.
+  destruct e', evt_a.
   destruct x.
   simpl in *.
-  move: H2 H H_eq'.
-  exact: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled.
-apply: W_tl; first by [].
-apply: c => //=.
-rewrite /l_enabled /=.
-move {s H4 H_exec}.
-rewrite -/(enabled _ _ _).
-rewrite /l_enabled /enabled /= in H_en.
-break_exists.
-destruct x.
-move: H2 H H_eq.
-exact: Failure_lb_step_ordered_failure_RecvFail_neq_dst_enabled.
+  by apply: Tree_lb_step_ordered_failure_RecvFail_enabled; eauto.
 Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
