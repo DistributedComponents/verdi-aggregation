@@ -807,25 +807,14 @@ match goal with
 | [ H : step_ordered_failure _ _ _ |- _ ] => invc H
 end; simpl.
 - find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //=.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
+  net_handler_cases => //= ; simpl in *;
+    update_destruct_max_simplify; repeat find_rewrite; auto.
 - find_apply_lem_hyp input_handlers_IOHandler.
-  io_handler_cases => //=.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-  * by admit.
-- (* fail *)
-   by admit.  
-Admitted.
+  io_handler_cases => //=; simpl in *;
+    update_destruct_max_simplify; repeat find_rewrite; auto.
+- intros. simpl in *.
+  eauto.
+Qed.
 
 (* bfs_net_ok_root_levels_bot *)
 Lemma Tree_root_levels_bot : 
