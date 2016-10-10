@@ -2207,7 +2207,7 @@ exists [].
 apply: LabeledStepOrderedDynamicFailure_deliver; eauto.
 Qed.
 
-Lemma Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled :
+Lemma Failure_lb_step_ordered_failure_RecvFail_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst src l,
   l <> RecvFail dst src ->
   lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
@@ -2262,7 +2262,7 @@ destruct l => //.
   by break_if; apply: H_en; eauto.
 Qed.
 
-Lemma Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled :
+Lemma Failure_lb_step_ordered_failure_RecvNew_enabled :
   forall net net' net'' failed failed' failed'' tr tr' dst src l,
   l <> RecvNew dst src ->
   lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
@@ -2326,96 +2326,23 @@ Lemma Failure_RecvFail_enabled_weak_until_occurred :
 Proof.
 cofix c.
 case => /=.
-case; case => failed net.
-case => [|dst src|dst src].
-- move => tr.
-  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
+case; case => failed net l tr s H_exec src dst.
+case (Label_eq_dec l (RecvFail dst src)) => H_eq H_en.
+- find_rewrite.
+  exact: W0.
+- apply: W_tl; first by [].
+  apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
+  unfold l_enabled in *.
+  unfold enabled in H_en.
+  break_exists.
+  destruct s as [e s].
   inversion H_exec; subst_max.
-  inversion H2; subst_max.
-  * unfold lb_net_handlers in *.
-    simpl in *.
-    by net_handler_cases.
-  * unfold lb_input_handlers in *.
-    simpl in *.
-    by io_handler_cases.
-  * apply: W_tl; first by [].
-    simpl.
-    exact: c.
-- move => tr.
-  case => /=.
-  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
-  inversion H_exec; subst_max.
-  case (name_eq_dec dst dst') => H_eq.
-  * subst_max.
-    case (name_eq_dec src src') => H_eq'.
-      subst_max.
-      exact: W0.
-    apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /= /enabled.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvFail dst' src <> RecvFail dst' src'.
-      move => H_eq.
-      by find_injection.
-    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
-  * apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /=.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvFail dst src <> RecvFail dst' src'.
-      move => H_eq'.
-      by find_injection.
-    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
-- move => tr.
-  case => /=.
-  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
-  inversion H_exec; subst_max.
-  case (name_eq_dec dst dst') => H_eq.
-  * subst_max.
-    case (name_eq_dec src src') => H_eq'.
-      subst_max.
-      simpl in *.
-      rewrite /l_enabled /enabled in H_en.
-      break_exists.
-      simpl in *.
-      invcs H => //.
-      net_handler_cases => //.
-      invcs H2 => //.
-      net_handler_cases => //.
-      by congruence.
-    simpl in *.
-    apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /= /enabled.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvNew dst' src <> RecvFail dst' src' by [].
-    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
-  * apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /=.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvNew dst src <> RecvFail dst' src' by [].
-    by apply: Failure_lb_step_ordered_failure_RecvFail_neq_src_enabled; eauto.
+  inversion H5; subst.  
+  destruct e, evt_a.
+  destruct e', evt_a.
+  destruct x.
+  simpl in *.
+  by apply: Failure_lb_step_ordered_failure_RecvFail_enabled; eauto.
 Qed.
 
 Lemma Failure_RecvNew_enabled_weak_until_occurred :
@@ -2427,96 +2354,23 @@ Lemma Failure_RecvNew_enabled_weak_until_occurred :
 Proof.
 cofix c.
 case => /=.
-case; case => failed net.
-case => [|dst src|dst src].
-- move => tr.
-  case; case => /= [[failed' net'] lb] tr' s H_exec src dst H_en.
+case; case => failed net l tr s H_exec src dst.
+case (Label_eq_dec l (RecvNew dst src)) => H_eq H_en.
+- find_rewrite.
+  exact: W0.
+- apply: W_tl; first by [].
+  apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
+  unfold l_enabled in *.
+  unfold enabled in H_en.
+  break_exists.
+  destruct s as [e s].
   inversion H_exec; subst_max.
-  inversion H2; subst_max.
-  * unfold lb_net_handlers in *.
-    simpl in *.
-    by net_handler_cases.
-  * unfold lb_input_handlers in *.
-    simpl in *.
-    by io_handler_cases.
-  * apply: W_tl; first by [].
-    simpl.
-    exact: c.
-- move => tr.
-  case => /=.
-  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
-  inversion H_exec; subst_max.
-  case (name_eq_dec dst dst') => H_eq.
-  * subst_max.
-    case (name_eq_dec src src') => H_eq'.
-      subst_max.
-      simpl in *.
-      rewrite /l_enabled /enabled in H_en.
-      break_exists.
-      simpl in *.
-      invcs H => //.
-      net_handler_cases => //.
-      invcs H2 => //.
-      net_handler_cases => //.
-      by congruence.
-    simpl in *.
-    apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /= /enabled.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvFail dst' src <> RecvNew dst' src' by [].
-    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
-  * apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /=.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvFail dst src <> RecvNew dst' src' by [].
-    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
-- move => tr.
-  case => /=.
-  case => [[failed' net'] lb] tr' s H_exec src' dst' H_en.
-  inversion H_exec; subst_max.
-  case (name_eq_dec dst dst') => H_eq.
-  * subst_max.
-    case (name_eq_dec src src') => H_eq'.
-      subst_max.
-      exact: W0.
-    apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /= /enabled.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvNew dst' src <> RecvNew dst' src'.
-      move => H_eq.
-      by find_injection.
-    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
-  * apply: W_tl; first by [].
-    apply: c => //=.
-    rewrite /l_enabled /=.
-    move {s H4 H_exec}.
-    rewrite -/(enabled _ _ _).
-    rewrite /l_enabled /enabled /= in H_en.
-    break_exists.
-    destruct x.
-    simpl in *.
-    have H_neq: RecvNew dst src <> RecvNew dst' src'.
-      move => H_eq'.
-      by find_injection.
-    by apply: Failure_lb_step_ordered_failure_RecvNew_neq_src_enabled; eauto.
+  inversion H5; subst.  
+  destruct e, evt_a.
+  destruct e', evt_a.
+  destruct x.
+  simpl in *.
+  by apply: Failure_lb_step_ordered_failure_RecvNew_enabled; eauto.
 Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
