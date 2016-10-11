@@ -1040,13 +1040,757 @@ destruct s as [x s].
 by apply always_now in H_al.
 Qed.
 
-Lemma Tree_Fail_in_eventually_enabled : 
-  forall s from to,
-  ~ In to (fst (evt_a (hd s))) ->
-  In Fail (onwPackets (snd (evt_a (hd s))) from to) ->
-  eventually (now (l_enabled lb_step_ordered_failure (RecvFail to from))) s.
+Lemma Tree_lb_step_ordered_failure_not_in_failed :
+  forall net net' failed failed' lb tr h,
+  ~ In h failed ->
+  lb_step_ordered_failure (failed, net) lb (failed', net') tr ->
+  ~ In h failed'.
 Proof.
-Admitted.
+move => net net' failed failed' lb tr h H_in_f H_step.
+by invcs H_step.
+Qed.
+
+Lemma Tree_not_in_failed_always : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       forall h, ~ In h (fst (hd s).(evt_a)) ->
+       always (now (fun e => ~ In h (fst e.(evt_a)))) s.
+Proof.
+cofix c.
+move => s H_exec.
+inversion H_exec => /=.
+move => h H_in_f.
+apply: Always; first by [].
+rewrite /=.
+apply: c; first by [].
+rewrite /=.
+destruct e, e', evt_a, evt_a0.
+simpl in *.
+by eapply Tree_lb_step_ordered_failure_not_in_failed; eauto.
+Qed.
+
+Lemma Tree_lb_step_ordered_failure_Fail_head_add_msg_end : 
+  forall net net' failed failed' tr l,
+    lb_step_ordered_failure (failed, net) l (failed', net') tr ->
+    forall dst src ms, l <> RecvFail dst src ->
+    onwPackets net src dst = Fail :: ms ->
+    exists ms' : list Msg, onwPackets net' src dst = Fail :: ms ++ ms'.
+Proof.
+move => net net' failed failed' tr l H_st dst src ms H_neq H_eq.
+invcs H_st => //=.
+- net_handler_cases => //=.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+- io_handler_cases => //=.
+  * case (name_eq_dec h src) => H_dec.
+    + subst_max.
+      case H_adj: (NSet.mem dst (net.(onwState) src).(adjacent)).
+      -- find_apply_lem_hyp NSetFacts.mem_2.
+         have H_in: In dst (NSet.elements (adjacent (onwState net src))).
+           apply NSet.elements_spec1 in H_adj.
+           rewrite /NSet.E.eq in H_adj.
+           apply InA_alt in H_adj.
+           break_exists.
+           break_and.
+           by subst_max.
+         have H_nd := NSet.elements_spec2w (adjacent (onwState net src)).
+         rewrite /NSet.E.eq in H_nd.
+         rewrite /level_adjacent NSet.fold_spec /flip /=.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in H_nd => /= [|n ns IH] H_in H_nd; first by exists []; rewrite -app_nil_end.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         inversion H_nd; subst_max.
+         break_or_hyp.
+           rewrite /update2.
+           break_if; last by intuition.
+           exists [Level (Some 0)].
+           have H_not_in: ~ In dst ns.
+             move => H_in'.
+             contradict H7.
+             apply InA_alt.
+             by exists dst.
+           move {IH H8 H_nd H7}.
+           elim: ns H_not_in => /= [|n' ns IH] H_not_in; first by find_rewrite.
+           have H_in': ~ In dst ns by auto.
+           have H_neq': n' <> dst by auto.
+           concludes.
+           rewrite /flip /= {2}/level_fold.
+           rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+           rewrite collate_app /=.
+           rewrite /update2.
+           break_if; first by break_and; subst_max.
+           by rewrite IH.                          
+         concludes.
+         concludes.
+         break_exists.
+         have H_neq': n <> dst.
+           move => H_eq'.
+           subst_max.
+           contradict H7.
+           apply InA_alt.
+           by exists dst.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H1.
+         by exists x.
+      -- have H_adj': ~ NSet.In dst (adjacent (onwState net src)).
+           move => H_ins.
+           find_apply_lem_hyp NSetFacts.mem_1.
+           by find_rewrite.
+         rewrite /level_adjacent NSet.fold_spec /=.
+         have H_in: ~ In dst (NSet.elements (adjacent (onwState net src))).
+           move => H_in.
+           contradict H_adj'.
+           apply NSet.elements_spec1.
+           rewrite /NSet.E.eq.
+           apply InA_alt.
+           exists dst.
+           by split.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in => /= [|n ns IH] H_in; first by exists []; rewrite -app_nil_end.
+         have H_in': ~ In dst ns by auto.
+         have H_neq': n <> dst by auto.
+         concludes.
+         break_exists.
+         rewrite /flip /= {2}/level_fold.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H.
+         by exists x.
+    + rewrite collate_neq //.
+      by exists []; rewrite -app_nil_end.
+  * case (name_eq_dec h src) => H_dec.
+    + subst_max.
+      case H_adj: (NSet.mem dst (net.(onwState) src).(adjacent)).
+      -- find_apply_lem_hyp NSetFacts.mem_2.
+         have H_in: In dst (NSet.elements (adjacent (onwState net src))).
+           apply NSet.elements_spec1 in H_adj.
+           rewrite /NSet.E.eq in H_adj.
+           apply InA_alt in H_adj.
+           break_exists.
+           break_and.
+           by subst_max.
+         have H_nd := NSet.elements_spec2w (adjacent (onwState net src)).
+         rewrite /NSet.E.eq in H_nd.
+         rewrite /level_adjacent NSet.fold_spec /flip /=.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in H_nd => /= [|n ns IH] H_in H_nd; first by exists []; rewrite -app_nil_end.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         inversion H_nd; subst_max.
+         break_or_hyp.
+           rewrite /update2.
+           break_if; last by intuition.
+           exists [Level (level (adjacent (onwState net src)) (levels (onwState net src)))].
+           have H_not_in: ~ In dst ns.
+             move => H_in'.
+             contradict H7.
+             apply InA_alt.
+             by exists dst.
+           move {IH H8 H_nd H7}.
+           elim: ns H_not_in => /= [|n' ns IH] H_not_in; first by find_rewrite.
+           have H_in': ~ In dst ns by auto.
+           have H_neq': n' <> dst by auto.
+           concludes.
+           rewrite /flip /= {2}/level_fold.
+           rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+           rewrite collate_app /=.
+           rewrite /update2.
+           break_if; first by break_and; subst_max.
+           by rewrite IH.                          
+         concludes.
+         concludes.
+         break_exists.
+         have H_neq': n <> dst.
+           move => H_eq'.
+           subst_max.
+           contradict H7.
+           apply InA_alt.
+           by exists dst.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H1.
+         by exists x.
+      -- have H_adj': ~ NSet.In dst (adjacent (onwState net src)).
+           move => H_ins.
+           find_apply_lem_hyp NSetFacts.mem_1.
+           by find_rewrite.
+         rewrite /level_adjacent NSet.fold_spec /=.
+         have H_in: ~ In dst (NSet.elements (adjacent (onwState net src))).
+           move => H_in.
+           contradict H_adj'.
+           apply NSet.elements_spec1.
+           rewrite /NSet.E.eq.
+           apply InA_alt.
+           exists dst.
+           by split.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in => /= [|n ns IH] H_in; first by exists []; rewrite -app_nil_end.
+         have H_in': ~ In dst ns by auto.
+         have H_neq': n <> dst by auto.
+         concludes.
+         break_exists.
+         rewrite /flip /= {2}/level_fold.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H0.
+         by exists x.
+    + rewrite collate_neq //.
+      by exists []; rewrite -app_nil_end.
+  * by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+Qed.
+
+Lemma Tree_lb_step_ordered_failure_Level_head_add_msg_end : 
+  forall net net' failed failed' tr l,
+    lb_step_ordered_failure (failed, net) l (failed', net') tr ->
+    forall dst src lvo ms, l <> RecvLevel dst src ->
+    onwPackets net src dst = Level lvo :: ms ->
+    exists ms' : list Msg, onwPackets net' src dst = Level lvo :: ms ++ ms'.
+Proof.
+move => net net' failed failed' tr l H_st dst src lvo ms H_neq H_eq.
+invcs H_st => //=.
+- net_handler_cases => //=.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst; find_rewrite.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+  * exists [].
+    rewrite /update2.
+    break_if; first by break_and; subst_max; intuition.
+    by rewrite -app_nil_end.
+- io_handler_cases => //=.
+  * case (name_eq_dec h src) => H_dec.
+    + subst_max.
+      case H_adj: (NSet.mem dst (net.(onwState) src).(adjacent)).
+      -- find_apply_lem_hyp NSetFacts.mem_2.
+         have H_in: In dst (NSet.elements (adjacent (onwState net src))).
+           apply NSet.elements_spec1 in H_adj.
+           rewrite /NSet.E.eq in H_adj.
+           apply InA_alt in H_adj.
+           break_exists.
+           break_and.
+           by subst_max.
+         have H_nd := NSet.elements_spec2w (adjacent (onwState net src)).
+         rewrite /NSet.E.eq in H_nd.
+         rewrite /level_adjacent NSet.fold_spec /flip /=.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in H_nd => /= [|n ns IH] H_in H_nd; first by exists []; rewrite -app_nil_end.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         inversion H_nd; subst_max.
+         break_or_hyp.
+           rewrite /update2.
+           break_if; last by intuition.
+           exists [Level (Some 0)].
+           have H_not_in: ~ In dst ns.
+             move => H_in'.
+             contradict H7.
+             apply InA_alt.
+             by exists dst.
+           move {IH H8 H_nd H7}.
+           elim: ns H_not_in => /= [|n' ns IH] H_not_in; first by find_rewrite.
+           have H_in': ~ In dst ns by auto.
+           have H_neq': n' <> dst by auto.
+           concludes.
+           rewrite /flip /= {2}/level_fold.
+           rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+           rewrite collate_app /=.
+           rewrite /update2.
+           break_if; first by break_and; subst_max.
+           by rewrite IH.
+         concludes.
+         concludes.
+         break_exists.
+         have H_neq': n <> dst.
+           move => H_eq'.
+           subst_max.
+           contradict H7.
+           apply InA_alt.
+           by exists dst.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H1.
+         by exists x.
+      -- have H_adj': ~ NSet.In dst (adjacent (onwState net src)).
+           move => H_ins.
+           find_apply_lem_hyp NSetFacts.mem_1.
+           by find_rewrite.
+         rewrite /level_adjacent NSet.fold_spec /=.
+         have H_in: ~ In dst (NSet.elements (adjacent (onwState net src))).
+           move => H_in.
+           contradict H_adj'.
+           apply NSet.elements_spec1.
+           rewrite /NSet.E.eq.
+           apply InA_alt.
+           exists dst.
+           by split.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in => /= [|n ns IH] H_in; first by exists []; rewrite -app_nil_end.
+         have H_in': ~ In dst ns by auto.
+         have H_neq': n <> dst by auto.
+         concludes.
+         break_exists.
+         rewrite /flip /= {2}/level_fold.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H.
+         by exists x.
+    + rewrite collate_neq //.
+      by exists []; rewrite -app_nil_end.
+  * case (name_eq_dec h src) => H_dec.
+    + subst_max.
+      case H_adj: (NSet.mem dst (net.(onwState) src).(adjacent)).
+      -- find_apply_lem_hyp NSetFacts.mem_2.
+         have H_in: In dst (NSet.elements (adjacent (onwState net src))).
+           apply NSet.elements_spec1 in H_adj.
+           rewrite /NSet.E.eq in H_adj.
+           apply InA_alt in H_adj.
+           break_exists.
+           break_and.
+           by subst_max.
+         have H_nd := NSet.elements_spec2w (adjacent (onwState net src)).
+         rewrite /NSet.E.eq in H_nd.
+         rewrite /level_adjacent NSet.fold_spec /flip /=.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in H_nd => /= [|n ns IH] H_in H_nd; first by exists []; rewrite -app_nil_end.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         inversion H_nd; subst_max.
+         break_or_hyp.
+           rewrite /update2.
+           break_if; last by intuition.
+           exists [Level (level (adjacent (onwState net src)) (levels (onwState net src)))].
+           have H_not_in: ~ In dst ns.
+             move => H_in'.
+             contradict H7.
+             apply InA_alt.
+             by exists dst.
+           move {IH H8 H_nd H7}.
+           elim: ns H_not_in => /= [|n' ns IH] H_not_in; first by find_rewrite.
+           have H_in': ~ In dst ns by auto.
+           have H_neq': n' <> dst by auto.
+           concludes.
+           rewrite /flip /= {2}/level_fold.
+           rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+           rewrite collate_app /=.
+           rewrite /update2.
+           break_if; first by break_and; subst_max.
+           by rewrite IH.                          
+         concludes.
+         concludes.
+         break_exists.
+         have H_neq': n <> dst.
+           move => H_eq'.
+           subst_max.
+           contradict H7.
+           apply InA_alt.
+           by exists dst.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H1.
+         by exists x.
+      -- have H_adj': ~ NSet.In dst (adjacent (onwState net src)).
+           move => H_ins.
+           find_apply_lem_hyp NSetFacts.mem_1.
+           by find_rewrite.
+         rewrite /level_adjacent NSet.fold_spec /=.
+         have H_in: ~ In dst (NSet.elements (adjacent (onwState net src))).
+           move => H_in.
+           contradict H_adj'.
+           apply NSet.elements_spec1.
+           rewrite /NSet.E.eq.
+           apply InA_alt.
+           exists dst.
+           by split.
+         elim: (NSet.elements (adjacent (onwState net src))) H_in => /= [|n ns IH] H_in; first by exists []; rewrite -app_nil_end.
+         have H_in': ~ In dst ns by auto.
+         have H_neq': n <> dst by auto.
+         concludes.
+         break_exists.
+         rewrite /flip /= {2}/level_fold.
+         rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+         rewrite collate_app /=.
+         rewrite /update2.
+         break_if; first by break_and.
+         rewrite H0.
+         by exists x.
+    + rewrite collate_neq //.
+      by exists []; rewrite -app_nil_end.
+  * by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+- by exists []; rewrite -app_nil_end.
+Qed.
+
+Lemma Tree_Fail_eventually_remove_head :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  forall ms, onwPackets (snd (evt_a (hd s))) src dst = Fail :: ms ->
+  eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
+Proof.
+move => s H_exec H_fair src dst H_f ms H_eq.
+have H_hd: head (onwPackets (snd (evt_a (hd s))) src dst) = Some Fail by find_rewrite.
+have H_en := Fail_enables_RecvFail _ _ _ _ H_f H_hd.
+have H_ev: eventually (now (occurred (RecvFail dst src))) s.
+  apply (@Tree_RecvFail_eventually_occurred _ H_exec H_fair src dst).
+  rewrite /l_enabled.
+  by destruct evt_a.
+have H_ex: exists ms', onwPackets (snd (evt_a (hd s))) src dst = Fail :: ms ++ ms' by exists []; rewrite app_nil_r.
+have H_al := Tree_not_in_failed_always H_exec _ H_f.
+have H_wu := @Tree_RecvFail_enabled_weak_until_occurred _ H_exec src dst.
+move: H_wu.
+set le := l_enabled _ _ _.
+have H_le: le by rewrite /le /l_enabled; destruct evt_a.
+move => H_wu.
+concludes.  
+move {H_eq H_f H_hd H_en H_le le}.
+elim: H_ev H_exec H_fair H_ex H_al H_wu.
+* case; case; case => /= failed net l tr.
+  case; case; case => /= failed' net' l' tr'.
+  case; case; case => /= failed'' net'' l'' tr'' s0 H_occ H_exec H_fair H_ex H_al H_wu.
+  apply: E_next.
+  apply: E0.
+  rewrite /=.
+  rewrite /occurred /= in H_occ.
+  subst_max.
+  inversion H_exec; subst_max.
+  break_exists_name ms'.
+  exists ms'.
+  simpl in *.
+  invcs H2; last by io_handler_cases.
+  net_handler_cases => //=. 
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+* case; case => failed net l tr.
+  case; case; case => failed' net' l' tr'.
+  case; case; case => failed'' net'' l'' tr'' s0 H_ev IH H_exec H_fair H_ex H_al H_wu.
+  simpl in *.
+  break_exists_name ms'.
+  case (Label_eq_dec l (RecvFail dst src)) => H_eq.
+  + subst_max.
+    apply E_next.
+    apply E0.
+    inversion H_exec; subst_max.
+    simpl in *.
+    exists ms'.
+    invcs H2; last by io_handler_cases.
+    net_handler_cases => //=. 
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+  + apply E_next.
+    apply IH.
+    -- by find_apply_lem_hyp lb_step_execution_invar.
+    -- by find_apply_lem_hyp weak_local_fairness_invar.
+    -- inversion H_exec; subst_max.
+       simpl in *.
+       have H_add := Tree_lb_step_ordered_failure_Fail_head_add_msg_end H2 H_eq H_ex.
+       break_exists.
+       rewrite app_assoc_reverse in H.
+       by exists (ms' ++ x).
+    -- by find_apply_lem_hyp always_invar.
+    -- find_apply_lem_hyp weak_until_Cons.
+       simpl in *.
+       rewrite /occurred in H_wu.
+       break_or_hyp; simpl in *; last by intuition.
+       by rewrite H in H_eq.
+Qed.
+
+Lemma Tree_Level_eventually_remove_head :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  forall lvo ms, onwPackets (snd (evt_a (hd s))) src dst = Level lvo :: ms ->
+  eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
+Proof.
+move => s H_exec H_fair src dst H_f lvo ms H_eq.
+have H_hd: head (onwPackets (snd (evt_a (hd s))) src dst) = Some (Level lvo) by find_rewrite.
+have H_en := Level_enables_RecvLevel _ _ _ _ H_f H_hd.
+have H_ev: eventually (now (occurred (RecvLevel dst src))) s.
+  apply (@Tree_RecvLevel_eventually_occurred _ H_exec H_fair src dst).
+  rewrite /l_enabled.
+  by destruct evt_a.
+have H_ex: exists ms', onwPackets (snd (evt_a (hd s))) src dst = Level lvo :: ms ++ ms' by exists []; rewrite app_nil_r.
+have H_al := Tree_not_in_failed_always H_exec _ H_f.
+have H_wu := @Tree_RecvLevel_enabled_weak_until_occurred _ H_exec src dst.
+move: H_wu.
+set le := l_enabled _ _ _.
+have H_le: le by rewrite /le /l_enabled; destruct evt_a.
+move => H_wu.
+concludes.  
+move {H_eq H_f H_hd H_en H_le le}.
+elim: H_ev H_exec H_fair H_ex H_al H_wu.
+* case; case; case => /= failed net l tr.
+  case; case; case => /= failed' net' l' tr'.
+  case; case; case => /= failed'' net'' l'' tr'' s0 H_occ H_exec H_fair H_ex H_al H_wu.
+  apply: E_next.
+  apply: E0.
+  rewrite /=.
+  rewrite /occurred /= in H_occ.
+  subst_max.
+  inversion H_exec; subst_max.
+  break_exists_name ms'.
+  exists ms'.
+  simpl in *.
+  invcs H2; last by io_handler_cases.
+  net_handler_cases => //=.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+  + find_injection; subst_max.
+    find_rewrite.
+    find_injection.
+    rewrite /update2.
+    by break_if; intuition.
+* case; case => failed net l tr.
+  case; case; case => failed' net' l' tr'.
+  case; case; case => failed'' net'' l'' tr'' s0 H_ev IH H_exec H_fair H_ex H_al H_wu.
+  simpl in *.
+  break_exists_name ms'.
+  case (Label_eq_dec l (RecvLevel dst src)) => H_eq.
+  + subst_max.
+    apply E_next.
+    apply E0.
+    inversion H_exec; subst_max.
+    simpl in *.
+    exists ms'.
+    invcs H2; last by io_handler_cases.
+    net_handler_cases => //=. 
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+    -- find_injection; subst_max.
+       find_rewrite.
+       find_injection.
+       rewrite /update2.
+       by break_if; intuition.
+  + apply E_next.
+    apply IH.
+    -- by find_apply_lem_hyp lb_step_execution_invar.
+    -- by find_apply_lem_hyp weak_local_fairness_invar.
+    -- inversion H_exec; subst_max.
+       simpl in *.
+       have H_add := Tree_lb_step_ordered_failure_Level_head_add_msg_end H2 H_eq H_ex.
+       break_exists.
+       rewrite app_assoc_reverse in H.
+       by exists (ms' ++ x).
+    -- by find_apply_lem_hyp always_invar.
+    -- find_apply_lem_hyp weak_until_Cons.
+       simpl in *.
+       rewrite /occurred in H_wu.
+       break_or_hyp; simpl in *; last by intuition.
+       by rewrite H in H_eq.
+Qed.
+
+Lemma Tree_msg_eventually_remove_head :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  forall m ms, onwPackets (snd (evt_a (hd s))) src dst = m :: ms ->
+  eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
+Proof.
+move => s H_exec H_fai src dst H_in.
+case.
+- move => ms H_eq.
+  by apply: Tree_Fail_eventually_remove_head; eauto.
+- move => ms H_eq.
+  by apply: Tree_Level_eventually_remove_head; eauto.
+Qed.
+
+Lemma Tree_msg_in_eventually_first : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  forall m, In m (onwPackets (snd (evt_a (hd s))) src dst) ->
+  eventually (now (fun e => head (onwPackets (snd (evt_a e)) src dst) = Some m)) s.
+Proof.
+move => s H_exec H_fair src dst H_f m H_in.
+find_apply_lem_hyp in_split.
+break_exists_name l1.
+break_exists_name l2.
+elim: l1 s H_exec H_fair l2 H_in H_f => /=.
+- case; case; case => failed net lb tr s H_exec H_fair l2.
+  rewrite /= => H_eq H_f.
+  apply: E0.
+  by rewrite /= H_eq.
+- move => m' l /= IH.
+  case; case; case => /= failed net lb tr s.
+  set s' := Cons _ _.
+  move => H_exec H_fair l2 H_eq H_f.
+  have H_ev := Tree_msg_eventually_remove_head H_exec H_fair _ _ H_f H_eq.
+  have H_al := Tree_not_in_failed_always H_exec _ H_f.
+  simpl in *.
+  elim: H_ev H_exec H_fair H_al.
+  * case; case; case => /= failed' net' lb' tr' s0 H_eq' H_exec H_fair H_al.
+    break_exists.
+    rewrite app_assoc_reverse -app_comm_cons in H.
+    apply always_now in H_al.
+    by apply: IH => //=; eauto.
+  * case; case => /= failed' net' lb' tr' s0 H_ev IH' H_exec H_fair H_al.
+    apply: E_next.
+    apply IH'.
+    + by find_apply_lem_hyp lb_step_execution_invar.
+    + by find_apply_lem_hyp weak_local_fairness_invar.
+    + by find_apply_lem_hyp always_invar.
+Qed.
+
+Lemma Tree_Fail_in_eventually_enabled : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  In Fail (onwPackets (snd (evt_a (hd s))) src dst) ->
+  eventually (now (l_enabled lb_step_ordered_failure (RecvFail dst src))) s.
+Proof.
+move => s H_exec H_fair src dst H_f H_in.
+have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H_f _ H_in.
+have H_al := Tree_not_in_failed_always H_exec _ H_f.
+move: H_al H_ev.
+apply: eventually_monotonic.
+- move => e s0 H_al.
+  by find_apply_lem_hyp always_invar.
+- case; case; case => failed net l tr s' H_eq.
+  rewrite /l_enabled.
+  simpl in *.
+  apply: Fail_enables_RecvFail => //.
+  by find_apply_lem_hyp always_now.
+Qed.
+
+Lemma Tree_Level_in_eventually_enabled : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  forall lvo, In (Level lvo) (onwPackets (snd (evt_a (hd s))) src dst) ->
+  eventually (now (l_enabled lb_step_ordered_failure (RecvLevel dst src))) s.
+Proof.
+move => s H_exec H_fair src dst H_f lvo H_in.
+have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H_f _ H_in.
+have H_al := Tree_not_in_failed_always H_exec _ H_f.
+move: H_al H_ev.
+apply: eventually_monotonic.
+- move => e s0 H_al.
+  by find_apply_lem_hyp always_invar.
+- case; case; case => failed net l tr s' H_eq.
+  rewrite /l_enabled.
+  simpl in *.
+  apply: Level_enables_RecvLevel => //.
+  by find_apply_lem_hyp always_now.
+Qed.
 
 Lemma Tree_FailureRecorder_lb_step_execution_pt_map : forall s,
   lb_step_execution lb_step_ordered_failure s ->
@@ -1090,6 +1834,20 @@ have H_in: In Fail (onwPackets net from to).
   - by eexists.
   - by rewrite H4; left.
 exact: Tree_Fail_in_eventually_enabled.
+Qed.
+
+Lemma Tree_pt_map_onet_tot_map_label_event_state_strong_local_fairness : 
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+       strong_local_fairness lb_step_ordered_failure label_silent s ->
+       strong_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
+Proof.
+apply: pt_map_onet_tot_map_label_event_strong_local_fairness.
+- case; first by exists Tau.
+  move => dst src.
+  by exists (RecvFail dst src).
+- move => l H_neq s H_exec H_fair.
+  find_apply_lem_hyp strong_local_fairness_weak.
+  exact: Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.  
 Qed.
 
 Lemma Tree_pt_map_onet_always_enabled_continuously :
