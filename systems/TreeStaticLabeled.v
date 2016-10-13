@@ -694,6 +694,191 @@ Proof.
   by io_handler_cases.
 Qed.
 
+Lemma Tree_node_not_adjacent_self : 
+forall net failed tr n, 
+ step_ordered_failure_star step_ordered_failure_init (failed, net) tr ->
+ ~ In n failed ->
+ ~ NSet.In n (onwState net n).(adjacent).
+Proof.
+move => onet failed tr n H_st H_in_f.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+exact: FR.Failure_node_not_adjacent_self H_st' H_in_f.
+Qed.
+
+Lemma Tree_not_failed_no_fail :
+forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+  ~ In n failed ->
+  ~ In Fail (onet.(onwPackets) n n').
+Proof.
+move => onet failed tr H_st n n' H_in_f.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_not_failed_no_fail H_st' n n' H_in_f.
+move => H_in.
+case: H_inv'.
+rewrite /= /id /=.
+move: H_in.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Tree_in_adj_adjacent_to :
+forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
+    adjacent_to n' n.
+Proof.
+move => net failed tr H_st n n' H_in_f H_ins.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+exact (FR.Failure_in_adj_adjacent_to H_st' n H_in_f H_ins).
+Qed.
+
+Lemma Tree_pt_map_msg_injective : 
+  forall m0 m1 m2 : msg,
+   pt_map_msg m0 = Some m2 -> pt_map_msg m1 = Some m2 -> m0 = m1.
+Proof.
+by case => [|lvo]; case => [|lvo'] H_eq.
+Qed.
+
+Lemma Tree_in_adj_or_incoming_fail :
+forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
+    ~ In n' failed \/ (In n' failed /\ In Fail (onet.(onwPackets) n' n)).
+Proof.
+move => net failed tr H_st n n' H_in_f H_ins.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_in_adj_or_incoming_fail H_st' _ H_in_f H_ins.
+case: H_inv' => H_inv'; first by left.
+right.
+move: H_inv' => [H_in_f' H_inv'].
+split => //.
+move: H_inv'.
+apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+exact: Tree_pt_map_msg_injective.
+Qed.
+
+Lemma Tree_le_one_fail : 
+  forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    count_occ Msg_eq_dec (onet.(onwPackets) n' n) Fail <= 1.
+Proof.
+move => onet failed tr H_st n n' H_in_f.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_le_one_fail H_st' _ n' H_in_f.
+rewrite /= /id /= in H_inv'.
+move: H_inv'.
+set c1 := count_occ _ _ _.
+set c2 := count_occ _ _ _.
+suff H_suff: c1 = c2 by rewrite -H_suff.
+rewrite /c1 /c2 {c1 c2}.
+apply: count_occ_pt_map_msgs_eq => //.
+exact: Tree_pt_map_msg_injective.
+Qed.
+
+Lemma Tree_adjacent_to_in_adj :
+forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    ~ In n' failed ->
+    adjacent_to n' n ->
+    NSet.In n' (onet.(onwState) n).(adjacent).
+Proof.
+move => onet failed tr H_st n n' H_in_f H_in_f' H_adj.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+exact: (FR.Failure_adjacent_to_in_adj H_st' H_in_f H_in_f' H_adj).
+Qed.
+
+Lemma Tree_in_queue_fail_then_adjacent : 
+  forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    In Fail (onet.(onwPackets) n' n) ->
+    NSet.In n' (onet.(onwState) n).(adjacent).
+Proof.
+move => onet failed tr H_st n n' H_in_f H_ins.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
+apply: H_inv'.
+rewrite /= /id /=.
+move: H_ins.
+exact: in_msg_pt_map_msgs.
+Qed.
+
+Lemma Tree_first_fail_in_adj : 
+  forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    head (onet.(onwPackets) n' n) = Some Fail ->
+    NSet.In n' (onet.(onwState) n).(adjacent).
+Proof.
+move => onet failed tr H_st n n' H_in_f H_eq.
+have H_st' := Tree_Failed_pt_mapped_simulation_star_1 H_st.
+have H_inv' := FR.Failure_first_fail_in_adj H_st' _ n' H_in_f.
+apply: H_inv'.
+rewrite /= /id /=.
+move: H_eq.
+exact: hd_error_pt_map_msgs.
+Qed.
+
+Lemma Tree_adjacent_failed_incoming_fail : 
+  forall onet failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, onet) tr -> 
+  forall n n',
+    ~ In n failed ->
+    NSet.In n' (onet.(onwState) n).(adjacent) ->
+    In n' failed ->
+    In Fail (onet.(onwPackets) n' n).
+Proof.
+move => onet failed tr H_st n n' H_in_f H_adj H_in_f'.
+have H_or := Tree_in_adj_or_incoming_fail H_st _ H_in_f H_adj.
+case: H_or => H_or //.
+by move: H_or => [H_in H_in'].
+Qed.
+
+(* bfs_net_ok_root_levels_empty *)
+Lemma Tree_root_levels_empty :
+  forall net failed tr,
+  step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
+  forall n, ~ In n failed -> 
+  root n ->
+  (net.(onwState) n).(levels) = NMap.empty lv.
+Proof.
+move => onet failed tr H.
+have H_eq_f: failed = fst (failed, onet) by [].
+have H_eq_o: onet = snd (failed, onet) by [].
+rewrite H_eq_f {H_eq_f}.
+rewrite {2}H_eq_o {H_eq_o}.
+remember step_ordered_failure_init as y in *.
+move: Heqy.
+induction H using refl_trans_1n_trace_n1_ind => H_init {failed}.
+  rewrite H_init /=.
+  move => n H_in H_r.
+  rewrite /InitData /=.
+  by break_if.
+concludes.
+match goal with
+| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
+end; simpl.
+- find_apply_lem_hyp net_handlers_NetHandler; break_exists.
+  net_handler_cases => //= ; simpl in *;
+    update_destruct_max_simplify; repeat find_rewrite; auto.
+- find_apply_lem_hyp input_handlers_IOHandler; break_exists.
+  io_handler_cases => //=; simpl in *;
+    update_destruct_max_simplify; repeat find_rewrite; auto.
+- intros. simpl in *.
+  eauto.
+Qed.
+
 Definition head_message_enables_label m src dst l :=
   forall net failed, 
   ~ In dst failed ->
@@ -1858,6 +2043,35 @@ forall l : label,
   always (now (l_enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
   continuously (now (l_enabled lb_step_ordered_failure l)) s.
 Proof.
+case => //= src dst H_neq.
+case; case; case => /= failed net l tr s H_exec H_fair H_al.
+find_rewrite_lem map_Cons.
+find_apply_lem_hyp always_Cons.
+break_and.
+rewrite /= /l_enabled /enabled /= map_id /id in H.
+break_exists_name a.
+break_exists_name tr'.
+destruct a as [failed' net'].
+invcs H; last by FR.io_handler_cases.
+unfold id in *.
+FR.net_handler_cases => //.
+simpl in *.
+find_injection.
+move: H5.
+set ptm := pt_map_msgs _.
+move => H_eq_pt.
+have H_in_pt: In FR.Fail ptm by find_rewrite; left.
+have H_in: In Fail (onwPackets net from to).
+  move: H_in_pt.
+  apply: in_pt_map_msgs_in_msg => //.
+  by case => //=; case.
+unfold ptm in *.
+move {ptm H_in_pt}.
+have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H6 _ H_in.
+have H_al := Tree_not_in_failed_always H_exec to H6.
+simpl in *.
+find_apply_lem_hyp always_invar.
+move {H_fair H7 H_in H6}.
 Admitted.
 
 Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
@@ -1865,7 +2079,8 @@ Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness :
        weak_local_fairness lb_step_ordered_failure label_silent s ->
        weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
-apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
+move => s H_star H_exec H_fair.
+apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness => //.
 - case; first by exists Tau.
   move => dst src.
   by exists (RecvFail dst src).
@@ -1943,6 +2158,54 @@ apply continuously_map_conv.
   rewrite /id map_id /=.
   move => H_in H_in'.
   by concludes.
+Qed.
+
+Inductive root_path_length (failed : list name) : name -> nat -> Prop :=
+| root_path_length_self : forall n, 
+    ~ In n failed -> 
+    root n -> 
+    root_path_length failed n 0
+| root_path_length_proxy : forall n n' k,
+    root_path_length failed n k ->
+    ~ In n' failed ->
+    adjacent_to n n' ->
+    root_path_length failed n' (S k).
+
+Definition min_root_path_length (failed : list name) (n : name) (k : nat) : Prop :=
+root_path_length failed n k /\ (forall k', root_path_length failed n k' -> k <= k').
+
+Lemma root_path_length_exists_root : 
+  forall failed n k,
+    root_path_length failed n k ->
+    exists r, ~ In r failed /\ root r.
+Proof.
+move => failed n k.
+elim => //.
+move => r H_in H_eq.
+by exists r.
+Qed.
+
+Lemma root_path_length_not_failed : 
+  forall failed n k,
+  root_path_length failed n k ->
+  ~ In n failed.
+Proof. by move => failed n k; case. Qed.
+
+Lemma min_root_path_length_not_adjacent_plus_2 : 
+  forall failed n k n' k',
+  min_root_path_length failed n k ->
+  min_root_path_length failed n' k' ->
+  k' >= S (S k) ->
+  ~ adjacent_to n n'.
+Proof.
+move => failed n k n' k' H_min H_min' H_ge H_adj.
+unfold min_root_path_length in *.
+repeat break_and.
+have H_r: root_path_length failed n' (S k).
+  apply: root_path_length_proxy; eauto.
+  by apply: root_path_length_not_failed; eauto.
+have H_r' := H0 _ H_r.
+by omega.
 Qed.
 
 End Tree.
