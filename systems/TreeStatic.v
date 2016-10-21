@@ -782,40 +782,6 @@ case: H_or => H_or //.
 by move: H_or => [H_in H_in'].
 Qed.
 
-(* bfs_net_ok_root_levels_empty *)
-Lemma Tree_root_levels_empty :
-  forall net failed tr,
-  step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
-  forall n, ~ In n failed -> 
-  root n ->
-  (net.(onwState) n).(levels) = NMap.empty lv.
-Proof.
-move => onet failed tr H.
-have H_eq_f: failed = fst (failed, onet) by [].
-have H_eq_o: onet = snd (failed, onet) by [].
-rewrite H_eq_f {H_eq_f}.
-rewrite {2}H_eq_o {H_eq_o}.
-remember step_ordered_failure_init as y in *.
-move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}.
-  rewrite H_init /=.
-  move => n H_in H_r.
-  rewrite /InitData /=.
-  by break_if.
-concludes.
-match goal with
-| [ H : step_ordered_failure _ _ _ |- _ ] => invc H
-end; simpl.
-- find_apply_lem_hyp net_handlers_NetHandler.
-  net_handler_cases => //= ; simpl in *;
-    update_destruct_max_simplify; repeat find_rewrite; auto.
-- find_apply_lem_hyp input_handlers_IOHandler.
-  io_handler_cases => //=; simpl in *;
-    update_destruct_max_simplify; repeat find_rewrite; auto.
-- intros. simpl in *.
-  eauto.
-Qed.
-
 Ltac induct_step :=
   match goal with
   | H : step_ordered_failure_star _ _ _ |- _ =>
@@ -830,7 +796,7 @@ Ltac induct_step :=
   end.
 
 (* bfs_net_ok_root_levels_empty *)
-Lemma Tree_root_levels_empty' :
+Lemma Tree_root_levels_empty :
   forall net failed tr,
   step_ordered_failure_star step_ordered_failure_init (failed, net) tr -> 
   forall n, ~ In n failed -> 
