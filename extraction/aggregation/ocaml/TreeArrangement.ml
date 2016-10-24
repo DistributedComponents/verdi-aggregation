@@ -1,8 +1,8 @@
 module TreeArrangement = struct
   open Tree
-  open T
+  open TreeNames
 
-  type name = FN_N5.name
+  type name = Names.name
   type state = coq_Data
   type input = coq_Input
   type output = coq_Output

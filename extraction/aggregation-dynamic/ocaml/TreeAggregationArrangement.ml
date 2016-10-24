@@ -1,15 +1,15 @@
 module TreeAggregationArrangement = struct
   open TreeAggregation
-  open TA
+  open TreeAggregationNames
 
-  type name = FN_N5.name
+  type name = Names.name
   type state = coq_Data
   type input = coq_Input
   type output = coq_Output
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
   type request_id = int
-  let systemName : string = "Static Tree Aggregation Protocol"
+  let systemName : string = "Dynamic Tree Aggregation Protocol"
 
   let serializeName : name -> string = fun nm -> Printf.sprintf "%d" nm
   let deserializeName : string -> name option = fun s ->
@@ -54,13 +54,14 @@ module TreeAggregationArrangement = struct
     | LevelResponse olv -> Printf.sprintf "LevelResponse(%s)" (serializeLevelOption olv)
 
   let serializeMsg : msg -> string = function
+    | New -> "New"
     | Aggregate x -> Printf.sprintf "Aggregate(%d)" (Obj.magic x)
     | Fail -> "Fail"
     | Level olv -> Printf.sprintf "Level(%s)" (serializeLevelOption olv)
 
   let failMsg = Some Fail
 
-  let newMsg = None
+  let newMsg = Some New
 
   let debug : bool = true
 

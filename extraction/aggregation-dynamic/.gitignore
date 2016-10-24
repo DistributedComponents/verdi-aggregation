@@ -1,6 +1,8 @@
-coq/*.ml
-coq/*.mli
+ocaml/Tree.ml
+ocaml/Tree.mli
+ocaml/TreeAggregation.ml
+ocaml/TreeAggregation.mli
 lib
 _build
-Tree.native
-TreeAggregation.native
+TreeMain.native
+TreeAggregationMain.native

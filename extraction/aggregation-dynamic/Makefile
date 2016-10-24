@@ -1,15 +1,19 @@
-OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ml -I coq -cflag -g
+OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ocaml -cflag -g
+TREE_AGGREGATION = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli \
+ ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml
+TREE = ocaml/Tree.ml ocaml/Tree.mli ocaml/TreeArrangement.ml ocaml/TreeMain.ml
+LIB = lib/OrderedMain.ml lib/OrderedShim.ml
 
-default: Tree.native TreeAggregation.native
+default: TreeMain.native TreeAggregationMain.native
 
-TreeAggregation.native : coq/TreeAggregation.ml coq/TreeAggregation.mli
-	$(OCAMLBUILD) TreeAggregation.native
+TreeAggregationMain.native: $(TREE_AGGREGATION) $(LIB)
+	$(OCAMLBUILD) TreeAggregationMain.native
 
-Tree.native : coq/Tree.ml coq/Tree.mli
-	$(OCAMLBUILD) Tree.native
+TreeMain.native: $(TREE) $(LIB)
+	$(OCAMLBUILD) TreeMain.native
 
 clean:
-	$(OCAMLBUILD) Tree.native -clean
-	$(OCAMLBUILD) TreeAggregation.native -clean
+	$(OCAMLBUILD) TreeMain.native -clean
+	$(OCAMLBUILD) TreeAggregationMain.native -clean
 
 .PHONY: default clean

@@ -1,15 +1,15 @@
 module TreeArrangement = struct
   open Tree
-  open T
+  open TreeNames
 
-  type name = FN_N5.name
+  type name = Names.name
   type state = coq_Data
   type input = coq_Input
   type output = coq_Output
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
   type request_id = int
-  let systemName : string = "Static Tree Building Protocol"
+  let systemName : string = "Dynamic Tree Building Protocol"
   let serializeName : name -> string = fun nm -> Printf.sprintf "%d" nm
   let deserializeName : string -> name option = fun s ->
     try Some (int_of_string s)
