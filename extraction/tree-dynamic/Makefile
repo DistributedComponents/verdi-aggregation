@@ -1,4 +1,4 @@
-OCAMLBUILD = ocamlbuild -lib str -lib unix -lib bytes -I lib -I ocaml -cflag -g
+OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ocaml -cflag -g
 TREE = ocaml/Tree.ml ocaml/Tree.mli ocaml/TreeArrangement.ml ocaml/TreeMain.ml
 LIB = lib/OrderedMain.ml lib/OrderedShim.ml
 
