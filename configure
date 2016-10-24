@@ -5,7 +5,7 @@
 ## Configuration options for coqproject.sh
 DEPS=(StructTact Verdi AAC_tactics InfSeqExt)
 DIRS=(lib systems extraction/aggregation/coq extraction/aggregation-dynamic/coq extraction/tree/coq extraction/tree-dynamic/coq)
-CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Raft requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation")
+CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Aggregation requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation")
 Verdi_PATH=${Verdi_PATH:="../verdi"}
 ln -sfn $Verdi_PATH/extraction/ocaml extraction/aggregation/lib
 ln -sfn $Verdi_PATH/extraction/ocaml extraction/aggregation-dynamic/lib

@@ -18,8 +18,8 @@ function find-redundant-imports {
     done
 }
 
-echo "Looking for redundant imports."
-find-redundant-imports raft/Raft.v "(.*/Raft.v)"
+#echo "Looking for redundant imports."
+#find-redundant-imports raft/Raft.v "(.*/Raft.v)"
 
 
 # Delete imports:
