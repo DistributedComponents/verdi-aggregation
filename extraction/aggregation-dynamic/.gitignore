@@ -1,8 +1,5 @@
-ocaml/Tree.ml
-ocaml/Tree.mli
 ocaml/TreeAggregation.ml
 ocaml/TreeAggregation.mli
 lib
 _build
-TreeMain.native
 TreeAggregationMain.native

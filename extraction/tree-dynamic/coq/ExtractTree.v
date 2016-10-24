@@ -1,7 +1,7 @@
 Require Import Verdi.Verdi.
 Require Import Verdi.NameOverlay.
 
-Require Import TreeStatic.
+Require Import TreeDynamic.
 
 Require Import StructTact.Fin.
 
@@ -31,4 +31,4 @@ Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 Module TreeNames := Tree Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AdjacentNames.
 Import TreeNames.
 
-Extraction "extraction/aggregation/ocaml/Tree.ml" seq Tree_BaseParams Tree_MultiParams.
+Extraction "extraction/tree-dynamic/ocaml/Tree.ml" seq Tree_BaseParams Tree_MultiParams.
