@@ -68,6 +68,10 @@ lint:
 	find . -name '*.v' -exec grep -Hn 'H[0-9][0-9]*' {} \;
 
 distclean: clean
-	rm -f _CoqProject
+	rm -f _CoqProject \
+	 extraction/aggregation/lib \
+	 extraction/aggregation-dynamic/lib \
+	 extraction/tree/lib \
+	 extraction/tree-dynamic/lib
 
-.PHONY: default clean lint proofalytics distclean
+.PHONY: default quick clean lint proofalytics distclean
