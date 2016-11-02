@@ -855,6 +855,35 @@ forall onet failed tr,
  forall (n : name), ~ In n failed ->
  forall (n' : name) lvo', before_all (Level lvo') Fail (onet.(onwPackets) n' n).
 Proof.
+  intros. induct_step.
+  - unfold step_ordered_failure_init in *.
+    find_inversion. simpl. auto.
+  - match goal with
+    | [ H : step_ordered_failure _ _ _ |- _ ] => invc H
+    end; simpl.
+    + find_apply_lem_hyp net_handlers_NetHandler.
+      net_handler_cases; auto; simpl in *;
+        update2_destruct_max_simplify; repeat find_rewrite;
+          auto; tuple_inversion;
+            try solve [
+                  match goal with
+                  | |- before_all ?x ?y _ =>
+                    assert (x <> y) by congruence
+                  end;
+                  match goal with
+                  | H : In ?n _ -> False,
+                    IH : context [ In _ _ ] |- _ =>
+                    specialize (IH n); intuition
+                  end;
+                  match goal with
+                  | H : onwPackets _ ?n _ = _,
+                    IH : context [ onwPackets _ _ _ ] |- _ =>
+                    specialize (IH n); find_rewrite
+                  end;
+                  eauto using before_all_not_in, before_all_head_not_in];
+      admit.
+    + admit.
+    + admit.
 Admitted.
 
 (* in_queue_status_then_new *)
