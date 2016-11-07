@@ -27,10 +27,7 @@ Require Import AAC_tactics.AAC.
 Module SingleAggregator (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
-
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
+ (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
 
 Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
 Import AX.AD.

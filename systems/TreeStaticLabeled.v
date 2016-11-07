@@ -34,15 +34,12 @@ Set Implicit Arguments.
 Module Tree (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
- (Import RNT : RootNameType NT) (Import ANT : AdjacentNameType NT).
-
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
+ (Import RNT : RootNameType NT) (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
 
 Module AX := TAux NT NOT NSet NOTC NMap.
 Import AX.
 
-Module FR := FailureRecorder NT NOT NSet ANT.
+Module FR := FailureRecorder NT NOT NSet ANT A.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
@@ -2035,6 +2032,16 @@ apply: pt_map_onet_tot_map_label_event_strong_local_fairness.
   exact: Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.  
 Qed.
 
+Lemma Tree_has_fail_not_in_fail :
+  forall s, lb_step_execution lb_step_ordered_failure s ->
+  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  forall src dst, ~ In dst (fst (evt_a (hd s))) ->
+  In Fail (onwPackets (snd (evt_a (hd s))) src dst) ->
+  eventually ((now (fun e => head (onwPackets (snd (evt_a e)) src dst) = Some Fail)) /\_
+    (always (now (fun e => ~ In Fail (List.tl (onwPackets (snd (evt_a e)) src dst)))))) s.
+Proof.
+Admitted.
+
 Lemma Tree_pt_map_onet_always_enabled_continuously :
 forall l : label,
   tot_map_label l <> label_silent ->
@@ -2067,11 +2074,15 @@ have H_in: In Fail (onwPackets net from to).
   by case => //=; case.
 unfold ptm in *.
 move {ptm H_in_pt}.
-have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H6 _ H_in.
-have H_al := Tree_not_in_failed_always H_exec to H6.
-simpl in *.
-find_apply_lem_hyp always_invar.
-move {H_fair H7 H_in H6}.
+have H_ev := Tree_has_fail_not_in_fail H_exec H_fair _ _ H6 H_in.
+elim: H_ev H0 H_exec; clearall => //=.
+- by admit.
+- by admit.
+  (* have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H6 _ H_in.
+  have H_al := Tree_not_in_failed_always H_exec to H6.
+  simpl in *.
+  find_apply_lem_hyp always_invar.
+  move {H_fair H7 H_in H6}. *)
 Admitted.
 
 Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 

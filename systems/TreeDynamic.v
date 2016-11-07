@@ -5,7 +5,6 @@ Require Import Verdi.TotalMapSimulations.
 Require Import Verdi.PartialMapSimulations.
 Require Import Verdi.DynamicNetLemmas.
 
-Require Import NameAdjacency.
 Require Import TreeAux.
 Require Import FailureRecorderDynamic.
 
@@ -27,9 +26,6 @@ Module Tree (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
  (Import RNT : RootNameType NT) (Import ANT : AdjacentNameType NT).
-
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
 
 Module AX := TAux NT NOT NSet NOTC NMap.
 Import AX.

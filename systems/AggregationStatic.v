@@ -9,6 +9,7 @@ Require Import Verdi.SingleSimulations.
 Require Import AggregationDefinitions.
 Require Import AggregatorStatic.
 Require Import FailureRecorderStatic.
+Require Import NameAdjacency.
 
 Require Import Sumbool.
 Require Import Orders.
@@ -32,16 +33,16 @@ Set Implicit Arguments.
 Module Aggregation (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
+ (Import CFG : CommutativeFinGroup) 
+ (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
 
-Module OA := SingleAggregator NT NOT NSet NOTC NMap CFG ANT.
+Module OA := SingleAggregator NT NOT NSet NOTC NMap CFG ANT A.
 
 (* FIXME *)
-Import OA.A.
 Import OA.AX.AD.
 Import OA.AX.
 
-Module FR := FailureRecorder NT NOT NSet ANT.
+Module FR := FailureRecorder NT NOT NSet ANT A.
 
 Import GroupScope.
 

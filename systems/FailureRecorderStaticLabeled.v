@@ -20,10 +20,7 @@ Set Implicit Arguments.
 
 Module FailureRecorder (Import NT : NameType) 
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
- (Import ANT : AdjacentNameType NT).
-
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
+ (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.

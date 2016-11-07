@@ -41,15 +41,13 @@ Set Implicit Arguments.
 Module TreeAggregation (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import RNT : RootNameType NT) (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
+ (Import RNT : RootNameType NT) (Import CFG : CommutativeFinGroup) 
+ (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
 
-Module A := Adjacency NT NOT NSet ANT.
-Import A.
-
-Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
+Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT A.
 Import AG.OA.AX.AD.
 
-Module TR := Tree NT NOT NSet NOTC NMap RNT ANT.
+Module TR := Tree NT NOT NSet NOTC NMap RNT ANT A.
 Import TR.AX.
 
 Import GroupScope.
