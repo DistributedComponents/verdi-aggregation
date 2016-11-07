@@ -7,6 +7,7 @@ Require Import Verdi.DynamicNetLemmas.
 Require Import Verdi.SingleSimulations.
 
 Require Import AggregationDefinitions.
+Require Import AggregationAux.
 Require Import AggregatorStatic.
 Require Import FailureRecorderStatic.
 Require Import NameAdjacency.
@@ -34,17 +35,21 @@ Module Aggregation (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import CFG : CommutativeFinGroup) 
- (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT).
+ (Import ANT : AdjacentNameType NT)
+ (Import A : Adjacency NT NOT NSet ANT)
+ (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
 
-Module OA := SingleAggregator NT NOT NSet NOTC NMap CFG ANT A.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT AD.
+Import AX.
 
-(* FIXME *)
-Import OA.AX.AD.
-Import OA.AX.
+Module OA := SingleAggregator NT NOT NSet NOTC NMap CFG ANT A AD.
 
 Module FR := FailureRecorder NT NOT NSet ANT A.
 
 Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.

@@ -24,23 +24,367 @@ Parameter gT : finGroupType.
 Parameter mulgC : @commutative gT _ mulg.
 End CommutativeFinGroup.
 
-Module ADefs (Import NT : NameType)  
+Module CFGAACInstances (Import CFG : CommutativeFinGroup).
+  Import GroupScope.
+
+  Instance aac_mulg_Assoc : Associative eq (mulg (T:=gT)) := mulgA (T:=gT).
+
+  Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)) := mulgC.
+
+  Instance aac_mulg_unit : Unit eq (mulg (T:=gT)) 1.
+  Proof.
+    apply: (Build_Unit eq mulg 1) => x. 
+    - by rewrite mul1g.
+    - by rewrite mulg1.
+  Qed.
+End CFGAACInstances.
+
+Module Type ADefs (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
  (Import CFG : CommutativeFinGroup).
 
 Import GroupScope.
 
-Instance aac_mulg_Assoc : Associative eq (mulg (T:=gT)) := mulgA (T:=gT).
+Definition m := gT.
 
-Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)) := mulgC.
+Parameter m_eq_dec : forall (a b : m), {a = b} + {a <> b}.
 
-Instance aac_mulg_unit : Unit eq (mulg (T:=gT)) 1.
-Proof.
-apply: (Build_Unit eq mulg 1) => x. 
-- by rewrite mul1g.
-- by rewrite mulg1.
-Qed.
+Definition NS := NSet.t.
+Definition NM := NMap.t m.
+
+Definition init_map_t (fins : NS) : Type := 
+  { map : NM | forall n, NSet.In n fins <-> NMap.find n map = Some 1 }.
+
+Parameter init_map_str : forall (fins : NS), init_map_t fins.
+
+Definition init_map (fins : NS) : NM := 
+match init_map_str fins with
+| exist map _ => map
+end.
+
+Definition sum_fold (fm : NM) (n : name) (partial : m) : m :=
+match NMap.find n fm with
+| Some m' => partial * m'
+| None => partial
+end.
+
+Definition sumM (fs : NS) (fm : NM) : m := 
+NSet.fold (sum_fold fm) fs 1.
+
+Definition sum_active_fold (adj : NS) (map : NM) (n : name) (partial : m) : m :=
+if NSet.mem n adj
+then sum_fold map n partial
+else partial.
+
+Definition sumM_active (adj : NS) (map : NM) (ns : list name) : m :=
+fold_right (sum_active_fold adj map) 1 ns.
+
+Parameter fold_left_right : forall (fm : NM) (l : list name),
+  fold_left (fun partial n => (sum_fold fm) n partial) l 1 = fold_right (sum_fold fm) 1 l.
+
+Parameter sumM_fold_right : forall (fs : NS) (fm : NM), 
+  NSet.fold (sum_fold fm) fs 1 = fold_right (sum_fold fm) 1 (NSet.elements fs).
+
+Parameter not_in_add_eq : forall (l : list name) (n : name) (fm : NM) (m5 : m),
+  ~ InA eq n l -> fold_right (sum_fold (NMap.add n m5 fm)) 1 l = fold_right (sum_fold fm) 1 l.
+
+Parameter sumM_add_map : forall (n : name) (fs : NS) (fm : NM) (m5 m' : m),
+  NSet.In n fs ->
+  NMap.find n fm = Some m5 ->
+  sumM fs (NMap.add n (m5 * m') fm) = sumM fs fm * m'.
+
+Parameter eqlistA_eq : forall (l l' : list name), eqlistA eq l l' -> l = l'.
+
+Parameter sumM_remove : forall (fs : NS) (n : name) (fm : NM) (m5: m),
+  NSet.In n fs ->
+  NMap.find n fm = Some m5 ->
+  sumM (NSet.remove n fs) fm = sumM fs fm * m5^-1.
+
+Parameter sumM_notins_remove_map : forall (fs : NS) (n : name) (fm : NM),
+  ~ NSet.In n fs ->
+  sumM fs (NMap.remove n fm) = sumM fs fm.
+
+Parameter sumM_remove_remove : forall (fs : NS) (n : name) (fm : NM) (m5: m),
+  NSet.In n fs ->
+  NMap.find n fm = Some m5 ->
+  sumM (NSet.remove n fs) (NMap.remove n fm) = sumM fs fm * m5^-1.
+
+Parameter sumM_empty : forall (fs : NS) (fm : NM), NSet.Empty fs -> sumM fs fm = 1.
+
+Parameter sumM_eq : forall (fs : NS) (fm' : NS) (fm : NM), NSet.Equal fs fm' -> sumM fs fm = sumM fm' fm.
+
+Parameter sumM_add : forall (fs : NS) (fm : NM) (m5 : m) (n : name),
+  ~ NSet.In n fs -> 
+  NMap.find n fm = Some m5 ->
+  sumM (NSet.add n fs) fm = sumM fs fm * m5.
+
+Parameter sumM_add_add : forall (fs : NS) (M5 : NM) (m5 : m) (n : name),
+  ~ NSet.In n fs -> 
+  sumM (NSet.add n fs) (NMap.add n m5 M5) = sumM fs M5 * m5.
+
+Parameter sumM_init_map_1 : forall fm, sumM fm (init_map fm) = 1.
+
+Parameter sumM_active_remove_eq : 
+  forall ns n adj map,
+  ~ In n ns ->
+  sumM_active adj map ns = sumM_active (NSet.remove n adj) map ns.
+
+Parameter sumM_active_app_distr : 
+  forall ns0 ns1 adj map,
+    sumM_active adj map (ns0 ++ ns1) = sumM_active adj map ns0 * sumM_active adj map ns1.
+
+Parameter sumM_active_eq_sym : 
+  forall ns ns' adj map,
+  Permutation ns ns' ->
+  sumM_active adj map ns = sumM_active adj map ns'.
+
+Class AggregationData (data : Type) :=
+  {
+    aggr_local : data -> m ;
+    aggr_aggregate : data -> m ;
+    aggr_adjacent : data -> NS ;
+    aggr_balance : data -> NM
+  }.
+
+Section AggregationData.
+
+Context {data} {ad : AggregationData data}.
+
+Definition conserves_node_mass (d : data) : Prop := 
+d.(aggr_local) = d.(aggr_aggregate) * sumM d.(aggr_adjacent) d.(aggr_balance).
+
+Definition sum_local (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * d.(aggr_local)) 1 l.
+
+Definition sum_aggregate (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * d.(aggr_aggregate)) 1 l.
+
+Definition sum_balance (l : list data) : m :=
+fold_right (fun (d : data) (partial : m) => partial * sumM d.(aggr_adjacent) d.(aggr_balance)) 1 l.
+
+Definition conserves_mass_globally (l : list data) : Prop :=
+sum_local l = sum_aggregate l * sum_balance l.
+
+Definition conserves_node_mass_all (l : list data) : Prop :=
+forall d, In d l -> conserves_node_mass d.
+
+Definition Nodes_data (ns : list name) (state : name -> data) : list data :=
+fold_right (fun (n : name) (l' : list data) => n.(state) :: l') [] ns.
+
+Definition Nodes_data_opt (ns : list name) (state : name -> option data) : list data :=
+fold_right (fun (n : name) (l' : list data) => 
+              match state n with
+              | Some d => d :: l'
+              | None => l'
+              end) [] ns.
+
+Parameter global_conservation : 
+  forall (l : list data), 
+    conserves_node_mass_all l ->
+    conserves_mass_globally l.
+
+Parameter sum_local_split :
+  forall ns0 ns1 state n,
+    sum_local (Nodes_data (ns0 ++ n :: ns1) state) =
+    n.(state).(aggr_local) * sum_local (Nodes_data (ns0 ++ ns1) state).
+
+Parameter sum_local_opt_app :
+  forall ns0 ns1 state n d,
+    state n = Some d ->
+    sum_local (Nodes_data_opt (ns0 ++ n :: ns1) state) =
+    d.(aggr_local) * sum_local (Nodes_data_opt (ns0 ++ ns1) state).
+
+Parameter sum_aggregate_split :
+  forall ns0 ns1 state n,
+    sum_aggregate (Nodes_data (ns0 ++ n :: ns1) state) =
+    n.(state).(aggr_aggregate) * sum_aggregate (Nodes_data (ns0 ++ ns1) state).
+
+Parameter sum_aggregate_opt_app :
+  forall ns0 ns1 state n d,
+    state n = Some d ->
+    sum_aggregate (Nodes_data_opt (ns0 ++ n :: ns1) state) =
+    d.(aggr_aggregate) * sum_aggregate (Nodes_data_opt (ns0 ++ ns1) state).
+
+Parameter Nodes_data_not_in : 
+forall n' d state ns,
+~ In n' ns ->
+fold_right
+  (fun (n : name) (l : list data) =>
+     (match name_eq_dec n n' with
+      | left _ => d 
+      | right _ => n.(state) 
+      end) :: l) [] ns = Nodes_data ns state.
+
+Parameter Nodes_data_split :
+  forall ns0 ns1 (state : name -> data),
+    Nodes_data (ns0 ++ ns1) state =
+    Nodes_data ns0 state ++ Nodes_data ns1 state.
+
+Parameter Nodes_data_opt_split :
+  forall ns0 ns1 (state : name -> option data),
+    Nodes_data_opt (ns0 ++ ns1) state =
+    Nodes_data_opt ns0 state ++ Nodes_data_opt ns1 state.
+
+Parameter sum_balance_distr : 
+  forall dl dl',
+    sum_balance (dl ++ dl') = sum_balance dl * sum_balance dl'.
+
+Parameter sum_balance_Nodes_data_distr : 
+  forall ns0 ns1 state,
+    sum_balance (Nodes_data ns0 state) * sum_balance (Nodes_data ns1 state) =
+    sum_balance (Nodes_data (ns0 ++ ns1) state).
+
+Parameter sum_balance_Nodes_data_opt_distr : 
+  forall ns0 ns1 state,
+    sum_balance (Nodes_data_opt ns0 state) * sum_balance (Nodes_data_opt ns1 state) =
+    sum_balance (Nodes_data_opt (ns0 ++ ns1) state).
+
+End AggregationData.
+
+Class AggregationMsg :=
+  {
+    aggr_msg : Type ;
+    aggr_msg_eq_dec : forall x y : aggr_msg, {x = y} + {x <> y} ;
+    aggr_fail : aggr_msg ;
+    aggr_of : aggr_msg -> m ;
+  }.
+
+Section AggregationMsg.
+
+Context {am : AggregationMsg}.
+
+Context {data} {ad : AggregationData data}.
+
+Definition aggregate_sum_fold (mg : aggr_msg) (partial : m) : m :=
+partial * aggr_of mg.
+
+Definition sum_aggregate_msg := fold_right aggregate_sum_fold 1.
+
+(* given n, sum aggregate messages for all its incoming channels *)
+Definition sum_aggregate_msg_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) : m := 
+fold_right (fun (n' : name) (partial : m) => 
+  partial * if In_dec aggr_msg_eq_dec aggr_fail (packets n' n) then 1 else sum_aggregate_msg (packets n' n)) 1 ns.
+
+(* given list of active names and all names, sum all incoming channels for all active *)
+Definition sum_aggregate_msg_incoming_active (allns : list name) (actns : list name)  (packets : name -> name -> list aggr_msg) : m :=
+fold_right (fun (n : name) (partial : m) => partial * sum_aggregate_msg_incoming allns packets n) 1 actns.
+
+Definition sum_fail_map (l : list aggr_msg) (from : name) (adj : NS) (map : NM) : m :=
+if In_dec aggr_msg_eq_dec aggr_fail l && NSet.mem from adj then sum_fold map from 1 else 1.
+
+Definition sum_fail_map_incoming (ns : list name) (packets : name -> name -> list aggr_msg) (n : name) (adj : NS) (map : NM) : m :=
+fold_right (fun (n' : name) (partial : m) => partial * sum_fail_map (packets n' n) n' adj map) 1 ns.
+
+Definition sum_fail_balance_incoming_active (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : m :=
+fold_right (fun (n : name) (partial : m) => 
+  partial * sum_fail_map_incoming allns packets n n.(state).(aggr_adjacent) n.(state).(aggr_balance)) 1 actns.
+
+Definition sum_fail_balance_incoming_active_opt (allns : list name) (actns : list name) (packets : name -> name -> list aggr_msg) (state : name -> option data) : m :=
+fold_right (fun (n : name) (partial : m) => 
+              match state n with
+              | Some d => partial * sum_fail_map_incoming allns packets n d.(aggr_adjacent) d.(aggr_balance)
+              | None => partial
+              end) 1 actns.
+
+Definition conserves_network_mass (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> data) : Prop :=
+sum_local (Nodes_data actns state) = 
+  sum_aggregate (Nodes_data actns state) * 
+  sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_balance_incoming_active allns actns packets state.
+
+Definition conserves_network_mass_opt (actns : list name) (allns : list name) (packets : name -> name -> list aggr_msg) (state : name -> option data) : Prop :=
+sum_local (Nodes_data_opt actns state) = 
+  sum_aggregate (Nodes_data_opt actns state) * 
+  sum_aggregate_msg_incoming_active allns actns packets * 
+  sum_fail_balance_incoming_active_opt allns actns packets state.
+
+End AggregationMsg.
+
+Class AggregationMsgMap (P1 : AggregationMsg) (P2 : AggregationMsg) :=
+  {
+    map_msgs : list (@aggr_msg P1) -> list (@aggr_msg P2) ;
+    sum_aggregate_msg_map_msgs_eq : forall ms, sum_aggregate_msg ms = sum_aggregate_msg (map_msgs ms) ;
+    aggr_fail_in_in : forall ms, In aggr_fail ms <-> In aggr_fail (map_msgs ms)
+  }.
+
+Section AggregationMsgMap.
+
+Context {data_fst} {ad_fst : AggregationData data_fst}.
+Context {data_snd} {ad_snd : AggregationData data_snd}.
+
+Parameter sum_local_aggr_local_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) ns,
+   (forall n, In n ns -> n.(state).(aggr_local) = n.(state').(aggr_local)) ->
+    sum_local (Nodes_data ns state) = sum_local (Nodes_data ns state').
+
+Parameter sum_local_opt_aggr_local_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) ns,
+   (forall n, In n ns -> state n = None <-> state' n = None) ->
+   (forall n, In n ns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_local) = d1.(aggr_local)) ->
+    sum_local (Nodes_data_opt ns state) = sum_local (Nodes_data_opt ns state').
+
+Parameter sum_aggregate_aggr_aggregate_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) ns,
+   (forall n, In n ns -> n.(state).(aggr_aggregate) = n.(state').(aggr_aggregate)) ->
+    sum_aggregate (Nodes_data ns state) = sum_aggregate (Nodes_data ns state').
+
+Parameter sum_aggregate_opt_aggr_aggregate_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) ns,
+    (forall n, In n ns -> state n = None <-> state' n = None) ->
+   (forall n, In n ns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_aggregate) = d1.(aggr_aggregate)) ->
+    sum_aggregate (Nodes_data_opt ns state) = sum_aggregate (Nodes_data_opt ns state').
+
+Context {am_fst : AggregationMsg}.
+Context {am_snd : AggregationMsg}.
+Context {amm : AggregationMsgMap am_fst am_snd}.
+
+Parameter sum_aggregate_msg_incoming_map_msgs_eq :
+  forall (ns : list name) (packets : name -> name -> list (@aggr_msg am_fst)) (n : name),
+  sum_aggregate_msg_incoming ns packets n = sum_aggregate_msg_incoming ns (fun src dst => map_msgs (packets src dst)) n.
+
+Parameter sum_aggregate_msg_incoming_active_map_msgs_eq :
+  forall (actns allns : list name) (packets : name -> name -> list (@aggr_msg am_fst)),
+  sum_aggregate_msg_incoming_active allns actns packets = sum_aggregate_msg_incoming_active allns actns (fun src dst => map_msgs (packets src dst)).
+
+Parameter sum_fail_map_map_msgs_eq :
+  forall (packets : name -> name -> list (@aggr_msg am_fst)) src dst from adj map,
+    sum_fail_map (packets src dst) from adj map = sum_fail_map (map_msgs (packets src dst)) from adj map.
+
+Parameter sum_fail_map_incoming_map_msgs_eq :
+  forall ns (packets : name -> name -> list (@aggr_msg am_fst)) n adj map,
+     sum_fail_map_incoming ns packets n adj map = sum_fail_map_incoming ns (fun src dst => map_msgs (packets src dst)) n adj map.
+
+(* FIXME: equivalence for balance instead of Leibniz equality *)
+Parameter sum_fail_balance_incoming_active_map_msgs_eq :
+  forall (state : name -> data_fst) (state' : name -> data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+    (forall n, In n actns -> n.(state).(aggr_adjacent) = n.(state').(aggr_adjacent)) ->
+    (forall n, In n actns -> n.(state).(aggr_balance) = n.(state').(aggr_balance)) ->    
+    sum_fail_balance_incoming_active allns actns packets state = 
+    sum_fail_balance_incoming_active allns actns (fun src dst => map_msgs (packets src dst)) state'.
+
+Parameter sum_fail_balance_incoming_active_opt_map_msgs_eq :
+  forall (state : name -> option data_fst) (state' : name -> option data_snd) (packets : name -> name -> list (@aggr_msg am_fst)) allns actns,
+    (forall n, In n actns -> state n = None <-> state' n = None) ->
+    (forall n, In n actns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_adjacent) = d1.(aggr_adjacent)) ->
+    (forall n, In n actns -> forall d0, state n = Some d0 -> forall d1, state' n = Some d1 -> d0.(aggr_balance) = d1.(aggr_balance)) ->
+    sum_fail_balance_incoming_active_opt allns actns packets state = 
+    sum_fail_balance_incoming_active_opt allns actns (fun src dst => map_msgs (packets src dst)) state'.
+
+End AggregationMsgMap.
+
+End ADefs.
+
+Module NameTypeADefs (Import NT : NameType)  
+ (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
+ (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
+ (Import CFG : CommutativeFinGroup) <:
+ ADefs NT NOT NSet NOTC NMap CFG.
+
+Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
@@ -607,7 +951,7 @@ Class AggregationData (data : Type) :=
     aggr_balance : data -> NM
   }.
 
-Section AggregationProps.
+Section AggregationData.
 
 Context {data} {ad : AggregationData data}.
 
@@ -638,12 +982,6 @@ fold_right (fun (n : name) (l' : list data) =>
               | Some d => d :: l'
               | None => l'
               end) [] ns.
-
-End AggregationProps.
-
-Section AggregationDataProps.
-
-Context {data} {ad : AggregationData data}.
 
 Lemma global_conservation : 
   forall (l : list data), 
@@ -786,7 +1124,7 @@ elim => [|n ns0 IH] ns1 net /=; first by gsimpl.
 by break_match; rewrite /= -IH; aac_reflexivity.
 Qed.
 
-End AggregationDataProps.
+End AggregationData.
 
 Class AggregationMsg :=
   {
@@ -796,7 +1134,7 @@ Class AggregationMsg :=
     aggr_of : aggr_msg -> m ;
   }.
 
-Section MsgFolds.
+Section AggregationMsg.
 
 Context {am : AggregationMsg}.
 
@@ -845,7 +1183,7 @@ sum_local (Nodes_data_opt actns state) =
   sum_aggregate_msg_incoming_active allns actns packets * 
   sum_fail_balance_incoming_active_opt allns actns packets state.
 
-End MsgFolds.
+End AggregationMsg.
 
 Class AggregationMsgMap (P1 : AggregationMsg) (P2 : AggregationMsg) :=
   {
@@ -854,7 +1192,7 @@ Class AggregationMsgMap (P1 : AggregationMsg) (P2 : AggregationMsg) :=
     aggr_fail_in_in : forall ms, In aggr_fail ms <-> In aggr_fail (map_msgs ms)
   }.
 
-Section AggregationInstProps.
+Section AggregationMsgMap.
 
 Context {data_fst} {ad_fst : AggregationData data_fst}.
 Context {data_snd} {ad_snd : AggregationData data_snd}.
@@ -1060,6 +1398,6 @@ case H_n: state => [d0|]; case H_n': state' => [d1|].
     by right.
 Qed.
 
-End AggregationInstProps.
+End AggregationMsgMap.
 
-End ADefs.
+End NameTypeADefs.

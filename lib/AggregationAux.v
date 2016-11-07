@@ -25,12 +25,20 @@ Set Implicit Arguments.
 Module AAux (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
- (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
-
-Module AD := ADefs NT NOT NSet NOTC NMap CFG.
-Import AD.
+ (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT)
+ (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
 
 Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
+
+Module NSetFacts := Facts NSet.
+Module NSetProps := Properties NSet.
+Module NSetOrdProps := OrdProperties NSet.
+
+Require Import FMapFacts.
+Module NMapFacts := Facts NMap.
 
 Section MsgFolds.
 

@@ -45,7 +45,9 @@ End CFG.
 
 Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
 
-Module TreeAggregationNames := TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames TAuxNames.
+Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
+
+Module TreeAggregationNames := TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames TAuxNames ADefNames.
 Import TreeAggregationNames.
 
 Extraction "extraction/aggregation-dynamic/ocaml/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.

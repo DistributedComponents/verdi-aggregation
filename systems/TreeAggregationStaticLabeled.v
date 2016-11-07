@@ -44,14 +44,20 @@ Module TreeAggregation (Import NT : NameType)
  (Import RNT : RootNameType NT)
  (Import CFG : CommutativeFinGroup)
  (Import ANT : AdjacentNameType NT) (Import A : Adjacency NT NOT NSet ANT)
- (Import TA : TAux NT NOT NSet NOTC NMap).
+ (Import TA : TAux NT NOT NSet NOTC NMap)
+ (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
 
-Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT A.
-Import AG.OA.AX.AD.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT AD.
+Import AX.
+
+Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT A AD.
 
 Module TR := Tree NT NOT NSet NOTC NMap RNT ANT A TA.
 
 Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.

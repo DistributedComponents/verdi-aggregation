@@ -6,6 +6,7 @@ Require Import Verdi.PartialMapSimulations.
 Require Import Verdi.PartialExtendedMapSimulations.
 
 Require Import AggregationDefinitions.
+Require Import AggregationAux.
 Require Import AggregationDynamic.
 Require Import TreeAux.
 Require Import TreeDynamic.
@@ -31,15 +32,21 @@ Module TreeAggregation (Import NT : NameType)
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
  (Import RNT : RootNameType NT) 
  (Import CFG : CommutativeFinGroup) 
- (Import ANT : AdjacentNameType NT)
- (Import TA : TAux NT NOT NSet NOTC NMap).
+ (Import ANT : AdjacentNameType NT) 
+ (Import TA : TAux NT NOT NSet NOTC NMap)
+ (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
 
-Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT.
-Import AG.OA.AX.AD.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT AD.
+Import AX.
+
+Module AG := Aggregation NT NOT NSet NOTC NMap CFG ANT AD.
 
 Module TR := Tree NT NOT NSet NOTC NMap RNT ANT TA.
 
 Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.

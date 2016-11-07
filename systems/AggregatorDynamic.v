@@ -25,13 +25,17 @@ Require Import AAC_tactics.AAC.
 Module SingleAggregator (Import NT : NameType)
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC) 
- (Import CFG : CommutativeFinGroup) (Import ANT : AdjacentNameType NT).
+ (Import CFG : CommutativeFinGroup) 
+ (Import ANT : AdjacentNameType NT)
+ (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
 
-Module AX := AAux NT NOT NSet NOTC NMap CFG ANT.
-Import AX.AD.
+Module AX := AAux NT NOT NSet NOTC NMap CFG ANT AD.
 Import AX.
 
 Import GroupScope.
+
+Module ADCFGAACInstances := CFGAACInstances CFG.
+Import ADCFGAACInstances.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.

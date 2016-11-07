@@ -48,8 +48,10 @@ Module AdjacencyNames := FinAdjacency NumNames Names NamesOT NamesSet AdjacentNa
 
 Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
 
+Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
+
 Module TreeAggregationNames :=
-  TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames AdjacencyNames TAuxNames.
+  TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames AdjacencyNames TAuxNames ADefNames.
 Import TreeAggregationNames.
 
 Extraction "extraction/aggregation/ocaml/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.
