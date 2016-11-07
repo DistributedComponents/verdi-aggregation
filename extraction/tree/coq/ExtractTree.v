@@ -3,6 +3,7 @@ Require Import Verdi.NameOverlay.
 
 Require Import TreeStatic.
 Require Import NameAdjacency.
+Require Import TreeAux.
 Require Import StructTact.Fin.
 
 Require Import ExtrOcamlBasic.
@@ -25,13 +26,15 @@ Module AdjacentNames := FinCompleteAdjacentNameType NumNames Names.
 Require Import MSetList.
 Module NamesSet <: MSetInterface.S := MSetList.Make NamesOT.
 
-Module AdjacencyNames := FinAdjacency NumNames Names NamesOT NamesSet AdjacentNames.
-
 Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 
+Module AdjacencyNames := FinAdjacency NumNames Names NamesOT NamesSet AdjacentNames.
+
+Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
+
 Module TreeNames :=
-  Tree Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AdjacentNames AdjacencyNames.
+  Tree Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AdjacentNames AdjacencyNames TAuxNames.
 Import TreeNames.
 
 Extraction "extraction/tree/ocaml/Tree.ml" seq Tree_BaseParams Tree_MultiParams.

@@ -25,16 +25,17 @@ Set Implicit Arguments.
 Module Tree (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
  (NOTC : NameOrderedTypeCompat NT) (NMap : FMapInterface.S with Module E := NOTC)
- (Import RNT : RootNameType NT) (Import ANT : AdjacentNameType NT).
-
-Module AX := TAux NT NOT NSet NOTC NMap.
-Import AX.
+ (Import RNT : RootNameType NT) (Import ANT : AdjacentNameType NT)
+ (Import TA : TAux NT NOT NSet NOTC NMap).
 
 Module FR := FailureRecorder NT NOT NSet ANT.
 
 Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
+
+Require Import FMapFacts.
+Module NMapFacts := Facts NMap.
 
 Inductive Msg : Set := 
 | Fail : Msg
