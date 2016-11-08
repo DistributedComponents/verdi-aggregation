@@ -2,7 +2,6 @@ Require Import Verdi.Verdi.
 Require Import Verdi.NameOverlay.
 
 Require Import AggregationDefinitions.
-Require Import AggregationAux.
 Require Import NameAdjacency.
 Require Import TreeAux.
 Require Import TreeAggregationStatic.

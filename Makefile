@@ -56,12 +56,32 @@ Makefile.coq: _CoqProject
           -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.ml' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND) \
           -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.mli' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND)
 
+aggregation: Makefile.coq
+	$(MAKE) -f Makefile.coq extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
+	$(MAKE) -C extraction/aggregation
+
+aggregation-dynamic: Makefile.coq
+	$(MAKE) -f Makefile.coq extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
+	$(MAKE) -C extraction/aggregation-dynamic
+
+tree: Makefile.coq
+	$(MAKE) -f Makefile.coq extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
+	$(MAKE) -C extraction/tree
+
+tree-dynamic: Makefile.coq
+	$(MAKE) -f Makefile.coq extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
+	$(MAKE) -C extraction/tree-dynamic
+
 clean:
 	if [ -f Makefile.coq ]; then \
 	  $(MAKE) -f Makefile.coq cleanall; fi
 	rm -f Makefile.coq
 	find . -name '*.buildtime' -delete
 	$(MAKE) -C proofalytics clean
+	$(MAKE) -C extraction/aggregation clean
+	$(MAKE) -C extraction/aggregation-dynamic clean
+	$(MAKE) -C extraction/tree clean
+	$(MAKE) -C extraction/tree-dynamic clean
 
 lint:
 	@echo "Possible use of hypothesis names:"
@@ -74,4 +94,4 @@ distclean: clean
 	 extraction/tree/lib \
 	 extraction/tree-dynamic/lib
 
-.PHONY: default quick clean lint proofalytics distclean
+.PHONY: default quick clean lint proofalytics proofalytics-aux distclean aggregation aggregation-dynamic tree tree-dynamic
