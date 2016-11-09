@@ -17,11 +17,13 @@ pushd ..
     ./build.sh
   popd
 
-  git clone 'http://github.com/uwplse/verdi'
-  pushd verdi
+  git clone 'http://github.com/uwplse/verdi' verdi-framework
+  pushd verdi-framework
     ./build.sh
   popd
 popd
+
+export Verdi_PATH=../verdi-framework
 
 case $MODE in
   analytics)
