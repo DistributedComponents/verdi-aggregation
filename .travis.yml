@@ -7,10 +7,6 @@ addons:
       - ocaml
       - opam
 env:
-  - MODE=build
-  - MODE=tree-test
-  - MODE=tree-dynamic-test
-  - MODE=aggregation-test
   - MODE=aggregation-dynamic-test
 script: bash -ex .travis-ci.sh
 sudo: false
