@@ -21,3 +21,5 @@ clean:
 	$(OCAMLBUILD_TEST) TreeTest.native -clean
 
 .PHONY: default clean test
+
+.NOTPARALLEL: TreeMain.native TreeTest.native

@@ -22,3 +22,5 @@ clean:
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native -clean
 
 .PHONY: default clean test
+
+.NOTPARALLEL: TreeAggregationMain.native TreeAggregationTest.native

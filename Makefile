@@ -56,33 +56,43 @@ Makefile.coq: _CoqProject
           -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.ml' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND) \
           -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.mli' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND)
 
-aggregation: Makefile.coq
-	$(MAKE) -f Makefile.coq extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
-	$(MAKE) -C extraction/aggregation
+TREE = extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
+TREE_DYN = extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
 
-aggregation-test: aggregation
-	$(MAKE) -C extraction/aggregation test
-
-aggregation-dynamic: Makefile.coq
-	$(MAKE) -f Makefile.coq extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
-	$(MAKE) -C extraction/aggregation-dynamic
-
-aggregation-dynamic-test: aggregation-dynamic
-	$(MAKE) -C extraction/aggregation-dynamic test
+AGGREGATION = extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
+AGGREGATION_DYN = extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
 
 tree: Makefile.coq
-	$(MAKE) -f Makefile.coq extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
+	$(MAKE) -f Makefile.coq $(TREE)
 	$(MAKE) -C extraction/tree
 
-tree-test: tree
+tree-test: Makefile.coq
+	$(MAKE) -f Makefile.coq $(TREE)
 	$(MAKE) -C extraction/tree test
 
 tree-dynamic: Makefile.coq
-	$(MAKE) -f Makefile.coq extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
+	$(MAKE) -f Makefile.coq $(TREE_DYN)
 	$(MAKE) -C extraction/tree-dynamic
 
-tree-dynamic-test: tree-dynamic
+tree-dynamic-test: Makefile.coq
+	$(MAKE) -f Makefile.coq $(TREE_DYN)
 	$(MAKE) -C extraction/tree-dynamic test
+
+aggregation: Makefile.coq
+	$(MAKE) -f Makefile.coq $(AGGREGATION)
+	$(MAKE) -C extraction/aggregation
+
+aggregation-test: Makefile.coq
+	$(MAKE) -f Makefile.coq $(AGGREGATION)
+	$(MAKE) -C extraction/aggregation test
+
+aggregation-dynamic: Makefile.coq
+	$(MAKE) -f Makefile.coq $(AGGREGATION_DYN)
+	$(MAKE) -C extraction/aggregation-dynamic
+
+aggregation-dynamic-test: Makefile.coq
+	$(MAKE) -f Makefile.coq $(AGGREGATION_DYN)
+	$(MAKE) -C extraction/aggregation-dynamic test
 
 clean:
 	if [ -f Makefile.coq ]; then \
