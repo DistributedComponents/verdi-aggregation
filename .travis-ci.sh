@@ -1,7 +1,7 @@
 pushd ..
   opam init --yes --no-setup
   eval $(opam config env)
-  opam install coq ounit --yes
+  opam install coq coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra ounit --yes
 
   git clone 'http://github.com/uwplse/StructTact'
   pushd StructTact
