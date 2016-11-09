@@ -13,15 +13,18 @@ Requirements
  - [`mathcomp`](https://math-comp.github.io/math-comp/) (`ssreflect`, `fingroup`, `algebra`)
  - [`StructTact`](https://github.com/uwplse/StructTact)
  - [`InfSeqExt`](https://github.com/palmskog/InfSeqExt)
+ - [`AAC_tactics`](https://github.com/coq-contribs/aac-tactics) (branch `v8.5`)
 
 Building
 --------
 
 First run `./configure` in the root directory.  This will check
 for the appropriate version of Coq and ensure all necessary
-dependencies can be located. By default, it checks for `verdi`, `StructTact`,
-and `InfSeqExt` in the current parent directory, but this can be
-overridden by setting the `Verdi_PATH`, `StructTact_PATH`, and 
-`InfSeqExt_PATH` environment variables.
+dependencies can be located. 
+
+By default, the script checks for `verdi`, `StructTact`,
+`InfSeqExt` and `AAC_tactics` in the current parent directory, but this can be
+overridden by setting the `Verdi_PATH`, `StructTact_PATH`, `InfSeqExt_PATH`,
+and `AAC_tactics_PATH` environment variables.
 
 Then run `make` in the root directory.
