@@ -21,6 +21,11 @@ pushd ..
   pushd verdi-framework
     ./build.sh
   popd
+
+  git clone -b v8.5 https://github.com/coq-contribs/aac-tactics.git AAC_tactics
+  pushd AAC_tactics
+    make
+  popd
 popd
 
 export Verdi_PATH=../verdi-framework
