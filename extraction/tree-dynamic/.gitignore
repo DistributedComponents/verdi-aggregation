@@ -3,3 +3,4 @@ ocaml/Tree.mli
 lib
 _build
 TreeMain.native
+TreeTest.native

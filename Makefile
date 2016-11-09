@@ -60,17 +60,29 @@ aggregation: Makefile.coq
 	$(MAKE) -f Makefile.coq extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
 	$(MAKE) -C extraction/aggregation
 
+aggregation-test: aggregation
+	$(MAKE) -C extraction/aggregation test
+
 aggregation-dynamic: Makefile.coq
 	$(MAKE) -f Makefile.coq extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
 	$(MAKE) -C extraction/aggregation-dynamic
+
+aggregation-dynamic-test: aggregation-dynamic
+	$(MAKE) -C extraction/aggregation-dynamic test
 
 tree: Makefile.coq
 	$(MAKE) -f Makefile.coq extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
 	$(MAKE) -C extraction/tree
 
+tree-test: tree
+	$(MAKE) -C extraction/tree test
+
 tree-dynamic: Makefile.coq
 	$(MAKE) -f Makefile.coq extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
 	$(MAKE) -C extraction/tree-dynamic
+
+tree-dynamic-test: tree-dynamic
+	$(MAKE) -C extraction/tree-dynamic test
 
 clean:
 	if [ -f Makefile.coq ]; then \
@@ -94,4 +106,6 @@ distclean: clean
 	 extraction/tree/lib \
 	 extraction/tree-dynamic/lib
 
-.PHONY: default quick clean lint proofalytics proofalytics-aux distclean aggregation aggregation-dynamic tree tree-dynamic
+.PHONY: default quick clean lint proofalytics proofalytics-aux distclean \
+	aggregation aggregation-dynamic tree tree-dynamic \
+	aggregation-test aggregation-dynamic-test tree-test tree-dynamic-test

@@ -3,3 +3,4 @@ ocaml/TreeAggregation.mli
 lib
 _build
 TreeAggregationMain.native
+TreeAggregationTest.native

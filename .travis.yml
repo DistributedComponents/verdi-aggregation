@@ -1,10 +1,18 @@
 language: c
+addons:
+  apt:
+    sources:
+      - avsm
+    packages:
+      - ocaml
+      - opam
 env:
   - MODE=build
+  - MODE=tree-test
+  - MODE=tree-dynamic-test
+  - MODE=aggregation-test
+  - MODE=aggregation-dynamic-test
 script: bash -ex .travis-ci.sh
 sudo: false
 notifications:
-  slack:
-    on_start: always
-    rooms:
-      - secure: "T242nWLwd3mR3pIQabXxl9jV9grQJrRBTVpzMTm6aWwQw4pUJd9zwJ5rzW567fngaZdrnxH/5hHildh1uIhUSTeC3g1WtmNZFg+P41j3ppKWXNGMsYJIo/QVDfwCTwuPcLbnEKP9ARiv/QECWTyzoE3jkU9U+xpVTWB7RG4R4cyXCKePStsVbYIiudpyHjAw+mY0PTWiSfqTDnhV0XE9/59lh+X624tfNrjIsYMJrQtNOfNDKOe2MHxt5WZV7bjY5dC6U6shz37sLxntURpW7FsAfRf81fnzFFgD+g7/Kzghh5t9duM8BJGSbLEHe8YJealRGOnNcJIG9xgP3dF0nwFxzrua2KtRWeLZlRDmto0Kt0oVVoQgYaMJS0kds7DWjnm3dX8KriPEywAixj+PSRar7o6jpiH2Jd3afDMq0r4PNjyjTYoqm/uuUIYzYV03O9ntZ2tKTDIH/uIXlQynQjSoe9Xkn+ql6kulQT56WmM+zlXluarDA5rw1GVRK4n3hkNGAXukYk1Wvu/KvRqxeVgqdAUTXs3A6CtcvXtguHfgYzNyuoJJnDlenKHmJq/jteNnwMIZR29LqL47vRpkI5zRrpfxf6c9BYl97elh2tnKBVP98n3VEdXqxpkqHVcW0lXlemyuso9bMkS5v6lpxDtFkZMjQuZJrk/WQ0DJGhY="
+  email: false
