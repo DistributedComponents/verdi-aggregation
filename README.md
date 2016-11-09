@@ -1,6 +1,8 @@
 Verdi Aggregation
 =================
 
+[![Build Status](https://api.travis-ci.org/palmskog/verdi.svg?branch=aggregation)](https://travis-ci.org/palmskog/verdi)
+
 An implementation of a distributed aggregation protocol, verified in Coq using the Verdi framework.
 
 Requirements
@@ -8,6 +10,7 @@ Requirements
 
  - [`Coq 8.5`](https://coq.inria.fr/download)
  - [`Verdi`](https://github.com/uwplse/verdi)
+ - [`mathcomp`](https://math-comp.github.io/math-comp/) (`ssreflect`, `fingroup`, `algebra`)
  - [`StructTact`](https://github.com/uwplse/StructTact)
  - [`InfSeqExt`](https://github.com/palmskog/InfSeqExt)
 
