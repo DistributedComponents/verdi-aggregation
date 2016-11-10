@@ -13,6 +13,7 @@ Require Import mathcomp.ssreflect.ssrfun.
 Require Import mathcomp.ssreflect.fintype.
 
 Require Import mathcomp.fingroup.fingroup.
+
 Require Import mathcomp.algebra.zmodp.
 
 Require Import ExtrOcamlBasic.
@@ -39,7 +40,7 @@ Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 
 Module CFG <: CommutativeFinGroup.
-Definition gT := [finGroupType of 'I_128].
+Definition gT := Zp_finGroupType 127.
 Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
 End CFG.
 

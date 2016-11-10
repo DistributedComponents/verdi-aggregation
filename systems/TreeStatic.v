@@ -8,8 +8,6 @@ Require Import TreeAux.
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import Sumbool.
-Require Import Orders.
-Require Import FMapInterface.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -338,7 +336,7 @@ rewrite 2!NSet.fold_spec.
 move: olv st.
 elim: NSet.elements => [|n ns IH] //=.
 move => olv st.
-rewrite {2}/level_fold {2}/send_level_fold /= /flip /=.
+rewrite {2}/level_fold {2}/send_level_fold /= /Basics.flip /=.
 rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
 have IH' := IH olv st.
 rewrite -IH'.
