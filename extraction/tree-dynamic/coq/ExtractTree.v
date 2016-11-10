@@ -29,7 +29,7 @@ Module NamesSet <: MSetInterface.S := MSetList.Make NamesOT.
 Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 
-Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
+Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 
 Module TreeNames := Tree Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AdjacentNames TAuxNames.
 Import TreeNames.

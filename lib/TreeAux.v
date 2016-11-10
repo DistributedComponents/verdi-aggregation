@@ -1,6 +1,5 @@
 Require Import Verdi.Verdi.
 Require Import Verdi.NameOverlay.
-Require Import StructTact.Fin.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -11,12 +10,6 @@ Require Import MSetProperties.
 Require Import FMapInterface.
 
 Set Implicit Arguments.
-
-Class TreeMsg :=
-  {
-    tree_msg : Type ;
-    tree_level : option nat -> tree_msg
-  }.
 
 Module Type TAux (Import NT : NameType)  
  (NOT : NameOrderedType NT) (NSet : MSetInterface.S with Module E := NOT) 
@@ -79,6 +72,12 @@ Module Type TAux (Import NT : NameType)
   Parameter levels_some_level_ge : forall ns nl n lv5, 
       NSet.In n ns -> NMap.find n nl = Some lv5 -> 
       exists lv', level ns nl = Some lv' /\ lv' <= lv5 + 1.
+
+  Class TreeMsg :=
+    {
+      tree_msg : Type ;
+      tree_level : option lv -> tree_msg
+    }.
 
   Section LevelFolds.
 
@@ -410,6 +409,12 @@ Module NameTypeTAux (Import NT : NameType)
                  exact: in_level_in.
   Qed.
 
+  Class TreeMsg :=
+    {
+      tree_msg : Type ;
+      tree_level : option lv -> tree_msg
+    }.
+
   Definition level_fold {tr_msg : TreeMsg} (lvo : option lv) (n : name) (partial : list (name * tree_msg)) : list (name * tree_msg) :=
     (n, tree_level lvo) :: partial.
 
@@ -430,11 +435,4 @@ Module NameTypeTAux (Import NT : NameType)
     rewrite -app_assoc.
       by rewrite app_assoc.
   Qed.
-
 End NameTypeTAux.
-
-Module FinTAux (N : NatValue) (FNT : FinNameType N)
-       (NOT : NameOrderedType FNT) (NSet : MSetInterface.S with Module E := NOT) 
-       (NOTC : NameOrderedTypeCompat FNT) (NMap : FMapInterface.S with Module E := NOTC) <:
-  TAux FNT NOT NSet NOTC NMap :=
-NameTypeTAux FNT NOT NSet NOTC NMap.

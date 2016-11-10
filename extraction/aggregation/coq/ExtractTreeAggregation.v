@@ -45,7 +45,7 @@ End CFG.
 
 Module AdjacencyNames := FinAdjacency NumNames Names NamesOT NamesSet AdjacentNames.
 
-Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
+Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 
 Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
 

@@ -20,8 +20,8 @@ Require Import AAC_tactics.AAC.
 Set Implicit Arguments.
 
 Module Type CommutativeFinGroup.
-Parameter gT : finGroupType.
-Parameter mulgC : @commutative gT _ mulg.
+  Parameter gT : finGroupType.
+  Parameter mulgC : @commutative gT _ mulg.
 End CommutativeFinGroup.
 
 Module CFGAACInstances (Import CFG : CommutativeFinGroup).

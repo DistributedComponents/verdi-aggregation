@@ -42,7 +42,7 @@ Definition gT := [finGroupType of 'I_128].
 Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
 End CFG.
 
-Module TAuxNames := FinTAux NumNames Names NamesOT NamesSet NamesOTCompat NamesMap.
+Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 
 Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
 
