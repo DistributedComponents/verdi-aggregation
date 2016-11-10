@@ -2,9 +2,9 @@ OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ocaml -cflag -g
 OCAMLBUILD_TEST = ocamlbuild -package oUnit -lib str -I ocaml -I test -cflag -g
 
 AGGREGATION = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli \
- ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml ocaml/Serialization.ml
-AGGREGATION_TEST = test/SerializationTest.ml test/TreeAggregationTest.ml
-LIB = lib/OrderedMain.ml lib/OrderedShim.ml
+ ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml ocaml/Serialization.ml ocaml/Opts.ml
+AGGREGATION_TEST = test/SerializationTest.ml test/OptsTest.ml test/TreeAggregationTest.ml test/TestCommon.ml
+LIB = lib/OrderedShim.ml
 
 default: TreeAggregationMain.native
 
