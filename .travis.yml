@@ -6,6 +6,7 @@ addons:
     packages:
       - ocaml
       - opam
+      - aspcud
 env:
   - MODE=build
   - MODE=aggregation-test
