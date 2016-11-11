@@ -1,7 +1,7 @@
 opam init --yes --no-setup
 eval $(opam config env)
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq.8.5.2 coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra ounit --yes --verbose
+opam install coq coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra ounit --yes --verbose
 
 pushd ..
   git clone 'http://github.com/uwplse/StructTact'
