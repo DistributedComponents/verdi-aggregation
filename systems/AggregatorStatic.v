@@ -51,7 +51,7 @@ Inductive Input : Type :=
 | Fail : name -> Input
 | Local : m -> Input
 | SendAggregate : name -> Input
-| AggregateRequest : Input.
+| AggregateRequest : nat -> Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
 decide equality.
@@ -60,14 +60,16 @@ decide equality.
 - exact: name_eq_dec.
 - exact: m_eq_dec.
 - exact: name_eq_dec.
+- exact: Nat.eq_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : m -> Output.
+| AggregateResponse : nat -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
 decide equality.
-exact: m_eq_dec.
+- exact: m_eq_dec.
+- exact: Nat.eq_dec.
 Defined.
 
 Record Data := mkData { 
@@ -113,8 +115,8 @@ match i with
          aggregate := st.(aggregate) * m_inp * st.(local)^-1 ;
          adjacent := st.(adjacent) ;
          balance := st.(balance) |}
-| AggregateRequest =>  
-  write_output (AggregateResponse st.(aggregate))
+| AggregateRequest client_id =>  
+  write_output (AggregateResponse client_id st.(aggregate))
 | SendAggregate dst =>
   when (NSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match NMap.find dst st.(balance) with
@@ -184,7 +186,7 @@ Lemma IOHandler_cases :
       (exists dst, i = SendAggregate dst /\ st.(aggregate) = 1 /\
          st' = st /\ 
          out = []) \/
-      (i = AggregateRequest /\ st' = st /\ out = [AggregateResponse (aggregate st)]).
+      (exists client_id, i = AggregateRequest client_id /\ st' = st /\ out = [AggregateResponse client_id (aggregate st)]).
 Proof.
 move => i st u out st' ms.
 rewrite /IOHandler.
@@ -244,9 +246,10 @@ case: i => [src m_inp|src|m_inp|dst|]; monad_unfold.
     break_match => //.
     right; right; right; right; right; right; right; right; right; right; left => /=.
     by exists dst.
-- move => H_eq.
+- move => client_id H_eq.
   tuple_inversion.
-  by right; right; right; right; right; right; right; right; right; right; right.
+  right; right; right; right; right; right; right; right; right; right; right.
+  by exists client_id.
 Qed.
 
 Ltac io_handler_cases := 

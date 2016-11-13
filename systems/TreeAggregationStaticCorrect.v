@@ -8,10 +8,8 @@ Require Import Verdi.PartialExtendedMapSimulations.
 Require Import NameAdjacency.
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
-Require Import AggregationStatic.
 Require Import AggregationStaticCorrect.
 Require Import TreeAux.
-Require Import TreeStatic.
 Require Import TreeStaticCorrect.
 Require Import TreeAggregationStatic.
 
@@ -101,7 +99,7 @@ Instance TreeAggregation_Aggregation_params_pt_ext_map : MultiParamsPartialExten
           | Some p => Some (AG.SendAggregate p)
           | None => None
           end
-      | AggregateRequest => (Some AG.AggregateRequest)
+      | AggregateRequest client_id => Some (AG.AggregateRequest client_id)
       | _ => None
       end
   }.
@@ -216,13 +214,13 @@ Instance TreeAggregation_Tree_base_params_pt_map : BaseParamsPartialMap TreeAggr
     pt_map_data := fun d => TR.mkData d.(adjacent) d.(broadcast) d.(levels) ;
     pt_map_input := fun i =>
                    match i with
-                   | LevelRequest => Some TR.LevelRequest
+                   | LevelRequest client_id => Some (TR.LevelRequest client_id)
                    | Broadcast => Some TR.Broadcast
                    | _ => None
                    end ;
     pt_map_output := fun o => 
                     match o with
-                    | LevelResponse olv => Some (TR.LevelResponse olv)
+                    | LevelResponse client_id olv => Some (TR.LevelResponse client_id olv)
                     | _ => None
                     end
   }.

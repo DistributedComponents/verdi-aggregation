@@ -25,7 +25,7 @@ Require Import ExtrOcamlBool.
 Require Import ExtrOcamlList.
 Require Import ExtrOcamlFin.
 
-Module NumNames : NatValue. Definition n := 5. End NumNames.
+Module NumNames : NatValue. Definition n := 3. End NumNames.
 Module Names := FinName NumNames.
 Module NamesOT := FinNameOrderedType NumNames Names.
 Module NamesOTCompat := FinNameOrderedTypeCompat NumNames Names.

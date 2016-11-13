@@ -10,7 +10,6 @@ Require Import NameAdjacency.
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
 Require Import AggregatorStatic.
-Require Import FailureRecorderStatic.
 Require Import FailureRecorderStaticCorrect.
 Require Import AggregationStatic.
 
@@ -156,12 +155,12 @@ Instance Aggregation_Aggregator_multi_single_map : MultiSingleParamsTotalMap Agg
     tot_s_map_input := fun n i => 
                         match i with
                         | Local m_inp => OA.Local m_inp
-                        | AggregateRequest => OA.AggregateRequest
+                        | AggregateRequest client_id => OA.AggregateRequest client_id
                         | SendAggregate dst => OA.SendAggregate dst
                         end ;
     tot_s_map_output := fun o =>
                          match o with 
-                         | AggregateResponse m_out => OA.AggregateResponse m_out
+                         | AggregateResponse client_id m_out => OA.AggregateResponse client_id m_out
                          end ;
     tot_s_map_msg := fun dst src m =>
                         match m with
@@ -435,7 +434,7 @@ end; simpl.
   * move: H4 {H1}.
     rewrite /update /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
-  * move: H7 {H1}.
+  * move: H4 {H1}.
     rewrite /update /=.
     by case name_eq_dec => H_dec; exact: IHrefl_trans_1n_trace1.
 - move => n H_in n' H_ins.
@@ -871,7 +870,7 @@ end; simpl.
     rewrite /= /update.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
-  * move: H6.
+  * move: H3.
     rewrite /= /update.
     case (name_eq_dec _ _) => H_dec; first by rewrite -H_dec; exact: IHrefl_trans_1n_trace1.
     exact: IHrefl_trans_1n_trace1.
@@ -1997,13 +1996,13 @@ end; simpl.
     + rewrite -H_dec'.
       exact: IHH_st1.
     + exact: IHH_st1.
-  * move: H6 H7 H8 H9.
+  * move: H3 H4 H5 H6.
     rewrite /update /=.
     case name_eq_dec => H_dec; case name_eq_dec => H_dec'.
     + rewrite -H_dec'.
       move => H_ins.
       contradict H_ins.
-      move: H_st1 H5.
+      move: H_st1 H2.
       exact: Aggregation_node_not_adjacent_self.
     + rewrite -H_dec.
       exact: IHH_st1.

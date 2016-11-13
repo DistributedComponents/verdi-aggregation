@@ -43,19 +43,19 @@ Defined.
 Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : name -> Input
-| AggregateRequest : Input.
+| AggregateRequest : nat -> Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality.
+decide equality; auto using Nat.eq_dec.
 - exact: m_eq_dec.
 - exact: name_eq_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : m -> Output.
+| AggregateResponse : nat -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality.
+decide equality; auto using Nat.eq_dec.
 exact: m_eq_dec.
 Defined.
 
@@ -109,8 +109,8 @@ match i with
          aggregate := st.(aggregate) * m_msg * st.(local)^-1 ;
          adjacent := st.(adjacent) ;
          balance := st.(balance) |}
-| AggregateRequest =>
-  write_output (AggregateResponse st.(aggregate))
+| AggregateRequest client_id =>
+  write_output (AggregateResponse client_id st.(aggregate))
 | SendAggregate dst => 
   when (NSet.mem dst st.(adjacent) && sumbool_not _ _ (m_eq_dec st.(aggregate) 1))
   (match NMap.find dst st.(balance) with
@@ -210,7 +210,7 @@ Lemma IOHandler_cases :
       (exists dst, i = SendAggregate dst /\ ~ NSet.In dst st.(adjacent) /\ 
          st' = st /\ 
          out = [] /\ ms = []) \/
-      (i = AggregateRequest /\ st' = st /\ out = [AggregateResponse (aggregate st)] /\ ms = []).
+      (exists client_id, i = AggregateRequest client_id /\ st' = st /\ out = [AggregateResponse client_id (aggregate st)] /\ ms = []).
 Proof.
 move => h i st u out st' ms.
 rewrite /IOHandler.
@@ -243,8 +243,9 @@ case: i => [m_msg|dst|]; monad_unfold.
     move => H_ins.
     apply NSetFacts.mem_1 in H_ins.
     by rewrite H_mem in H_ins.
-- move => H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
-  by right; right; right; right; right.
+- move => client_id H_eq; injection H_eq => H_ms H_st H_out H_tt; rewrite -H_st /=.
+  right; right; right; right; right.
+  by exists client_id.
 Qed.
 
 Lemma NetHandler_cases : 

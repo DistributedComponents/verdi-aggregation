@@ -42,21 +42,21 @@ case: o; case: o0.
 Defined.
 
 Inductive Input : Set :=
-| LevelRequest : Input
+| LevelRequest : nat -> Input
 | Broadcast : Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality.
+decide equality; auto using Nat.eq_dec.
 Defined.
 
 Inductive Output : Set :=
-| LevelResponse : option lv -> Output.
+| LevelResponse : nat -> option lv -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality.
+decide equality; auto using Nat.eq_dec.
 case: o; case: o0.
-- move => n m.
-  case (lv_eq_dec n m) => H_dec; first by rewrite H_dec; left.
+- move => lv0 lv1.
+  case (lv_eq_dec lv0 lv1) => H_dec; first by rewrite H_dec; left.
   right.
   move => H_eq.
   injection H_eq => H_eq'.
@@ -170,8 +170,8 @@ match i with
     ret (DeliverBroadcastTrue me)
   else
     ret (DeliverBroadcastFalse me)
-| LevelRequest => 
-  write_output (LevelResponse (Some 0)) ;;
+| LevelRequest client_id => 
+  write_output (LevelResponse client_id (Some 0)) ;;
   ret (DeliverLevelRequest me)
 end.
 
@@ -187,8 +187,8 @@ match i with
     ret (DeliverBroadcastTrue me))
   else
     ret (DeliverBroadcastFalse me)
-| LevelRequest =>   
-  write_output (LevelResponse (level st.(adjacent) st.(levels))) ;;
+| LevelRequest client_id =>   
+  write_output (LevelResponse client_id (level st.(adjacent) st.(levels))) ;;
   ret (DeliverLevelRequest me)
 end.
 
@@ -485,19 +485,23 @@ Lemma IOHandler_cases :
        st.(broadcast) = false /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (root h /\ i = LevelRequest /\ lb = DeliverLevelRequest h /\
+      (root h /\ exists client_id, i = LevelRequest client_id /\ lb = DeliverLevelRequest h /\
        st' = st /\
-       out = [LevelResponse (Some 0)] /\ ms = []) \/
-      (~ root h /\ i = LevelRequest /\ lb = DeliverLevelRequest h /\
+       out = [LevelResponse client_id (Some 0)] /\ ms = []) \/
+      (~ root h /\ exists client_id, i = LevelRequest client_id /\ lb = DeliverLevelRequest h /\
        st' = st /\
-       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).
+       out = [LevelResponse client_id (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
 move => h i st lb out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
-case: i => [|]; monad_unfold.
+case: i => [client_id|]; monad_unfold.
 - case root_dec => /= H_dec H_eq; find_injection.
-    by right; right; right; left.
-  by right; right; right; right.
+    right; right; right; left.
+    split => //.
+    by exists client_id.
+  right; right; right; right.
+  split => //.
+  by exists client_id.
 - case root_dec => /= H_dec; case H_b: broadcast => /=.
   * left.
     repeat break_let.
