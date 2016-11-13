@@ -18,4 +18,5 @@ let _ =
   let open TreeAggregationShim in
   main { cluster = !cluster
        ; me = !me
+       ; port = !port
        }
