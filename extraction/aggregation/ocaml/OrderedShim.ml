@@ -50,7 +50,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; write_fds : (A.name, file_descr) Hashtbl.t
       ; failed_nodes : (A.name, unit) Hashtbl.t
       ; mutable fail_msg_queue : A.name list
-      ; mutable clients : client list
+      ; clients : (int, client) Hashtbl.t
       }
 
   type severity =
@@ -89,7 +89,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; write_fds = Hashtbl.create 17
       ; failed_nodes = Hashtbl.create 17
       ; fail_msg_queue = []
-      ; clients = []
+      ; clients = Hashtbl.create 17
       }
     in
     setsockopt env.listen_fd SO_REUSEADDR true;
@@ -114,7 +114,7 @@ module Shim (A: ARRANGEMENT) = struct
     Unix.close fd
 
   let close_client_conn env client =
-    env.clients <- List.filter (fun c -> c.id <> client.id) env.clients;
+    Hashtbl.remove env.clients client.id;
     Unix.close client.sock
 
   let close_and_fail_neighbor env fd reason =
@@ -195,7 +195,7 @@ module Shim (A: ARRANGEMENT) = struct
   let output env o =
     let (client_id, out) = A.serializeOutput o in
     let client = 
-      try List.find (fun c -> client_id = c.id) env.clients
+      try Hashtbl.find env.clients client_id
       with Not_found -> failwith ("output: failed to find destination") in
     send_chunk client.sock out (close_and_fail_client env client)
 
@@ -229,9 +229,6 @@ module Shim (A: ARRANGEMENT) = struct
     let msg = unpack_msg buf in
     deliver_msg env state src msg
 
-  let get_all_read_fds env =
-    Hashtbl.fold (fun fd _ acc -> fd :: acc) env.read_fds []
-
   let new_neighbor_conn env =
     print_endline "new neighbor connection!";
     let (node_fd, node_addr) = accept env.listen_fd in
@@ -255,7 +252,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; sock = client_sock
       ; addr = client_addr
       } in
-    env.clients <- client :: env.clients;
+    Hashtbl.add env.clients client_id client;
     printf "ClientException %d connected on %s" client_id (string_of_sockaddr client_addr);
     print_newline ()
 
@@ -279,13 +276,17 @@ module Shim (A: ARRANGEMENT) = struct
       raise (ClientException (S_error, sprintf "input_step could not deserialize: %s" buf))
 
   let rec eloop (env : env) (state : A.state) : unit =
-    let client_fds = List.map (fun c -> c.sock) env.clients in
-    let fds = List.append (env.input_fd :: env.listen_fd :: get_all_read_fds env) client_fds in
-    let (ready_fds, _, _) = select fds [] [] (A.setTimeout env.cfg.me state) in
+    let client_fds = Hashtbl.fold (fun _ c acc -> c.sock :: acc) env.clients [] in
+    let read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.read_fds [] in
+    let all_fds = env.input_fd :: env.listen_fd :: List.append client_fds read_fds in
+    let (ready_fds, _, _) = select all_fds [] [] (A.setTimeout env.cfg.me state) in
     let state = ref state in
     begin
       try
-	match (List.mem env.listen_fd ready_fds, List.mem env.input_fd ready_fds, List.filter (fun c -> List.mem c.sock ready_fds) env.clients, ready_fds) with
+	match (List.mem env.listen_fd ready_fds,
+	       List.mem env.input_fd ready_fds,
+	       Hashtbl.fold (fun _ c acc -> if List.mem c.sock ready_fds then c :: acc else acc) env.clients [],
+	       ready_fds) with
 	| (true, _, _, _) ->
 	  new_neighbor_conn env
 	| (_, true, _, _) ->
