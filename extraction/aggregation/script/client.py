@@ -1,10 +1,17 @@
 import socket
 import re
 import uuid
+from struct import pack, unpack
 from select import select
 
 def poll(sock, timeout):
     return sock in select([sock], [], [], timeout)[0]
+
+class SendError(Exception):
+    pass
+
+class ReceiveError(Exception):
+    pass
 
 class Client(object):
     re_aggregate_response = re.compile(r'AggregateResponse\W+([0-9]+)')
@@ -17,22 +24,41 @@ class Client(object):
         else:
             self.sock = sock
 
+    def send_msg(self, msg):
+        n = self.sock.send(pack("<I", len(msg)))
+        if n < 4:
+            raise SendError
+        else:
+            self.sock.send(msg)
+
+    def recv_msg(self, re):
+        len_bytes = self.sock.recv(4)
+        if len_bytes == '':
+            raise ReceiveError
+        else:
+            len = unpack("<I", len_bytes)[0]
+            data = self.sock.recv(len)
+            if data == '':
+                raise ReceiveError
+            else:
+                return self.parse_response(data, re)
+
     def send_local(self, local):
-        self.sock.send('Local' + ' ' + str(local) + '\n')
+        self.send_msg('Local' + ' ' + str(local))
 
     def send_send_aggregate(self):
-        self.sock.send('SendAggregate\n')
+        self.send_msg('SendAggregate')
 
     def send_broadcast(self):
-        self.sock.send('Broadcast\n')
+        self.send_msg('Broadcast')
                
     def send_aggregate_request(self):
-        self.sock.send('AggregateRequest\n')
-        return self.process_response(self.re_aggregate_response)
+        self.send_msg('AggregateRequest')
+        return self.recv_msg(self.re_aggregate_response)
 
     def send_level_request(self):
-        self.sock.send('LevelRequest\n')
-        return self.process_response(self.re_level_response)
+        self.send_msg('LevelRequest')
+        return self.recv_msg(self.re_level_response)
 
     def deserialize(self, data):
         if data == '-':
@@ -46,9 +72,3 @@ class Client(object):
         except Exception as e:
             print "Parse error, data=%s" % data
             raise e
-        
-    def process_response(self, re):
-        while True:
-            data = self.sock.recv(1024).strip()
-            if data != '':
-                return self.parse_response(data, re)

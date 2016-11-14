@@ -18,7 +18,7 @@ let serializeInput : coq_Input -> string = function
   | LevelRequest x -> Printf.sprintf "LevelRequest %d" (Obj.magic x)
 
 let deserializeInput (s : string) (client_id : int) : coq_Input option =
-  match String.trim s with
+  match s with
   | "SendAggregate" -> Some SendAggregate
   | "Broadcast" -> Some Broadcast
   | "AggregateRequest" -> Some (AggregateRequest client_id)
