@@ -280,13 +280,15 @@ module Shim (A: ARRANGEMENT) = struct
     let read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.read_fds [] in
     let all_fds = env.input_fd :: env.listen_fd :: List.append client_fds read_fds in
     let (ready_fds, _, _) = select all_fds [] [] (A.setTimeout env.cfg.me state) in
+    let ready_clients = Hashtbl.fold
+      (fun _ c acc -> if List.mem c.sock ready_fds then c :: acc else acc)
+      env.clients [] in
     let state = ref state in
     begin
       try
 	match (List.mem env.listen_fd ready_fds,
 	       List.mem env.input_fd ready_fds,
-	       Hashtbl.fold (fun _ c acc -> if List.mem c.sock ready_fds then c :: acc else acc) env.clients [],
-	       ready_fds) with
+	       ready_clients, ready_fds) with
 	| (true, _, _, _) ->
 	  new_neighbor_conn env
 	| (_, true, _, _) ->
