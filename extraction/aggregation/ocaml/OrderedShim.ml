@@ -57,8 +57,8 @@ module Shim (A: ARRANGEMENT) = struct
     | S_info
     | S_error
 
-  exception Neighbor of (severity * string)
-  exception Client of (severity * string)
+  exception NeighborException of (severity * string)
+  exception ClientException of (severity * string)
 
   let get_node_from_name cfg nm : string * int =
     try List.assoc nm cfg.cluster
@@ -120,16 +120,16 @@ module Shim (A: ARRANGEMENT) = struct
   let close_and_fail_neighbor env fd reason =
     begin
       try close_neighbor_conn env fd
-      with e -> raise (Neighbor (S_error, sprintf "close_neighbor_conn threw: %s" (Printexc.to_string e)))
+      with e -> raise (NeighborException (S_error, sprintf "close_neighbor_conn threw: %s" (Printexc.to_string e)))
     end;
-    raise (Neighbor (S_info, sprintf "Neighbor disconnected with reason: %s" reason))
+    raise (NeighborException (S_info, sprintf "NeighborException disconnected with reason: %s" reason))
 
   let close_and_fail_client env client msg =
     begin
       try close_client_conn env client
-      with e -> raise (Client (S_error, sprintf "close_client_conn threw: %s" (Printexc.to_string e)))
+      with e -> raise (ClientException (S_error, sprintf "close_client_conn threw: %s" (Printexc.to_string e)))
     end;
-    raise (Client (S_info, sprintf "Client %d (%s) disconnected with reason: %s" client.id (string_of_sockaddr client.addr) msg))
+    raise (ClientException (S_info, sprintf "ClientException %d (%s) disconnected with reason: %s" client.id (string_of_sockaddr client.addr) msg))
 
   let send_chunk (fd : file_descr) (buf : string) fail_handler : unit =
     let len = String.length buf in
@@ -256,7 +256,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; addr = client_addr
       } in
     env.clients <- client :: env.clients;
-    printf "Client %d connected on %s" client_id (string_of_sockaddr client_addr);
+    printf "ClientException %d connected on %s" client_id (string_of_sockaddr client_addr);
     print_newline ()
 
   let connect_to_neighbors env =
@@ -276,7 +276,7 @@ module Shim (A: ARRANGEMENT) = struct
       end;
       state'
     | None -> 
-      raise (Client (S_error, sprintf "input_step could not deserialize: %s" buf))
+      raise (ClientException (S_error, sprintf "input_step could not deserialize: %s" buf))
 
   let rec eloop (env : env) (state : A.state) : unit =
     let client_fds = List.map (fun c -> c.sock) env.clients in
@@ -297,16 +297,16 @@ module Shim (A: ARRANGEMENT) = struct
 	| _ -> 
 	  connect_to_neighbors env   
       with
-      | Client (S_info, reason) -> 
+      | ClientException (S_info, reason) -> 
 	printf "client info: %s" reason;
 	print_newline ()
-      | Client (S_error, reason) ->
+      | ClientException (S_error, reason) ->
 	printf "client error: %s" reason;
 	print_newline ()
-      | Neighbor (S_info, reason) -> 
+      | NeighborException (S_info, reason) -> 
 	printf "neighbor info: %s" reason;
 	print_newline ()
-      | Neighbor (S_error, reason) ->
+      | NeighborException (S_error, reason) ->
 	printf "neighbor error: %s" reason;
 	print_newline ()
     end;
@@ -316,10 +316,10 @@ module Shim (A: ARRANGEMENT) = struct
 	begin
 	  try List.iter (fun nm -> state := deliver_msg env !state nm m) env.fail_msg_queue
 	  with
-	  | Neighbor (S_info, reason) ->
+	  | NeighborException (S_info, reason) ->
 	    printf "neighbor info: %s" reason;
 	    print_newline ()
-	  | Neighbor (S_error, reason) ->
+	  | NeighborException (S_error, reason) ->
 	    printf "neighbor error: %s" reason;
 	    print_newline ()
 	end
