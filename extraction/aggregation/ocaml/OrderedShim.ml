@@ -1,23 +1,8 @@
 open Printf
 open Unix
+open Util
 
 module M = Marshal
-
-module Utils = struct
-  let raw_bytes_of_int (x : int) : bytes =
-    let buf = Bytes.make 4 '\x00' in
-    Bytes.set buf 0 (char_of_int (x land 0xff));
-    Bytes.set buf 1 (char_of_int ((x lsr 8) land 0xff));
-    Bytes.set buf 2 (char_of_int ((x lsr 16) land 0xff));
-    Bytes.set buf 3 (char_of_int ((x lsr 24) land 0xff));
-    buf
-
-  let int_of_raw_bytes (buf : bytes) : int =
-     (int_of_char (Bytes.get buf 0)) lor
-    ((int_of_char (Bytes.get buf 1)) lsl 8) lor
-    ((int_of_char (Bytes.get buf 2)) lsl 16) lor
-    ((int_of_char (Bytes.get buf 3)) lsl 24)
-end
 
 module type ARRANGEMENT = sig
   type name
@@ -144,7 +129,7 @@ module Shim (A: ARRANGEMENT) = struct
 
   let send_chunk env (fd : file_descr) (buf : string) : unit =
     let len = String.length buf in
-    let n = Unix.send fd (Utils.raw_bytes_of_int len) 0 4 [] in
+    let n = Unix.send fd (raw_bytes_of_int len) 0 4 [] in
     if n < 4 then
       close_and_fail env fd "send_chunk: message header failed to send all at once.";
     let n = Unix.send fd buf 0 len [] in
@@ -164,7 +149,7 @@ module Shim (A: ARRANGEMENT) = struct
     let n = recv_or_close env fd buf4 0 4 [] in
     if n < 4 then
       close_and_fail env fd "receive_chunk: message header did not arrive all at once.";
-    let len = Utils.int_of_raw_bytes buf4 in
+    let len = int_of_raw_bytes buf4 in
     let buf = Bytes.make len '\x00' in
     let n = recv_or_close env fd buf 0 len [] in
     if n < len then
