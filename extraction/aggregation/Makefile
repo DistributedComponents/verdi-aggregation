@@ -1,5 +1,5 @@
-OCAMLBUILD = ocamlbuild -lib str -lib unix -lib bytes -I ocaml -cflag -g
-OCAMLBUILD_TEST = ocamlbuild -package oUnit -lib str -I ocaml -I test -cflag -g
+OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I ocaml -cflag -g
+OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -cflag -g
 
 AGGREGATION = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli \
  ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml \

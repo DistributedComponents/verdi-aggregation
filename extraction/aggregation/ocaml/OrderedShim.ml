@@ -36,8 +36,8 @@ module type ARRANGEMENT = sig
   val handleNet : name -> name -> msg -> state -> res
   val handleTimeout : name -> state -> res
   val setTimeout : name -> state -> float
-  val deserializeInput : string -> input option
-  val serializeOutput : output -> string
+  val deserializeInput : string -> int -> input option
+  val serializeOutput : output -> int * string
   val failMsg : msg option
   val newMsg : msg option
   val debug : bool
@@ -49,7 +49,8 @@ end
 
 module Shim (A: ARRANGEMENT) = struct
   type client =
-      { sock : file_descr
+      { id   : int
+      ; sock : file_descr
       ; addr : sockaddr
       }
 
@@ -78,11 +79,11 @@ module Shim (A: ARRANGEMENT) = struct
     try List.assoc nm cfg.cluster
     with Not_found -> failwith (sprintf "Unknown node name %s" (A.serializeName nm))
 
-  (* Translate node name to TCP socket address. *)
+  (* Translate node name to TCP socket address *)
   let denote (env : env) (name : A.name) : file_descr =
     Hashtbl.find env.write_fds name
 
-  (* Translate UDP socket ddress to node name. *)
+  (* Translate TCP socket address to node name *)
   let undenote (env : env) (fd : file_descr) : A.name =
     Hashtbl.find env.read_fds fd
 
@@ -141,7 +142,7 @@ module Shim (A: ARRANGEMENT) = struct
   let disconnect_client env client reason =
     close client.sock;
     env.clients <- List.filter (fun c -> c <> client) env.clients;
-    printf "Client %s disconnected (%s)" (string_of_sockaddr client.addr) reason;
+    printf "Client %d (%s) disconnected with reason: %s" client.id (string_of_sockaddr client.addr) reason;
     print_newline ()
 
   let send_chunk env (fd : file_descr) (buf : string) : unit =
@@ -206,12 +207,18 @@ module Shim (A: ARRANGEMENT) = struct
   let send env ((nm : A.name), (msg : A.msg)) : unit =
     send_on_fd env (get_write_fd env nm) msg
 
-  let respond_to_client env out =
-    print_endline out
+  let respond_to_client env client msg =
+    try
+      ignore (Unix.send client.sock (msg ^ "\n") 0 (String.length msg) [])
+    with Unix_error (err, fn, arg) ->
+      disconnect_client env client ("Error from send: " ^ (error_message err))
 
   let output env o =
-    let out = A.serializeOutput o in
-    respond_to_client env out
+    let (client_id, out) = A.serializeOutput o in
+    let client = 
+      try List.find (fun c -> client_id = c.id) env.clients
+      with Not_found -> failwith ("output: failed to find destination") in
+    respond_to_client env client out
 
   let unpack_msg buf : A.msg =
     M.from_string buf 0
@@ -261,12 +268,15 @@ module Shim (A: ARRANGEMENT) = struct
 
   let new_client_conn env =
     let (client_sock, client_addr) = accept env.input_fd in
+    let client_uuid = Uuidm.to_string (Uuidm.create `V4) in
+    let client_id = int_of_string ("0x" ^ String.sub client_uuid 0 8) in
     let client =
-      { sock = client_sock
+      { id = client_id
+      ; sock = client_sock
       ; addr = client_addr
       } in
     env.clients <- client :: env.clients;
-    printf "Client connected on %s" (string_of_sockaddr client_addr);
+    printf "Client %d connected on %s" client_id (string_of_sockaddr client_addr);
     print_newline ()
 
   let connect_to_neighbors env =
@@ -289,7 +299,7 @@ module Shim (A: ARRANGEMENT) = struct
     let () = Bytes.blit buf 0 buf2 0 n in
     let msg_len = (Bytes.index buf '\n') + 1 in
     let _ = recv client.sock (Bytes.make msg_len '\x00') 0 msg_len [] in
-    match A.deserializeInput buf2 with
+    match A.deserializeInput buf2 client.id with
     | Some inp ->
        let state' = respond env (A.handleIO name inp state) in
        if A.debug then begin

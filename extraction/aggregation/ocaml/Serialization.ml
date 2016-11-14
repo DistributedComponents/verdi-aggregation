@@ -11,30 +11,32 @@ let deserializeName : string -> Names.name option = fun s ->
     with Failure _ -> None
 
 let serializeInput : coq_Input -> string = function
-  | Local x -> sprintf "Local(%d)" (Obj.magic x)
   | SendAggregate -> "SendAggregate"
-  | AggregateRequest -> "AggregateRequest"
-  | LevelRequest -> "LevelRequest"
   | Broadcast -> "Broadcast"
+  | AggregateRequest x -> Printf.sprintf "AggregateRequest %d" (Obj.magic x)
+  | Local x -> Printf.sprintf "Local %d" (Obj.magic x)
+  | LevelRequest x -> Printf.sprintf "LevelRequest %d" (Obj.magic x)
 
-let deserializeInput (s : string) : coq_Input option =
+let deserializeInput (s : string) (client_id : int) : coq_Input option =
   match String.trim s with
   | "SendAggregate" -> Some SendAggregate
-  | "AggregateRequest" -> Some AggregateRequest
-  | "LevelRequest" -> Some LevelRequest
   | "Broadcast" -> Some Broadcast
-  | _ -> try sscanf s "Local(%d)" (fun x -> Some (Local (Obj.magic x))) with _ -> None
+  | "AggregateRequest" -> Some (AggregateRequest client_id)
+  | "LevelRequest" -> Some (LevelRequest client_id)
+  | _ -> 
+    try Scanf.sscanf s "Local %d" (fun x -> Some (Local (Obj.magic x)))
+    with _ -> None
 
 let serializeLevelOption olv : string =
   match olv with
   | Some lv -> string_of_int lv
-  | _ -> ""
+  | _ -> "-"
 
-let serializeOutput : coq_Output -> string = function
-  | AggregateResponse x -> sprintf "AggregateResponse(%d)" (Obj.magic x)
-  | LevelResponse olv -> sprintf "LevelResponse(%s)" (serializeLevelOption olv)
+let serializeOutput : coq_Output -> int * string = function
+  | AggregateResponse (client_id, x) -> (client_id, Printf.sprintf "AggregateResponse %d" (Obj.magic x))
+  | LevelResponse (client_id, olv) -> (client_id, Printf.sprintf "LevelResponse %s" (serializeLevelOption olv))
 
 let serializeMsg : coq_Msg -> string = function
-  | Aggregate x -> sprintf "Aggregate(%d)" (Obj.magic x)
+  | Aggregate x -> Printf.sprintf "Aggregate %d" (Obj.magic x)
   | Fail -> "Fail"
-  | Level olv -> sprintf "Level(%s)" (serializeLevelOption olv)
+  | Level olv -> Printf.sprintf "Level %s" (serializeLevelOption olv)
