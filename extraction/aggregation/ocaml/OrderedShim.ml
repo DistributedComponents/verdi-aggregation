@@ -30,12 +30,6 @@ module type ARRANGEMENT = sig
 end
 
 module Shim (A: ARRANGEMENT) = struct
-  type client =
-      { id   : int
-      ; sock : file_descr
-      ; addr : sockaddr
-      }
-
   type cfg =
       { cluster : (A.name * (string * int)) list
       ; me : A.name
@@ -46,11 +40,12 @@ module Shim (A: ARRANGEMENT) = struct
       { cfg : cfg
       ; listen_fd : file_descr
       ; input_fd : file_descr
-      ; read_fds : (file_descr, A.name) Hashtbl.t
-      ; write_fds : (A.name, file_descr) Hashtbl.t
+      ; node_read_fds : (file_descr, A.name) Hashtbl.t
+      ; node_write_fds : (A.name, file_descr) Hashtbl.t
       ; failed_nodes : (A.name, unit) Hashtbl.t
       ; mutable fail_msg_queue : A.name list
-      ; clients : (int, client) Hashtbl.t
+      ; client_read_fds : (file_descr, int) Hashtbl.t
+      ; client_write_fds : (int, file_descr) Hashtbl.t
       }
 
   type severity =
@@ -65,12 +60,20 @@ module Shim (A: ARRANGEMENT) = struct
     with Not_found -> failwith (sprintf "Unknown node name %s" (A.serializeName nm))
 
   (* Translate node name to TCP socket address *)
-  let denote (env : env) (name : A.name) : file_descr =
-    Hashtbl.find env.write_fds name
+  let denote_node (env : env) (name : A.name) : file_descr =
+    Hashtbl.find env.node_write_fds name
 
   (* Translate TCP socket address to node name *)
-  let undenote (env : env) (fd : file_descr) : A.name =
-    Hashtbl.find env.read_fds fd
+  let undenote_node (env : env) (fd : file_descr) : A.name =
+    Hashtbl.find env.node_read_fds fd
+
+  (* Translate client id to TCP socket address *)
+  let denote_client (env : env) (id : int) : file_descr =
+    Hashtbl.find env.client_write_fds id
+
+  (* Translate TCP socket address to client id *)
+  let undenote_client (env : env) (fd : file_descr) : int =
+    Hashtbl.find env.client_read_fds fd
 
   (* Gets state from the most recent snapshot, or the initial state from the arrangement. *)
   let get_initial_state (cfg : cfg) : A.state =
@@ -85,11 +88,12 @@ module Shim (A: ARRANGEMENT) = struct
       { cfg = cfg
       ; listen_fd = socket PF_INET SOCK_STREAM 0
       ; input_fd = socket PF_INET SOCK_STREAM 0
-      ; read_fds = Hashtbl.create 17
-      ; write_fds = Hashtbl.create 17
+      ; node_read_fds = Hashtbl.create 17
+      ; node_write_fds = Hashtbl.create 17
       ; failed_nodes = Hashtbl.create 17
       ; fail_msg_queue = []
-      ; clients = Hashtbl.create 17
+      ; client_read_fds = Hashtbl.create 17
+      ; client_write_fds = Hashtbl.create 17
       }
     in
     setsockopt env.listen_fd SO_REUSEADDR true;
@@ -106,16 +110,18 @@ module Shim (A: ARRANGEMENT) = struct
     | ADDR_INET (addr, port) -> (sprintf "%s:%d" (string_of_inet_addr addr) port)
 
   let close_neighbor_conn env fd =
-    let node_name = undenote env fd in
-    Hashtbl.remove env.read_fds fd;
-    Hashtbl.remove env.write_fds node_name;
+    let node_name = undenote_node env fd in
+    Hashtbl.remove env.node_read_fds fd;
+    Hashtbl.remove env.node_write_fds node_name;
     Hashtbl.add env.failed_nodes node_name ();
     env.fail_msg_queue <- node_name :: env.fail_msg_queue;
     Unix.close fd
 
-  let close_client_conn env client =
-    Hashtbl.remove env.clients client.id;
-    Unix.close client.sock
+  let close_client_conn env fd =
+    let client_id : int = undenote_client env fd in
+    Hashtbl.remove env.client_read_fds fd;
+    Hashtbl.remove env.client_write_fds client_id;
+    Unix.close fd
 
   let close_and_fail_neighbor env fd reason =
     begin
@@ -124,12 +130,12 @@ module Shim (A: ARRANGEMENT) = struct
     end;
     raise (NeighborException (S_info, sprintf "NeighborException disconnected with reason: %s" reason))
 
-  let close_and_fail_client env client msg =
+  let close_and_fail_client env fd reason =
     begin
-      try close_client_conn env client
+      try close_client_conn env fd
       with e -> raise (ClientException (S_error, sprintf "close_client_conn threw: %s" (Printexc.to_string e)))
     end;
-    raise (ClientException (S_info, sprintf "ClientException %d (%s) disconnected with reason: %s" client.id (string_of_sockaddr client.addr) msg))
+    raise (ClientException (S_info, sprintf "ClientException disconnected with reason: %s" reason))
 
   let send_chunk (fd : file_descr) (buf : string) fail_handler : unit =
     let len = String.length buf in
@@ -173,11 +179,11 @@ module Shim (A: ARRANGEMENT) = struct
           | None -> ()
     end;
     print_endline "...connected!";
-    Hashtbl.add env.write_fds node_name write_fd;
+    Hashtbl.add env.node_write_fds node_name write_fd;
     write_fd
 
-  let get_write_fd env node_name =
-    try denote env node_name
+  let get_node_write_fd env node_name =
+    try denote_node env node_name
     with Not_found ->
       if not (Hashtbl.mem env.failed_nodes node_name)
       then
@@ -186,18 +192,18 @@ module Shim (A: ARRANGEMENT) = struct
         let node_addr = ADDR_INET (Array.get entry.h_addr_list 0, port) in
         add_write_fd env node_name node_addr
       else
-        failwith "get_write_fd: cannot find name "
+        failwith "get_node_write_fd: cannot find name "
 
   let send env ((nm : A.name), (msg : A.msg)) : unit =
-    let fd = get_write_fd env nm in
+    let fd = get_node_write_fd env nm in
     send_on_fd fd msg (close_and_fail_neighbor env fd)
 
   let output env o =
     let (client_id, out) = A.serializeOutput o in
-    let client = 
-      try Hashtbl.find env.clients client_id
+    let fd =
+      try denote_client env client_id
       with Not_found -> failwith ("output: failed to find destination") in
-    send_chunk client.sock out (close_and_fail_client env client)
+    send_chunk fd out (close_and_fail_client env fd)
 
   let unpack_msg buf : A.msg =
     M.from_string buf 0
@@ -222,7 +228,7 @@ module Shim (A: ARRANGEMENT) = struct
 
   let recv_step (env : env) (fd : file_descr) (state : A.state) : A.state =
     let buf = receive_chunk env fd (close_and_fail_neighbor env fd) in
-    let src = try undenote env fd
+    let src = try undenote_node env fd
               with Not_found ->
                 failwith ("recv_step: failed to find source for message! " ^
                           "(probably it has been marked failed)") in
@@ -235,8 +241,8 @@ module Shim (A: ARRANGEMENT) = struct
     let buf = receive_chunk env node_fd (close_and_fail_neighbor env node_fd) in
     match A.deserializeName buf with
     | Some node_name ->
-      Hashtbl.add env.read_fds node_fd node_name;
-      ignore (get_write_fd env node_name);
+      Hashtbl.add env.node_read_fds node_fd node_name;
+      ignore (get_node_write_fd env node_name);
       Printf.printf "done processing new connection from node %s" buf;
       print_newline ()
     | None ->
@@ -244,28 +250,25 @@ module Shim (A: ARRANGEMENT) = struct
       Unix.close node_fd
 
   let new_client_conn env =
-    let (client_sock, client_addr) = accept env.input_fd in
+    let (client_fd, client_addr) = accept env.input_fd in
     let client_uuid = Uuidm.to_string (Uuidm.create `V4) in
     let client_id = int_of_string ("0x" ^ String.sub client_uuid 0 8) in
-    let client =
-      { id = client_id
-      ; sock = client_sock
-      ; addr = client_addr
-      } in
-    Hashtbl.add env.clients client_id client;
+    Hashtbl.add env.client_read_fds client_fd client_id;
+    Hashtbl.add env.client_write_fds client_id client_fd;
     printf "ClientException %d connected on %s" client_id (string_of_sockaddr client_addr);
     print_newline ()
 
   let connect_to_neighbors env =
     let go (nm, _) =
-      try ignore (get_write_fd env nm)
+      try ignore (get_node_write_fd env nm)
       with e -> printf "respond moving on after exception: %s" (Printexc.to_string e);
                 print_newline () in
     List.iter go (List.filter (fun (nm,_) -> not (Hashtbl.mem env.failed_nodes nm)) env.cfg.cluster)
 
-  let input_step (client : client) (env : env) (name : A.name) (state : A.state) =
-    let buf = receive_chunk env client.sock (close_and_fail_client env client) in
-    match A.deserializeInput buf client.id with
+  let input_step (fd : file_descr) (env : env) (name : A.name) (state : A.state) =
+    let buf = receive_chunk env fd (close_and_fail_client env fd) in
+    let client_id : int = undenote_client env fd in
+    match A.deserializeInput buf client_id with
     | Some inp ->
       let state' = respond env (A.handleIO name inp state) in
       if A.debug then begin
@@ -276,27 +279,25 @@ module Shim (A: ARRANGEMENT) = struct
       raise (ClientException (S_error, sprintf "input_step could not deserialize: %s" buf))
 
   let rec eloop (env : env) (state : A.state) : unit =
-    let client_fds = Hashtbl.fold (fun _ c acc -> c.sock :: acc) env.clients [] in
-    let read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.read_fds [] in
-    let all_fds = env.input_fd :: env.listen_fd :: List.append client_fds read_fds in
+    let client_read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.client_read_fds [] in
+    let node_read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.node_read_fds [] in
+    let all_fds = env.input_fd :: env.listen_fd :: List.append client_read_fds node_read_fds in
     let (ready_fds, _, _) = select all_fds [] [] (A.setTimeout env.cfg.me state) in
-    let ready_clients = Hashtbl.fold
-      (fun _ c acc -> if List.mem c.sock ready_fds then c :: acc else acc)
-      env.clients [] in
     let state = ref state in
     begin
       try
 	match (List.mem env.listen_fd ready_fds,
 	       List.mem env.input_fd ready_fds,
-	       ready_clients, ready_fds) with
-	| (true, _, _, _) ->
+	       ready_fds) with
+	| (true, _, _) ->
 	  new_neighbor_conn env
-	| (_, true, _, _) ->
+	| (_, true, _) ->
 	  new_client_conn env
-	| (_, _, client :: _, _) ->
-	  state := input_step client env env.cfg.me !state
-	| (_, _, _, fd :: _) ->
-	  state := recv_step env fd !state
+	| (_, _, fd :: _) ->
+	  if Hashtbl.mem env.client_read_fds fd then
+	    state := input_step fd env env.cfg.me !state
+	  else
+	    state := recv_step env fd !state
 	| _ -> 
 	  connect_to_neighbors env   
       with
