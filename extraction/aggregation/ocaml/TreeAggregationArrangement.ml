@@ -9,21 +9,24 @@ module TreeAggregationArrangement = struct
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
   type request_id = int
+
   let systemName : string = "Static Tree Aggregation Protocol"
 
   let serializeName = Serialization.serializeName
+
   let deserializeName = Serialization.deserializeName
 
   let init : name -> state = fun n ->
     Obj.magic (coq_TreeAggregation_MultiParams.init_handlers (Obj.magic n))
+
   let handleIO : name -> input -> state -> res =
     fun n i s ->
     Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic i) (Obj.magic s))
+
   let handleNet : name -> name -> msg -> state -> res =
     fun dst src m s ->
     Obj.magic (coq_TreeAggregation_MultiParams.net_handlers (Obj.magic dst) (Obj.magic src) (Obj.magic m) (Obj.magic s))
 
-  let handleTimeout : name -> state -> res = fun _ s -> (([], s), [])
   let setTimeout : name -> state -> float = fun _ _ -> 1.0
 
   let serializeInput = Serialization.serializeInput

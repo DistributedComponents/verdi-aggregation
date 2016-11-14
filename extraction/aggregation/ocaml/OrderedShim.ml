@@ -1,8 +1,6 @@
 open Printf
 open Unix
 
-type bytes = string
-
 module M = Marshal
 
 module Utils = struct
@@ -34,7 +32,6 @@ module type ARRANGEMENT = sig
   val init : name -> state
   val handleIO : name -> input -> state -> res
   val handleNet : name -> name -> msg -> state -> res
-  val handleTimeout : name -> state -> res
   val setTimeout : name -> state -> float
   val deserializeInput : string -> int -> input option
   val serializeOutput : output -> int * string
