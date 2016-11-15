@@ -12,9 +12,9 @@ module TreeAggregationArrangement = struct
 
   let systemName : string = "Static Tree Aggregation Protocol"
 
-  let serializeName = Serialization.serializeName
+  let serializeName : name -> string = Serialization.serializeName
 
-  let deserializeName = Serialization.deserializeName
+  let deserializeName : string -> name option = Serialization.deserializeName
 
   let init : name -> state = fun n ->
     Obj.magic (coq_TreeAggregation_MultiParams.init_handlers (Obj.magic n))
@@ -29,28 +29,30 @@ module TreeAggregationArrangement = struct
 
   let setTimeout : name -> state -> float = fun _ _ -> 1.0
 
-  let serializeInput = Serialization.serializeInput
+  let deserializeMsg : string -> msg = Serialization.deserializeMsg
 
-  let deserializeInput = Serialization.deserializeInput
+  let serializeMsg : msg -> string = Serialization.serializeMsg
 
-  let serializeOutput = Serialization.serializeOutput
+  let deserializeInput : string -> int -> input option = Serialization.deserializeInput
 
-  let failMsg = Some Fail
+  let serializeOutput : output -> int * string = Serialization.serializeOutput
 
-  let newMsg = None
+  let failMsg : msg option = Some Fail
+
+  let newMsg : msg option = None
 
   let debug : bool = true
 
   let debugInput : state -> input -> unit = fun _ inp ->
-    Printf.printf "got input %s" (serializeInput inp);
+    Printf.printf "got input %s" (Serialization.debugSerializeInput inp);
     print_newline ()
 
   let debugRecv : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "receiving message %s from %s" (Serialization.serializeMsg msg) (serializeName nm);
+    Printf.printf "receiving message %s from %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
 
   let debugSend : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "sending message %s to %s" (Serialization.serializeMsg msg) (serializeName nm);
+    Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
 
   let debugTimeout : state -> unit = fun _ -> ()

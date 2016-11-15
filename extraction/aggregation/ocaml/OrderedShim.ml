@@ -18,6 +18,8 @@ module type ARRANGEMENT = sig
   val handleIO : name -> input -> state -> res
   val handleNet : name -> name -> msg -> state -> res
   val setTimeout : name -> state -> float
+  val deserializeMsg : string -> msg
+  val serializeMsg : msg -> string
   val deserializeInput : string -> int -> input option
   val serializeOutput : output -> int * string
   val failMsg : msg option
@@ -166,7 +168,7 @@ module Shim (A: ARRANGEMENT) = struct
     buf
 
   let send_on_fd (fd : file_descr) (msg : A.msg) fail_handler : unit =
-    send_chunk fd (M.to_string msg []) fail_handler
+    send_chunk fd (A.serializeMsg msg) fail_handler
 
   let add_write_fd env node_name node_addr =
     printf "connecting to %s for the first time..." (A.serializeName node_name);
@@ -205,9 +207,6 @@ module Shim (A: ARRANGEMENT) = struct
       with Not_found -> failwith "output: failed to find destination" in
     send_chunk fd out (close_and_fail_client env fd)
 
-  let unpack_msg buf : A.msg =
-    M.from_string buf 0
-
   let respond env ((os, s), ps) =
     let go p =
       try
@@ -231,7 +230,7 @@ module Shim (A: ARRANGEMENT) = struct
     let src = try undenote_node env fd
               with Not_found ->
                 failwith ("recv_step: failed to find source for message (it has probably been marked failed)") in
-    let msg = unpack_msg buf in
+    let msg = A.deserializeMsg buf in
     deliver_msg env state src msg
 
   let new_node_conn env =
