@@ -1,3 +1,5 @@
+PYTHON=python2.7
+
 OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I ocaml -cflag -g
 OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -cflag -g
 
@@ -15,13 +17,18 @@ TreeAggregationMain.native: $(AGGREGATION) $(LIB)
 TreeAggregationTest.native: $(AGGREGATION) $(AGGREGATION_TEST)
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native
 
-test: TreeAggregationTest.native
+test-units: TreeAggregationTest.native
 	./TreeAggregationTest.native
+
+test-integration: TreeAggregationMain.native test/integration.py
+	$(PYTHON) test/integration.py
+
+test: test-units test-integration
 
 clean:
 	$(OCAMLBUILD) TreeAggregationMain.native -clean
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native -clean
 
-.PHONY: default clean test
+.PHONY: default clean test test-units test-integration
 
 .NOTPARALLEL: TreeAggregationMain.native TreeAggregationTest.native
