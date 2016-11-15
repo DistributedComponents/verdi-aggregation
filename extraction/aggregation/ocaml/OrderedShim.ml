@@ -52,8 +52,8 @@ module Shim (A: ARRANGEMENT) = struct
     | S_info
     | S_error
 
-  exception NeighborException of (severity * string)
-  exception ClientException of (severity * string)
+  exception NodeDisconnect of (severity * string)
+  exception ClientDisconnect of (severity * string)
 
   let get_node_from_name cfg nm : string * int =
     try List.assoc nm cfg.cluster
@@ -109,7 +109,7 @@ module Shim (A: ARRANGEMENT) = struct
     | ADDR_UNIX path -> (sprintf "unix://%s" path)
     | ADDR_INET (addr, port) -> (sprintf "%s:%d" (string_of_inet_addr addr) port)
 
-  let close_neighbor_conn env fd =
+  let close_node_conn env fd =
     let node_name = undenote_node env fd in
     Hashtbl.remove env.node_read_fds fd;
     Hashtbl.remove env.node_write_fds node_name;
@@ -123,19 +123,19 @@ module Shim (A: ARRANGEMENT) = struct
     Hashtbl.remove env.client_write_fds client_id;
     Unix.close fd
 
-  let close_and_fail_neighbor env fd reason =
+  let close_and_fail_node env fd reason =
     begin
-      try close_neighbor_conn env fd
-      with e -> raise (NeighborException (S_error, sprintf "close_neighbor_conn threw: %s" (Printexc.to_string e)))
+      try close_node_conn env fd
+      with e -> raise (NodeDisconnect (S_error, sprintf "close_node_conn threw: %s" (Printexc.to_string e)))
     end;
-    raise (NeighborException (S_info, sprintf "NeighborException disconnected with reason: %s" reason))
+    raise (NodeDisconnect (S_info, sprintf "disconnected with reason: %s" reason))
 
   let close_and_fail_client env fd reason =
     begin
       try close_client_conn env fd
-      with e -> raise (ClientException (S_error, sprintf "close_client_conn threw: %s" (Printexc.to_string e)))
+      with e -> raise (ClientDisconnect (S_error, sprintf "close_client_conn threw: %s" (Printexc.to_string e)))
     end;
-    raise (ClientException (S_info, sprintf "ClientException disconnected with reason: %s" reason))
+    raise (ClientDisconnect (S_info, sprintf "disconnected with reason: %s" reason))
 
   let send_chunk (fd : file_descr) (buf : string) fail_handler : unit =
     let len = String.length buf in
@@ -169,13 +169,13 @@ module Shim (A: ARRANGEMENT) = struct
     send_chunk fd (M.to_string msg []) fail_handler
 
   let add_write_fd env node_name node_addr =
-    Printf.printf "Connecting to %s for the first time..." (A.serializeName node_name);
+    printf "connecting to %s for the first time..." (A.serializeName node_name);
     print_newline ();
     let write_fd = socket PF_INET SOCK_STREAM 0 in
     connect write_fd node_addr;
-    send_chunk write_fd (A.serializeName env.cfg.me) (close_and_fail_neighbor env write_fd);
+    send_chunk write_fd (A.serializeName env.cfg.me) (close_and_fail_node env write_fd);
     begin match A.newMsg with
-          | Some m -> send_on_fd write_fd m (close_and_fail_neighbor env write_fd)
+          | Some m -> send_on_fd write_fd m (close_and_fail_node env write_fd)
           | None -> ()
     end;
     print_endline "...connected!";
@@ -192,17 +192,17 @@ module Shim (A: ARRANGEMENT) = struct
         let node_addr = ADDR_INET (Array.get entry.h_addr_list 0, port) in
         add_write_fd env node_name node_addr
       else
-        failwith "get_node_write_fd: cannot find name "
+        failwith "get_node_write_fd: cannot find name"
 
   let send env ((nm : A.name), (msg : A.msg)) : unit =
     let fd = get_node_write_fd env nm in
-    send_on_fd fd msg (close_and_fail_neighbor env fd)
+    send_on_fd fd msg (close_and_fail_node env fd)
 
   let output env o =
     let (client_id, out) = A.serializeOutput o in
     let fd =
       try denote_client env client_id
-      with Not_found -> failwith ("output: failed to find destination") in
+      with Not_found -> failwith "output: failed to find destination" in
     send_chunk fd out (close_and_fail_client env fd)
 
   let unpack_msg buf : A.msg =
@@ -227,26 +227,26 @@ module Shim (A: ARRANGEMENT) = struct
     state'
 
   let recv_step (env : env) (fd : file_descr) (state : A.state) : A.state =
-    let buf = receive_chunk env fd (close_and_fail_neighbor env fd) in
+    let buf = receive_chunk env fd (close_and_fail_node env fd) in
     let src = try undenote_node env fd
               with Not_found ->
-                failwith ("recv_step: failed to find source for message! " ^
-                          "(probably it has been marked failed)") in
+                failwith ("recv_step: failed to find source for message (it has probably been marked failed)") in
     let msg = unpack_msg buf in
     deliver_msg env state src msg
 
-  let new_neighbor_conn env =
-    print_endline "new neighbor connection!";
+  let new_node_conn env =
+    printf "new node connection";
+    print_newline ();
     let (node_fd, node_addr) = accept env.listen_fd in
-    let buf = receive_chunk env node_fd (close_and_fail_neighbor env node_fd) in
+    let buf = receive_chunk env node_fd (close_and_fail_node env node_fd) in
     match A.deserializeName buf with
     | Some node_name ->
       Hashtbl.add env.node_read_fds node_fd node_name;
       ignore (get_node_write_fd env node_name);
-      Printf.printf "done processing new connection from node %s" buf;
+      printf "done processing new connection from node %s" buf;
       print_newline ()
     | None ->
-      printf "Failed to deserialize name %s, closing connection" buf;
+      printf "failed to deserialize name %s, closing connection" buf;
       Unix.close node_fd
 
   let new_client_conn env =
@@ -255,10 +255,10 @@ module Shim (A: ARRANGEMENT) = struct
     let client_id = int_of_string ("0x" ^ String.sub client_uuid 0 8) in
     Hashtbl.add env.client_read_fds client_fd client_id;
     Hashtbl.add env.client_write_fds client_id client_fd;
-    printf "ClientException %d connected on %s" client_id (string_of_sockaddr client_addr);
+    printf "client %d connected on %s" client_id (string_of_sockaddr client_addr);
     print_newline ()
 
-  let connect_to_neighbors env =
+  let connect_to_nodes env =
     let go (nm, _) =
       try ignore (get_node_write_fd env nm)
       with e -> printf "respond moving on after exception: %s" (Printexc.to_string e);
@@ -276,7 +276,7 @@ module Shim (A: ARRANGEMENT) = struct
       end;
       state'
     | None -> 
-      raise (ClientException (S_error, sprintf "input_step could not deserialize: %s" buf))
+      failwith (sprintf "input_step could not deserialize: %s" buf)
 
   let rec eloop (env : env) (state : A.state) : unit =
     let client_read_fds = Hashtbl.fold (fun fd _ acc -> fd :: acc) env.client_read_fds [] in
@@ -290,7 +290,7 @@ module Shim (A: ARRANGEMENT) = struct
 	       List.mem env.input_fd ready_fds,
 	       ready_fds) with
 	| (true, _, _) ->
-	  new_neighbor_conn env
+	  new_node_conn env
 	| (_, true, _) ->
 	  new_client_conn env
 	| (_, _, fd :: _) ->
@@ -299,19 +299,19 @@ module Shim (A: ARRANGEMENT) = struct
 	  else
 	    state := recv_step env fd !state
 	| _ -> 
-	  connect_to_neighbors env   
+	  connect_to_nodes env   
       with
-      | ClientException (S_info, reason) -> 
+      | ClientDisconnect (S_info, reason) -> 
 	printf "client info: %s" reason;
 	print_newline ()
-      | ClientException (S_error, reason) ->
+      | ClientDisconnect (S_error, reason) ->
 	printf "client error: %s" reason;
 	print_newline ()
-      | NeighborException (S_info, reason) -> 
-	printf "neighbor info: %s" reason;
+      | NodeDisconnect (S_info, reason) -> 
+	printf "node info: %s" reason;
 	print_newline ()
-      | NeighborException (S_error, reason) ->
-	printf "neighbor error: %s" reason;
+      | NodeDisconnect (S_error, reason) ->
+	printf "node error: %s" reason;
 	print_newline ()
     end;
     begin
@@ -320,11 +320,11 @@ module Shim (A: ARRANGEMENT) = struct
 	begin
 	  try List.iter (fun nm -> state := deliver_msg env !state nm m) env.fail_msg_queue
 	  with
-	  | NeighborException (S_info, reason) ->
-	    printf "neighbor info: %s" reason;
+	  | NodeDisconnect (S_info, reason) ->
+	    printf "node info: %s" reason;
 	    print_newline ()
-	  | NeighborException (S_error, reason) ->
-	    printf "neighbor error: %s" reason;
+	  | NodeDisconnect (S_error, reason) ->
+	    printf "node error: %s" reason;
 	    print_newline ()
 	end
       | None -> ()
@@ -333,9 +333,9 @@ module Shim (A: ARRANGEMENT) = struct
     eloop env !state
 
   let main (cfg : cfg) : unit =
-    print_endline "Ordered shim running setup";
+    print_endline "ordered shim running setup";
     let (env, initial_state) = setup cfg in
-    print_endline "Ordered shim ready for action";
+    print_endline "ordered shim ready for action";
     eloop env initial_state
 
 end
