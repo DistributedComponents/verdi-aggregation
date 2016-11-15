@@ -2,8 +2,6 @@ open Printf
 open Unix
 open Util
 
-module M = Marshal
-
 module type ARRANGEMENT = sig
   type name
   type state
@@ -44,7 +42,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; input_fd : file_descr
       ; node_read_fds : (file_descr, A.name) Hashtbl.t
       ; node_write_fds : (A.name, file_descr) Hashtbl.t
-      ; failed_nodes : (A.name, unit) Hashtbl.t
+      ; mutable failed_nodes : A.name list
       ; mutable fail_msg_queue : A.name list
       ; client_read_fds : (file_descr, int) Hashtbl.t
       ; client_write_fds : (int, file_descr) Hashtbl.t
@@ -92,7 +90,7 @@ module Shim (A: ARRANGEMENT) = struct
       ; input_fd = socket PF_INET SOCK_STREAM 0
       ; node_read_fds = Hashtbl.create 17
       ; node_write_fds = Hashtbl.create 17
-      ; failed_nodes = Hashtbl.create 17
+      ; failed_nodes = []
       ; fail_msg_queue = []
       ; client_read_fds = Hashtbl.create 17
       ; client_write_fds = Hashtbl.create 17
@@ -115,7 +113,7 @@ module Shim (A: ARRANGEMENT) = struct
     let node_name = undenote_node env fd in
     Hashtbl.remove env.node_read_fds fd;
     Hashtbl.remove env.node_write_fds node_name;
-    Hashtbl.add env.failed_nodes node_name ();
+    env.failed_nodes <- node_name :: env.failed_nodes;
     env.fail_msg_queue <- node_name :: env.fail_msg_queue;
     Unix.close fd
 
@@ -143,10 +141,10 @@ module Shim (A: ARRANGEMENT) = struct
     let len = String.length buf in
     let n = Unix.send fd (raw_bytes_of_int len) 0 4 [] in
     if n < 4 then
-      fail_handler "send_chunk: message header failed to send all at once.";
+      fail_handler "send_chunk: message header failed to send all at once";
     let n = Unix.send fd buf 0 len [] in
     if n < len then
-      fail_handler (sprintf "send_chunk: message of length %d failed to send all at once." len);
+      fail_handler (sprintf "send_chunk: message of length %d failed to send all at once" len);
     ()
 
   let recv_or_close fd buf offs len flags fail_handler =
@@ -159,12 +157,12 @@ module Shim (A: ARRANGEMENT) = struct
     let buf4 = Bytes.make 4 '\x00' in
     let n = recv_or_close fd buf4 0 4 [] fail_handler in
     if n < 4 then
-      fail_handler "receive_chunk: message header did not arrive all at once.";
+      fail_handler "receive_chunk: message header did not arrive all at once";
     let len = int_of_raw_bytes buf4 in
     let buf = Bytes.make len '\x00' in
     let n = recv_or_close fd buf 0 len [] fail_handler in
     if n < len then
-      fail_handler (sprintf "receive_chunk: message of length %d did not arrive all at once." len);
+      fail_handler (sprintf "receive_chunk: message of length %d did not arrive all at once" len);
     buf
 
   let send_on_fd (fd : file_descr) (msg : A.msg) fail_handler : unit =
@@ -187,7 +185,7 @@ module Shim (A: ARRANGEMENT) = struct
   let get_node_write_fd env node_name =
     try denote_node env node_name
     with Not_found ->
-      if not (Hashtbl.mem env.failed_nodes node_name)
+      if not (List.mem node_name env.failed_nodes)
       then
         let (ip, port) = get_node_from_name env.cfg node_name in
         let entry = gethostbyname ip in
@@ -220,9 +218,7 @@ module Shim (A: ARRANGEMENT) = struct
 
   let deliver_msg env state src msg : A.state =
     let state' = respond env (A.handleNet env.cfg.me src msg state) in
-    if A.debug then begin
-      A.debugRecv state' (src, msg)
-    end;
+    if A.debug then A.debugRecv state' (src, msg);
     state'
 
   let recv_step (env : env) (fd : file_descr) (state : A.state) : A.state =
@@ -262,7 +258,7 @@ module Shim (A: ARRANGEMENT) = struct
       try ignore (get_node_write_fd env nm)
       with e -> printf "respond moving on after exception: %s" (Printexc.to_string e);
                 print_newline () in
-    List.iter go (List.filter (fun (nm,_) -> not (Hashtbl.mem env.failed_nodes nm)) env.cfg.cluster)
+    List.iter go (List.filter (fun (nm,_) -> not (List.mem nm env.failed_nodes)) env.cfg.cluster)
 
   let input_step (fd : file_descr) (env : env) (name : A.name) (state : A.state) =
     let buf = receive_chunk env fd (close_and_fail_client env fd) in
@@ -270,9 +266,7 @@ module Shim (A: ARRANGEMENT) = struct
     match A.deserializeInput buf client_id with
     | Some inp ->
       let state' = respond env (A.handleIO name inp state) in
-      if A.debug then begin
-        A.debugInput state' inp
-      end;
+      if A.debug then A.debugInput state' inp;
       state'
     | None -> 
       failwith (sprintf "input_step could not deserialize: %s" buf)
