@@ -4,7 +4,7 @@ open Scanf
 open TreeAggregation
 open TreeAggregationNames
 
-let serializeName : Names.name -> string = fun nm -> sprintf "%d" nm
+let serializeName : Names.name -> string = string_of_int
 
 let deserializeName : string -> Names.name option = fun s ->
     try Some (int_of_string s)
