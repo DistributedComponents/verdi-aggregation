@@ -1,26 +1,35 @@
-OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ocaml -cflag -g
-OCAMLBUILD_TEST = ocamlbuild -package oUnit -lib str -I ocaml -I test -cflag -g
+PYTHON=python2.7
+
+OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I ocaml -cflag -g
+OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -cflag -g
 
 AGGREGATION = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli \
- ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml ocaml/Serialization.ml
-AGGREGATION_TEST = test/SerializationTest.ml test/TreeAggregationTest.ml
-LIB = lib/OrderedMain.ml lib/OrderedShim.ml
+ ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml \
+ ocaml/Serialization.ml ocaml/Opts.ml ocaml/OrderedShim.ml ocaml/Util.ml
+
+AGGREGATION_TEST = test/SerializationTest.ml test/OptsTest.ml \
+test/TreeAggregationTest.ml test/TestCommon.ml
 
 default: TreeAggregationMain.native
 
-TreeAggregationMain.native: $(AGGREGATION) $(LIB)
+TreeAggregationMain.native: $(AGGREGATION)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
 TreeAggregationTest.native: $(AGGREGATION) $(AGGREGATION_TEST)
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native
 
-test: TreeAggregationTest.native
+test-units: TreeAggregationTest.native
 	./TreeAggregationTest.native
+
+test-integration: TreeAggregationMain.native test/integration.py
+	$(PYTHON) test/integration.py
+
+test: test-units test-integration
 
 clean:
 	$(OCAMLBUILD) TreeAggregationMain.native -clean
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native -clean
 
-.PHONY: default clean test
+.PHONY: default clean test test-units test-integration
 
 .NOTPARALLEL: TreeAggregationMain.native TreeAggregationTest.native

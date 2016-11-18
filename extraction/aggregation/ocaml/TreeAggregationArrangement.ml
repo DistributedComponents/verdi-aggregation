@@ -8,7 +8,6 @@ module TreeAggregationArrangement = struct
   type output = coq_Output
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
-  type request_id = int
 
   let systemName : string = "Static Tree Aggregation Protocol"
 
