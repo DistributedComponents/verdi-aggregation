@@ -17,7 +17,7 @@ let serializeMsg : coq_Msg -> string = fun msg ->
   Marshal.to_string msg []
 
 let deserializeInput (s : string) (client_id : int) : coq_Input option =
-  match String.trim s with
+  match s with
   | "SendAggregate" -> Some SendAggregate
   | "Broadcast" -> Some Broadcast
   | "AggregateRequest" -> Some (AggregateRequest client_id)

@@ -47,11 +47,11 @@ module TreeAggregationArrangement = struct
     print_newline ()
 
   let debugRecv : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "receiving message %s from %s" (Serialization.debugSerializeMsg msg) (Serialization.serializeName nm);
+    Printf.printf "receiving message %s from %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
 
   let debugSend : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (Serialization.serializeName nm);
+    Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
 
   let debugTimeout : state -> unit = fun _ -> ()

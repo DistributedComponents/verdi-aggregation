@@ -1,16 +1,19 @@
-OCAMLBUILD = ocamlbuild -lib str -lib unix -I lib -I ocaml -cflag -g
-OCAMLBUILD_TEST = ocamlbuild -package oUnit -lib str -I ocaml -I test -cflag -g
+OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I lib -I ocaml -cflag -g
+OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -I lib -cflag -g
 
-TREE = ocaml/Tree.ml ocaml/Tree.mli ocaml/TreeArrangement.ml ocaml/TreeMain.ml ocaml/Serialization.ml
+LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml
+
+TREE = ocaml/Tree.ml ocaml/Tree.mli ocaml/TreeArrangement.ml \
+ ocaml/TreeMain.ml ocaml/Serialization.ml
+
 TREE_TEST = test/SerializationTest.ml test/TreeTest.ml
-LIB = lib/OrderedMain.ml lib/OrderedShim.ml
 
 default: TreeMain.native
 
-TreeMain.native: $(TREE) $(LIB)
+TreeMain.native: $(LIB) $(TREE)
 	$(OCAMLBUILD) TreeMain.native
 
-TreeTest.native: $(TREE) $(TREE_TEST)
+TreeTest.native: $(LIB) $(TREE) $(TREE_TEST)
 	$(OCAMLBUILD_TEST) TreeTest.native
 
 test: TreeTest.native

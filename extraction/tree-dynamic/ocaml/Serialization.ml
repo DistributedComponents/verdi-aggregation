@@ -1,33 +1,40 @@
 open Str
 open Printf
+open Scanf
 open Tree
 open TreeNames
 
-let serializeName : Names.name -> string = fun nm -> sprintf "%d" nm
+let serializeName : Names.name -> string = string_of_int
 
 let deserializeName : string -> Names.name option = fun s ->
     try Some (int_of_string s)
     with Failure _ -> None
 
-let serializeInput : coq_Input -> string = function
-  | LevelRequest -> "LevelRequest"
-  | Broadcast -> "Broadcast"
+let deserializeMsg : string -> coq_Msg = fun s ->
+  Marshal.from_string s 0
 
-let deserializeInput (s : string) : coq_Input option =
-  match String.trim s with
-  | "LevelRequest" -> Some LevelRequest
+let serializeMsg : coq_Msg -> string = fun msg ->
+  Marshal.to_string msg []
+
+let deserializeInput (s : string) (client_id : int) : coq_Input option =
+  match s with
   | "Broadcast" -> Some Broadcast
+  | "LevelRequest" -> Some (LevelRequest client_id)
   | _ -> None
 
 let serializeLevelOption olv : string =
   match olv with
   | Some lv -> string_of_int lv
-  | _ -> ""
+  | _ -> "-"
 
-let serializeOutput (o : coq_Output) : string =
-  sprintf "LevelResponse (%s)" (serializeLevelOption o)
+let serializeOutput : coq_Output -> int * string = function
+  | LevelResponse (client_id, olv) -> (client_id, sprintf "LevelResponse %s" (serializeLevelOption olv))
 
-let serializeMsg : coq_Msg -> string = function
-  | Fail -> "Fail"
-  | Level x -> sprintf "Level (%s)" (serializeLevelOption x)
+let debugSerializeInput : coq_Input -> string = function
+  | Broadcast -> "Broadcast"
+  | LevelRequest x -> sprintf "LevelRequest %d" (Obj.magic x)
+
+let debugSerializeMsg : coq_Msg -> string = function
   | New -> "New"
+  | Fail -> "Fail"
+  | Level olv -> sprintf "Level %s" (serializeLevelOption olv)
