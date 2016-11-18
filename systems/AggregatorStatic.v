@@ -67,9 +67,7 @@ Inductive Output : Type :=
 | AggregateResponse : nat -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality.
-- exact: m_eq_dec.
-- exact: Nat.eq_dec.
+decide equality; auto using Nat.eq_dec, m_eq_dec.
 Defined.
 
 Record Data := mkData { 

@@ -46,17 +46,14 @@ Inductive Input : Type :=
 | AggregateRequest : nat -> Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec.
-- exact: m_eq_dec.
-- exact: name_eq_dec.
+decide equality; auto using Nat.eq_dec, m_eq_dec, name_eq_dec.
 Defined.
 
 Inductive Output : Type :=
 | AggregateResponse : nat -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec.
-exact: m_eq_dec.
+decide equality; auto using Nat.eq_dec, m_eq_dec.
 Defined.
 
 Record Data := mkData { 

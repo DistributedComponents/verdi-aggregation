@@ -1169,12 +1169,12 @@ Instance Aggregation_Aggregator_multi_single_map : MultiSingleParamsTotalMap Agg
     tot_s_map_input := fun n i => 
                         match i with
                         | Local m_inp => OA.Local m_inp
-                        | AggregateRequest => OA.AggregateRequest
+                        | AggregateRequest client_id => OA.AggregateRequest client_id
                         | SendAggregate dst => OA.SendAggregate dst
                         end ;
     tot_s_map_output := fun o =>
                          match o with 
-                         | AggregateResponse m_out => OA.AggregateResponse m_out
+                         | AggregateResponse client_id m_out => OA.AggregateResponse client_id m_out
                          end ;
     tot_s_map_msg := fun dst src m =>
                         match m with

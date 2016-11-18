@@ -52,24 +52,23 @@ Defined.
 Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : Input
-| AggregateRequest : Input
-| LevelRequest : Input
+| AggregateRequest : nat -> Input
+| LevelRequest : nat -> Input
 | Broadcast : Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality.
-exact: m_eq_dec.
+decide equality; auto using Nat.eq_dec, m_eq_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : m -> Output
-| LevelResponse : option lv -> Output.
+| AggregateResponse : nat -> m -> Output
+| LevelResponse : nat -> option lv -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; first exact: m_eq_dec.
+decide equality; auto using Nat.eq_dec; first exact: m_eq_dec.
 case: o; case: o0.
-- move => n m.
-  case (lv_eq_dec n m) => H_dec; first by rewrite H_dec; left.
+- move => lv0 lv1.
+  case (lv_eq_dec lv0 lv1) => H_dec; first by rewrite H_dec; left.
   right.
   move => H_eq.
   injection H_eq => H_eq'.
@@ -249,11 +248,11 @@ match i with
          broadcast := st.(broadcast);
          levels := st.(levels) |}
 | SendAggregate => nop
-| AggregateRequest => 
-  write_output (AggregateResponse st.(aggregate))
+| AggregateRequest client_id => 
+  write_output (AggregateResponse client_id st.(aggregate))
 | Broadcast => nop  
-| LevelRequest => 
-  write_output (LevelResponse (Some 0))
+| LevelRequest client_id => 
+  write_output (LevelResponse client_id (Some 0))
 end.
 
 Definition NonRootIOHandler (i : Input) : Handler Data :=
@@ -283,8 +282,8 @@ match i with
     | None => nop
     end
   end)
-| AggregateRequest => 
-  write_output (AggregateResponse st.(aggregate))
+| AggregateRequest client_id => 
+  write_output (AggregateResponse client_id st.(aggregate))
 | Broadcast =>
   when st.(broadcast)
   (send_level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent) ;; 
@@ -294,8 +293,8 @@ match i with
          balance := st.(balance);
          broadcast := false;
          levels := st.(levels) |})
-| LevelRequest =>   
-  write_output (LevelResponse (level st.(adjacent) st.(levels)))
+| LevelRequest client_id =>   
+  write_output (LevelResponse client_id (level st.(adjacent) st.(levels)))
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data :=
@@ -733,9 +732,9 @@ Lemma IOHandler_cases :
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\ NMap.find dst st.(balance) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
-      (i = AggregateRequest /\ 
+      (exists client_id, i = AggregateRequest client_id /\ 
        st' = st /\ 
-       out = [AggregateResponse (aggregate st)] /\ ms = []) \/
+       out = [AggregateResponse client_id (aggregate st)] /\ ms = []) \/
       (root h /\ i = Broadcast /\ st' = st /\
        out = [] /\ ms = []) \/
       (~ root h /\ i = Broadcast /\ st.(broadcast) = true /\
@@ -749,16 +748,16 @@ Lemma IOHandler_cases :
       (~ root h /\ i = Broadcast /\ st.(broadcast) = false /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (root h /\ i = LevelRequest /\
+      (root h /\ exists client_id, i = LevelRequest client_id /\
        st' = st /\
-       out = [LevelResponse (Some 0)] /\ ms = []) \/
-      (~ root h /\ i = LevelRequest /\
+       out = [LevelResponse client_id (Some 0)] /\ ms = []) \/
+      (~ root h /\ exists client_id, i = LevelRequest client_id /\
        st' = st /\
-       out = [LevelResponse (level st.(adjacent) st.(levels))] /\ ms = []).
+       out = [LevelResponse client_id (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
 move => h i st u out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
-case: i => [m_msg||||]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat break_match; repeat break_if; repeat find_injection.
+case: i => [m_msg||client_id|client_id|]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat find_injection; repeat break_match; repeat break_let; repeat find_injection.
 - by left; exists m_msg.
 - by left; exists m_msg.
 - by right; left.
@@ -778,10 +777,16 @@ case: i => [m_msg||||]; monad_unfold; case root_dec => /= H_dec H_eq; repeat bre
 - unfold sumbool_not in *.
   break_match => //.
   by right; right; right; left.
-- by right; right; right; right; right; right; left.
-- by right; right; right; right; right; right; left.
-- by right; right; right; right; right; right; right; right; right; right; left.
-- by right; right; right; right; right; right; right; right; right; right; right.
+- right; right; right; right; right; right; left.
+  by exists client_id.
+- right; right; right; right; right; right; left.
+  by exists client_id.
+- right; right; right; right; right; right; right; right; right; right; left.
+  split => //.
+  by exists client_id.
+- right; right; right; right; right; right; right; right; right; right; right.
+  split => //.
+  by exists client_id.
 - by right; right; right; right; right; right; right; left.
 - find_rewrite_lem send_level_adjacent_eq.
   find_injection.
