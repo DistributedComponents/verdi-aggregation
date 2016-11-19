@@ -14,6 +14,8 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
+Require String.
+
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
@@ -42,24 +44,24 @@ Defined.
 Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : name -> Input
-| AggregateRequest : nat -> Input.
+| AggregateRequest : String.string -> Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec, m_eq_dec, name_eq_dec.
+decide equality; auto using String.string_dec, m_eq_dec, name_eq_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : nat -> m -> Output.
+| AggregateResponse : String.string -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec, m_eq_dec.
+decide equality; auto using String.string_dec, m_eq_dec.
 Defined.
 
-Record Data := mkData { 
-  local : m ; 
-  aggregate : m ; 
-  adjacent : NS ; 
-  balance : NM 
+Record Data := mkData {
+  local : m ;
+  aggregate : m ;
+  adjacent : NS ;
+  balance : NM
 }.
 
 Definition InitData (n : name) := 

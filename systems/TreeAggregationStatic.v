@@ -15,6 +15,8 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
+Require String.
+
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
@@ -51,20 +53,20 @@ Defined.
 Inductive Input : Type :=
 | Local : m -> Input
 | SendAggregate : Input
-| AggregateRequest : nat -> Input
-| LevelRequest : nat -> Input
+| AggregateRequest : String.string -> Input
+| LevelRequest : String.string -> Input
 | Broadcast : Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec, m_eq_dec.
+decide equality; auto using String.string_dec, m_eq_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : nat -> m -> Output
-| LevelResponse : nat -> option lv -> Output.
+| AggregateResponse : String.string -> m -> Output
+| LevelResponse : String.string -> option lv -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec; first exact: m_eq_dec.
+decide equality; auto using String.string_dec; first exact: m_eq_dec.
 case: o; case: o0.
 - move => lv0 lv1.
   case (lv_eq_dec lv0 lv1) => H_dec; first by rewrite H_dec; left.

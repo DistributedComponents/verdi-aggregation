@@ -8,6 +8,7 @@ Require Import TreeAux.
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Require Import Sumbool.
+Require String.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -40,18 +41,18 @@ case: o; case: o0.
 Defined.
 
 Inductive Input : Set :=
-| LevelRequest : nat -> Input
+| LevelRequest : String.string -> Input
 | Broadcast : Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec.
+decide equality; auto using String.string_dec.
 Defined.
 
 Inductive Output : Set :=
-| LevelResponse : nat -> option lv -> Output.
+| LevelResponse : String.string -> option lv -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec.
+decide equality; auto using String.string_dec.
 case: o; case: o0.
 - move => lv0 lv1.
   case (lv_eq_dec lv0 lv1) => H_dec; first by rewrite H_dec; left.

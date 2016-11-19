@@ -17,6 +17,7 @@ Require Import mathcomp.algebra.zmodp.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
+Require Import ExtrOcamlString.
 
 Require Import ExtrOcamlBasicExt.
 Require Import ExtrOcamlNatIntExt.

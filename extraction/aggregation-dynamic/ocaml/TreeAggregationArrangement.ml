@@ -8,6 +8,7 @@ module TreeAggregationArrangement = struct
   type output = coq_Output
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
+  type client_id = string
 
   let systemName : string = "Dynamic Tree Aggregation Protocol"
 
@@ -28,13 +29,13 @@ module TreeAggregationArrangement = struct
 
   let setTimeout : name -> state -> float = fun _ _ -> 1.0
 
-  let deserializeMsg : string -> msg = Serialization.deserializeMsg
+  let deserializeMsg = Serialization.deserializeMsg
 
-  let serializeMsg : msg -> string = Serialization.serializeMsg
+  let serializeMsg = Serialization.serializeMsg
 
   let deserializeInput = Serialization.deserializeInput
 
-  let serializeOutput : output -> int * string = Serialization.serializeOutput
+  let serializeOutput = Serialization.serializeOutput
 
   let failMsg = Some Fail
 
@@ -55,5 +56,6 @@ module TreeAggregationArrangement = struct
     print_newline ()
 
   let debugTimeout : state -> unit = fun _ -> ()
-end
 
+  let createClientId () = Uuidm.to_string (Uuidm.create `V4)
+end

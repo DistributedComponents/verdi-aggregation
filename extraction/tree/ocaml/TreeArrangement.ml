@@ -8,6 +8,7 @@ module TreeArrangement = struct
   type output = coq_Output
   type msg = coq_Msg
   type res = (output list * state) * ((name * msg) list)
+  type client_id = string
 
   let systemName : string = "Static Tree Building Protocol"
 
@@ -55,4 +56,6 @@ module TreeArrangement = struct
     print_newline ()
 
   let debugTimeout : state -> unit = fun _ -> ()
+
+  let createClientId () = Uuidm.to_string (Uuidm.create `V4)
 end

@@ -3,6 +3,7 @@ open Printf
 open Scanf
 open TreeAggregation
 open TreeAggregationNames
+open Util
 
 let serializeName : Names.name -> string = string_of_int
 
@@ -16,14 +17,14 @@ let deserializeMsg : string -> coq_Msg = fun s ->
 let serializeMsg : coq_Msg -> string = fun msg ->
   Marshal.to_string msg []
 
-let deserializeInput (s : string) (client_id : int) : coq_Input option =
+let deserializeInput (s : string) (c : string) : coq_Input option =
   match s with
   | "SendAggregate" -> Some SendAggregate
   | "Broadcast" -> Some Broadcast
-  | "AggregateRequest" -> Some (AggregateRequest client_id)
-  | "LevelRequest" -> Some (LevelRequest client_id)
+  | "AggregateRequest" -> Some (AggregateRequest (char_list_of_string c))
+  | "LevelRequest" -> Some (LevelRequest (char_list_of_string c))
   | _ -> 
-    try sscanf s "Local %d" (fun x -> Some (Local (Obj.magic x))) 
+    try Scanf.sscanf s "Local %d" (fun x -> Some (Local (Obj.magic x)))
     with _ -> None
 
 let serializeLevelOption olv : string =
@@ -31,9 +32,9 @@ let serializeLevelOption olv : string =
   | Some lv -> string_of_int lv
   | _ -> ""
 
-let serializeOutput : coq_Output -> int * string = function
-  | AggregateResponse (client_id, x) -> (client_id, sprintf "AggregateResponse %d" (Obj.magic x))
-  | LevelResponse (client_id, olv) -> (client_id, sprintf "LevelResponse %s" (serializeLevelOption olv))
+let serializeOutput : coq_Output -> string * string = function
+  | AggregateResponse (c, x) -> (string_of_char_list c, sprintf "AggregateResponse %d" (Obj.magic x))
+  | LevelResponse (c, olv) -> (string_of_char_list c, sprintf "LevelResponse %s" (serializeLevelOption olv))
 
 let debugSerializeInput : coq_Input -> string = function
   | SendAggregate -> "SendAggregate"

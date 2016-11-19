@@ -18,6 +18,7 @@ Require Import MSetFacts.
 Require Import MSetProperties.
 
 Require Import Sumbool.
+Require String.
 
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
@@ -51,7 +52,7 @@ Inductive Input : Type :=
 | Fail : name -> Input
 | Local : m -> Input
 | SendAggregate : name -> Input
-| AggregateRequest : nat -> Input.
+| AggregateRequest : String.string -> Input.
 
 Definition Input_eq_dec : forall x y : Input, {x = y} + {x <> y}.
 decide equality.
@@ -60,14 +61,14 @@ decide equality.
 - exact: name_eq_dec.
 - exact: m_eq_dec.
 - exact: name_eq_dec.
-- exact: Nat.eq_dec.
+- exact: String.string_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : nat -> m -> Output.
+| AggregateResponse : String.string -> m -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using Nat.eq_dec, m_eq_dec.
+decide equality; auto using String.string_dec, m_eq_dec.
 Defined.
 
 Record Data := mkData { 

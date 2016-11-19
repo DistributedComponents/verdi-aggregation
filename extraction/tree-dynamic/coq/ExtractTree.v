@@ -8,6 +8,7 @@ Require Import StructTact.Fin.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
+Require Import ExtrOcamlString.
 
 Require Import ExtrOcamlBasicExt.
 Require Import ExtrOcamlNatIntExt.

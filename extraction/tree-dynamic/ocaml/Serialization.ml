@@ -3,6 +3,7 @@ open Printf
 open Scanf
 open Tree
 open TreeNames
+open Util
 
 let serializeName : Names.name -> string = string_of_int
 
@@ -16,10 +17,10 @@ let deserializeMsg : string -> coq_Msg = fun s ->
 let serializeMsg : coq_Msg -> string = fun msg ->
   Marshal.to_string msg []
 
-let deserializeInput (s : string) (client_id : int) : coq_Input option =
+let deserializeInput (s : string) (c : string) : coq_Input option =
   match s with
   | "Broadcast" -> Some Broadcast
-  | "LevelRequest" -> Some (LevelRequest client_id)
+  | "LevelRequest" -> Some (LevelRequest (char_list_of_string c))
   | _ -> None
 
 let serializeLevelOption olv : string =
@@ -27,8 +28,8 @@ let serializeLevelOption olv : string =
   | Some lv -> string_of_int lv
   | _ -> "-"
 
-let serializeOutput : coq_Output -> int * string = function
-  | LevelResponse (client_id, olv) -> (client_id, sprintf "LevelResponse %s" (serializeLevelOption olv))
+let serializeOutput : coq_Output -> string * string = function
+  | LevelResponse (c, olv) -> (string_of_char_list c, sprintf "LevelResponse %s" (serializeLevelOption olv))
 
 let debugSerializeInput : coq_Input -> string = function
   | Broadcast -> "Broadcast"
