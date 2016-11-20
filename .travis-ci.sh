@@ -27,19 +27,19 @@ popd
 
 case $MODE in
   analytics)
-    ./script/analytics.sh
+    ./build.sh proofalytics
     ;;
   tree-test)
-    ./script/tree-test.sh
+    ./build.sh tree-test
     ;;
   tree-dynamic-test)
-    ./script/tree-dynamic-test.sh
+    ./build.sh tree-dynamic-test
     ;;
   aggregation-test)
-    ./script/aggregation-test.sh
+    ./build.sh aggregation-test
     ;;
   aggregation-dynamic-test)
-    ./script/aggregation-dynamic-test.sh
+    ./build.sh aggregation-dynamic-test
     ;;
   *)
     ./build.sh
