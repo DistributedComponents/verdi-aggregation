@@ -6,7 +6,7 @@
 DEPS=(StructTact Verdi AAC_tactics InfSeqExt)
 DIRS=(lib systems extraction/aggregation/coq extraction/aggregation-dynamic/coq extraction/tree/coq extraction/tree-dynamic/coq)
 CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Aggregation requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation")
-Verdi_PATH=$(readlink --canonicalize ${Verdi_PATH:="../verdi"})
+Verdi_PATH=$(readlink -f ${Verdi_PATH:="../verdi"})
 Verdi_DIRS=(core lib systems extraction/coq)
 NAMESPACE_Verdi_lib="\"\""
 NAMESPACE_Verdi_extraction_coq="\"\""
