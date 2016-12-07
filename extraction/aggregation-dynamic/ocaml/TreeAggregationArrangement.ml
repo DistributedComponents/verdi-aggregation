@@ -7,8 +7,10 @@ module TreeAggregationArrangement = struct
   type input = coq_Input
   type output = coq_Output
   type msg = coq_Msg
-  type res = (output list * state) * ((name * msg) list)
   type client_id = string
+  type res = (output list * state) * ((name * msg) list)
+  type task_handler = name -> state -> res
+  type timeout_setter = name -> state -> float
 
   let systemName : string = "Dynamic Tree Aggregation Protocol"
 
@@ -60,4 +62,14 @@ module TreeAggregationArrangement = struct
   let createClientId () = Uuidm.to_string (Uuidm.create `V4)
 
   let serializeClientId (c : client_id) = c
+
+  let deliverSendAggregateHandler : task_handler =
+    fun n s ->
+      Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic SendAggregate) (Obj.magic s))
+
+  let setSendAggregateTimeout : timeout_setter =
+    fun n s ->
+      3.0
+
+  let timeoutTasks = [(deliverSendAggregateHandler, setSendAggregateTimeout)]
 end
