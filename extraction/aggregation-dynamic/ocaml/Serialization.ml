@@ -39,9 +39,9 @@ let serializeOutput : coq_Output -> string * string = function
 let debugSerializeInput : coq_Input -> string = function
   | SendAggregate -> "SendAggregate"
   | Broadcast -> "Broadcast"
-  | AggregateRequest x -> sprintf "AggregateRequest %d" (Obj.magic x)
+  | AggregateRequest x -> sprintf "AggregateRequest %s" (string_of_char_list x)
   | Local x -> sprintf "Local %d" (Obj.magic x)
-  | LevelRequest x -> sprintf "LevelRequest %d" (Obj.magic x)
+  | LevelRequest x -> sprintf "LevelRequest %s" (string_of_char_list x)
 
 let debugSerializeMsg : coq_Msg -> string = function
   | New -> "New"

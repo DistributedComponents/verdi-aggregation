@@ -58,4 +58,6 @@ module TreeAggregationArrangement = struct
   let debugTimeout : state -> unit = fun _ -> ()
 
   let createClientId () = Uuidm.to_string (Uuidm.create `V4)
+
+  let serializeClientId (c : client_id) = c
 end
