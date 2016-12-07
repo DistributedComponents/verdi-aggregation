@@ -71,5 +71,13 @@ module TreeAggregationArrangement = struct
     fun n s ->
       3.0
 
-  let timeoutTasks = [(deliverSendAggregateHandler, setSendAggregateTimeout)]
+  let deliverBroadcastHandler : task_handler =
+    fun n s ->
+      Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic Broadcast) (Obj.magic s))
+
+  let setBroadcastTimeout : timeout_setter =
+    fun n s ->
+      5.0
+
+  let timeoutTasks = [(deliverSendAggregateHandler, setSendAggregateTimeout); (deliverBroadcastHandler, setBroadcastTimeout)]
 end
