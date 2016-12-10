@@ -29,70 +29,62 @@ proofalytics:
 	$(MAKE) -C proofalytics publish
 
 STDBUF=$(shell [ -x "$$(which gstdbuf)" ] && echo "gstdbuf" || echo "stdbuf")
+
 proofalytics-aux: Makefile.coq
 	sed "s|^TIMECMD=$$|TIMECMD=$(PWD)/proofalytics/build-timer.sh $(STDBUF) -i0 -o0|" \
 	  Makefile.coq > Makefile.coq_tmp
 	mv Makefile.coq_tmp Makefile.coq
 	$(MAKE) -f Makefile.coq
 
-TREE_DEPS='extraction/tree/coq/ExtractTree.v systems/TreeStatic.vo'
-TREE_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree/coq/ExtractTree.v'
-TREE_DYN_DEPS='extraction/tree-dynamic/coq/ExtractTree.v systems/TreeDynamic.vo'
-TREE_DYN_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree-dynamic/coq/ExtractTree.v'
+TREE_MLFILES = extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
 
-AGGREGATION_DEPS='extraction/aggregation/coq/ExtractTreeAggregation.v systems/TreeAggregationStatic.vo'
-AGGREGATION_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v'
-AGGREGATION_DYN_DEPS='extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v systems/TreeAggregationDynamic.vo'
-AGGREGATION_DYN_COMMAND='$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v'
+TREE_DYN_MLFILES = extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
+
+AGGREGATION_MLFILES = extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
+
+AGGREGATION_DYN_MLFILES = extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
 
 Makefile.coq: _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq \
-          -extra 'extraction/tree/ocaml/Tree.ml' $(TREE_DEPS) $(TREE_COMMAND) \
-          -extra 'extraction/tree/ocaml/Tree.mli' $(TREE_DEPS) $(TREE_COMMAND) \
-          -extra 'extraction/tree-dynamic/ocaml/Tree.ml' $(TREE_DYN_DEPS) $(TREE_DYN_COMMAND) \
-          -extra 'extraction/tree-dynamic/ocaml/Tree.mli' $(TREE_DYN_DEPS) $(TREE_DYN_COMMAND) \
-          -extra 'extraction/aggregation/ocaml/TreeAggregation.ml' $(AGGREGATION_DEPS) $(AGGREGATION_COMMAND) \
-          -extra 'extraction/aggregation/ocaml/TreeAggregation.mli' $(AGGREGATION_DEPS) $(AGGREGATION_COMMAND) \
-          -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.ml' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND) \
-          -extra 'extraction/aggregation-dynamic/ocaml/TreeAggregation.mli' $(AGGREGATION_DYN_DEPS) $(AGGREGATION_DYN_COMMAND)
+          -extra '$(TREE_MLFILES)' \
+	    'extraction/tree/coq/ExtractTree.v systems/TreeStatic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree/coq/ExtractTree.v' \
+          -extra '$(TREE_DYN_MLFILES)' \
+            'extraction/tree-dynamic/coq/ExtractTree.v systems/TreeDynamic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree-dynamic/coq/ExtractTree.v' \
+          -extra '$(AGGREGATION_MLFILES)' \
+	    'extraction/aggregation/coq/ExtractTreeAggregation.v systems/TreeAggregationStatic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v' \
+	  -extra '$(AGGREGATION_DYN_MLFILES)' \
+	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v systems/TreeAggregationDynamic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v'
 
-TREE = extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
-TREE_DYN = extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
+$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES): Makefile.coq
+	$(MAKE) -f Makefile.coq $@
 
-AGGREGATION = extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
-AGGREGATION_DYN = extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
+tree:
+	+$(MAKE) -C extraction/tree
 
-tree: Makefile.coq
-	$(MAKE) -f Makefile.coq $(TREE)
-	$(MAKE) -C extraction/tree
+tree-test:
+	+$(MAKE) -C extraction/tree test
 
-tree-test: Makefile.coq
-	$(MAKE) -f Makefile.coq $(TREE)
-	$(MAKE) -C extraction/tree test
+tree-dynamic:
+	+$(MAKE) -C extraction/tree-dynamic
 
-tree-dynamic: Makefile.coq
-	$(MAKE) -f Makefile.coq $(TREE_DYN)
-	$(MAKE) -C extraction/tree-dynamic
+tree-dynamic-test:
+	+$(MAKE) -C extraction/tree-dynamic test
 
-tree-dynamic-test: Makefile.coq
-	$(MAKE) -f Makefile.coq $(TREE_DYN)
-	$(MAKE) -C extraction/tree-dynamic test
+aggregation:
+	+$(MAKE) -C extraction/aggregation
 
-aggregation: Makefile.coq
-	$(MAKE) -f Makefile.coq $(AGGREGATION)
-	$(MAKE) -C extraction/aggregation
+aggregation-test:
+	+$(MAKE) -C extraction/aggregation test
 
-aggregation-test: Makefile.coq
-	$(MAKE) -f Makefile.coq $(AGGREGATION)
-	$(MAKE) -C extraction/aggregation test
+aggregation-dynamic:
+	+$(MAKE) -C extraction/aggregation-dynamic
 
-aggregation-dynamic: Makefile.coq
-	$(MAKE) -f Makefile.coq $(AGGREGATION_DYN)
-	$(MAKE) -C extraction/aggregation-dynamic
-
-aggregation-dynamic-test: Makefile.coq
-	$(MAKE) -f Makefile.coq $(AGGREGATION_DYN)
-	$(MAKE) -C extraction/aggregation-dynamic test
+aggregation-dynamic-test:
+	+$(MAKE) -C extraction/aggregation-dynamic test
 
 clean:
 	if [ -f Makefile.coq ]; then \
@@ -111,10 +103,10 @@ lint:
 
 distclean: clean
 	rm -f _CoqProject \
-	 extraction/aggregation/lib \
-	 extraction/aggregation-dynamic/lib \
-	 extraction/tree/lib \
-	 extraction/tree-dynamic/lib
+	  extraction/aggregation/lib \
+	  extraction/aggregation-dynamic/lib \
+	  extraction/tree/lib \
+	  extraction/tree-dynamic/lib
 
 .PHONY: default quick clean lint proofalytics proofalytics-aux distclean \
 	aggregation aggregation-dynamic tree tree-dynamic \

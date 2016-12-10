@@ -5,19 +5,23 @@ OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I 
 
 LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml
 
-AGGREGATION = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli \
- ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml \
+MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
+
+MLFILES = ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml \
  ocaml/Serialization.ml
 
-AGGREGATION_TEST = test/SerializationTest.ml test/OptsTest.ml \
+MLFILES_TEST = test/SerializationTest.ml test/OptsTest.ml \
  test/TreeAggregationTest.ml test/TestCommon.ml
 
 default: TreeAggregationMain.native
 
-TreeAggregationMain.native: $(LIB) $(AGGREGATION)
+$(MLEXTRACTED):
+	+$(MAKE) -C ../.. extraction/aggregation/$@
+
+TreeAggregationMain.native: $(LIB) $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
-TreeAggregationTest.native: $(LIB) $(AGGREGATION) $(AGGREGATION_TEST)
+TreeAggregationTest.native: $(LIB) $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native
 
 test-units: TreeAggregationTest.native
@@ -29,9 +33,9 @@ test-integration: TreeAggregationMain.native test/integration.py
 test: test-units test-integration
 
 clean:
-	$(OCAMLBUILD) TreeAggregationMain.native -clean
-	$(OCAMLBUILD_TEST) TreeAggregationTest.native -clean
+	$(OCAMLBUILD) -clean
 
-.PHONY: default clean test test-units test-integration
+.PHONY: default clean test test-units test-integration $(MLEXTRACTED)
 
 .NOTPARALLEL: TreeAggregationMain.native TreeAggregationTest.native
+.NOTPARALLEL: $(MLEXTRACTED)
