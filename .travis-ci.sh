@@ -14,7 +14,7 @@ pushd ..
     ./build.sh
   popd
 
-  git clone 'https://github.com/uwplse/verdi.git'
+  git clone -b fair-shim-fds 'https://github.com/uwplse/verdi.git'
   pushd verdi
     ./build.sh
   popd
