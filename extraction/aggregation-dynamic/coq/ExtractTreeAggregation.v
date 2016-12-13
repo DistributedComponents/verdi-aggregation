@@ -7,14 +7,6 @@ Require Import TreeAggregationDynamic.
 
 Require Import StructTact.Fin.
 
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrfun.
-Require Import mathcomp.ssreflect.fintype.
-
-Require Import mathcomp.fingroup.fingroup.
-
-Require Import mathcomp.algebra.zmodp.
-
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
 Require Import ExtrOcamlString.
@@ -25,6 +17,8 @@ Require Import ExtrOcamlNatIntExt.
 Require Import ExtrOcamlBool.
 Require Import ExtrOcamlList.
 Require Import ExtrOcamlFin.
+
+Require Import mathcomp.ssreflect.ssreflect.
 
 Module NumNames : NatValue. Definition n := 3. End NumNames.
 Module Names := FinName NumNames.
@@ -39,16 +33,14 @@ Module NamesSet <: MSetInterface.S := MSetList.Make NamesOT.
 Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 
-Module CFG <: CommutativeFinGroup.
-Definition gT := Zp_finGroupType 127.
-Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
-End CFG.
-
 Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 
-Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
+Require Import ZpCommutativeFinGroup.
+Module NumZp : NatValue. Definition n := 127. End NumZp.
+Module AggregationGroup : CommutativeFinGroup := CFG NumZp.
 
-Module TreeAggregationNames := TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames TAuxNames ADefNames.
+Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap AggregationGroup.
+Module TreeAggregationNames := TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AggregationGroup AdjacentNames TAuxNames ADefNames.
 Import TreeAggregationNames.
 
 Extraction "extraction/aggregation-dynamic/ocaml/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.
