@@ -3,7 +3,7 @@ PYTHON=python2.7
 OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I ocaml -I lib -cflag -g
 OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -I lib -cflag -g
 
-LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml
+LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml lib/Daemon.ml
 
 MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
 
