@@ -109,5 +109,6 @@ distclean: clean
 	  extraction/tree-dynamic/lib
 
 .PHONY: default quick clean lint proofalytics proofalytics-aux distclean \
+	$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES) \
 	aggregation aggregation-dynamic tree tree-dynamic \
 	aggregation-test aggregation-dynamic-test tree-test tree-dynamic-test
