@@ -2,18 +2,6 @@ Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrfun.
 Require Import mathcomp.ssreflect.ssrbool.
 Require Import mathcomp.ssreflect.eqtype.
-
-Require Omega.
-Lemma lt_2xp1 : forall x i, i < x -> 1 + 2 * i < x + x.
-Proof.
-intros; Omega.omega.
-Qed.
-
-Lemma lt_2xp : forall x i : nat, i < x -> 2 * i < x + x.
-Proof.
-intros; Omega.omega.
-Qed.
-
 Require Import mathcomp.ssreflect.ssrnat.
 Require Import mathcomp.ssreflect.seq.
 Require Import mathcomp.ssreflect.choice.
@@ -33,6 +21,8 @@ Require Import mathcomp.algebra.finalg.
 Require Import Bvector ZArith Zdigits.
 Require Import BBase.
 Require Import BAddMul.
+
+Require Import NatPowLt.
 
 Section BitVector.
 
@@ -72,13 +62,13 @@ Definition Bvector_to_bitseq (v : Bvector n) : bitseq := Vector.to_list v.
 
 Fixpoint bitseq_to_Bvector_aux k (bs : bitseq) : option (Bvector k) :=
 match k, bs with
-| 0, [::] => Some (Vector.nil bool)
+| 0, [::] => Some Bnil
 | 0, (_ :: _)%SEQ => None
 | S k', [::] => None
 | S k', (b :: bs')%SEQ =>
   match bitseq_to_Bvector_aux k' bs' with
   | None => None
-  | Some v => Some (Vector.cons bool b k' v)
+  | Some v => Some (Bcons b k' v)
   end
 end.
 
@@ -134,12 +124,6 @@ Defined.
 
 Definition Bvector_to_I2n := Bvector_to_I2k n.
 
-Lemma lt_div2_2pow : forall n' m,
-  m < 2 ^ (S n') ->
-  Nat.div2 m < 2 ^ n'.
-Proof.
-Admitted.
-
 Lemma I2k_to_Bvector : forall k, 'I_(2^k) -> Bvector k.
 simple induction k.
 - rewrite /= => i.
@@ -147,8 +131,9 @@ simple induction k.
 - move => n' IH.
   case => m H_lt.
   set b := Nat.odd m.
+  move/ltP: H_lt => H_lt.
   have H_lt' := lt_div2_2pow _ _ H_lt.
-  move: H_lt'.
+  move/ltP: H_lt'.
   set k' := Nat.div2 m.
   move => H_lt'.
   set v' := IH (@Ordinal (2^n') k' H_lt').
@@ -170,7 +155,7 @@ elim: k m H_m H_m' => //.
 move => n' IH m H_m H_m'.
 simpl.
 rewrite /ssr_have.
-have IH' := IH (Nat.div2 m) (lt_div2_2pow n' m H_m) (lt_div2_2pow n' m H_m').
+have IH' := IH (Nat.div2 m) (introT ltP (lt_div2_2pow n' m (elimTF ltP H_m))) (introT ltP (lt_div2_2pow n' m (elimTF ltP H_m'))).
 by rewrite IH'.
 Qed.
 

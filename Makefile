@@ -56,7 +56,7 @@ Makefile.coq: _CoqProject
 	    'extraction/aggregation/coq/ExtractTreeAggregation.v systems/TreeAggregationStatic.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v' \
 	  -extra '$(AGGREGATION_DYN_MLFILES)' \
-	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v systems/TreeAggregationDynamic.vo' \
+	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v systems/TreeAggregationDynamic.vo lib/ZpCommutativeFinGroup.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v'
 
 $(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES): Makefile.coq
