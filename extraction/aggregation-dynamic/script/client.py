@@ -14,7 +14,7 @@ class ReceiveError(Exception):
     pass
 
 class Client(object):
-    re_aggregate_response = re.compile(r'AggregateResponse\W+([0-9]+)\W+([0-9]+)')
+    re_aggregate_response = re.compile(r'AggregateResponse\W+([0-9]+)')
     re_level_response = re.compile(r'LevelResponse\W+([0-9]+|-)')
 
     def __init__(self, host, port, sock=None):
@@ -43,8 +43,8 @@ class Client(object):
             else:
                 return self.parse_response(data, re)
 
-    def send_local(self, local1, local2):
-        self.send_msg('Local' + ' ' + str(local1) + ' ' + str(local2))
+    def send_local(self, local):
+        self.send_msg('Local' + ' ' + str(local))
 
     def send_send_aggregate(self):
         self.send_msg('SendAggregate')
@@ -68,7 +68,7 @@ class Client(object):
     def parse_response(self, data, re):
         try:
             match = re.match(data)
-            return [self.deserialize(match.group(n)) for n in (1,2)]
+            return self.deserialize(match.group(1))
         except Exception as e:
             print "Parse error, data=%s" % data
             raise e
