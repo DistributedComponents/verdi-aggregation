@@ -1,7 +1,7 @@
 namespace :make do
 
   desc 'configure and make'
-  task :run_build do
+  task :build do
     on roles(:node) do
       within "#{current_path}" do
         execute './build.sh', 'aggregation-dynamic'
@@ -10,10 +10,10 @@ namespace :make do
   end
   
   desc 'make'
-  task :run_make do
+  task :make do
     on roles(:node) do
       within "#{current_path}" do
-        execute :make
+        execute 'make', 'aggregation-dynamic'
       end
     end
   end
