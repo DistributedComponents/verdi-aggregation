@@ -4,3 +4,4 @@ lib
 _build
 TreeAggregationMain.native
 TreeAggregationTest.native
+tmp
