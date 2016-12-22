@@ -2,7 +2,7 @@ namespace :aggregation do
   
   desc 'start aggregation'
   task :start do
-    cluster = roles(:node).collect { |s| "-node #{s.properties.node_name},#{s.hostname}:9000" }.join(' ')
+    cluster = roles(:node).collect { |s| "-node #{s.properties.node_name},#{s.hostname}:#{fetch(:node_port)}" }.join(' ')
     on roles(:node) do |server|
       execute '/sbin/start-stop-daemon',
         '--start',
@@ -40,6 +40,14 @@ namespace :aggregation do
       execute 'truncate',
         '-s 0',
         "#{shared_path}/extraction/aggregation-dynamic/log/tree-aggregation-main.log"
+    end
+  end
+
+  desc 'get aggregate'
+  task :aggregate do
+    root = roles(:node, root: true).first
+    run_locally do
+      info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.hostname} --port #{root.properties.client_port} aggregate)
     end
   end
 
