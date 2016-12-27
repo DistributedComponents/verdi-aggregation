@@ -7,8 +7,8 @@
 # server "example.com", user: "deploy", roles: %w{app web}, other_property: :other_value
 # server "db.example.com", user: "deploy", roles: %w{db}
 
-server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, name: "0", client_port: 8000, adjacent: %w(1), root: true
-server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", client_port: 8000, adjacent: %w(0)
+server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, name: "0", adjacent: %w(1)
+server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", adjacent: %w(0)
 
 # role-based syntax
 # ==================
@@ -33,6 +33,7 @@ server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", clien
 # Feel free to add new variables to customise your setup.
 
 set :node_port, 9000
+set :client_port, 8000
 
 # Custom SSH Options
 # ==================

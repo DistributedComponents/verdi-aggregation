@@ -14,7 +14,7 @@ namespace :aggregation do
         '--background',
         "--chdir #{current_path}/extraction/aggregation-dynamic",
         '--startas /bin/bash',
-        "-- -c 'exec ./TreeAggregationMain.native -me #{server.properties.name} -port #{server.properties.client_port} #{cluster.join(' ')} > log/tree-aggregation-main.log 2>&1'"
+        "-- -c 'exec ./TreeAggregationMain.native -me #{server.properties.name} -port #{fetch(:client_port)} #{cluster.join(' ')} > log/tree-aggregation-main.log 2>&1'"
     end
   end
 
@@ -47,9 +47,9 @@ namespace :aggregation do
 
   desc 'get aggregate'
   task :aggregate do
-    root = roles(:node, root: true).first
+    root = roles(:node, name: "0").first
     run_locally do
-      info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.hostname} --port #{root.properties.client_port} aggregate)
+      info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.hostname} --port #{fetch(:client_port)} aggregate)
     end
   end
 
