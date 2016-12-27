@@ -16,6 +16,7 @@ set :deploy_to, "/home/pi/lib/verdi-aggregation"
 # You can configure the Airbrussh format using :format_options.
 # These are the defaults.
 # set :format_options, command_output: true, log_file: "log/capistrano.log", color: :auto, truncate: :auto
+set :format_options, command_output: true, log_file: "extraction/aggregation-dynamic/log/capistrano.log", color: :auto, truncate: :auto
 
 # Default value for :pty is false
 # set :pty, true
@@ -37,5 +38,3 @@ set :default_env, {
 
 # Default value for keep_releases is 5
 set :keep_releases, 3
-
-after "deploy:published", "compilation:build"

@@ -11,4 +11,3 @@ Makefile.coq.bak
 *.vio
 *.pyc
 lia.cache
-log

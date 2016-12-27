@@ -5,3 +5,4 @@ _build
 TreeAggregationMain.native
 TreeAggregationTest.native
 tmp
+log
