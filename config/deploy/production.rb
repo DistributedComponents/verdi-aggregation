@@ -7,8 +7,8 @@
 # server "example.com", user: "deploy", roles: %w{app web}, other_property: :other_value
 # server "db.example.com", user: "deploy", roles: %w{db}
 
-server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, node_name: 0, client_port: 8000, root: true
-server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, node_name: 1, client_port: 8000
+server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, name: "0", client_port: 8000, root: true
+server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", client_port: 8000
 
 # role-based syntax
 # ==================

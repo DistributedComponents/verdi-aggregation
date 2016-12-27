@@ -39,4 +39,4 @@ set :default_env, {
 # Default value for keep_releases is 5
 set :keep_releases, 3
 
-after "deploy:published", "make:build"
+after "deploy:published", "compilation:build"

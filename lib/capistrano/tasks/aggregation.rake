@@ -2,7 +2,7 @@ namespace :aggregation do
   
   desc 'start aggregation'
   task :start do
-    cluster = roles(:node).collect { |s| "-node #{s.properties.node_name},#{s.hostname}:#{fetch(:node_port)}" }.join(' ')
+    cluster = roles(:node).collect { |s| "-node #{s.properties.name},#{s.hostname}:#{fetch(:node_port)}" }.join(' ')
     on roles(:node) do |server|
       execute '/sbin/start-stop-daemon',
         '--start',
@@ -12,7 +12,7 @@ namespace :aggregation do
         '--background',
         "--chdir #{current_path}/extraction/aggregation-dynamic",
         '--startas /bin/bash',
-        "-- -c \"exec ./TreeAggregationMain.native -me #{server.properties.node_name} -port #{server.properties.client_port} #{cluster} > log/tree-aggregation-main.log 2>&1\""
+        "-- -c \"exec ./TreeAggregationMain.native -me #{server.properties.name} -port #{server.properties.client_port} #{cluster} > log/tree-aggregation-main.log 2>&1\""
     end
   end
 

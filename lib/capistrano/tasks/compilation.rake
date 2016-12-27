@@ -1,6 +1,6 @@
-namespace :make do
+namespace :compilation do
 
-  desc 'configure and make'
+  desc 'configure and compile'
   task :build do
     on roles(:node) do
       within current_path do
@@ -9,8 +9,8 @@ namespace :make do
     end
   end
   
-  desc 'make'
-  task :make do
+  desc 'compile'
+  task :compile do
     on roles(:node) do
       within current_path do
         execute 'make', 'aggregation-dynamic'
