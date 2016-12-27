@@ -19,12 +19,13 @@ Require Import mathcomp.algebra.ssralg.
 Require Import mathcomp.algebra.finalg.
 
 Require Import Bvector ZArith Zdigits.
+
 Require Import BBase.
 Require Import BAddMul.
 
 Require Import NatPowLt.
 
-Section BitVector.
+Section BitVectorGroup.
 
 Variable n : nat.
 
@@ -45,18 +46,6 @@ Proof. exact: add_assoc. Qed.
 
 Lemma Bvector_addC : commutative (@add n).
 Proof. exact: add_comm. Qed.
-
-Lemma Bvector_mul1b : left_id (one n) mul.
-Proof. exact: mul_1_l. Qed.
-
-Lemma Bvector_mulA : associative (@mul n).
-Proof. exact: mul_assoc. Qed.
-
-Lemma Bvector_mulC : commutative (@mul n).
-Proof. exact: mul_comm. Qed.
-
-Lemma Bvector_mul_addl : left_distributive (@mul n) (@add n).
-Proof. exact: distr_l. Qed.
 
 Definition Bvector_to_bitseq (v : Bvector n) : bitseq := Vector.to_list v.
 
@@ -187,7 +176,7 @@ inversion H_even.
 rewrite H_eq in H.
 case: b H_eq H => H_eq H.
 - contradict H.
-  have ->: Nat.b2n true = 1 by done.  
+  have ->: Nat.b2n true = 1 by done.
   have ->: 1 + 2 * i' = 2 * i' + 1 by auto with arith.
   exact: odd_even_lem.
 - rewrite /Nat.b2n in H.
@@ -257,4 +246,40 @@ Import GroupScope.
 Lemma Bvector_mulgC : @commutative (Bvector n) _ mulg.
 Proof. exact: Bvector_addC. Qed.
 
-End BitVector.
+End BitVectorGroup.
+
+Section BitVectorMul.
+
+Variable n : nat.
+
+Lemma Bvector_mul1b : left_id (one n) mul.
+Proof. exact: mul_1_l. Qed.
+
+Lemma Bvector_mulA : associative (@mul n).
+Proof. exact: mul_assoc. Qed.
+
+Lemma Bvector_mulC : commutative (@mul n).
+Proof. exact: mul_comm. Qed.
+
+Lemma Bvector_mul_addl : left_distributive (@mul n) (@add n).
+Proof. exact: distr_l. Qed.
+
+End BitVectorMul.
+
+Section BitVectorRing.
+
+Variable n' : nat.
+Local Notation n := n'.+1.
+
+Lemma Bvector_nontrivial : one n != zero n.
+Proof. by done. Qed.
+
+Definition Bvector_ringMixin :=
+  ComRingMixin (@Bvector_mulA _) (@Bvector_mulC _) (@Bvector_mul1b _) (@Bvector_mul_addl _) Bvector_nontrivial.
+
+Canonical Bvector_ringType := Eval hnf in RingType (Bvector n) Bvector_ringMixin.
+Canonical Bvector_finRingType := Eval hnf in [finRingType of Bvector n].
+Canonical Bvector_comRingType := Eval hnf in ComRingType (Bvector n) (@Bvector_mulC _).
+Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
+
+End BitVectorRing.
