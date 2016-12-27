@@ -32,8 +32,7 @@ append :linked_dirs, "extraction/aggregation-dynamic/tmp", "extraction/aggregati
 set :default_env, { 
   "Verdi_PATH" => "/home/pi/lib/verdi/current",
   "StructTact_PATH" => "/home/pi/lib/StructTact/current",
-  "InfSeqExt_PATH" => "/home/pi/lib/InfSeqExt/current",
-  "AAC_tactics_PATH" => "/home/pi/sensor-net/AAC_tactics"
+  "InfSeqExt_PATH" => "/home/pi/lib/InfSeqExt/current"
 }
 
 # Default value for keep_releases is 5
