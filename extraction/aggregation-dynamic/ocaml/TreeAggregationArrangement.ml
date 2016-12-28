@@ -62,19 +62,25 @@ module TreeAggregationArrangement (P : TreeAggregationParams) = struct
 
   let debug : bool = P.debug
 
+  let timestamp () =
+    let open Unix in
+    let tm = localtime (time ()) in
+    Printf.sprintf "%i/%i/%i %.2i:%.2i:%.2i"
+      tm.tm_mday (tm.tm_mon+1) (tm.tm_year+1900) tm.tm_hour tm.tm_min tm.tm_sec
+
   let debugInput : state -> input -> unit =
     fun _ inp ->
-      Printf.printf "got input %s" (Serialization.debugSerializeInput inp);
+      Printf.printf "%s: got input %s" (timestamp ()) (Serialization.debugSerializeInput inp);
       print_newline ()
 
   let debugRecv : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "receiving message %s from %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
+      Printf.printf "%s: receiving message %s from %s" (timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
       print_newline ()
 
   let debugSend : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
+      Printf.printf "%s: sending message %s to %s" (timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
       print_newline ()
 
   (* obsolete *)
