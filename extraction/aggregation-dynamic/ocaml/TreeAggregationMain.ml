@@ -1,7 +1,10 @@
 open Printf
 open Opts
 
-module TreeAggregationShim = OrderedShim.Shim(TreeAggregationArrangement.TreeAggregationArrangement)
+module TreeAggregationShimDebug = OrderedShim.Shim(TreeAggregationArrangement.TreeAggregationArrangement(TreeAggregationArrangement.DebugParams))
+
+module TreeAggregationShimProduction = OrderedShim.Shim(TreeAggregationArrangement.TreeAggregationArrangement(TreeAggregationArrangement.ProductionParams))
+
 
 let _ =
   let  _ = parse Sys.argv in
@@ -15,8 +18,15 @@ let _ =
       exit 2
   in
 
-  let open TreeAggregationShim in
-  main { cluster = !cluster
-       ; me = !me
-       ; port = !port
-       }
+  if !debug then
+    let open TreeAggregationShimDebug in
+    main { cluster = !cluster
+         ; me = !me
+         ; port = !port
+         }
+  else
+    let open TreeAggregationShimProduction in
+    main { cluster = !cluster
+         ; me = !me
+         ; port = !port
+         }
