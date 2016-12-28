@@ -1,7 +1,25 @@
 open TreeAggregation
 open TreeAggregationNames
 
-module TreeAggregationArrangement = struct
+module type TreeAggregationParams = sig
+  val debug : bool
+  val send_aggregate_timeout : float
+  val broadcast_timeout : float
+end
+
+module DebugParams = struct
+  let debug = true
+  let send_aggregate_timeout = 3.0
+  let broadcast_timeout = 5.0
+end
+
+module ProductionParams = struct
+  let debug = false
+  let send_aggregate_timeout = 2.0
+  let broadcast_timeout = 3.0
+end
+
+module TreeAggregationArrangement (P : TreeAggregationParams) = struct
   type name = Names.name
   type state = coq_Data
   type input = coq_Input
@@ -18,66 +36,72 @@ module TreeAggregationArrangement = struct
 
   let deserializeName : string -> name option = Serialization.deserializeName
 
-  let init : name -> state = fun n ->
-    Obj.magic (coq_TreeAggregation_MultiParams.init_handlers (Obj.magic n))
+  let init : name -> state =
+    fun n ->
+      Obj.magic (coq_TreeAggregation_MultiParams.init_handlers (Obj.magic n))
 
   let handleIO : name -> input -> state -> res =
     fun n i s ->
-    Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic i) (Obj.magic s))
+      Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic i) (Obj.magic s))
 
   let handleNet : name -> name -> msg -> state -> res =
     fun dst src m s ->
-    Obj.magic (coq_TreeAggregation_MultiParams.net_handlers (Obj.magic dst) (Obj.magic src) (Obj.magic m) (Obj.magic s))
+      Obj.magic (coq_TreeAggregation_MultiParams.net_handlers (Obj.magic dst) (Obj.magic src) (Obj.magic m) (Obj.magic s))
 
-  let setTimeout : name -> state -> float = fun _ _ -> 1.0
+  let deserializeMsg : string -> msg = Serialization.deserializeMsg
 
-  let deserializeMsg = Serialization.deserializeMsg
+  let serializeMsg : msg -> string = Serialization.serializeMsg
 
-  let serializeMsg = Serialization.serializeMsg
+  let deserializeInput : string -> client_id -> input option = Serialization.deserializeInput
 
-  let deserializeInput = Serialization.deserializeInput
+  let serializeOutput : output -> client_id * string = Serialization.serializeOutput
 
-  let serializeOutput = Serialization.serializeOutput
+  let failMsg : msg option = Some Fail
 
-  let failMsg = Some Fail
+  let newMsg : msg option = Some New
 
-  let newMsg = Some New
+  let debug : bool = P.debug
 
-  let debug : bool = true
+  let timestamp () =
+    let open Unix in
+    let tm = localtime (time ()) in
+    Printf.sprintf "%i/%i/%i %.2i:%.2i:%.2i"
+      tm.tm_mday (tm.tm_mon+1) (tm.tm_year+1900) tm.tm_hour tm.tm_min tm.tm_sec
 
-  let debugInput : state -> input -> unit = fun _ inp ->
-    Printf.printf "got input %s" (Serialization.debugSerializeInput inp);
-    print_newline ()
+  let debugInput : state -> input -> unit =
+    fun _ inp ->
+      Printf.printf "%s: got input %s" (timestamp ()) (Serialization.debugSerializeInput inp);
+      print_newline ()
 
-  let debugRecv : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "receiving message %s from %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
-    print_newline ()
+  let debugRecv : state -> (name * msg) -> unit =
+    fun _ (nm, msg) ->
+      Printf.printf "%s: receiving message %s from %s" (timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      print_newline ()
 
-  let debugSend : state -> (name * msg) -> unit = fun _ (nm, msg) ->
-    Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
-    print_newline ()
+  let debugSend : state -> (name * msg) -> unit =
+    fun _ (nm, msg) ->
+      Printf.printf "%s: sending message %s to %s" (timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      print_newline ()
 
+  (* obsolete *)
   let debugTimeout : state -> unit = fun _ -> ()
 
-  let createClientId () = Uuidm.to_string (Uuidm.create `V4)
+  let createClientId () : client_id = Uuidm.to_string (Uuidm.create `V4)
 
-  let serializeClientId (c : client_id) = c
+  let serializeClientId (c : client_id) : string = c
 
   let deliverSendAggregateHandler : task_handler =
     fun n s ->
       Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic SendAggregate) (Obj.magic s))
 
-  let setSendAggregateTimeout : timeout_setter =
-    fun n s ->
-      3.0
+  let setSendAggregateTimeout : timeout_setter = fun n s -> P.send_aggregate_timeout
 
   let deliverBroadcastHandler : task_handler =
     fun n s ->
       Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic Broadcast) (Obj.magic s))
 
-  let setBroadcastTimeout : timeout_setter =
-    fun n s ->
-      5.0
+  let setBroadcastTimeout : timeout_setter = fun n s -> P.broadcast_timeout
 
-  let timeoutTasks = [(deliverSendAggregateHandler, setSendAggregateTimeout); (deliverBroadcastHandler, setBroadcastTimeout)]
+  let timeoutTasks : (task_handler * timeout_setter) list = 
+    [(deliverSendAggregateHandler, setSendAggregateTimeout); (deliverBroadcastHandler, setBroadcastTimeout)]
 end
