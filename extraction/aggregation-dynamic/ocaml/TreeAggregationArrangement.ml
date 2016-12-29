@@ -64,15 +64,18 @@ module TreeAggregationArrangement (P : TreeAggregationParams) = struct
 
   let debugInput : state -> input -> unit =
     fun _ inp ->
-      Printf.printf "[%s] got input %s\n" (Util.timestamp ()) (Serialization.debugSerializeInput inp)
+      Printf.printf "[%s] got input %s" (Util.timestamp ()) (Serialization.debugSerializeInput inp);
+      print_newline ()
 
   let debugRecv : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "[%s] receiving message %s from %s\n" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm)
+      Printf.printf "[%s] receiving message %s from %s" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      print_newline ()
 
   let debugSend : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "[%s] sending message %s to %s\n" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm)
+      Printf.printf "[%s] sending message %s to %s" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      print_newline ()
 
   let createClientId () : client_id = Uuidm.to_string (Uuidm.create `V4)
 
