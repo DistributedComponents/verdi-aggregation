@@ -7,8 +7,16 @@
 # server "example.com", user: "deploy", roles: %w{app web}, other_property: :other_value
 # server "db.example.com", user: "deploy", roles: %w{db}
 
-server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, name: "0", adjacent: %w(1)
-server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", adjacent: %w(0)
+server "discoberry01.duckdns.org", user: "pi", roles: %w{node}, name: "0", adjacent: %w(1 4)
+server "discoberry02.duckdns.org", user: "pi", roles: %w{node}, name: "1", adjacent: %w(0 5)
+server "discoberry03.duckdns.org", user: "pi", roles: %w{node}, name: "2", adjacent: %w(0)
+server "discoberry04.duckdns.org", user: "pi", roles: %w{node}, name: "3", adjacent: %w(1)
+server "discoberry05.duckdns.org", user: "pi", roles: %w{node}, name: "4", adjacent: %w(0 6)
+server "discoberry06.duckdns.org", user: "pi", roles: %w{node}, name: "5", adjacent: %w(1 9)
+server "discoberry07.duckdns.org", user: "pi", roles: %w{node}, name: "6", adjacent: %w(4)
+server "discoberry08.duckdns.org", user: "pi", roles: %w{node}, name: "7", adjacent: %w(1)
+server "discoberry09.duckdns.org", user: "pi", roles: %w{node}, name: "8", adjacent: %w(6)
+server "discoberry10.duckdns.org", user: "pi", roles: %w{node}, name: "9", adjacent: %w(5)
 
 # role-based syntax
 # ==================
