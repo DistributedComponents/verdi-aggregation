@@ -4,8 +4,8 @@ namespace :aggregation do
   task :start do
     servers = Hash[roles(:node).collect { |s| [s.properties.name, s] }]
     on roles(:node) do |server|
-      cluster = server.properties.adjacent.collect { |n| "-node #{n},#{servers[n].hostname}:#{fetch(:node_port)}" }
-      cluster << "-node #{server.properties.name},#{server.hostname}:#{fetch(:node_port)}"
+      cluster = server.properties.adjacent.collect { |n| "-node #{n},#{servers[n].properties.host}:#{fetch(:node_port)}" }
+      cluster << "-node #{server.properties.name},#{server.properties.host}:#{fetch(:node_port)}"
       execute '/sbin/start-stop-daemon',
         '--start',
         '--quiet',
@@ -47,9 +47,10 @@ namespace :aggregation do
 
   desc 'get aggregate'
   task :aggregate do
-    root = roles(:node, name: "0").first
     run_locally do
-      info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.hostname} --port #{fetch(:client_port)} aggregate)
+      roles(:node, name: "0") do |root|
+        info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.properties.host} --port #{fetch(:client_port)} aggregate)
+      end
     end
   end
 
