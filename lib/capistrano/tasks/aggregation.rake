@@ -9,6 +9,7 @@ namespace :aggregation do
       execute '/sbin/start-stop-daemon',
         '--start',
         '--quiet',
+        '--oknodo',
         '--make-pidfile',
         "--pidfile #{current_path}/extraction/aggregation-dynamic/tmp/tree-aggregation-main.pid",
         '--background',
@@ -23,6 +24,7 @@ namespace :aggregation do
     on roles(:node) do
       execute '/sbin/start-stop-daemon', 
         '--stop',
+        '--oknodo',
         "--pidfile #{current_path}/extraction/aggregation-dynamic/tmp/tree-aggregation-main.pid"
     end
   end
@@ -30,7 +32,7 @@ namespace :aggregation do
   desc 'tail aggregation log'
   task :tail_log do
     on roles(:node) do
-      execute 'tail',
+      execute :tail,
         '-n 20',
         "#{shared_path}/extraction/aggregation-dynamic/log/tree-aggregation-main.log"
     end
@@ -39,7 +41,7 @@ namespace :aggregation do
   desc 'truncate aggregation log'
   task :truncate_log do
     on roles(:node) do
-      execute 'truncate',
+      execute :truncate,
         '-s 0',
         "#{shared_path}/extraction/aggregation-dynamic/log/tree-aggregation-main.log"
     end

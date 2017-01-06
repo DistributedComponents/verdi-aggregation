@@ -42,6 +42,7 @@ server "db10", roles: %w{node}, host: 'discoberry10.duckdns.org', name: "9", adj
 
 set :node_port, 9000
 set :client_port, 8000
+set :make_jobs, 2
 
 # Custom SSH Options
 # ==================
