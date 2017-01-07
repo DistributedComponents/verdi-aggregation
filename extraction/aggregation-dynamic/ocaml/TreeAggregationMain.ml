@@ -1,15 +1,19 @@
 open Printf
 open Opts
 
-module TreeAggregationShimDebug = OrderedShim.Shim(TreeAggregationArrangement.TreeAggregationArrangement(TreeAggregationArrangement.DebugParams))
-
-module TreeAggregationShimProduction = OrderedShim.Shim(TreeAggregationArrangement.TreeAggregationArrangement(TreeAggregationArrangement.ProductionParams))
-
-
-let _ =
-  let  _ = parse Sys.argv in
-
-  let _ =
+let () =
+  let () =
+    try
+      parse Sys.argv
+    with
+    | Arg.Help msg ->
+      printf "%s: %s" Sys.argv.(0) msg;
+      exit 2
+    | Arg.Bad msg ->
+      eprintf "%s" msg;
+      exit 2
+  in
+  let () =
     try
       validate ()
     with Arg.Bad msg ->
@@ -17,15 +21,19 @@ let _ =
       prerr_newline ();
       exit 2
   in
-
+  let module Arr = TreeAggregationArrangement.TreeAggregationArrangement in
   if !debug then
-    let open TreeAggregationShimDebug in
+    let module Pms = TreeAggregationArrangement.DebugParams in
+    let module Shim = OrderedShim.Shim(Arr(Pms)) in
+    let open Shim in
     main { cluster = !cluster
          ; me = !me
          ; port = !port
          }
   else
-    let open TreeAggregationShimProduction in
+    let module Pms = TreeAggregationArrangement.ProductionParams in
+    let module Shim = OrderedShim.Shim(Arr(Pms)) in
+    let open Shim in
     main { cluster = !cluster
          ; me = !me
          ; port = !port
