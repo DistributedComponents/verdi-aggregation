@@ -1,24 +1,11 @@
 opam init --yes --no-setup
 eval $(opam config env)
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam install coq.$COQ_VERSION coq-mathcomp-ssreflect.$MATHCOMP_VERSION coq-mathcomp-fingroup.$MATHCOMP_VERSION coq-mathcomp-algebra.$MATHCOMP_VERSION coq-aac-tactics.$AAC_TACTICS_VERSION ounit.2.0.0 uuidm.0.9.6 --yes --verbose
-
-pushd ..
-  git clone 'https://github.com/uwplse/StructTact.git'
-  pushd StructTact
-    ./build.sh
-  popd
-
-  git clone 'https://github.com/DistributedComponents/InfSeqExt.git'
-  pushd InfSeqExt
-    ./build.sh
-  popd
-
-  git clone 'https://github.com/uwplse/verdi.git'
-  pushd verdi
-    ./build.sh
-  popd
-popd
+opam repo add distributedcomponents http://opam.distributedcomponents.net
+opam install coq.$COQ_VERSION coq-mathcomp-ssreflect.$MATHCOMP_VERSION \
+  coq-mathcomp-fingroup.$MATHCOMP_VERSION coq-mathcomp-algebra.$MATHCOMP_VERSION \
+  coq-aac-tactics.$AAC_TACTICS_VERSION StructTact InfSeqExt verdi \
+  verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
 
 case $MODE in
   analytics)

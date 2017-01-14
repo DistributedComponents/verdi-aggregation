@@ -29,8 +29,6 @@ module TreeAggregationArrangement = struct
     fun dst src m s ->
     Obj.magic (coq_TreeAggregation_MultiParams.net_handlers (Obj.magic dst) (Obj.magic src) (Obj.magic m) (Obj.magic s))
 
-  let setTimeout : name -> state -> float = fun _ _ -> 1.0
-
   let deserializeMsg : string -> msg = Serialization.deserializeMsg
 
   let serializeMsg : msg -> string = Serialization.serializeMsg
@@ -56,8 +54,6 @@ module TreeAggregationArrangement = struct
   let debugSend : state -> (name * msg) -> unit = fun _ (nm, msg) ->
     Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
-
-  let debugTimeout : state -> unit = fun _ -> ()
 
   let createClientId () = Uuidm.to_string (Uuidm.create `V4)
 

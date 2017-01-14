@@ -14,22 +14,32 @@ Definitions and proofs:
 - [`mathcomp`](https://math-comp.github.io/math-comp/) (`ssreflect`, `fingroup`, `algebra`)
 - [`StructTact`](https://github.com/uwplse/StructTact)
 - [`InfSeqExt`](https://github.com/DistributedComponents/InfSeqExt)
-- [`AAC_tactics`](https://github.com/coq-contribs/aac-tactics) (branch `v8.5`)
+- [`AAC_tactics`](https://github.com/coq-contribs/aac-tactics)
 
 Executable code:
 - [`OCaml 4.02`](https://ocaml.org)
+- [`verdi-runtime`](https://github.com/DistributedComponents/verdi-runtime)
 - [`Uuidm`](http://erratique.ch/software/uuidm)
 
 Building
 --------
 
-First run `./configure` in the root directory.  This will check
+We recommend installing the dependencies of Verdi Aggregation via
+[OPAM](https://coq.inria.fr/opam/www/using.html):
+
+```
+opam repo add distributedcomponents http://opam.distributedcomponents.net
+opam install verdi StructTact InfSeqExt verdi-runtime
+```
+
+Then, run `./configure` in the root directory.  This will check
 for the appropriate version of Coq and ensure all necessary
 dependencies can be located. 
 
-By default, the script checks for `verdi`, `StructTact`,
-`InfSeqExt` and `AAC_tactics` in the current parent directory, but this can be
-overridden by setting the `Verdi_PATH`, `StructTact_PATH`, `InfSeqExt_PATH`,
-and `AAC_tactics_PATH` environment variables.
+By default, the script assumes that `Verdi`, `StructTact`,
+`InfSeqExt` and `AAC_tactics` are installed in Coq's `user-contrib`
+directory, but this can be overridden by setting the `Verdi_PATH`,
+`StructTact_PATH`, `InfSeqExt_PATH`, and `AAC_tactics_PATH`
+environment variables.
 
-Then run `make` in the root directory.
+Finally, run `make` in the root directory.
