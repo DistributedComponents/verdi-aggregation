@@ -10,12 +10,12 @@ Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlNatInt.
 Require Import ExtrOcamlString.
 
-Require Import ExtrOcamlBasicExt.
-Require Import ExtrOcamlNatIntExt.
+Require Import Verdi.ExtrOcamlBasicExt.
+Require Import Verdi.ExtrOcamlNatIntExt.
 
-Require Import ExtrOcamlBool.
-Require Import ExtrOcamlList.
-Require Import ExtrOcamlFin.
+Require Import Verdi.ExtrOcamlBool.
+Require Import Verdi.ExtrOcamlList.
+Require Import Verdi.ExtrOcamlFin.
 
 Module NumNames : NatValue. Definition n := 5. End NumNames.
 Module Names := FinName NumNames.

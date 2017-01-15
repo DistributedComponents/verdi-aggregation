@@ -1,9 +1,7 @@
 PYTHON=python2.7
 
-OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I ocaml -I lib -cflag -g
-OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -I lib -cflag -g
-
-LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml lib/Daemon.ml
+OCAMLBUILD = ocamlbuild -package uuidm -package verdi-runtime -I ocaml -cflag -g
+OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
 
 MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
 
@@ -18,10 +16,10 @@ default: TreeAggregationMain.native
 $(MLEXTRACTED):
 	+$(MAKE) -C ../.. extraction/aggregation-dynamic/$@
 
-TreeAggregationMain.native: $(LIB) $(MLEXTRACTED) $(MLFILES)
+TreeAggregationMain.native: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
-TreeAggregationTest.native: $(LIB) $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
+TreeAggregationTest.native: $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native
 
 test-units: TreeAggregationTest.native

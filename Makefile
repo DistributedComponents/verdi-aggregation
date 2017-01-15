@@ -45,7 +45,7 @@ AGGREGATION_MLFILES = extraction/aggregation/ocaml/TreeAggregation.ml extraction
 AGGREGATION_DYN_MLFILES = extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
 
 Makefile.coq: _CoqProject
-	coq_makefile -f _CoqProject -o Makefile.coq \
+	coq_makefile -f _CoqProject -o Makefile.coq -no-install \
           -extra '$(TREE_MLFILES)' \
 	    'extraction/tree/coq/ExtractTree.v systems/TreeStatic.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree/coq/ExtractTree.v' \
@@ -57,7 +57,9 @@ Makefile.coq: _CoqProject
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v' \
 	  -extra '$(AGGREGATION_DYN_MLFILES)' \
 	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v extraction/aggregation-dynamic/coq/ExtractionDeps.vo' \
-	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v'
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v' \
+          -extra-phony 'distclean' 'clean' \
+	    'rm -f $$(join $$(dir $$(VFILES)),$$(addprefix .,$$(notdir $$(patsubst %.v,%.aux,$$(VFILES)))))'
 
 $(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES): Makefile.coq
 	$(MAKE) -f Makefile.coq $@
@@ -88,7 +90,7 @@ aggregation-dynamic-test:
 
 clean:
 	if [ -f Makefile.coq ]; then \
-	  $(MAKE) -f Makefile.coq cleanall; fi
+	  $(MAKE) -f Makefile.coq distclean; fi
 	rm -f Makefile.coq
 	find . -name '*.buildtime' -delete
 	$(MAKE) -C proofalytics clean
@@ -102,11 +104,7 @@ lint:
 	find . -name '*.v' -exec grep -Hn 'H[0-9][0-9]*' {} \;
 
 distclean: clean
-	rm -f _CoqProject \
-	  extraction/aggregation/lib \
-	  extraction/aggregation-dynamic/lib \
-	  extraction/tree/lib \
-	  extraction/tree-dynamic/lib
+	rm -f _CoqProject
 
 .PHONY: default quick clean lint proofalytics proofalytics-aux distclean \
 	$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES) \

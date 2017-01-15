@@ -1,28 +1,30 @@
-OCAMLBUILD = ocamlbuild -package uuidm -lib str -lib unix -I lib -I ocaml -cflag -g
-OCAMLBUILD_TEST = ocamlbuild -package uuidm -package oUnit -lib str -I ocaml -I test -I lib -cflag -g
+OCAMLBUILD = ocamlbuild -package uuidm -package verdi-runtime -I ocaml -cflag -g
+OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
 
-LIB = lib/OrderedShim.ml lib/Util.ml lib/Opts.ml
+MLEXTRACTED = ocaml/Tree.ml ocaml/Tree.mli
 
-TREE = ocaml/Tree.ml ocaml/Tree.mli ocaml/TreeArrangement.ml \
- ocaml/TreeMain.ml ocaml/Serialization.ml
+MLFILES = ocaml/TreeArrangement.ml ocaml/TreeMain.ml ocaml/Serialization.ml
 
-TREE_TEST = test/SerializationTest.ml test/TreeTest.ml
+MLFILES_TEST = test/SerializationTest.ml test/TreeTest.ml
 
 default: TreeMain.native
 
-TreeMain.native: $(LIB) $(TREE)
+$(MLEXTRACTED):
+	+$(MAKE) -C ../.. extraction/tree-dynamic/$@
+
+TreeMain.native: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeMain.native
 
-TreeTest.native: $(LIB) $(TREE) $(TREE_TEST)
+TreeTest.native: $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
 	$(OCAMLBUILD_TEST) TreeTest.native
 
 test: TreeTest.native
 	./TreeTest.native
 
 clean:
-	$(OCAMLBUILD) TreeMain.native -clean
-	$(OCAMLBUILD_TEST) TreeTest.native -clean
+	$(OCAMLBUILD) -clean
 
-.PHONY: default clean test
+.PHONY: default clean test $(MLEXTRACTED)
 
 .NOTPARALLEL: TreeMain.native TreeTest.native
+.NOTPARALLEL: $(MLEXTRACTED)

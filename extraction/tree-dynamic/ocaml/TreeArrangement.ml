@@ -7,8 +7,10 @@ module TreeArrangement = struct
   type input = coq_Input
   type output = coq_Output
   type msg = coq_Msg
-  type res = (output list * state) * ((name * msg) list)
   type client_id = string
+  type res = (output list * state) * ((name * msg) list)
+  type task_handler = name -> state -> res
+  type timeout_setter = name -> state -> float
 
   let systemName : string = "Dynamic Tree Building Protocol"
 
@@ -26,8 +28,6 @@ module TreeArrangement = struct
   let handleNet : name -> name -> msg -> state -> res =
     fun dst src m s ->
     Obj.magic (coq_Tree_MultiParams.net_handlers (Obj.magic dst) (Obj.magic src) (Obj.magic m) (Obj.magic s))
-
-  let setTimeout : name -> state -> float = fun _ _ -> 1.0
 
   let deserializeMsg : string -> msg = Serialization.deserializeMsg
 
@@ -55,7 +55,17 @@ module TreeArrangement = struct
     Printf.printf "sending message %s to %s" (Serialization.debugSerializeMsg msg) (serializeName nm);
     print_newline ()
 
-  let debugTimeout : state -> unit = fun _ -> ()
-
   let createClientId () = Uuidm.to_string (Uuidm.create `V4)
+
+  let serializeClientId (c : client_id) = c
+
+  let deliverBroadcastHandler : task_handler =
+    fun n s ->
+      Obj.magic (coq_Tree_MultiParams.input_handlers (Obj.magic n) (Obj.magic Broadcast) (Obj.magic s))
+
+  let setBroadcastTimeout : timeout_setter =
+    fun n s ->
+      5.0
+
+  let timeoutTasks = [(deliverBroadcastHandler, setBroadcastTimeout)]
 end
