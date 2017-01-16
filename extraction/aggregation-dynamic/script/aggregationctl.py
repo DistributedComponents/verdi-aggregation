@@ -13,7 +13,7 @@ def aggregate(args):
     print res
 
 def local(args):
-    c = create_client(args)    
+    c = create_client(args)
     c.send_local(args.data)
 
 def main():
