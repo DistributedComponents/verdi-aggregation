@@ -47,11 +47,52 @@ namespace :aggregation do
     end
   end
 
+  desc 'list nodes and properties'
+  task :list do
+    run_locally do
+      roles(:node).each do |node|
+        info "#{node.hostname} #{node.properties.host} #{node.properties.name} #{node.properties.adjacent}"
+      end
+    end
+  end
+
   desc 'get aggregate'
   task :aggregate do
+    on roles(:node, name: '0') do |root|
+      execute 'python2.7',
+        "#{current_path}/extraction/aggregation-dynamic/script/aggregationctl.py",
+        '--host localhost',
+        "--port #{fetch(:client_port)}",
+        'aggregate'
+    end
+  end
+
+  desc 'get aggregate (remote)'
+  task :aggregate_locally do
     run_locally do
-      roles(:node, name: "0") do |root|
-        info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --hostname #{root.properties.host} --port #{fetch(:client_port)} aggregate)
+      roles(:node, name: '0').each do |root|
+        info %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --host #{root.properties.host} --port #{fetch(:client_port)} aggregate)
+      end
+    end
+  end
+
+  desc 'set local data'
+  task :local do
+    on roles(:node) do |node|
+      execute 'python2.7',
+        "#{current_path}/extraction/aggregation-dynamic/script/aggregationctl.py",
+        '--host localhost',
+        "--port #{fetch(:client_port)}",
+        'local',
+        ENV['LOCAL']
+    end
+  end
+
+  desc 'set local data (remote)'
+  task :local_locally do
+    run_locally do
+      roles(:node, name: ENV['NAME']).each do |node|
+        %x(python2.7 extraction/aggregation-dynamic/script/aggregationctl.py --host #{node.properties.host} --port #{fetch(:client_port)} local #{ENV['LOCAL']})
       end
     end
   end
