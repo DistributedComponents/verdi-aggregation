@@ -1,25 +1,14 @@
 open TreeAggregation
 open TreeAggregationNames
 
-module type TreeAggregationParams = sig
-  val debug : bool
-  val send_aggregate_timeout : float
-  val broadcast_timeout : float
+module type Serializer = sig
+  val deserializeInput : string -> string -> coq_Input option
+  val serializeOutput : coq_Output -> string * string
+  val debugSerializeInput : coq_Input -> string
+  val debugSerializeMsg : coq_Msg -> string
 end
 
-module DebugParams = struct
-  let debug = true
-  let send_aggregate_timeout = 3.0
-  let broadcast_timeout = 5.0
-end
-
-module ProductionParams = struct
-  let debug = false
-  let send_aggregate_timeout = 2.0
-  let broadcast_timeout = 3.0
-end
-
-module TreeAggregationArrangement (P : TreeAggregationParams) = struct
+module TreeAggregationArrangement (P : Serializer) = struct
   type name = Names.name
   type state = coq_Data
   type input = coq_Input
@@ -52,29 +41,29 @@ module TreeAggregationArrangement (P : TreeAggregationParams) = struct
 
   let serializeMsg : msg -> string = Serialization.serializeMsg
 
-  let deserializeInput : string -> client_id -> input option = Serialization.deserializeInput
+  let deserializeInput : string -> client_id -> input option = P.deserializeInput
 
-  let serializeOutput : output -> client_id * string = Serialization.serializeOutput
+  let serializeOutput : output -> client_id * string = P.serializeOutput
 
   let failMsg : msg option = Some Fail
 
   let newMsg : msg option = Some New
 
-  let debug : bool = P.debug
+  let debug : bool = true
 
   let debugInput : state -> input -> unit =
     fun _ inp ->
-      Printf.printf "[%s] got input %s" (Util.timestamp ()) (Serialization.debugSerializeInput inp);
+      Printf.printf "[%s] got input %s" (Util.timestamp ()) (P.debugSerializeInput inp);
       print_newline ()
 
   let debugRecv : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "[%s] receiving message %s from %s" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      Printf.printf "[%s] receiving message %s from %s" (Util.timestamp ()) (P.debugSerializeMsg msg) (serializeName nm);
       print_newline ()
 
   let debugSend : state -> (name * msg) -> unit =
     fun _ (nm, msg) ->
-      Printf.printf "[%s] sending message %s to %s" (Util.timestamp ()) (Serialization.debugSerializeMsg msg) (serializeName nm);
+      Printf.printf "[%s] sending message %s to %s" (Util.timestamp ()) (P.debugSerializeMsg msg) (serializeName nm);
       print_newline ()
 
   let createClientId () : client_id = Uuidm.to_string (Uuidm.create `V4)
@@ -85,13 +74,13 @@ module TreeAggregationArrangement (P : TreeAggregationParams) = struct
     fun n s ->
       Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic SendAggregate) (Obj.magic s))
 
-  let setSendAggregateTimeout : timeout_setter = fun n s -> P.send_aggregate_timeout
+  let setSendAggregateTimeout : timeout_setter = fun n s -> 2.0
 
   let deliverBroadcastHandler : task_handler =
     fun n s ->
       Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic Broadcast) (Obj.magic s))
 
-  let setBroadcastTimeout : timeout_setter = fun n s -> P.broadcast_timeout
+  let setBroadcastTimeout : timeout_setter = fun n s -> 3.0
 
   let timeoutTasks : (task_handler * timeout_setter) list = 
     [(deliverSendAggregateHandler, setSendAggregateTimeout); (deliverBroadcastHandler, setBroadcastTimeout)]
