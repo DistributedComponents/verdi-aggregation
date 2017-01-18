@@ -17,19 +17,21 @@ let deserializeInput (s : string) (c : string) : coq_Input option =
     try Scanf.sscanf s "Local %d" (fun x -> Some (Local (Obj.magic x)))
     with _ -> None
 
+let two_compl x = if x >= 32768 then -(65536-x) else x
+
 let serializeOutput : coq_Output -> string * string = function
-  | AggregateResponse (c, x) -> (string_of_char_list c, Printf.sprintf "AggregateResponse %d" (let x = Obj.magic x in if x >= 32768 then -(65536-x) else x))
+  | AggregateResponse (c, x) -> (string_of_char_list c, Printf.sprintf "AggregateResponse %d" (two_compl (Obj.magic x)))
   | LevelResponse (c, olv) -> (string_of_char_list c, Printf.sprintf "LevelResponse %s" (serializeLevelOption olv))
 
 let debugSerializeInput : coq_Input -> string = function
   | SendAggregate -> "SendAggregate"
   | Broadcast -> "Broadcast"
   | AggregateRequest x -> Printf.sprintf "AggregateRequest %s" (string_of_char_list x)
-  | Local x -> Printf.sprintf "Local %d" (let x = Obj.magic x in if x >= 32768 then -(65536-x) else x)
+  | Local x -> Printf.sprintf "Local %d" (two_compl (Obj.magic x))
   | LevelRequest x -> Printf.sprintf "LevelRequest %s" (string_of_char_list x)
 
 let debugSerializeMsg : coq_Msg -> string = function
   | New -> "New"
-  | Aggregate x -> Printf.sprintf "Aggregate %d" (let x = Obj.magic x in if x >= 32768 then -(65536-x) else x)
+  | Aggregate x -> Printf.sprintf "Aggregate %d" (two_compl (Obj.magic x))
   | Fail -> "Fail"
   | Level olv -> Printf.sprintf "Level %s" (serializeLevelOption olv)
