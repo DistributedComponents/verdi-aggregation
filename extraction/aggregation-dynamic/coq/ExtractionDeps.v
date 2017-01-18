@@ -13,17 +13,22 @@ Extract Inlined Constant num_zp => "65535".
 (*
 Require Import ZpCommutativeFinGroup.
 Require Import ProdCommutativeFinGroup.
-Module NumZp1 : NatValue. Definition n := 20. End NumZp1.
+Definition num_zp := 0.
+Module NumZp1 : NatValue. Definition n := num_zp. End NumZp1.
 Module ZpCFG1 : CommutativeFinGroup := CFG NumZp1.
-Module NumZp2 : NatValue. Definition n := 127. End NumZp2.
+Module NumZp2 : NatValue. Definition n := num_zp. End NumZp2.
 Module ZpCFG2 : CommutativeFinGroup := CFG NumZp2.
-Module AggregationGroup : CommutativeFinGroup := ProdCFG ZpCFG1 ZpCFG2.*)
+Module AggregationGroup : CommutativeFinGroup := ProdCFG ZpCFG1 ZpCFG2.
+Extract Inlined Constant num_zp => "255".
+*)
 
 (*
 Require Import ZpProdCommutativeFinGroup.
-Module NumZp1 : NatValue. Definition n := 20. End NumZp1.
-Module NumZp2 : NatValue. Definition n := 127. End NumZp2.
+Definition num_zp := 0.
+Module NumZp1 : NatValue. Definition n := num_zp. End NumZp1.
+Module NumZp2 : NatValue. Definition n := num_zp. End NumZp2.
 Module AggregationGroup <: CommutativeFinGroup := CFG NumZp1 NumZp2.
+Extract Inlined Constant num_zp => "255".
 *)
 
 (*
