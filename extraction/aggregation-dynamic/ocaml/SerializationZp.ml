@@ -17,7 +17,7 @@ let deserializeInput (s : string) (c : string) : coq_Input option =
     try Scanf.sscanf s "Local %d" (fun x -> Some (Local (Obj.magic x)))
     with _ -> None
 
-let two_compl x = if x >= 32768 then -(65536-x) else x
+let two_compl x = if x >= 8388608 then -16777216 + x else x
 
 let serializeOutput : coq_Output -> string * string = function
   | AggregateResponse (c, x) -> (string_of_char_list c, Printf.sprintf "AggregateResponse %d" (two_compl (Obj.magic x)))

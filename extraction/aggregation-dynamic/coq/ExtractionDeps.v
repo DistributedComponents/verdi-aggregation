@@ -8,7 +8,8 @@ Require Import ZpCommutativeFinGroup.
 Definition num_zp := 0.
 Module NumZp : NatValue. Definition n := num_zp. End NumZp.
 Module AggregationGroup <: CommutativeFinGroup := CFG NumZp.
-Extract Inlined Constant num_zp => "65535".
+Extract Inlined Constant num_zp => "16777215".
+Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".
 
 (*
 Require Import ZpCommutativeFinGroup.
@@ -19,7 +20,8 @@ Module ZpCFG1 : CommutativeFinGroup := CFG NumZp1.
 Module NumZp2 : NatValue. Definition n := num_zp. End NumZp2.
 Module ZpCFG2 : CommutativeFinGroup := CFG NumZp2.
 Module AggregationGroup : CommutativeFinGroup := ProdCFG ZpCFG1 ZpCFG2.
-Extract Inlined Constant num_zp => "255".
+Extract Inlined Constant num_zp => "16777215".
+Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".
 *)
 
 (*
@@ -28,7 +30,8 @@ Definition num_zp := 0.
 Module NumZp1 : NatValue. Definition n := num_zp. End NumZp1.
 Module NumZp2 : NatValue. Definition n := num_zp. End NumZp2.
 Module AggregationGroup <: CommutativeFinGroup := CFG NumZp1 NumZp2.
-Extract Inlined Constant num_zp => "255".
+Extract Inlined Constant num_zp => "16777215".
+Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".
 *)
 
 (*
