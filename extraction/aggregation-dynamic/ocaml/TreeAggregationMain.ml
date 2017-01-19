@@ -1,7 +1,7 @@
 open Opts
 open TreeAggregationArrangement
 
-module Shim = OrderedShim.Shim(TreeAggregationArrangement(SerializationInt32Pair))
+module Shim = OrderedShim.Shim(TreeAggregationArrangement(SerializationIntPair))
 
 let () =
   let () =
