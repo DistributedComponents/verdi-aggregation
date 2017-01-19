@@ -29,7 +29,7 @@ case $MODE in
     ./build.sh aggregation-test
     ;;
   aggregation-dynamic-test)
-    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
+    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 portaudio.0.2.1 --yes --verbose
     ./build.sh aggregation-dynamic-test
     ;;
   *)
