@@ -82,6 +82,18 @@ module TreeAggregationArrangement (P : Serializer) = struct
 
   let setBroadcastTimeout : timeout_setter = fun n s -> 3.0
 
+  let deliverSumSquaresHandler : task_handler =
+    fun n s ->
+      let sum_squares = Record.read () in
+      let local = Obj.magic (Local (Obj.magic (1, sum_squares))) in
+      Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) local (Obj.magic s))
+
+  let setSumSquaresTimeout : timeout_setter = fun n s -> 1.0
+
   let timeoutTasks : (task_handler * timeout_setter) list = 
-    [(deliverSendAggregateHandler, setSendAggregateTimeout); (deliverBroadcastHandler, setBroadcastTimeout)]
+    [
+      (deliverSendAggregateHandler, setSendAggregateTimeout);
+      (deliverBroadcastHandler, setBroadcastTimeout);
+      (deliverSumSquaresHandler, setSumSquaresTimeout);
+    ]
 end

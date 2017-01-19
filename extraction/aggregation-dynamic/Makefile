@@ -1,6 +1,6 @@
 PYTHON=python2.7
 
-OCAMLBUILD = ocamlbuild -package uuidm -package verdi-runtime -I ocaml -cflag -g
+OCAMLBUILD = ocamlbuild -use-ocamlfind -tag thread -package 'uuidm verdi-runtime portaudio bigarray' -I ocaml -cflag -g
 OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
 
 MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
