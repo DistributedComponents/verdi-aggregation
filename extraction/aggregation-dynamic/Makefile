@@ -1,6 +1,6 @@
 PYTHON=python2.7
 
-OCAMLBUILD = ocamlbuild -package uuidm -package verdi-runtime -I ocaml -cflag -g
+OCAMLBUILD = ocamlbuild -use-ocamlfind -tag thread -package 'uuidm verdi-runtime portaudio bigarray' -I ocaml -cflag -g
 OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
 
 MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
@@ -19,6 +19,9 @@ $(MLEXTRACTED):
 TreeAggregationMain.native: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
+Tap.native: ocaml/Tap.ml
+	$(OCAMLBUILD) Tap.native
+
 TreeAggregationMain.d.byte: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.d.byte
 
@@ -31,7 +34,7 @@ test-units: TreeAggregationTest.native
 test-integration: TreeAggregationMain.native test/integration.py
 	$(PYTHON) test/integration.py
 
-test: test-units test-integration
+test: test-units
 
 clean:
 	$(OCAMLBUILD) -clean

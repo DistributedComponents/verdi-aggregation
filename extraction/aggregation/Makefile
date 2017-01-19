@@ -28,7 +28,7 @@ test-units: TreeAggregationTest.native
 test-integration: TreeAggregationMain.native test/integration.py
 	$(PYTHON) test/integration.py
 
-test: test-units test-integration
+test: test-units
 
 clean:
 	$(OCAMLBUILD) -clean

@@ -1,8 +1,8 @@
 ocaml/TreeAggregation.ml
 ocaml/TreeAggregation.mli
-lib
 _build
 TreeAggregationMain.native
 TreeAggregationTest.native
 tmp
 log
+Tap.native
