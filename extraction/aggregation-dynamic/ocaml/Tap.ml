@@ -75,8 +75,10 @@ let () =
   for i = 0 to 1000 do
     Portaudio.read_stream_ba in_stream buf 0 input_frames_per_block;
     let amplitude = get_rms buf in
+    (*
     Printf.printf "%.15f" amplitude;
-    print_newline ();
+    print_newline (); 
+    *)
     if amplitude > !tap_threshold then begin
       (* noisy block *)
       quietcount := 0.0;

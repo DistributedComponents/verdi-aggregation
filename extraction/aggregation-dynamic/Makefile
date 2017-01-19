@@ -19,6 +19,9 @@ $(MLEXTRACTED):
 TreeAggregationMain.native: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
+Tap.native: ocaml/Tap.ml
+	$(OCAMLBUILD) Tap.native
+
 TreeAggregationMain.d.byte: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.d.byte
 
