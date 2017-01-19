@@ -14,7 +14,7 @@ class ReceiveError(Exception):
     pass
 
 class Client(object):
-    re_aggregate_response = re.compile(r'AggregateResponse[^0-9-]+(-?[0-9]+)')
+    re_aggregate_response = re.compile(r'AggregateResponse[^0-9-]+(-?[0-9]+)[^0-9-]+(-?[0-9]+)')
     re_level_response = re.compile(r'LevelResponse[^0-9-]+([0-9]+|-)')
 
     def __init__(self, host, port, sock=None):

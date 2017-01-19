@@ -51,7 +51,7 @@ Extract Inlined Constant BAddGroup.bitseq_to_Bvector => "(fun _ i -> Some i)".
 Extract Inlined Constant BAddGroup.Bvector_to_I2k => "(fun _ i -> i)".
 Extract Inlined Constant BAddGroup.I2k_to_Bvector => "(fun _ i -> i)".
 Extract Inlined Constant BDef.add => "(fun _ -> (+))".
-Extract Inlined Constant BDef.opp => "(fun _ -> (-) 0)".
+Extract Inlined Constant BDef.opp => "(fun _ -> (~-))".
 Extract Inlined Constant BDef.zero => "(fun _ -> 0)".
 
 Require Import BvectorCommutativeFinGroup.
@@ -76,6 +76,18 @@ Extract Inlined Constant BDef.add => "(fun _ -> Int32.add)".
 Extract Inlined Constant BDef.opp => "(fun _ -> Int32.neg)".
 Extract Inlined Constant BDef.zero => "(fun _ -> Int32.zero)".
 
+(*
 Require Import BvectorCommutativeFinGroup.
 Module NumBits : NatValue. Definition n := 32. End NumBits.
 Module AggregationGroup <: CommutativeFinGroup := CFG NumBits.
+*)
+
+Extract Constant fintype.Finite.base2 => "fun c -> { Countable.base = c.base; Countable.mixin = (Obj.magic mixin_base __ c.mixin) }".
+Extract Inlined Constant fintype.prod_enum => "(fun t1 t2 -> [])".
+
+Require Import BvectorCommutativeFinGroup.
+Require Import ProdCommutativeFinGroup.
+Module NumBits : NatValue. Definition n := 32. End NumBits.
+Module Int32CFG1 <: CommutativeFinGroup := CFG NumBits.
+Module Int32CFG2 <: CommutativeFinGroup := CFG NumBits.
+Module AggregationGroup : CommutativeFinGroup := ProdCFG Int32CFG1 Int32CFG2.
