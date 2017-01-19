@@ -36,6 +36,7 @@ Extract Inlined Constant num_zp => "16777215".
 Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".
 *)
 
+(*
 Require Import Bvector BDef.
 Require Import BvectorCommutativeFinGroup.
 Extract Inlined Constant Bvector => "int".
@@ -48,5 +49,22 @@ Extract Inlined Constant add => "(fun _ -> (+))".
 Extract Inlined Constant opp => "(fun _ -> (-) 0)".
 Extract Inlined Constant zero => "(fun _ -> 0)".
 Module NumBits : NatValue. Definition n := 31. End NumBits.
+Module AggregationGroup <: CommutativeFinGroup := CFG NumBits.
+Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".
+*)
+
+Require Import Bvector BDef.
+Require Import BvectorCommutativeFinGroup.
+Extract Inlined Constant Bvector => "Int32.t".
+Extract Inlined Constant seq.bitseq => "int".
+Extract Inlined Constant BAddGroup.Bvector_to_bitseq => "(fun _ i -> Int32.to_int i)".
+Extract Inlined Constant BAddGroup.bitseq_to_Bvector => "(fun _ i -> Some (Int32.of_int i))".
+Extract Inlined Constant BAddGroup.Bvector_to_I2k => "(fun _ i -> Int32.to_int i)".
+Extract Inlined Constant BAddGroup.I2k_to_Bvector => "(fun _ i -> Int32.of_int i)".
+Extract Inlined Constant add => "(fun _ -> Int32.add)".
+Extract Inlined Constant opp => "(fun _ -> Int32.neg)".
+Extract Inlined Constant zero => "(fun _ -> Int32.zero)".
+Extract Inlined Constant BAddGroup.Bvector_eq_dec => "(fun _ -> (=))".
+Module NumBits : NatValue. Definition n := 32. End NumBits.
 Module AggregationGroup <: CommutativeFinGroup := CFG NumBits.
 Extract Inlined Constant fintype.ord_enum => "(fun _ -> [])".

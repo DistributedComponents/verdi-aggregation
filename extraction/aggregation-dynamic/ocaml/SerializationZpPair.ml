@@ -14,6 +14,7 @@ let deserializeInput (s : string) (c : string) : coq_Input option =
   | "AggregateRequest" -> Some (AggregateRequest (char_list_of_string c))
   | "LevelRequest" -> Some (LevelRequest (char_list_of_string c))
   | _ -> 
+    (* should be converted into 0...p-1 range *)
     try Scanf.sscanf s "Local %d %d" (fun x y -> Some (Local (Obj.magic (Obj.magic x, Obj.magic y))))
     with _ -> None
 
