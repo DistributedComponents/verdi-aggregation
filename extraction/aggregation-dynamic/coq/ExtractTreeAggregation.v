@@ -14,10 +14,6 @@ Require Import Verdi.ExtrOcamlBool.
 Require Import Verdi.ExtrOcamlList.
 Require Import Verdi.ExtrOcamlFin.
 
-Require Import ExtractionDeps.
-
-Require Import mathcomp.ssreflect.ssreflect.
-
 Module NumNames : NatValue. Definition n := 3. End NumNames.
 Module Names := FinName NumNames.
 Module NamesOT := FinNameOrderedType NumNames Names.
@@ -30,6 +26,9 @@ Module NamesSet <: MSetInterface.S := MSetList.Make NamesOT.
 
 Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
+
+Require Import ExtractionDeps.
+Extract Constant Nat.pow => "fun a -> function | 0 -> 1 | 1 -> a | n -> let b = pow a (n / 2) in b * b * (if n mod 2 = 0 then 1 else a)".
 
 Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 

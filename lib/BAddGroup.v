@@ -29,7 +29,9 @@ Section BitVectorGroup.
 
 Variable n : nat.
 
-Definition Bvector_eqMixin := EqMixin (compareP (VectorEq.eq_dec bool eqb eqb_true_iff n)).
+Definition Bvector_eq_dec := VectorEq.eq_dec bool eqb eqb_true_iff n.
+
+Definition Bvector_eqMixin := EqMixin (compareP Bvector_eq_dec).
 Canonical Structure Bvector_eqType := Eval hnf in EqType (Bvector n) Bvector_eqMixin.
 
 Lemma Bvector_add0b : left_id (zero n) add.

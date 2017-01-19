@@ -19,6 +19,9 @@ $(MLEXTRACTED):
 TreeAggregationMain.native: $(MLEXTRACTED) $(MLFILES)
 	$(OCAMLBUILD) TreeAggregationMain.native
 
+TreeAggregationMain.d.byte: $(MLEXTRACTED) $(MLFILES)
+	$(OCAMLBUILD) TreeAggregationMain.d.byte
+
 TreeAggregationTest.native: $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
 	$(OCAMLBUILD_TEST) TreeAggregationTest.native
 
