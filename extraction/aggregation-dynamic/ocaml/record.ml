@@ -3,7 +3,7 @@ open Bigarray
 
 let format = format_int16
 
-let channels = 2
+let channels = 1
 
 let rate = 44100.0
 
@@ -13,7 +13,7 @@ let input_frames_per_block = int_of_float (rate *. input_block_time)
 
 let output_frames_per_block = 256
 
-let device = 5
+let device = 2
 
 let open_mic_stream () =
   let interleaved = true in
