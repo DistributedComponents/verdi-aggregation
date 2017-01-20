@@ -88,6 +88,16 @@ namespace :aggregation do
     end
   end
 
+  desc 'get amplitude'
+  task :amplitude do
+    on roles(:node, name: '0') do |root|
+      execute 'python2.7',
+        "#{current_path}/extraction/aggregation-dynamic/script/amplitude.py",
+        '--host localhost',
+        "--port #{fetch(:client_port)}"
+    end
+  end
+
   desc 'set local data (remote)'
   task :local_locally do
     run_locally do
