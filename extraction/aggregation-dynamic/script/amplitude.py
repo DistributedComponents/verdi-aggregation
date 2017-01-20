@@ -5,7 +5,6 @@ import math
 import client_pair
 
 NUM_SAMPLES=2205
-SHORT_NORMALIZE = (1.0/32768.0)
 
 def create_client(args):
     return client_pair.Client(args.host, int(args.port))
@@ -23,7 +22,7 @@ def main():
     [num_nodes_str, sum_squares_str] = c.send_aggregate_request();
     num_nodes = int(num_nodes_str)
     sum_squares = int(sum_squares_str)
-    print math.sqrt((sum_squares * SHORT_NORMALIZE * SHORT_NORMALIZE) / (NUM_SAMPLES * num_nodes))
+    print math.sqrt(sum_squares / (NUM_SAMPLES * num_nodes))
 
 if __name__ == '__main__':
     main()
