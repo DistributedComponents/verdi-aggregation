@@ -4,7 +4,7 @@ import argparse
 import math
 import client_pair
 
-NUM_SAMPLES=4410
+NUM_SAMPLES=2205
 SHORT_NORMALIZE = (1.0/32768.0)
 
 def create_client(args):
