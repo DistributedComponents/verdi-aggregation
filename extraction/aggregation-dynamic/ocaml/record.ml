@@ -16,7 +16,7 @@ let output_frames_per_block = 256
 let device = 2
 
 let normalize_int16 n =
-  n / 318
+  n / 32
 
 let open_mic_stream () =
   let interleaved = true in
