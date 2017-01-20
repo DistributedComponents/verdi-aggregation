@@ -15,6 +15,9 @@ let output_frames_per_block = 256
 
 let device = 2
 
+let normalize_int16 n =
+  n / 318
+
 let open_mic_stream () =
   let interleaved = true in
   let inparam =
@@ -27,7 +30,7 @@ let open_mic_stream () =
 let sum_squares ba =
   let sum = ref 0 in
   for i = 0 to (Genarray.nth_dim ba 0 - 1) do
-    let n = Genarray.get ba [|i|] in
+    let n = normalize_int16 (Genarray.get ba [|i|]) in
     sum := !sum + (n * n)
   done;
   !sum
