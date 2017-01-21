@@ -84,7 +84,9 @@ module TreeAggregationArrangement (P : Serializer) = struct
 
   let deliverSumSquaresHandler : task_handler =
     fun n s ->
-      let sum_squares = Record.read () in
+      let device = 2 in
+      let channels = 1 in
+      let sum_squares = Record.read_mic device channels  in
       let local = Obj.magic (Local (Obj.magic (1, sum_squares))) in
       Obj.magic (coq_TreeAggregation_MultiParams.input_handlers (Obj.magic n) local (Obj.magic s))
 

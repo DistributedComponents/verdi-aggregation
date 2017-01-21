@@ -6,7 +6,7 @@ OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
 MLEXTRACTED = ocaml/TreeAggregation.ml ocaml/TreeAggregation.mli
 
 MLFILES = ocaml/TreeAggregationArrangement.ml ocaml/TreeAggregationMain.ml \
-  ocaml/Serialization.ml
+  ocaml/Serialization.ml ocaml/Record.ml ocaml/SerializationInt.ml
 
 MLFILES_TEST = test/SerializationTest.ml test/OptsTest.ml \
   test/TreeAggregationTest.ml test/TestCommon.ml
