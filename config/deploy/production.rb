@@ -43,6 +43,11 @@ server "db10", roles: %w{node}, host: 'discoberry10.duckdns.org', name: "9", adj
 set :node_port, 9000
 set :client_port, 8000
 set :make_jobs, 2
+set :aggregate_timeout, 2.0
+set :broadcast_timeout, 3.0
+set :read_mic_timeout, 1.0
+set :device, 2
+set :channels, 1
 
 # Custom SSH Options
 # ==================

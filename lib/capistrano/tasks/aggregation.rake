@@ -15,7 +15,7 @@ namespace :aggregation do
         '--background',
         "--chdir #{current_path}/extraction/aggregation-dynamic",
         '--startas /bin/bash',
-        "-- -c 'exec ./TreeAggregationMain.native -debug -me #{server.properties.name} -port #{fetch(:client_port)} #{cluster.join(' ')} > log/tree-aggregation-main.log 2>&1'"
+        "-- -c 'exec ./TreeAggregationMain.native -debug -me #{server.properties.name} -port #{fetch(:client_port)} -aggregate-timeout #{fetch(:aggregate_timeout)} -broadcast-timeout #{fetch(:broadcast_timeout)} -read-mic-timeout #{fetch(:read_mic_timeout)} -device #{fetch(:device)} -channels #{fetch(:channels)} #{cluster.join(' ')} > log/tree-aggregation-main.log 2>&1'"
     end
   end
 
