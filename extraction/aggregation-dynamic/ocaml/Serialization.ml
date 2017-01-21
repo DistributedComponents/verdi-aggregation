@@ -12,3 +12,8 @@ let deserializeMsg : string -> coq_Msg = fun s ->
 
 let serializeMsg : coq_Msg -> string = fun msg ->
   Marshal.to_string msg []
+
+let serializeLevelOption (olv : int option) : string =
+  match olv with
+  | Some lv -> string_of_int lv
+  | _ -> ""

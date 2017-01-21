@@ -20,28 +20,28 @@ Definitions and proofs:
 Executable code:
 
 - [`OCaml 4.02.3`](https://ocaml.org)
+- [`OCamlbuild`](https://github.com/ocaml/ocamlbuild)
+- [`ocamlfind`](http://projects.camlcity.org/projects/findlib.html)
 - [`verdi-runtime`](https://github.com/DistributedComponents/verdi-runtime)
 - [`Uuidm`](http://erratique.ch/software/uuidm)
+- [`PortAudio`](http://www.portaudio.com)
+- [`ocaml-portaudio`](https://github.com/savonet/ocaml-portaudio)
 
 Building
 --------
 
-We recommend installing the dependencies of Verdi Aggregation via
-[OPAM](https://coq.inria.fr/opam/www/using.html):
+First, make sure the PortAudio library is installed on the system; on Ubuntu and Debian systems, the package is called `portaudio19-dev`.
+
+The recommended way to install the OCaml and Coq dependencies of Verdi Aggregation is via [OPAM](https://coq.inria.fr/opam/www/using.html):
 
 ```
 opam repo add coq-released https://coq.inria.fr/opam/released
-opam repo add distributedcomponents http://opam.distributedcomponents.net
-opam install verdi StructTact InfSeqExt coq-aac-tactics verdi-runtime
+opam repo add distributedcomponents-dev http://opam-dev.distributedcomponents.net
+opam install verdi StructTact InfSeqExt coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra coq-aac-tactics verdi-runtime uuidm portaudio
 ```
 
-Then, run `./configure` in the root directory.  This will check
-for the appropriate version of Coq and ensure all necessary
-dependencies can be located. 
+Then, run `./configure` in the root directory.  This will check for the appropriate version of Coq and ensure all necessary dependencies can be located.
 
-By default, the script assumes that `Verdi`, `StructTact`, and
-`InfSeqExt` are installed in Coq's `user-contrib`
-directory, but this can be overridden by setting the `Verdi_PATH`,
-`StructTact_PATH`, and `InfSeqExt_PATH` environment variables.
+By default, the script assumes that `Verdi`, `StructTact`, and `InfSeqExt` are installed in Coq's `user-contrib` directory, but this can be overridden by setting the `Verdi_PATH`, `StructTact_PATH`, and `InfSeqExt_PATH` environment variables.
 
 Finally, run `make` in the root directory.

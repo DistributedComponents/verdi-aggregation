@@ -2,11 +2,6 @@ open TreeAggregation
 open TreeAggregationNames
 open Util
 
-let serializeLevelOption olv : string =
-  match olv with
-  | Some lv -> string_of_int lv
-  | _ -> ""
-
 let deserializeInput (s : string) (c : string) : coq_Input option =
   match s with
   | "SendAggregate" -> Some SendAggregate
@@ -22,7 +17,7 @@ let two_compl x = if x >= 8388608 then -16777216 + x else x
 
 let serializeOutput : coq_Output -> string * string = function
   | AggregateResponse (c, x) -> (string_of_char_list c, Printf.sprintf "AggregateResponse %d %d" (two_compl (fst (Obj.magic x))) (two_compl (snd (Obj.magic x))))
-  | LevelResponse (c, olv) -> (string_of_char_list c, Printf.sprintf "LevelResponse %s" (serializeLevelOption olv))
+  | LevelResponse (c, olv) -> (string_of_char_list c, Printf.sprintf "LevelResponse %s" (Serialization.serializeLevelOption olv))
 
 let debugSerializeInput : coq_Input -> string = function
   | SendAggregate -> "SendAggregate"
@@ -35,4 +30,4 @@ let debugSerializeMsg : coq_Msg -> string = function
   | New -> "New"
   | Aggregate x -> Printf.sprintf "Aggregate %d %d" (two_compl (fst (Obj.magic x))) (two_compl (snd (Obj.magic x)))
   | Fail -> "Fail"
-  | Level olv -> Printf.sprintf "Level %s" (serializeLevelOption olv)
+  | Level olv -> Printf.sprintf "Level %s" (Serialization.serializeLevelOption olv)
