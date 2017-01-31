@@ -1,22 +1,11 @@
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrfun.
-Require Import mathcomp.ssreflect.ssrbool.
-Require Import mathcomp.ssreflect.eqtype.
-Require Import mathcomp.ssreflect.ssrnat.
-Require Import mathcomp.ssreflect.seq.
-Require Import mathcomp.ssreflect.choice.
-Require Import mathcomp.ssreflect.fintype.
-
-Require Import mathcomp.ssreflect.div.
-Require Import mathcomp.ssreflect.path.
-Require Import mathcomp.ssreflect.bigop.
-Require Import mathcomp.ssreflect.prime.
-Require Import mathcomp.ssreflect.finset.
-
-Require Import mathcomp.fingroup.fingroup.
-
-Require Import mathcomp.algebra.ssralg.
-Require Import mathcomp.algebra.finalg.
+From mathcomp.ssreflect
+Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
+From mathcomp.ssreflect
+Require Import choice fintype div path bigop prime finset.
+From mathcomp.fingroup
+Require Import fingroup.
+From mathcomp.algebra
+Require Import ssralg finalg.
 
 Require Import Bvector ZArith Zdigits.
 
@@ -24,6 +13,8 @@ Require Import BBase.
 Require Import BAddMul.
 
 Require Import NatPowLt.
+
+Require Import commfingroup.
 
 Section BitVectorGroup.
 
@@ -247,6 +238,9 @@ Import GroupScope.
 
 Lemma Bvector_mulgC : @commutative (Bvector n) _ mulg.
 Proof. exact: Bvector_addC. Qed.
+
+Definition Bvector_commFinGroupMixin := CommFinGroupMixin Bvector_mulgC.
+Canonical Bvector_commFinGroupType := Eval hnf in CommFinGroupType _ Bvector_commFinGroupMixin.
 
 End BitVectorGroup.
 

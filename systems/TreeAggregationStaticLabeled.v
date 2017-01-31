@@ -17,6 +17,8 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
+Require Import commfingroup.
+
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.

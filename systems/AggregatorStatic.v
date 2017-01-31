@@ -11,6 +11,7 @@ Require Import mathcomp.ssreflect.ssrbool.
 Require Import mathcomp.ssreflect.eqtype.
 Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
+
 Require Import mathcomp.fingroup.fingroup.
 
 Require Import Orders.
@@ -22,6 +23,8 @@ Require String.
 
 Require Import AggregationDefinitions.
 Require Import AggregationAux.
+
+Require Import commfingroup.
 
 Require Import AAC_tactics.AAC.
 

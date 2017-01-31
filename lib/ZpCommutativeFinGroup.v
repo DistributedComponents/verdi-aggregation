@@ -8,9 +8,15 @@ Require Import mathcomp.fingroup.fingroup.
 
 Require Import mathcomp.algebra.zmodp.
 
+Require Import commfingroup.
+
 Require Import StructTact.Fin.
 
-Module CFG (Import N : NatValue) <: CommutativeFinGroup.
-  Definition gT := Zp_finGroupType n.
-  Definition mulgC : @commutative gT _ mulg := @Zp_mulgC n.
-End CFG.
+Section ZpCommFinGroup.
+
+Variable n : nat.
+
+Definition Zp_commFinGroupMixin := CommFinGroupMixin (@Zp_mulgC n).
+Canonical Zp_commFinGroup := Eval hnf in CommFinGroupType (Zp_finGroupType n) Zp_commFinGroupMixin.
+
+End ZpCommFinGroup.

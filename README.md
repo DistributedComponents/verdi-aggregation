@@ -10,9 +10,9 @@ Requirements
 
 Definitions and proofs:
 
-- [`Coq 8.5`](https://coq.inria.fr/download)
+- [`Coq 8.5`](https://coq.inria.fr/coq-85)
 - [`Verdi`](https://github.com/uwplse/verdi)
-- [`mathcomp`](https://math-comp.github.io/math-comp/) (`ssreflect`, `fingroup`, `algebra`)
+- [`math-comp`](https://math-comp.github.io/math-comp/) (`ssreflect`, `fingroup`, `algebra`)
 - [`StructTact`](https://github.com/uwplse/StructTact)
 - [`InfSeqExt`](https://github.com/DistributedComponents/InfSeqExt)
 - [`AAC_tactics`](https://github.com/coq-contribs/aac-tactics)
@@ -37,7 +37,8 @@ The recommended way to install the OCaml and Coq dependencies of Verdi Aggregati
 ```
 opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add distributedcomponents-dev http://opam-dev.distributedcomponents.net
-opam install verdi StructTact InfSeqExt coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra coq-aac-tactics verdi-runtime uuidm portaudio
+opam install coq-mathcomp-ssreflect coq-mathcomp-fingroup coq-mathcomp-algebra coq-aac-tactics
+opam install verdi StructTact InfSeqExt verdi-runtime uuidm portaudio
 ```
 
 Then, run `./configure` in the root directory.  This will check for the appropriate version of Coq and ensure all necessary dependencies can be located.

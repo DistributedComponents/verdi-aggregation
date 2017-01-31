@@ -18,6 +18,8 @@ Require Import mathcomp.ssreflect.finset.
 
 Require Import mathcomp.fingroup.fingroup.
 
+Require Import commfingroup.
+
 Require Import AAC_tactics.AAC.
 
 Set Implicit Arguments.

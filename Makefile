@@ -53,7 +53,7 @@ Makefile.coq: _CoqProject
             'extraction/tree-dynamic/coq/ExtractTree.v systems/TreeDynamic.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree-dynamic/coq/ExtractTree.v' \
           -extra '$(AGGREGATION_MLFILES)' \
-	    'extraction/aggregation/coq/ExtractTreeAggregation.v systems/TreeAggregationStatic.vo' \
+	    'extraction/aggregation/coq/ExtractTreeAggregation.v extraction/aggregation/coq/ExtractionDeps.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v' \
 	  -extra '$(AGGREGATION_DYN_MLFILES)' \
 	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v extraction/aggregation-dynamic/coq/ExtractionDeps.vo' \

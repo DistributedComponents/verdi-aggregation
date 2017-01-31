@@ -10,4 +10,4 @@ Makefile.coq.bak
 *.aux
 *.vio
 *.pyc
-lia.cache
+.lia.cache

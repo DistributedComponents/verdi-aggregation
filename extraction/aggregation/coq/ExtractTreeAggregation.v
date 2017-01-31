@@ -1,11 +1,6 @@
 Require Import Verdi.Verdi.
 Require Import Verdi.NameOverlay.
 
-Require Import AggregationDefinitions.
-Require Import NameAdjacency.
-Require Import TreeAux.
-Require Import TreeAggregationStatic.
-
 Require Import StructTact.Fin.
 
 Require Import mathcomp.ssreflect.ssreflect.
@@ -40,19 +35,16 @@ Module NamesSet <: MSetInterface.S := MSetList.Make NamesOT.
 Require Import FMapList.
 Module NamesMap <: FMapInterface.S := FMapList.Make NamesOTCompat.
 
-Module CFG <: CommutativeFinGroup.
-Definition gT := Zp_finGroupType 127.
-Lemma mulgC : @commutative gT _ mulg. exact: Zp_mulgC. Qed.
-End CFG.
+Require Import ExtractionDeps.
 
 Module AdjacencyNames := FinAdjacency NumNames Names NamesOT NamesSet AdjacentNames.
 
 Module TAuxNames := NameTypeTAux Names NamesOT NamesSet NamesOTCompat NamesMap.
 
-Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap CFG.
+Module ADefNames := NameTypeADefs Names NamesOT NamesSet NamesOTCompat NamesMap AggregationGroup.
 
 Module TreeAggregationNames :=
-  TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames CFG AdjacentNames AdjacencyNames TAuxNames ADefNames.
+  TreeAggregation Names NamesOT NamesSet NamesOTCompat NamesMap RootNames AggregationGroup AdjacentNames AdjacencyNames TAuxNames ADefNames.
 Import TreeAggregationNames.
 
 Extraction "extraction/aggregation/ocaml/TreeAggregation.ml" List.seq TreeAggregation_BaseParams TreeAggregation_MultiParams.
