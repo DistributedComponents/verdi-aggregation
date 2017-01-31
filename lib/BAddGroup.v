@@ -234,8 +234,6 @@ Canonical Bvector_finZmodType := Eval hnf in [finZmodType of Bvector n].
 Canonical Bvector_baseFinGroupType := Eval hnf in [baseFinGroupType of Bvector n for +%R].
 Canonical Bvector_finGroupType := Eval hnf in [finGroupType of Bvector n for +%R].
 
-Import GroupScope.
-
 Lemma Bvector_mulgC : @commutative (Bvector n) _ mulg.
 Proof. exact: Bvector_addC. Qed.
 

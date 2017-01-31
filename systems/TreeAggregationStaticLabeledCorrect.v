@@ -463,7 +463,7 @@ Admitted.
 Lemma TreeAggregation_Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> TR.Tau ->
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   l_enabled lb_step_ordered_failure (tot_map_label l) (pt_map_onet_event (hd s)) ->
   eventually (now (l_enabled lb_step_ordered_failure l)) s.
 Proof.
@@ -507,23 +507,23 @@ case => //= [dst src|dst src|h|h|h] H_neq {H_neq} s H_exec H_fair H_en.
 Admitted.
 *)
 
-Lemma TreeAggregation_Tree_pt_map_onet_always_weak_local_fairness_continuously :
+Lemma TreeAggregation_Tree_pt_map_onet_always_weak_fairness_continuously :
 forall l : label,
   tot_map_label l <> label_silent ->
   forall s : infseq (event (list Net.name * ordered_network) label (Net.name * (input + output))),
   lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
-  always (now (l_enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
-  continuously (now (l_enabled lb_step_ordered_failure l)) s.
+  weak_fairness lb_step_ordered_failure label_silent s ->
+  always (now (enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
+  continuously (now (enabled lb_step_ordered_failure l)) s.
 Proof.
 Admitted.
 
-Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
+Lemma TreeAggregation_Tree_pt_map_onet_tot_map_label_event_state_weak_fairness : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
-       weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
+       weak_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
-apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
+apply: pt_map_onet_tot_map_label_event_state_weak_fairness.
 - case.
   * by exists Tau.
   * by move => dst src; exists (RecvFail dst src).
@@ -531,7 +531,7 @@ apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness.
   * by move => h; exists (DeliverBroadcastTrue h).
   * by move => h; exists (DeliverBroadcastFalse h).
   * by move => h; exists (DeliverLevelRequest h).
-- exact: TreeAggregation_Tree_pt_map_onet_always_weak_local_fairness_continuously.
+- exact: TreeAggregation_Tree_pt_map_onet_always_weak_fairness_continuously.
 Qed.
 
 End TreeAggregationCorrect.
