@@ -47,17 +47,17 @@ AGGREGATION_DYN_MLFILES = extraction/aggregation-dynamic/ocaml/TreeAggregation.m
 Makefile.coq: _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq -no-install \
           -extra '$(TREE_MLFILES)' \
-	    'extraction/tree/coq/ExtractTree.v systems/TreeStatic.vo' \
-	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree/coq/ExtractTree.v' \
+	    'extraction/tree/coq/ExtractTreeStatic.v systems/TreeStatic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree/coq/ExtractTreeStatic.v' \
           -extra '$(TREE_DYN_MLFILES)' \
-            'extraction/tree-dynamic/coq/ExtractTree.v systems/TreeDynamic.vo' \
-	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree-dynamic/coq/ExtractTree.v' \
+            'extraction/tree-dynamic/coq/ExtractTreeDynamic.v systems/TreeDynamic.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/tree-dynamic/coq/ExtractTreeDynamic.v' \
           -extra '$(AGGREGATION_MLFILES)' \
-	    'extraction/aggregation/coq/ExtractTreeAggregation.v extraction/aggregation/coq/ExtractionDeps.vo' \
-	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregation.v' \
+	    'extraction/aggregation/coq/ExtractTreeAggregationStatic.v extraction/aggregation/coq/ExtractTreeAggregationStaticDeps.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation/coq/ExtractTreeAggregationStatic.v' \
 	  -extra '$(AGGREGATION_DYN_MLFILES)' \
-	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v extraction/aggregation-dynamic/coq/ExtractionDeps.vo' \
-	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregation.v' \
+	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamic.v extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamicDeps.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamic.v' \
           -extra-phony 'distclean' 'clean' \
 	    'rm -f $$(join $$(dir $$(VFILES)),$$(addprefix .,$$(notdir $$(patsubst %.v,%.aux,$$(VFILES)))))'
 
