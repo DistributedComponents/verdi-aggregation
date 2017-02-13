@@ -152,7 +152,7 @@ Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgPa
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_ordered_dynamic_failure_star _ _ _ Aggregation_NewMsgParams Aggregation_FailMsgParams step_ordered_dynamic_failure_init (failed, net) tr ->
-    @step_ordered_dynamic_failure_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_map_odnet net) (pt_map_traces tr).
+    @step_ordered_dynamic_failure_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_map_odnet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_dynamic_failure_pt_mapped_simulation_star_1 in H_st.
@@ -190,7 +190,7 @@ have IH' := IH _ H_n H_f n'.
 move => H_in.
 case: IH'.
 move: H_in.
-apply: in_msg_pt_map_msgs.
+apply: in_msg_filterMap_pt_map_msg.
 exact: pt_fail_msg_fst_snd.
 Qed.
 
@@ -233,7 +233,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -253,7 +253,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -275,11 +275,11 @@ set in_pt := In FR.Fail _.
 move => IH.
 suff H_suff: in_pt.
   move: H_suff.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 apply: IH.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggreation_in_adj_adjacent_to :
@@ -321,7 +321,7 @@ right.
 split => //.
 split => //.
 move: H1.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -340,7 +340,7 @@ have H_inv' := @FRC.Failure_new_incoming_not_in_adj _ _ _ H_st' n _ _ n' _ {| FR
 rewrite /= map_id /id /= H_eq in H_inv'.
 apply: H_inv' => //.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_to_no_incoming_new_n_adjacent :
@@ -362,7 +362,7 @@ have H_inv'' := H_inv' H_n H_f H_n' H_f' H_adj {| FR.adjacent := d.(adjacent) |}
 apply: H_inv'' => //.
 move => H_in'.
 case: H_in.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -389,7 +389,7 @@ suff H_suff: f_in.
     left.
     split => //.
     move: H.
-    apply: in_pt_map_msgs_in_msg => //.
+    apply: in_filterMap_pt_map_msg_in_msg => //.
     exact: Aggregation_pt_map_msg_injective.
   break_and.
   right.
@@ -397,10 +397,10 @@ suff H_suff: f_in.
   move => H_in'.
   case: H.
   move: H_in'.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 rewrite /f_in.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_incoming_fail_then_new_or_adjacent :
@@ -433,7 +433,7 @@ rewrite /= map_id /id /= H_eq' in H_inv'.
 have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
 apply: H_inv''.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_or_incoming_new_reciprocal :
@@ -464,7 +464,7 @@ case: H_in => H_in.
   case: H_inv'' => H_inv''; first by left.
   right.
   move: H_inv''.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 suff H_suff: inn.
   have H_or: NSet.In n' (adjacent d) \/ inn by right.
@@ -472,10 +472,10 @@ suff H_suff: inn.
   case: H_inv'' => H_inv''; first by left.
   right.
   move: H_inv''.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_then_adjacent_or_new_incoming :
@@ -499,7 +499,7 @@ concludes.
 break_or_hyp; first by left.
 right.
 move: H.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -523,9 +523,9 @@ suff H_suff: hde.
   concludes.
   case: H_inv''.
   move: H_in.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_failed_adjacent_fail :
@@ -548,13 +548,13 @@ set inn := In FR.Fail _.
 move => H_inv''.
 suff H_suff: inn.
   move: H_suff.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 apply: H_inv''.
 case: H_or => H_or; first by left.
 right.
 move: H_or.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_in_new_then_adjacent :
@@ -570,7 +570,7 @@ have H_inv' := @FRC.Failure_in_new_then_adjacent _ _ _ H_st' n.
 rewrite /= map_id /id /= in H_inv'.
 apply: (H_inv' H_n H_f n').
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_inactive_not_in_adjacent :

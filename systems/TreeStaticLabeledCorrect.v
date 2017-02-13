@@ -120,13 +120,13 @@ Proof.
     move => n l IH.
     rewrite /flip /= /level_fold.
     rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-    by rewrite pt_map_name_msgs_app_distr /= IH.
+    by rewrite filterMap_app /= IH.
   rewrite /level_adjacent NSet.fold_spec /flip /=.
   elim: NSet.elements => //=.
   move => n l IH.
   rewrite /flip /= /level_fold.
   rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-  by rewrite pt_map_name_msgs_app_distr /= IH.
+  by rewrite filterMap_app /= IH.
 Qed.
 
 Instance Tree_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Tree_FailMsgParams FR.FailureRecorder_FailMsgParams Tree_FailureRecorder_multi_params_pt_map := 
@@ -142,7 +142,7 @@ Instance Tree_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverl
 Theorem Tree_Failed_pt_mapped_simulation_star_1 :
   forall net failed tr,
     @step_ordered_failure_star _ _ _ Tree_FailMsgParams step_ordered_failure_init (failed, net) tr ->
-    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
@@ -215,7 +215,7 @@ move => H_in.
 case: H_inv'.
 rewrite /= /id /=.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_in_adj_adjacent_to :
@@ -254,7 +254,7 @@ right.
 move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
-apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+apply: in_filterMap_pt_map_msg_in_msg; last exact: pt_fail_msg_fst_snd.
 exact: Tree_pt_map_msg_injective.
 Qed.
 
@@ -274,7 +274,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite -H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Tree_pt_map_msg_injective.
 Qed.
 
@@ -306,7 +306,7 @@ have H_inv' := FRC.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_first_fail_in_adj : 
@@ -323,7 +323,7 @@ have H_inv' := FRC.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_adjacent_failed_incoming_fail : 
@@ -1510,7 +1510,7 @@ find_injection.
 simpl in *.
 move {H6}.
 have H_in: In Fail (onwPackets net from to).
-  apply: in_pt_map_msgs_in_msg.
+  apply: in_filterMap_pt_map_msg_in_msg.
   - by case => //; case.
   - by eexists.
   - by rewrite H4; left.
@@ -1564,12 +1564,12 @@ FR.net_handler_cases => //.
 simpl in *.
 find_injection.
 move: H5.
-set ptm := pt_map_msgs _.
+set ptm := filterMap _ _.
 move => H_eq_pt.
 have H_in_pt: In FR.Fail ptm by find_rewrite; left.
 have H_in: In Fail (onwPackets net from to).
   move: H_in_pt.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   by case => //=; case.
 unfold ptm in *.
 move {ptm H_in_pt}.
@@ -1627,7 +1627,7 @@ apply continuously_map_conv.
   move => H_in H_in'.
   case: H_in.
   move: H_in'.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_lb_step_ordered_failure_continuously_adj_not_failed : 

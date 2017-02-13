@@ -144,7 +144,7 @@ Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : Na
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_ordered_failure_star _ _ _ Aggregation_FailMsgParams step_ordered_failure_init (failed, net) tr ->
-    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
@@ -196,7 +196,7 @@ move => H_in.
 case: H_inv'.
 rewrite /= /id /=.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_in_adj_adjacent_to :
@@ -235,7 +235,7 @@ right.
 move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
-apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+apply: in_filterMap_pt_map_msg_in_msg; last exact: pt_fail_msg_fst_snd.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -255,7 +255,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite -H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -287,7 +287,7 @@ have H_inv' := FRC.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_first_fail_in_adj : 
@@ -304,7 +304,7 @@ have H_inv' := FRC.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_failed_incoming_fail : 
