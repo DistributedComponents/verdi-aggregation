@@ -37,12 +37,10 @@ proofalytics-aux: Makefile.coq
 	$(MAKE) -f Makefile.coq
 
 TREE_MLFILES = extraction/tree/ocaml/Tree.ml extraction/tree/ocaml/Tree.mli
-
 TREE_DYN_MLFILES = extraction/tree-dynamic/ocaml/Tree.ml extraction/tree-dynamic/ocaml/Tree.mli
-
 AGGREGATION_MLFILES = extraction/aggregation/ocaml/TreeAggregation.ml extraction/aggregation/ocaml/TreeAggregation.mli
-
 AGGREGATION_DYN_MLFILES = extraction/aggregation-dynamic/ocaml/TreeAggregation.ml extraction/aggregation-dynamic/ocaml/TreeAggregation.mli
+ZAGGREGATION_DYN_MLFILES = extraction/zaggregation-dynamic/ocaml/ZTreeAggregation.ml extraction/zaggregation-dynamic/ocaml/ZTreeAggregation.mli
 
 Makefile.coq: _CoqProject
 	coq_makefile -f _CoqProject -o Makefile.coq -no-install \
@@ -58,10 +56,13 @@ Makefile.coq: _CoqProject
 	  -extra '$(AGGREGATION_DYN_MLFILES)' \
 	    'extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamic.v extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamicDeps.vo' \
 	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/aggregation-dynamic/coq/ExtractTreeAggregationDynamic.v' \
+	  -extra '$(ZAGGREGATION_DYN_MLFILES)' \
+	    'extraction/zaggregation-dynamic/coq/ExtractZTreeAggregationDynamic.v extraction/zaggregation-dynamic/coq/ExtractZTreeAggregationDynamicDeps.vo' \
+	    '$$(COQC) $$(COQDEBUG) $$(COQFLAGS) extraction/zaggregation-dynamic/coq/ExtractZTreeAggregationDynamic.v' \
           -extra-phony 'distclean' 'clean' \
 	    'rm -f $$(join $$(dir $$(VFILES)),$$(addprefix .,$$(notdir $$(patsubst %.v,%.aux,$$(VFILES)))))'
 
-$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES): Makefile.coq
+$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES) $(ZAGGREGATION_DYN_MLFILES): Makefile.coq
 	$(MAKE) -f Makefile.coq $@
 
 tree:
@@ -88,6 +89,12 @@ aggregation-dynamic:
 aggregation-dynamic-test:
 	+$(MAKE) -C extraction/aggregation-dynamic test
 
+zaggregation-dynamic:
+	+$(MAKE) -C extraction/zaggregation-dynamic
+
+zaggregation-dynamic-test:
+	+$(MAKE) -C extraction/zaggregation-dynamic test
+
 clean:
 	if [ -f Makefile.coq ]; then \
 	  $(MAKE) -f Makefile.coq distclean; fi
@@ -98,6 +105,7 @@ clean:
 	$(MAKE) -C extraction/aggregation-dynamic clean
 	$(MAKE) -C extraction/tree clean
 	$(MAKE) -C extraction/tree-dynamic clean
+	$(MAKE) -C extraction/zaggregation-dynamic clean
 
 lint:
 	@echo "Possible use of hypothesis names:"
@@ -107,6 +115,7 @@ distclean: clean
 	rm -f _CoqProject
 
 .PHONY: default quick clean lint proofalytics proofalytics-aux distclean \
-	$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES) \
+	$(TREE_MLFILES) $(TREE_DYN_MLFILES) $(AGGREGATION_MLFILES) $(AGGREGATION_DYN_MLFILES) $(ZAGGREGATION_DYN_MLFILES) \
 	aggregation aggregation-dynamic tree tree-dynamic \
-	aggregation-test aggregation-dynamic-test tree-test tree-dynamic-test
+	aggregation-test aggregation-dynamic-test tree-test tree-dynamic-test \
+	zaggregation-dynamic zaggregation-dynamic-test
