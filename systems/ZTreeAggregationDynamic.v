@@ -7,8 +7,6 @@ Require Import TreeAux.
 Require Import Sumbool.
 Require String.
 
-Require Import ZArith.
-
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
 
@@ -24,12 +22,12 @@ Module ZTreeAggregation (Import NT : NameType)
  (Import TA : TAux NT NOT NSet NOTC NMap).
 
 Inductive Msg : Type := 
-| Aggregate : Z -> Msg
+| Aggregate : nat -> Msg
 | Level : option lv -> Msg
 | New : Msg.
 
 Definition Msg_eq_dec : forall x y : Msg, {x = y} + {x <> y}.
-decide equality; first exact: Z_eq_dec.
+decide equality; first exact: Nat.eq_dec.
 case: o; case: o0.
 - move => n m.
   case (lv_eq_dec n m) => H_dec; first by rewrite H_dec; left.
@@ -53,11 +51,11 @@ decide equality; auto using String.string_dec.
 Defined.
 
 Inductive Output : Type :=
-| AggregateResponse : String.string -> Z -> Output
+| AggregateResponse : String.string -> nat -> Output
 | LevelResponse : String.string -> option lv -> Output.
 
 Definition Output_eq_dec : forall x y : Output, {x = y} + {x <> y}.
-decide equality; auto using String.string_dec; first exact: Z_eq_dec.
+decide equality; auto using String.string_dec; first exact: Nat.eq_dec.
 case: o; case: o0.
 - move => lv0 lv1.
   case (lv_eq_dec lv0 lv1) => H_dec; first by rewrite H_dec; left.
@@ -71,13 +69,13 @@ case: o; case: o0.
 Defined.
 
 Record Data :=  mkData { 
-  aggregate : Z ; 
-  adjacent : NS ; 
+  aggregate : nat ;
+  adjacent : NS ;
   levels : NL
 }.
 
 Definition InitData (n : name) :=
-  {| aggregate := 1%Z ;
+  {| aggregate := 1 ;
      adjacent := NSet.empty ;
      levels := NMap.empty lv |}.
 
@@ -146,12 +144,12 @@ Definition NonRootIOHandler (me : name) (i : Input) : Handler Data :=
 st <- get ;;
 match i with
 | SendAggregate => 
-  when (sumbool_not _ _ (Z_eq_dec st.(aggregate) 0%Z))
+  when (sumbool_not _ _ (Nat.eq_dec st.(aggregate) 0))
   (match parent st.(adjacent) st.(levels) with
   | None => nop
   | Some dst => 
     send (dst, (Aggregate st.(aggregate))) ;;
-    put {| aggregate := 0%Z;
+    put {| aggregate := 0;
            adjacent := st.(adjacent);
            levels := st.(levels) |}
   end)
@@ -220,7 +218,7 @@ Lemma NetHandler_cases :
   forall dst src msg st out st' ms,
     NetHandler dst src msg st = (tt, out, st', ms) ->
     (exists m_msg, msg = Aggregate m_msg /\
-     st'.(aggregate) = (st.(aggregate) + m_msg)%Z /\
+     st'.(aggregate) = st.(aggregate) + m_msg /\
      st'.(adjacent) = st.(adjacent) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
@@ -431,23 +429,23 @@ Lemma IOHandler_cases :
          st' = st /\
          out = [] /\ ms = []) \/
       (~ root h /\ i = SendAggregate /\ 
-       st.(aggregate) <> 0%Z /\ 
+       st.(aggregate) <> 0 /\
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\
-       st'.(aggregate) = 0%Z /\ 
+       st'.(aggregate) = 0 /\
        st'.(adjacent) = st.(adjacent) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
       (~ root h /\ i = SendAggregate /\
-       st.(aggregate) = 0%Z /\
+       st.(aggregate) = 0 /\
        st' = st /\
        out = [] /\ ms = []) \/
       (~ root h /\ i = SendAggregate /\
-       st.(aggregate) <> 0%Z /\
+       st.(aggregate) <> 0 /\
        parent st.(adjacent) st.(levels) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
       (~ root h /\ i = SendAggregate /\
-       st.(aggregate) <> 0%Z /\
+       st.(aggregate) <> 0 /\
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\
        st' = st /\
        out = [] /\ ms = []) \/

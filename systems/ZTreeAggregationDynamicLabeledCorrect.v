@@ -8,10 +8,11 @@ Require Import ZTreeAggregationDynamicLabeled.
 
 Require Import InfSeqExt.infseq.
 
+Require Import Relation_Definitions.
+Require Import Relation_Operators.
+
 Require Import Sumbool.
 Require String.
-
-Require Import ZArith.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -30,21 +31,23 @@ Module ZTreeAggregationCorrect (Import NT : NameType)
 Module ZTA := ZTreeAggregation NT NOT NSet NOTC NMap RNT ANT TA.
 Import ZTA.
 
-Definition connected net := net.(odnwNodes) = net.(odnwNodes). (* FIXME *)
+Definition connected (ns : list name) :=
+  forall n n', In n ns -> In n' ns ->
+  n = n' \/ (clos_trans name adjacent_to) n n'.
 
-Definition node_aggregate (state : name -> option data) (n : name) : Z :=
+Definition node_aggregate (state : name -> option data) (n : name) :=
 match state n with
-| None => 0%Z
+| None => 0
 | Some d => d.(aggregate)
 end.
 
 Lemma churn_free_stabilization : 
   forall s, event_step_star step_ordered_dynamic step_ordered_dynamic_init (hd s) ->
-       connected (evt_a (hd s)) ->
+       connected (hd s).(evt_a).(odnwNodes) ->
        lb_step_execution lb_step_ordered_dynamic s ->
        weak_fairness lb_step_ordered_dynamic Tau s ->
-       forall n, root n -> In n (evt_a (hd s)).(odnwNodes) ->
-       eventually (always (now (fun e => Z_of_nat (length e.(evt_a).(odnwNodes)) = node_aggregate e.(evt_a).(odnwState) n))) s.
+       forall n, root n -> In n (hd s).(evt_a).(odnwNodes) ->
+       eventually (always (now (fun e => length e.(evt_a).(odnwNodes) = node_aggregate e.(evt_a).(odnwState) n))) s.
 Proof.
 Admitted.
 

@@ -32,24 +32,24 @@ Module NSetOrdProps := OrdProperties NSet.
 Require Import FMapFacts.
 Module NMapFacts := Facts NMap.
 
-Definition sum_aggregate (ns : list name) (state : name -> option data) : Z :=
-fold_right (fun d z => (z + d.(aggregate))%Z) 0%Z (filterMap state ns).
+Definition sum_aggregate (ns : list name) (state : name -> option data) :=
+fold_right (fun d z => z + d.(aggregate)) 0 (filterMap state ns).
 
-Definition sum_aggregate_msg := fold_right (fun m z => (z + match m with Aggregate z' => z' | _ => 0%Z end)%Z) 0%Z.
+Definition sum_aggregate_msg := fold_right (fun m z => z + match m with Aggregate z' => z' | _ => 0 end) 0.
 
-Definition sum_aggregate_msg_to (ns : list name) (packets : name -> name -> list msg) (n : name) : Z :=
-fold_right (fun n' z => (z + sum_aggregate_msg (packets n' n))%Z) 0%Z ns.
+Definition sum_aggregate_msg_to (ns : list name) (packets : name -> name -> list msg) (n : name) :=
+fold_right (fun n' z => z + sum_aggregate_msg (packets n' n)) 0 ns.
 
-Definition sum_aggregate_msg_to_all (ns : list name) (packets : name -> name -> list msg) : Z :=
-fold_right (fun n z => (z + sum_aggregate_msg_to ns packets n)%Z) 0%Z ns.
+Definition sum_aggregate_msg_to_all (ns : list name) (packets : name -> name -> list msg) :=
+fold_right (fun n z => z + sum_aggregate_msg_to ns packets n) 0 ns.
 
 Definition conserves_network_mass net :=
-  Z_of_nat (length net.(odnwNodes)) = 
-  (sum_aggregate net.(odnwNodes) net.(odnwState) + sum_aggregate_msg_to_all net.(odnwNodes) net.(odnwPackets))%Z.
+  length net.(odnwNodes) = 
+  (sum_aggregate net.(odnwNodes) net.(odnwState) + sum_aggregate_msg_to_all net.(odnwNodes) net.(odnwPackets)).
 
 Lemma ZTreeAggregation_conserves_network_mass :
   forall net tr,
-    step_ordered_dynamic_star step_ordered_dynamic_init net tr ->        
+    step_ordered_dynamic_star step_ordered_dynamic_init net tr ->
     conserves_network_mass net.
 Proof.
 Admitted.
