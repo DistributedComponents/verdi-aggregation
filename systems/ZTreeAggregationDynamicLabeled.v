@@ -1,6 +1,7 @@
 Require Import Verdi.Verdi.
 Require Import Verdi.HandlerMonad.
 Require Import Verdi.NameOverlay.
+Require Import Verdi.LabeledNet.
 
 Require Import TreeAux.
 
@@ -81,7 +82,20 @@ Definition InitData (n : name) :=
      adjacent := NSet.empty ;
      levels := NMap.empty lv |}.
 
-Definition Handler (S : Type) := GenHandler (name * Msg) S Output unit.
+Inductive Label : Type :=
+| Tau : Label
+| RecvLevel : name -> name -> Label
+| RecvAggregate : name -> name -> Label
+| RecvNew : name -> name -> Label
+| DeliverBroadcast : name -> Label
+| DeliverSendAggregate : name -> Label
+| DeliverRequest : name -> Label.
+
+Definition Label_eq_dec : forall x y : Label, {x = y} + {x <> y}.
+decide equality; auto using name_eq_dec.
+Defined.
+
+Definition Handler (S : Type) := GenHandler (name * Msg) S Output Label.
 
 Definition RootNetHandler (me src : name) (msg : Msg) : Handler Data :=
 st <- get ;;
@@ -89,13 +103,16 @@ match msg with
 | Aggregate m_msg => 
   put {| aggregate := st.(aggregate) + m_msg ;
          adjacent := st.(adjacent) ;
-         levels := st.(levels) |}
-| Level _ => nop 
+         levels := st.(levels) |} ;;
+  ret (RecvAggregate me src)
+| Level _ => 
+  ret (RecvLevel me src)
 | New =>
   put {| aggregate := st.(aggregate) ;
          adjacent := NSet.add src st.(adjacent) ;
          levels := st.(levels) |} ;;
-  send (src, Level (Some 0))
+  send (src, Level (Some 0)) ;;
+  ret (RecvNew me src)
 end.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
@@ -104,21 +121,25 @@ match msg with
 | Aggregate m_msg => 
   put {| aggregate := st.(aggregate) + m_msg ;
          adjacent := st.(adjacent) ;
-         levels := st.(levels) |}
+         levels := st.(levels) |} ;;
+  ret (RecvAggregate me src)
 | Level None =>
   put {| aggregate := st.(aggregate) ;
          adjacent := st.(adjacent) ;
-         levels := NMap.remove src st.(levels) |}
+         levels := NMap.remove src st.(levels) |} ;;
+  ret (RecvLevel me src)
 | Level (Some lv') =>
   put {| aggregate := st.(aggregate) ;
          adjacent := st.(adjacent) ;
-         levels := NMap.add src lv' st.(levels) |}
+         levels := NMap.add src lv' st.(levels) |} ;;
+  ret (RecvLevel me src)
 | New =>
   put {| aggregate := st.(aggregate) ;
          adjacent := NSet.add src st.(adjacent) ;
          levels := st.(levels) |} ;;
   when (sumbool_not _ _ (olv_eq_dec (level st.(adjacent) st.(levels)) None))
-    (send (src, Level (level st.(adjacent) st.(levels))))
+    (send (src, Level (level st.(adjacent) st.(levels)))) ;;
+  ret (RecvNew me src)
 end.
 
 Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
@@ -129,17 +150,21 @@ Definition send_level_fold (lvo : option lv) (n : name) (res : Handler Data) : H
 send (n, Level lvo) ;; res.
 
 Definition send_level_adjacent (lvo : option lv) (fs : NS) : Handler Data :=
-NSet.fold (send_level_fold lvo) fs nop.
+NSet.fold (send_level_fold lvo) fs (ret Tau).
 
 Definition RootIOHandler (me : name) (i : Input) : Handler Data :=
 st <- get ;;
 match i with
-| SendAggregate => nop
+| SendAggregate =>
+  ret (DeliverSendAggregate me)
 | AggregateRequest client_id => 
-  write_output (AggregateResponse client_id st.(aggregate))
-| Broadcast => nop  
+  write_output (AggregateResponse client_id st.(aggregate)) ;;
+  ret (DeliverRequest me)
+| Broadcast =>
+  ret (DeliverBroadcast me)  
 | LevelRequest client_id => 
-  write_output (LevelResponse client_id (Some 0))
+  write_output (LevelResponse client_id (Some 0)) ;;
+  ret (DeliverRequest me)
 end.
 
 Definition NonRootIOHandler (me : name) (i : Input) : Handler Data :=
@@ -154,17 +179,21 @@ match i with
     put {| aggregate := 0%Z;
            adjacent := st.(adjacent);
            levels := st.(levels) |}
-  end)
+  end) ;;
+  ret (DeliverSendAggregate me)
 | AggregateRequest client_id => 
-  write_output (AggregateResponse client_id st.(aggregate))
+  write_output (AggregateResponse client_id st.(aggregate)) ;;
+  ret (DeliverRequest me)
 | Broadcast =>
-  send_level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)
+  send_level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent) ;;
+  ret (DeliverBroadcast me)
 | LevelRequest client_id =>   
-  write_output (LevelResponse client_id (level st.(adjacent) st.(levels)))
+  write_output (LevelResponse client_id (level st.(adjacent) st.(levels))) ;;
+  ret (DeliverRequest me)
 end.
 
 Definition IOHandler (me : name) (i : Input) : Handler Data :=
-if root_dec me then RootIOHandler me i
+if root_dec me then RootIOHandler me i 
 else NonRootIOHandler me i.
 
 Instance ZTreeAggregation_BaseParams : BaseParams :=
@@ -174,21 +203,25 @@ Instance ZTreeAggregation_BaseParams : BaseParams :=
     output := Output
   }.
 
-Instance ZTreeAggregation_MultiParams : MultiParams ZTreeAggregation_BaseParams :=
+Instance ZTreeAggregation_LabeledMultiParams : LabeledMultiParams ZTreeAggregation_BaseParams :=
   {
-    name := name ;
-    msg  := Msg ;
-    msg_eq_dec := Msg_eq_dec ;
-    name_eq_dec := name_eq_dec ;
-    nodes := nodes ;
-    all_names_nodes := all_names_nodes ;
-    no_dup_nodes := no_dup_nodes ;
-    init_handlers := InitData ;
-    net_handlers := fun dst src msg s =>
-                      runGenHandler_ignore s (NetHandler dst src msg) ;
-    input_handlers := fun nm msg s =>
-                        runGenHandler_ignore s (IOHandler nm msg)
+    lb_name := name ;
+    lb_msg  := Msg ;
+    lb_msg_eq_dec := Msg_eq_dec ;
+    lb_name_eq_dec := name_eq_dec ;
+    lb_nodes := nodes ;
+    lb_all_names_nodes := all_names_nodes ;
+    lb_no_dup_nodes := no_dup_nodes ;
+    label := Label ;
+    label_silent := Tau ;
+    lb_init_handlers := InitData ;
+    lb_net_handlers := fun dst src msg s =>
+                        runGenHandler s (NetHandler dst src msg) ;
+    lb_input_handlers := fun nm msg s =>
+                        runGenHandler s (IOHandler nm msg)
   }.
+
+Instance ZTreeAggregation_MultiParams : MultiParams ZTreeAggregation_BaseParams := unlabeled_multi_params.
 
 Instance ZTreeAggregation_NameOverlayParams : NameOverlayParams ZTreeAggregation_MultiParams :=
   {
@@ -206,54 +239,55 @@ Instance ZTreeAggregation_NewMsgParams : NewMsgParams ZTreeAggregation_MultiPara
 Lemma net_handlers_NetHandler :
   forall dst src m st os st' ms,
     net_handlers dst src m st = (os, st', ms) ->
-    NetHandler dst src m st = (tt, os, st', ms).
+    exists lb, NetHandler dst src m st = (lb, os, st', ms).
 Proof.
 intros.
 simpl in *.
-monad_unfold.
+unfold unlabeled_net_handlers, lb_net_handlers in *.
+simpl in *.
 repeat break_let.
 find_inversion.
-destruct u. auto.
+by exists l0; auto.
 Qed.
 
 Lemma NetHandler_cases : 
-  forall dst src msg st out st' ms,
-    NetHandler dst src msg st = (tt, out, st', ms) ->
-    (exists m_msg, msg = Aggregate m_msg /\
+  forall dst src msg st lb out st' ms,
+    NetHandler dst src msg st = (lb, out, st', ms) ->
+    (exists m_msg, msg = Aggregate m_msg /\ lb = RecvAggregate dst src /\
      st'.(aggregate) = (st.(aggregate) + m_msg)%Z /\
      st'.(adjacent) = st.(adjacent) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ exists lvo, msg = Level lvo /\ 
+    (root dst /\ exists lvo, msg = Level lvo /\ lb = RecvLevel dst src /\
      st' = st /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\
+    (~ root dst /\ exists lv_msg, msg = Level (Some lv_msg) /\ lb = RecvLevel dst src /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
      st'.(levels) = NMap.add src lv_msg st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = Level None /\
+    (~ root dst /\ msg = Level None /\ lb = RecvLevel dst src /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = st.(adjacent) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ msg = New /\
+    (root dst /\ msg = New /\ lb = RecvNew dst src /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = [(src, Level (Some 0))]) \/
-    (~ root dst /\ msg = New /\ level st.(adjacent) st.(levels) = None /\
+    (~ root dst /\ msg = New /\ lb = RecvNew dst src /\ level st.(adjacent) st.(levels) = None /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = []) \/
-    (~ root dst /\ msg = New /\ exists lv, level st.(adjacent) st.(levels) = Some lv /\
+    (~ root dst /\ msg = New /\ lb = RecvNew dst src /\ exists lv, level st.(adjacent) st.(levels) = Some lv /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
      st'.(levels) = st.(levels) /\
      out = [] /\ ms = [(src, Level (Some lv))]).
 Proof.
-move => dst src msg st out st' ms.
+move => dst src msg st lb out st' ms.
 rewrite /NetHandler /RootNetHandler /NonRootNetHandler.
 case: msg => [m_msg|olv_msg|]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat break_match; repeat break_if; repeat find_injection.
 - by left; exists m_msg.
@@ -263,7 +297,7 @@ case: msg => [m_msg|olv_msg|]; monad_unfold; case root_dec => /= H_dec H_eq; rep
   by exists olv_msg.
 - right; right; left.
   split => //.
-  by exists l1.
+  by exists l2.
 - by right; right; right; left.
 - by right; right; right; right; left.
 - unfold sumbool_not in *.
@@ -281,27 +315,28 @@ Qed.
 Lemma input_handlers_IOHandler :
   forall h i d os d' ms,
     input_handlers h i d = (os, d', ms) ->
-    IOHandler h i d = (tt, os, d', ms).
+    exists lb, IOHandler h i d = (lb, os, d', ms).
 Proof.
 intros.
 simpl in *.
-monad_unfold.
+unfold unlabeled_input_handlers, lb_input_handlers in *.
+simpl in *.
 repeat break_let.
 find_inversion.
-destruct u. auto.
+by exists l0; auto.
 Qed.
 
 Lemma send_level_fold_app :
-  forall ns st olv nm,
+  forall ns st olv nm lb,
 snd (fold_left 
        (fun (a : Handler Data) (e : NSet.elt) => send_level_fold olv e a) ns
-       (fun s : Data => (tt, [], s, nm)) st) = 
+       (fun s : Data => (lb, [], s, nm)) st) = 
 snd (fold_left 
        (fun (a : Handler Data) (e : NSet.elt) => send_level_fold olv e a) ns
-       (fun s : Data => (tt, [], s, [])) st) ++ nm.
+       (fun s : Data => (lb, [], s, [])) st) ++ nm.
 Proof.
 elim => //=.
-move => n ns IH st olv nm.
+move => n ns IH st olv nm lb.
 rewrite {1}/send_level_fold /=.
 monad_unfold.
 rewrite /=.
@@ -335,23 +370,23 @@ by rewrite -send_level_fold_app.
 Qed.
 
 Lemma fst_fst_fst_tt_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 fst
   (fst
      (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st))) = tt.
+           (fun s : Data => (lb, [], s, nm)) st))) = lb.
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
 Lemma send_level_adjacent_fst_fst_eq : 
 forall fs olv st,
-  fst (fst (fst (send_level_adjacent olv fs st))) = tt.
+  fst (fst (fst (send_level_adjacent olv fs st))) = Tau.
 Proof.
 move => fs olv st.
 rewrite /send_level_adjacent.
@@ -360,30 +395,30 @@ by rewrite fst_fst_fst_tt_send_level_fold.
 Qed.
 
 Lemma snd_fst_fst_out_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 snd
   (fst
      (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st))) = [].
+           (fun s : Data => (lb, [], s, nm)) st))) = [].
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
 Lemma snd_fst_st_send_level_fold : 
-forall ns nm olv st,
+forall ns nm olv st lb,
 snd (fst
         (fold_left
            (fun (a : Handler Data) (e : NSet.elt) =>
               send_level_fold olv e a) ns
-           (fun s : Data => (tt, [], s, nm)) st)) = st.
+           (fun s : Data => (lb, [], s, nm)) st)) = st.
 Proof.
 elim => //=.
-move => n ns IH nm olv st.
+move => n ns IH nm olv st lb.
 by rewrite IH.
 Qed.
 
@@ -409,7 +444,7 @@ Qed.
 
 Lemma send_level_adjacent_eq : 
   forall fs olv st,
-  send_level_adjacent olv fs st = (tt, [], st, level_adjacent olv fs).
+  send_level_adjacent olv fs st = (Tau, [], st, level_adjacent olv fs).
 Proof.
 move => fs olv st.
 case H_eq: send_level_adjacent => [[[u o] s b]].
@@ -425,53 +460,53 @@ by rewrite H_eq'_1 H_eq'_2 H_eq'_3 H_eq'_4.
 Qed.
 
 Lemma IOHandler_cases :
-  forall h i st u out st' ms,
-      IOHandler h i st = (u, out, st', ms) ->
-      (root h /\ i = SendAggregate /\ 
+  forall h i st lb out st' ms,
+      IOHandler h i st = (lb, out, st', ms) ->
+      (root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
          st' = st /\
          out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\ 
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 0%Z /\ 
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\
        st'.(aggregate) = 0%Z /\ 
        st'.(adjacent) = st.(adjacent) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = [(dst, Aggregate st.(aggregate))]) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) = 0%Z /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 0%Z /\
        parent st.(adjacent) st.(levels) = None /\ 
        st' = st /\
        out = [] /\ ms = []) \/
-      (~ root h /\ i = SendAggregate /\
+      (~ root h /\ i = SendAggregate /\ lb = DeliverSendAggregate h /\
        st.(aggregate) <> 0%Z /\
        exists dst, parent st.(adjacent) st.(levels) = Some dst /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (exists client_id, i = AggregateRequest client_id /\ 
+      (exists client_id, i = AggregateRequest client_id /\ lb = DeliverRequest h /\
        st' = st /\ 
        out = [AggregateResponse client_id (aggregate st)] /\ ms = []) \/
-      (root h /\ i = Broadcast /\ st' = st /\
+      (root h /\ i = Broadcast /\ st' = st /\ lb = DeliverBroadcast h /\
        out = [] /\ ms = []) \/
-      (~ root h /\ i = Broadcast /\
+      (~ root h /\ i = Broadcast /\ lb = DeliverBroadcast h /\
        st'.(aggregate) = st.(aggregate) /\ 
        st'.(adjacent) = st.(adjacent) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
-      (~ root h /\ i = Broadcast /\
+      (~ root h /\ i = Broadcast /\ lb = DeliverBroadcast h /\
        st' = st /\
        out = [] /\ ms = []) \/
-      (root h /\ exists client_id, i = LevelRequest client_id /\
+      (root h /\ exists client_id, i = LevelRequest client_id /\ lb = DeliverRequest h /\
        st' = st /\
        out = [LevelResponse client_id (Some 0)] /\ ms = []) \/
-      (~ root h /\ exists client_id, i = LevelRequest client_id /\
+      (~ root h /\ exists client_id, i = LevelRequest client_id /\ lb = DeliverRequest h /\
        st' = st /\
        out = [LevelResponse client_id (level st.(adjacent) st.(levels))] /\ ms = []).
 Proof.
-move => h i st u out st' ms.
+move => h i st lb out st' ms.
 rewrite /IOHandler /RootIOHandler /NonRootIOHandler.
 case: i => [|client_id|client_id|]; monad_unfold; case root_dec => /= H_dec H_eq; repeat break_let; repeat find_injection; repeat break_match; repeat break_let; repeat find_injection.
 - by left.
@@ -500,7 +535,8 @@ case: i => [|client_id|client_id|]; monad_unfold; case root_dec => /= H_dec H_eq
 - by right; right; right; right; right; right; left.
 - find_rewrite_lem send_level_adjacent_eq.
   find_injection.
-  by right; right; right; right; right; right; right; left.
+  right; right; right; right; right; right; right; left.
+  by rewrite app_nil_l -app_nil_end.
 Qed.
 
 Ltac net_handler_cases := 
