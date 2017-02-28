@@ -20,13 +20,8 @@ ZTreeAggregationMain.native: $(MLEXTRACTED) $(MLFILES)
 ZTreeAggregationTest.native: $(MLEXTRACTED) $(MLFILES) $(MLFILES_TEST)
 	$(OCAMLBUILD_TEST) ZTreeAggregationTest.native
 
-test-units: ZTreeAggregationTest.native
+test: ZTreeAggregationTest.native
 	./ZTreeAggregationTest.native
-
-test-integration: ZTreeAggregationMain.native test/integration.py
-	$(PYTHON) test/integration.py
-
-test: test-units
 
 clean:
 	$(OCAMLBUILD) -clean
