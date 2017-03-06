@@ -1,6 +1,7 @@
 From mathcomp
 Require Import ssreflect ssrfun fingroup.
 
+Require Import commfingroup.
 Require Import Cheerios.Cheerios.
 
 Set Implicit Arguments.
@@ -9,16 +10,16 @@ Unset Printing Implicit Defensive.
 
 Import GroupScope.
 
-Module SerializableFinGroup.
+Module SerializableCommFinGroup.
 
-Structure mixin_of (gT : finGroupType) := Mixin {
+Structure mixin_of (gT : commFinGroupType) := Mixin {
   serialize : gT -> list bool ;
   deserialize : list bool -> option (gT * list bool) ;
   _ : serialize_deserialize_id_spec serialize deserialize
 }.
 
 Structure type : Type := Pack {
-  sort : finGroupType;
+  sort : commFinGroupType;
   _ : mixin_of sort
 }.
 
@@ -26,28 +27,28 @@ Definition mixin T :=
   let: Pack _ m := T return mixin_of (sort T) in m.
 
 Module Import Exports.
-Coercion sort : type >-> finGroupType.
+Coercion sort : type >-> commFinGroupType.
 Coercion mixin : type >-> mixin_of.
-Notation serializableFinGroupType := type.
-Notation SerializableFinGroupMixin := Mixin.
-Notation SerializableFinGroupType T m := (@Pack T m).
+Notation serializableCommFinGroupType := type.
+Notation SerializableCommFinGroupMixin := Mixin.
+Notation SerializableCommFinGroupType T m := (@Pack T m).
 End Exports.
 
-End SerializableFinGroup.
-Export SerializableFinGroup.Exports.
+End SerializableCommFinGroup.
+Export SerializableCommFinGroup.Exports.
 
 Section SerializeOps.
 
-Variable T : serializableFinGroupType.
+Variable T : serializableCommFinGroupType.
 
-Definition serializeg := SerializableFinGroup.serialize T.
-Definition deserializeg := SerializableFinGroup.deserialize T.
+Definition serializeg := SerializableCommFinGroup.serialize T.
+Definition deserializeg := SerializableCommFinGroup.deserialize T.
 
 End SerializeOps.
 
 Section SerializerDefs.
 
-Variable T : serializableFinGroupType.
+Variable T : serializableCommFinGroupType.
 
 Global Instance FinGroupSerializer : Serializer T :=
   {

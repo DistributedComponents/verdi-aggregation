@@ -278,7 +278,7 @@ Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
 
 End BitVectorRing.
 
-Require Import serializablefingroup.
+Require Import serializablecommfingroup.
 Require Import Cheerios.Cheerios.
 
 Section BitVectorSerialization.
@@ -311,9 +311,9 @@ by rewrite IH.
 Qed.
 
 Definition Bvector_serializableMixin :=
-SerializableFinGroupMixin serialize_deserialize_id.
+SerializableCommFinGroupMixin serialize_deserialize_id.
 
-Canonical Bvector_serializableFinGroupType :=
-SerializableFinGroupType _ Bvector_serializableMixin.
+Canonical Bvector_serializableCommFinGroupType :=
+SerializableCommFinGroupType (Bvector_commFinGroupType n) Bvector_serializableMixin.
 
 End BitVectorSerialization.
