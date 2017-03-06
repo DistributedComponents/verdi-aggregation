@@ -277,3 +277,43 @@ Canonical Bvector_comRingType := Eval hnf in ComRingType (Bvector n) (@Bvector_m
 Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
 
 End BitVectorRing.
+
+Require Import serializablefingroup.
+Require Import Cheerios.Cheerios.
+
+Section BitVectorSerialization.
+
+Variable n : nat.
+
+Definition serialize (v : Bvector n) : list bool :=
+Vector.to_list v.
+
+Fixpoint deserialize_aux k (bs : list bool) : option (Bvector k * list bool) :=
+match k, bs with
+| 0, bs' => Some (Bnil, bs')
+| S k', [::] => None
+| S k', (b :: bs')%SEQ =>
+  match deserialize_aux k' bs' with
+  | None => None
+  | Some (v, bs'') => Some (Bcons b k' v, bs'')
+  end
+end.
+
+Definition deserialize (bs : list bool) : option (Bvector n * list bool) :=
+deserialize_aux n bs.
+
+Lemma serialize_deserialize_id : serialize_deserialize_id_spec serialize deserialize.
+Proof.
+rewrite /serialize /deserialize /=.
+elim => //=.
+move => b n' v IH bs.
+by rewrite IH.
+Qed.
+
+Definition Bvector_serializableMixin :=
+SerializableFinGroupMixin serialize_deserialize_id.
+
+Canonical Bvector_serializableFinGroupType :=
+SerializableFinGroupType _ Bvector_serializableMixin.
+
+End BitVectorSerialization.
