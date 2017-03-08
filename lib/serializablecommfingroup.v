@@ -50,13 +50,14 @@ Section SerializerDefs.
 
 Variable T : serializableCommFinGroupType.
 
+Lemma serializeg_deserializeg_id : serialize_deserialize_id_spec (@serializeg T) (@deserializeg T).
+Proof. by case: T => ? []. Qed.
+
 Global Instance FinGroupSerializer : Serializer T :=
   {
     serialize := @serializeg T ;
-    deserialize := @deserializeg T
+    deserialize := @deserializeg T ;
+    serialize_deserialize_id := serializeg_deserializeg_id
   }.
-Proof.
-by case: T => ? [].
-Defined.
 
 End SerializerDefs.

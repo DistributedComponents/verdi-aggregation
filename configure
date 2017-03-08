@@ -3,8 +3,8 @@
 ## Configures and calls coqproject.sh (https://github.com/dwoos/coqproject)
 
 ## Configuration options for coqproject.sh
-DEPS=(StructTact Verdi InfSeqExt)
+DEPS=(StructTact Verdi InfSeqExt VerdiCheerios)
 DIRS=(lib systems extraction/aggregation/coq extraction/aggregation-dynamic/coq extraction/tree/coq extraction/tree-dynamic/coq extraction/zaggregation-dynamic/coq)
-CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Aggregation requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation")
+CANARIES=("mathcomp.ssreflect.ssreflect" "Verdi Aggregation requires mathcomp to be installed" "StructTact.StructTactics" "Build StructTact before building Verdi Aggregation" "Verdi.Verdi" "Build Verdi before building Verdi Aggregation" "AAC_tactics.AAC" "Verdi Aggregation requires AAC Tactics to be installed" "InfSeqExt.infseq" "Build InfSeqExt before building Verdi Aggregation" "VerdiCheerios.SerializedParams" "Build Verdi Cheerios before building Verdi Lockserv")
 Verdi_DIRS=(core lib systems extraction)
 source script/coqproject.sh
