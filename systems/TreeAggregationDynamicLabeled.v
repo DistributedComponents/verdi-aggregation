@@ -778,7 +778,7 @@ Lemma IOHandler_cases :
       (exists client_id, i = AggregateRequest client_id /\ 
        st' = st /\ 
        out = [AggregateResponse client_id (aggregate st)] /\ ms = []) \/
-      (root h /\ i = Broadcast /\ st' = st /\
+      (root h /\ i = Broadcast /\ st' = st /\ lb = DeliverBroadcast h /\
        out = [] /\ ms = []) \/
       (~ root h /\ i = Broadcast /\ lb = DeliverBroadcast h /\ st.(broadcast) = true /\
        st'.(local) = st.(local) /\
