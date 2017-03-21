@@ -92,8 +92,7 @@ match msg with
 | New =>
   put {| aggregate := st.(aggregate) ;
          adjacent := NSet.add src st.(adjacent) ;
-         levels := st.(levels) |} ;;
-  send (src, Level (Some 0))
+         levels := st.(levels) |}
 end.
 
 Definition NonRootNetHandler (me src: name) (msg : Msg) : Handler Data :=
@@ -114,9 +113,7 @@ match msg with
 | New =>
   put {| aggregate := st.(aggregate) ;
          adjacent := NSet.add src st.(adjacent) ;
-         levels := st.(levels) |} ;;
-  when (sumbool_not _ _ (olv_eq_dec (level st.(adjacent) st.(levels)) None))
-    (send (src, Level (level st.(adjacent) st.(levels))))
+         levels := st.(levels) |}
 end.
 
 Definition NetHandler (me src : name) (msg : Msg) : Handler Data :=
@@ -135,7 +132,8 @@ match i with
 | SendAggregate => nop
 | AggregateRequest client_id => 
   write_output (AggregateResponse client_id st.(aggregate))
-| Broadcast => nop  
+| Broadcast =>
+  send_level_adjacent (Some 0) st.(adjacent)
 | LevelRequest client_id => 
   write_output (LevelResponse client_id (Some 0))
 end.
@@ -235,21 +233,11 @@ Lemma NetHandler_cases :
      st'.(adjacent) = st.(adjacent) /\
      st'.(levels) = NMap.remove src st.(levels) /\
      out = [] /\ ms = []) \/
-    (root dst /\ msg = New /\
+    (msg = New /\
      st'.(aggregate) = st.(aggregate) /\
      st'.(adjacent) = NSet.add src st.(adjacent) /\
      st'.(levels) = st.(levels) /\
-     out = [] /\ ms = [(src, Level (Some 0))]) \/
-    (~ root dst /\ msg = New /\ level st.(adjacent) st.(levels) = None /\
-     st'.(aggregate) = st.(aggregate) /\
-     st'.(adjacent) = NSet.add src st.(adjacent) /\
-     st'.(levels) = st.(levels) /\
-     out = [] /\ ms = []) \/
-    (~ root dst /\ msg = New /\ exists lv, level st.(adjacent) st.(levels) = Some lv /\
-     st'.(aggregate) = st.(aggregate) /\
-     st'.(adjacent) = NSet.add src st.(adjacent) /\
-     st'.(levels) = st.(levels) /\
-     out = [] /\ ms = [(src, Level (Some lv))]).
+     out = [] /\ ms = []).
 Proof.
 move => dst src msg st out st' ms.
 rewrite /NetHandler /RootNetHandler /NonRootNetHandler.
@@ -263,17 +251,8 @@ case: msg => [m_msg|olv_msg|]; monad_unfold; case root_dec => /= H_dec H_eq; rep
   split => //.
   by exists l1.
 - by right; right; right; left.
-- by right; right; right; right; left.
-- unfold sumbool_not in *.
-  break_match => //=.
-  right; right; right; right; right; right.
-  move: n {Heqb}.
-  case H_lv: level => [lv|] H_neq //.
-  repeat split => //.
-  by exists lv.
-- unfold sumbool_not in *.
-  break_match => //.
-  by right; right; right; right; right; left.
+- by right; right; right; right.
+- by right; right; right; right.
 Qed.
 
 Lemma input_handlers_IOHandler :
@@ -459,9 +438,9 @@ Lemma IOHandler_cases :
        st'.(adjacent) = st.(adjacent) /\
        st'.(levels) = st.(levels) /\
        out = [] /\ ms = level_adjacent (level st.(adjacent) st.(levels)) st.(adjacent)) \/
-      (~ root h /\ i = Broadcast /\
+      (root h /\ i = Broadcast /\
        st' = st /\
-       out = [] /\ ms = []) \/
+       out = [] /\ ms = level_adjacent (Some 0) st.(adjacent)) \/
       (root h /\ exists client_id, i = LevelRequest client_id /\
        st' = st /\
        out = [LevelResponse client_id (Some 0)] /\ ms = []) \/
@@ -495,7 +474,9 @@ case: i => [|client_id|client_id|]; monad_unfold; case root_dec => /= H_dec H_eq
 - right; right; right; right; right; right; right; right; right; right.
   split => //.
   by exists client_id.
-- by right; right; right; right; right; right; left.
+- find_rewrite_lem send_level_adjacent_eq.
+  find_injection.
+  by right; right; right; right; right; right; right; right; left.
 - find_rewrite_lem send_level_adjacent_eq.
   find_injection.
   by right; right; right; right; right; right; right; left.
