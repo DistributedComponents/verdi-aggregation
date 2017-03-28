@@ -223,4 +223,4 @@ serialized_fail_msg_params.
 Definition TreeAggregation_SerializedNewMsgParams :=
 serialized_new_msg_params.
 
-End TreeAggregation.
+End TreeAggregationSerialized.
