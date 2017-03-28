@@ -60,17 +60,19 @@ Instance AggregationData_Data : AggregationData Data :=
     aggr_balance := balance
   }.
 
-Definition sum_local_nodes (net : ordered_dynamic_network) (nodes : list Net.name) : m :=
-  sum_local (filterMap net.(odnwState) nodes).
-
 Theorem churn_free_stabilization : 
-  forall s, event_step_star step_ordered_dynamic step_ordered_dynamic_init (hd s) ->
-       connected (hd s).(evt_a).(odnwNodes) ->
-       lb_step_execution lb_step_ordered_dynamic s ->
-       weak_fairness lb_step_ordered_dynamic Tau s ->
-       forall n, root n -> In n (hd s).(evt_a).(odnwNodes) ->
+  forall s, event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+       connected (hd s).(evt_a).(snd).(odnwNodes) ->
+       lb_step_execution lb_step_ordered_dynamic_failure s ->
+       weak_fairness lb_step_ordered_dynamic_failure Tau s ->
+       forall n, root n -> In n (hd s).(evt_a).(snd).(odnwNodes) ->
        eventually (always (now (fun e =>
-         sum_local_nodes e.(evt_a) e.(evt_a).(odnwNodes) = node_aggregate e.(evt_a).(odnwState) n))) s.
+                                  sum_local 
+                                    (Nodes_data_opt 
+                                       (remove_all name_eq_dec e.(evt_a).(fst) e.(evt_a).(snd).(odnwNodes))
+                                       e.(evt_a).(snd).(odnwState)) =
+                                  node_aggregate e.(evt_a).(snd).(odnwState) n))) s.
+Proof.
 Admitted.
 
 End TreeAggregationCorrect.
