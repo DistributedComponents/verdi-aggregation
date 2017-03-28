@@ -10,7 +10,7 @@ opam pin add coq $COQ_VERSION --yes --verbose
 opam pin add coq-mathcomp-ssreflect $SSREFLECT_VERSION --yes --verbose
 opam pin add coq-aac-tactics $AAC_TACTICS_VERSION --yes --verbose
 
-opam install coq-mathcomp-fingroup coq-mathcomp-algebra StructTact InfSeqExt verdi --yes --verbose
+opam install coq-mathcomp-fingroup coq-mathcomp-algebra StructTact InfSeqExt verdi verdi-cheerios --yes --verbose
 
 case $MODE in
   analytics)
