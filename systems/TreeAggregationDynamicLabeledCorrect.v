@@ -60,6 +60,53 @@ Instance AggregationData_Data : AggregationData Data :=
     aggr_balance := balance
   }.
 
+Definition sum_local_nodes (net : ordered_dynamic_network) (nodes : list Net.name) : m :=
+  sum_local (filterMap net.(odnwState) nodes).
+
+Definition aggregation_msg (m : Msg) : bool :=
+  match m with
+  | Aggregate _ => true
+  | _ => false
+  end.
+
+Inductive root_path_length (failed : list name) : name -> nat -> Prop :=
+| root_path_length_self : forall n,
+    ~ In n failed ->
+    root n ->
+    root_path_length failed n 0
+| root_path_length_proxy : forall n n' k,
+    root_path_length failed n k ->
+    ~ In n' failed ->
+    adjacent_to n n' ->
+    root_path_length failed n' (S k).
+
+Definition min_root_path_length (failed : list name) (n : name) (k : nat) : Prop :=
+  root_path_length failed n k /\ (forall k', root_path_length failed n k' -> k <= k').
+
+Definition leaf_node (net : ordered_dynamic_network) (failed : list name) (n : name) (d : data) : Prop :=
+  In n net.(odnwNodes) /\
+  ~ In n failed /\
+  net.(odnwState) n = Some d /\
+  forall n' d' l l',
+    In n' net.(odnwNodes) ->
+    ~ In n' failed ->
+    net.(odnwState) n' = Some d' ->
+    min_root_path_length failed n' l' ->
+    min_root_path_length failed n l ->
+    l' <= l.
+
+Lemma leaf_nodes_eventually_have_unit :
+  forall s failed n d,
+    event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+    leaf_node (snd (hd s).(evt_a)) failed n d ->
+    lb_step_execution lb_step_ordered_dynamic_failure s ->
+    eventually (always (now (fun e =>
+                               exists d,
+                                 (snd e.(evt_a)).(odnwState) n = Some d /\
+                                 aggregate d = 1%g))) s.
+Proof.
+Admitted.
+
 Theorem churn_free_stabilization : 
   forall s, event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
        connected (hd s).(evt_a).(snd).(odnwNodes) ->
