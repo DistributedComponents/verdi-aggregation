@@ -109,6 +109,76 @@ Definition leaf_node (net : ordered_dynamic_network) (failed : list name) (n : n
     min_root_path_length failed n l ->
     l' <= l.
 
+(* something like this *)
+Lemma node_level_one_has_root_level_zero :
+  forall s n d r,
+    root r ->
+    event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+    lb_step_execution lb_step_ordered_dynamic_failure s ->
+    In n (hd s).(evt_a).(snd).(odnwNodes) ->
+    ~ In n (hd s).(evt_a).(fst) ->
+    ~ In r (hd s).(evt_a).(fst) ->
+    (hd s).(evt_a).(snd).(odnwState) n = Some d ->
+    level d.(adjacent) d.(levels) = Some 1 ->
+    always (now (fun e =>
+                   exists d',
+                     e.(evt_a).(snd).(odnwState) n = Some d' /\
+                     NMap.find r d.(levels) = Some 0)) s.
+Proof.
+Admitted.
+
+Lemma node_level_one_preserved :
+  forall s n d,
+    event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+    lb_step_execution lb_step_ordered_dynamic_failure s ->
+    In n (hd s).(evt_a).(snd).(odnwNodes) ->
+    ~ In n (hd s).(evt_a).(fst) ->
+    (hd s).(evt_a).(snd).(odnwState) n = Some d ->
+    level d.(adjacent) d.(levels) = Some 1 ->
+    always (now (fun e =>
+                   exists d',
+                     e.(evt_a).(snd).(odnwState) n = Some d' /\
+                     level d.(adjacent) d.(levels) = Some 1)) s.
+Proof.
+  intros.
+  (* three options:
+when the root gets a new message it sends back "my level = 0"
+- incoming new from you to root       !! means you don't have a level for root yet
+- incoming level (lvl = 0) from root  !! means you don't have a level for root yet
+- you already saw a level message from root
+
+   there's a lemma showing if you have a New message from you to root, then he
+   can't have sent anything *)
+Admitted.
+
+Lemma root_neighbors_get_level_one :
+  forall s n,
+    event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+    lb_step_execution lb_step_ordered_dynamic_failure s ->
+    In n (hd s).(evt_a).(snd).(odnwNodes) ->
+    ~ In n (hd s).(evt_a).(fst) ->
+    min_root_path_length (hd s).(evt_a).(fst) n 1 ->
+    continuously (now (fun e =>
+                         exists d,
+                           e.(evt_a).(snd).(odnwState) n = Some d /\
+                           level d.(adjacent) d.(levels) = Some 1)) s.
+Proof.
+Admitted.
+
+Lemma nodes_get_correct_level :
+  forall s n dist,
+    event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
+    lb_step_execution lb_step_ordered_dynamic_failure s ->
+    In n (hd s).(evt_a).(snd).(odnwNodes) ->
+    ~ In n (hd s).(evt_a).(fst) ->
+    min_root_path_length (hd s).(evt_a).(fst) n dist ->
+    continuously (now (fun e =>
+                         exists d,
+                           e.(evt_a).(snd).(odnwState) n = Some d /\
+                           level d.(adjacent) d.(levels) = Some dist)) s.
+Proof.
+Admitted.
+
 Lemma leaf_nodes_eventually_have_unit :
   forall s failed n d,
     event_step_star step_ordered_dynamic_failure step_ordered_dynamic_failure_init (hd s) ->
@@ -160,6 +230,10 @@ Lemma mass_always_conserved :
     lb_step_execution lb_step_ordered_dynamic_failure s ->
     always (now (mass_conserved_opt_event failed)) s.
 Proof.
+  intros.
+  subst.
+  generalize s.
+  find_copy_eapply_lem_hyp step_ordered_dynamic_failure_star_lb_step_execution; eauto.
 Admitted.
 
 Definition no_fail_incoming_active_event

@@ -1021,6 +1021,83 @@ end; simpl in *.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Qed.
 
+Set Bullet Behavior "Strict Subproofs".
+
+(* todo: put this in structtact *)
+Lemma collate_ls_in_in :
+  forall (A B : Type) A_eq_dec s f to m x a b,
+    In x (f a b) ->
+    In x (@collate_ls A B A_eq_dec s f to m a b).
+Proof.
+  intros.
+  prep_induction s.
+  induction s.
+  - auto.
+  - intros.
+    simpl.
+    apply IHs.
+    destruct (A_eq_dec a a0), (A_eq_dec to b); subst.
+    + rewrite update2_eq; auto using in_or_app.
+    + rewrite update2_diff2; auto using in_or_app.
+    + rewrite update2_diff1; auto using in_or_app.
+    + rewrite update2_diff1; auto using in_or_app.
+Qed.
+
+Lemma collate_ls_cases :
+  forall (A B : Type) A_eq_dec s f to m a b,
+    @collate_ls A B A_eq_dec s f to m a b = f a b \/
+    exists l,
+      (forall x, In x l -> x = m) /\
+      @collate_ls A B A_eq_dec s f to m a b = f a b ++ l.
+Proof.
+  intros.
+  prep_induction s; induction s as [|h s].
+  - auto.
+  - intros.
+    simpl in *.
+    destruct (A_eq_dec to b), (A_eq_dec h a); subst.
+    + admit.
+    + rewrite collate_ls_neq_update2; auto.
+    + admit.
+    + admit.
+Admitted.
+
+Lemma collate_ls_in_neq_in_before :
+  forall (A B : Type) A_eq_dec s f to m x a b,
+    In x (@collate_ls A B A_eq_dec s f to m a b) ->
+    x <> m ->
+    In x (f a b).
+Proof.
+  intros.
+  pose proof (collate_ls_cases A_eq_dec s f to m a b); break_or_hyp.
+  - now find_rewrite.
+  - break_exists; break_and.
+    find_rewrite.
+    find_apply_lem_hyp in_app_or; break_or_hyp => //.
+    find_apply_hyp_hyp.
+    congruence.
+Qed.
+
+Lemma collate_map2snd_in_neq_in_before :
+  forall (A B : Type) A_eq_dec from f m dsts a b x,
+    In x (@collate A B A_eq_dec from f (map2snd m dsts) a b) ->
+    x <> m ->
+    In x (f a b).
+Proof.
+  intros.
+  prep_induction dsts.
+  induction dsts.
+  - auto.
+  - simpl.
+Admitted.
+
+(* todo put in StructTact *)
+Ltac apply_lem_prop_hyp lem P :=
+  match goal with
+  | [ H : context [ P ] |- _ ] =>
+    apply lem in H
+  end.
+
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
@@ -1029,6 +1106,43 @@ Lemma Tree_in_level_adjacent_or_incoming_new :
      forall d, net.(odnwState) n = Some d ->
      NSet.In n' d.(adjacent) \/ In New (net.(odnwPackets) n' n).
 Proof.
+  intros.
+  change failed with (fst (failed, net)) in H0.
+  change net with (snd (failed, net)) in H1, H2.
+  change net with (snd (failed, net)).
+  remember step_ordered_dynamic_failure_init as y in *.
+  move: Heqy.
+  induction H using refl_trans_1n_trace_n1_ind.
+  - intro H_init.
+    subst.
+    simpl in *.
+    by auto.
+  - intro H_init.
+    match goal with
+    | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invcs H
+    end.
+    + destruct (name_eq_dec h n).
+      * subst.
+        right.
+        admit.
+      * copy_eapply_prop_hyp NSet.In failed0; eauto.
+        find_copy_eapply_lem_hyp ordered_dynamic_state_not_initialized_not_failed; eauto.
+        break_or_hyp.
+        -- by auto.
+        -- right.
+           apply collate_ls_in_in.
+           apply collate_in_in.
+           assumption.
+        -- apply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
+           apply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
+        -- now find_erewrite_lem update_diff.
+    + find_apply_lem_hyp net_handlers_NetHandler.
+      net_handler_cases => //=;
+      admit. (* use net_handler_cases somewhere here *)
+    + find_apply_lem_hyp input_handlers_IOHandler.
+      io_handler_cases => //=;
+      admit. (* use io_handler_cases somewhere here *)
+    + admit.
 Admitted.
 
 Lemma Tree_in_before_all_level_fail : 
