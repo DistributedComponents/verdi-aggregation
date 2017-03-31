@@ -14,7 +14,7 @@ opam install coq-mathcomp-fingroup coq-mathcomp-algebra StructTact InfSeqExt ver
 
 case $MODE in
   analytics)
-    ./build.sh proofalytics
+    ./script/analytics.sh
     ;;
   tree-test)
     opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
