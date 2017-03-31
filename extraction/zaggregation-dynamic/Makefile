@@ -24,7 +24,7 @@ test: ZTreeAggregationTest.native
 	./ZTreeAggregationTest.native
 
 clean:
-	$(OCAMLBUILD) -clean
+	ocamlbuild -clean
 
 .PHONY: default clean test test-units test-integration $(MLEXTRACTED)
 
