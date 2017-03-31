@@ -14,7 +14,13 @@ opam install coq-mathcomp-fingroup coq-mathcomp-algebra StructTact InfSeqExt ver
 
 case $MODE in
   analytics)
-    travis_wait 30 ./script/analytics.sh
+    ./script/analytics.sh &
+    # Output to the screen every 9 minutes to prevent a travis timeout
+    export PID=$!
+    while [[ `ps -p $PID | tail -n +2` ]]; do
+	echo 'proofalyzing...'
+	sleep 540
+    done
     ;;
   tree-test)
     opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
