@@ -22,7 +22,7 @@ test: TreeTest.native
 	./TreeTest.native
 
 clean:
-	$(OCAMLBUILD) -clean
+	ocamlbuild -clean
 
 .PHONY: default clean test $(MLEXTRACTED)
 

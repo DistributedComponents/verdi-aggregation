@@ -37,7 +37,7 @@ test-integration: TreeAggregationMain.native test/integration.py
 test: test-units
 
 clean:
-	$(OCAMLBUILD) -clean
+	ocamlbuild -clean
 
 .PHONY: default clean test test-units test-integration $(MLEXTRACTED)
 
