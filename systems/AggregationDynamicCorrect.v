@@ -857,29 +857,33 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
   rewrite /update2.
   break_if; break_and; subst_max; last by eauto.
-  apply: before_all_not_in_append.
+  apply: before_all_not_in_2.
+  move => H_in.
+  apply in_app_or in H_in.
+  case: H_in => H_in; last by case: H_in.
+  contradict H_in.
   exact: (Aggregation_not_failed_no_fail H).
 - move => n H_n H_f n' H_n' m'.
   have H_neq: h <> n by auto.
@@ -1097,23 +1101,23 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try find_injection; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.

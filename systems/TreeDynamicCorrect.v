@@ -905,35 +905,35 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H14 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H8 _ H9 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H0 H8 _ H9 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H8 _ H9 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H3 lvo'.    
     have H_neq: n <> n'.
@@ -941,7 +941,11 @@ end; simpl in *.
       rewrite H_eq in H5.
       by rewrite (Tree_self_channel_empty H) in H5.             
     break_if; first by break_and.
-    apply: before_all_not_in_append.
+    apply: before_all_not_in_2.
+    move => H_in.
+    apply in_app_or in H_in.
+    case: H_in => H_in; last by case: H_in.
+    contradict H_in.
     by apply: Tree_not_failed_no_fail; eauto.
   * break_if; last by eauto.
     break_and; subst.
@@ -950,18 +954,22 @@ end; simpl in *.
     find_rewrite.
     simpl in *.
     break_or_hyp; last by break_and.
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * have IH := IHrefl_trans_1n_trace1 _ H12 H14 _ H15 lvo'.
     find_rewrite.
     simpl in *.
     break_or_hyp; last by break_and.
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * have H_neq: n <> n'.
       move => H_eq.
       rewrite H_eq in H5.
       by rewrite (Tree_self_channel_empty H) in H5.
     break_if; first by break_and; subst_max.
-    apply: before_all_not_in_append.
+    apply: before_all_not_in_2.
+    move => H_in.
+    apply in_app_or in H_in.
+    case: H_in => H_in; last by case: H_in.
+    contradict H_in.
     by apply: Tree_not_failed_no_fail; eauto.
   * break_if; last by eauto.
     break_and; subst.
@@ -970,10 +978,33 @@ end; simpl in *.
     find_rewrite.
     simpl in *.
     break_or_hyp; last by break_and.
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
-  by admit.
+  have IH := IHrefl_trans_1n_trace1 _ H11 H13 _ H14 lvo'.
+  case (name_eq_dec h n') => H_dec; last by rewrite collate_neq.
+  subst.
+  have H_f := Tree_not_failed_no_fail H _ H3 H2 n.
+  apply before_all_not_in_2.
+  rewrite /level_adjacent NSet.fold_spec /flip /=.
+  move => H_in.
+  case: H_f.
+  move: H_in.
+  elim: (NSet.elements _) => //=.
+  rewrite /flip /= /level_fold.
+  move => n'' ns IH' H_in.
+  rewrite (@fold_left_level_fold_eq Tree_TreeMsg) in H_in.
+  rewrite (@fold_left_level_fold_eq Tree_TreeMsg) in IH'.
+  rewrite app_nil_r in IH'.
+  rewrite collate_app in H_in.
+  apply IH'.
+  rewrite /tree_level /= in H_in.
+  update2_destruct_hyp; find_inversion; subst; rewrite_update2.
+  - apply in_app_or in H_in.
+    by case: H_in => H_in; last by case: H_in.
+  - have H_neq: n'' <> n by move => H_eq; find_rewrite.
+    rewrite_update2.
+    by find_rewrite.
 - move => n H_n H_f n' H_n' lvo'.
   have H_neq: h <> n by auto.
   have H_f': ~ In n failed by auto.
@@ -988,7 +1019,7 @@ end; simpl in *.
     apply: before_all_neq_append => //.
     by eauto.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
-Admitted.
+Qed.
 
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 

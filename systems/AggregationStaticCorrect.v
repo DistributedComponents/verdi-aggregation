@@ -658,7 +658,7 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
@@ -666,14 +666,14 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H0 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: before_all_not_in.
+    case: IH' => IH'; first exact: before_all_not_in_1.
     by move: IH' => [H_neq H_bef].
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
@@ -681,7 +681,7 @@ end; simpl.
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H9 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: before_all_not_in.
+    case: IH' => IH'; first exact: before_all_not_in_1.
     by move: IH' => [H_neq H_bef].
 - move {H1}. 
   find_apply_lem_hyp input_handlers_IOHandler.
@@ -692,7 +692,11 @@ end; simpl.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq'.
     rewrite H_eq in H2.
-    apply: before_all_not_in_append.
+    apply: before_all_not_in_2.
+    move => H_in.
+    apply in_app_or in H_in.
+    case: H_in => H_in; last by case: H_in.
+    contradict H_in.
     exact: Aggregation_not_failed_no_fail H _ _ H2.
   * exact: IHrefl_trans_1n_trace1.
   * exact: IHrefl_trans_1n_trace1.

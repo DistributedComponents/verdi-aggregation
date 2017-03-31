@@ -795,12 +795,12 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f
 - move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
   apply before_all_head_not_in in H_bef => //.
-  exact: before_all_not_in.
+  exact: before_all_not_in_1.
 - move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
   rewrite /= in H_bef.
   break_or_hyp; last by break_and.
-  exact: before_all_not_in.
+  exact: before_all_not_in_1.
 - move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
   exact: before_all_neq_append.
 Qed.
