@@ -14,7 +14,7 @@ SEP="__PROOFALYTICS__"
 SANDBOX="$(mktemp -d "${PADIR}/../../proofalytics-tmp-XXXXX")"
 cp -R "${PADIR}/.." "${SANDBOX}/"
 
-pushd "$SANDBOX"
+pushd "$SANDBOX" > /dev/null
   # annotate proofs
   for v in $(find . -name '*.v'); do
     scratch="$(mktemp "proot-time-annot-tmp-XXXXX")"
@@ -41,7 +41,7 @@ pushd "$SANDBOX"
     | awk -W lint=fatal -f "${PADIR}/proof-times-csv.awk" \
     | awk -W lint=fatal -v key=2 -f "${PADIR}/csv-sort.awk" \
     > "$PROOF_TIMES"
-popd
+popd > /dev/null
 
 # clean up
 rm -rf "$SANDBOX"
