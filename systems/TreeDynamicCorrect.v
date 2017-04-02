@@ -1025,10 +1025,12 @@ end; simpl in *.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Qed.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
-    forall n, ~ In n failed ->
+    forall n, ~ In n failed -> In n net.(odnwNodes) ->
      forall n' lvo', In (Level lvo') (net.(odnwPackets) n' n) ->
      forall d, net.(odnwState) n = Some d ->
      NSet.In n' d.(adjacent) \/ In New (net.(odnwPackets) n' n).
@@ -1040,10 +1042,7 @@ Proof.
   remember step_ordered_dynamic_failure_init as y in *.
   move: Heqy.
   induction H using refl_trans_1n_trace_n1_ind.
-  - intro H_init.
-    subst.
-    simpl in *.
-    by auto.
+  - simpl; intros; subst; by auto.
   - intro H_init.
     match goal with
     | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invcs H
@@ -1060,15 +1059,221 @@ Proof.
            apply collate_ls_in_in.
            apply collate_in_in.
            assumption.
+        -- break_or_hyp; [congruence | assumption].
         -- eapply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
            eapply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
-        -- now find_erewrite_lem update_diff.
     + find_apply_lem_hyp net_handlers_NetHandler.
-      net_handler_cases => //=;
-      admit. (* use net_handler_cases somewhere here *)
+      net_handler_cases => //=; simpl in *.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * simpl in *.
+        assert (In (Level lvo') (odnwPackets net0 n' n)).
+        {
+          destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+            repeat match goal with
+                   | [ H: context[ update2 _ _ ?a ?b _ ?a ?b ] |- _ ] =>
+                     find_rewrite_lem update2_same;
+                       repeat find_rewrite;
+                       auto with datatypes
+                   | [ H: context[ update2 _ _ _ ?h _ _ ?h ] |- _ ] =>
+                     rewrite update2_diff1 in H; tauto
+                   | [ H: context[ update2 _ _ _ _ _ _ _ ] |- _ ] =>
+                     rewrite update2_diff2 in H; tauto
+                   end.
+        }
+        find_apply_hyp_hyp.
+        break_or_hyp; [tauto | right].
+        destruct (name_eq_dec from n'), (name_eq_dec to n); subst;
+          try (rewrite update2_diff2; tauto);
+          try (rewrite update2_diff1; tauto).
+        repeat find_rewrite.
+        rewrite update2_same.
+        find_apply_lem_hyp in_inv;
+          break_or_hyp;
+          congruence || assumption.
+      * admit.
+      * admit.
+      * admit.
     + find_apply_lem_hyp input_handlers_IOHandler.
-      io_handler_cases => //=;
-      admit. (* use io_handler_cases somewhere here *)
+      io_handler_cases => //=; simpl in *; auto.
+      forwards.
+      {
+        admit.
+      }
+      find_apply_hyp_hyp; break_or_hyp; auto using collate_in_in.
     + admit.
 Admitted.
 
