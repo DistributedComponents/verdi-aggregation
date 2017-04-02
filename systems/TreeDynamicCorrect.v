@@ -5,6 +5,10 @@ Require Import Verdi.TotalMapSimulations.
 Require Import Verdi.PartialMapSimulations.
 Require Import Verdi.DynamicNetLemmas.
 
+Require Import StructTact.Update.
+Require Import StructTact.Update2.
+Require Import StructTact.StructTactics.
+
 Require Import TreeAux.
 Require Import FailureRecorderDynamic.
 Require Import FailureRecorderDynamicCorrect.
@@ -1021,83 +1025,6 @@ end; simpl in *.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Qed.
 
-Set Bullet Behavior "Strict Subproofs".
-
-(* todo: put this in structtact *)
-Lemma collate_ls_in_in :
-  forall (A B : Type) A_eq_dec s f to m x a b,
-    In x (f a b) ->
-    In x (@collate_ls A B A_eq_dec s f to m a b).
-Proof.
-  intros.
-  prep_induction s.
-  induction s.
-  - auto.
-  - intros.
-    simpl.
-    apply IHs.
-    destruct (A_eq_dec a a0), (A_eq_dec to b); subst.
-    + rewrite update2_eq; auto using in_or_app.
-    + rewrite update2_diff2; auto using in_or_app.
-    + rewrite update2_diff1; auto using in_or_app.
-    + rewrite update2_diff1; auto using in_or_app.
-Qed.
-
-Lemma collate_ls_cases :
-  forall (A B : Type) A_eq_dec s f to m a b,
-    @collate_ls A B A_eq_dec s f to m a b = f a b \/
-    exists l,
-      (forall x, In x l -> x = m) /\
-      @collate_ls A B A_eq_dec s f to m a b = f a b ++ l.
-Proof.
-  intros.
-  prep_induction s; induction s as [|h s].
-  - auto.
-  - intros.
-    simpl in *.
-    destruct (A_eq_dec to b), (A_eq_dec h a); subst.
-    + admit.
-    + rewrite collate_ls_neq_update2; auto.
-    + admit.
-    + admit.
-Admitted.
-
-Lemma collate_ls_in_neq_in_before :
-  forall (A B : Type) A_eq_dec s f to m x a b,
-    In x (@collate_ls A B A_eq_dec s f to m a b) ->
-    x <> m ->
-    In x (f a b).
-Proof.
-  intros.
-  pose proof (collate_ls_cases A_eq_dec s f to m a b); break_or_hyp.
-  - now find_rewrite.
-  - break_exists; break_and.
-    find_rewrite.
-    find_apply_lem_hyp in_app_or; break_or_hyp => //.
-    find_apply_hyp_hyp.
-    congruence.
-Qed.
-
-Lemma collate_map2snd_in_neq_in_before :
-  forall (A B : Type) A_eq_dec from f m dsts a b x,
-    In x (@collate A B A_eq_dec from f (map2snd m dsts) a b) ->
-    x <> m ->
-    In x (f a b).
-Proof.
-  intros.
-  prep_induction dsts.
-  induction dsts.
-  - auto.
-  - simpl.
-Admitted.
-
-(* todo put in StructTact *)
-Ltac apply_lem_prop_hyp lem P :=
-  match goal with
-  | [ H : context [ P ] |- _ ] =>
-    apply lem in H
-  end.
-
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
@@ -1133,8 +1060,8 @@ Proof.
            apply collate_ls_in_in.
            apply collate_in_in.
            assumption.
-        -- apply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
-           apply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
+        -- eapply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
+           eapply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
         -- now find_erewrite_lem update_diff.
     + find_apply_lem_hyp net_handlers_NetHandler.
       net_handler_cases => //=;
