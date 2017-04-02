@@ -1145,20 +1145,84 @@ Proof.
     + admit.
 Admitted.
 
-Lemma Tree_in_before_all_level_fail : 
-  forall net failed tr,
-    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
-    forall n, In n net.(odnwNodes) -> ~ In n failed ->
-    forall n' lvo', before_all (Level lvo') Fail (net.(odnwPackets) n' n).
-Proof.
-Admitted.
-
 Lemma Tree_in_before_all_new_level : 
   forall net failed tr,
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
     forall n, In n net.(odnwNodes) -> ~ In n failed ->
-    forall n' lvo', before_all New (Level lvo') (net.(odnwPackets) n' n).
+    forall n', In n' net.(odnwNodes) ->
+    forall lvo', before_all New (Level lvo') (net.(odnwPackets) n' n).
 Proof.
+move => net failed tr H_step.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3 4.
+remember step_ordered_dynamic_failure_init as y in *.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f n' H_n' lvo'.
+  break_or_hyp; break_or_hyp.
+  * have H_rel: ~ adjacent_to n n by apply adjacent_to_irreflexive.
+    rewrite collate_ls_not_related //.
+    rewrite collate_map2snd_not_related //.
+    by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
+  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
+    case (adjacent_to_dec n' n) => H_dec; last first.
+      rewrite collate_map2snd_not_related //.
+      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).    
+    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
+    rewrite collate_map2snd_not_in_related //.
+    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1) //=.
+    by left.
+  * have H_neq: n <> n' by move => H_eq; subst_max.
+    case (adjacent_to_dec n n') => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by rewrite (Tree_inactive_no_incoming H_step1).
+    case (in_dec name_eq_dec n' failed0) => H_dec'; last first.
+      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
+      rewrite collate_ls_live_related //.
+      rewrite collate_neq //.
+      rewrite (Tree_inactive_no_incoming H_step1) //=.
+      by left.
+    rewrite collate_ls_in_remove_all //.
+    rewrite collate_neq //.
+    by rewrite (Tree_inactive_no_incoming H_step1).
+  * have H_neq: h <> n by move => H_eq; find_reverse_rewrite.
+    have H_neq': h <> n' by move => H_eq; repeat find_rewrite.
+    rewrite collate_ls_neq_to //.
+    rewrite collate_neq //.
+    by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; simpl in *; update2_destruct_max_simplify;
+    repeat find_rewrite; auto; try tuple_inversion.
+  * have IH := IHH_step1 _ H9 H11 _ H12 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in_1.
+    by break_and.
+  * have IH := IHH_step1 _ H10 H12 _ H13 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in_1.
+    by break_and.
+  * have IH := IHH_step1 _ H10 H12 _ H13 lvo'.
+    find_rewrite.
+    case: IH => IH; first exact: before_all_not_in_1.
+    by break_and.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+  * by admit.
+- find_apply_lem_hyp input_handlers_IOHandler.
+  by admit.
+- by admit.
 Admitted.
 
 Lemma Tree_level_head_in_adjacent :
