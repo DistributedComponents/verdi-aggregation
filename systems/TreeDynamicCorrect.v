@@ -1028,23 +1028,21 @@ Qed.
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
-    forall n, ~ In n failed ->
+    forall n, ~ In n failed -> In n net.(odnwNodes) ->
      forall n' lvo', In (Level lvo') (net.(odnwPackets) n' n) ->
      forall d, net.(odnwState) n = Some d ->
      NSet.In n' d.(adjacent) \/ In New (net.(odnwPackets) n' n).
 Proof.
   intros.
   change failed with (fst (failed, net)) in H0.
-  change net with (snd (failed, net)) in H1, H2.
+  change net with (snd (failed, net)) in H1, H2, H3.
   change net with (snd (failed, net)).
+  generalize dependent d.
   remember step_ordered_dynamic_failure_init as y in *.
   move: Heqy.
   induction H using refl_trans_1n_trace_n1_ind.
-  - intro H_init.
-    subst.
-    simpl in *.
-    by auto.
-  - intro H_init.
+  - simpl; intros; subst; by auto.
+  - intros H_init d.
     match goal with
     | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invcs H
     end.
@@ -1052,23 +1050,147 @@ Proof.
       * subst.
         right.
         admit.
-      * copy_eapply_prop_hyp NSet.In failed0; eauto.
+      * rewrite update_diff; [|assumption].
+        intros.
+        copy_eapply_prop_hyp NSet.In failed0; eauto.
         find_copy_eapply_lem_hyp ordered_dynamic_state_not_initialized_not_failed; eauto.
         break_or_hyp.
-        -- by auto.
+        -- by eauto.
         -- right.
            apply collate_ls_in_in.
            apply collate_in_in.
            assumption.
+        -- break_or_hyp; [congruence | assumption].
         -- eapply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
            eapply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
-        -- now find_erewrite_lem update_diff.
     + find_apply_lem_hyp net_handlers_NetHandler.
-      net_handler_cases => //=;
-      admit. (* use net_handler_cases somewhere here *)
+      net_handler_cases => //=; simpl in *.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * admit.
+      * destruct (name_eq_dec to n); subst.
+        -- find_rewrite_lem update_same; find_inversion.
+           admit.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- ?G ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+      * admit.
     + find_apply_lem_hyp input_handlers_IOHandler.
-      io_handler_cases => //=;
-      admit. (* use io_handler_cases somewhere here *)
+      io_handler_cases => //=; simpl in *; eauto.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
+      * admit.
     + admit.
 Admitted.
 
