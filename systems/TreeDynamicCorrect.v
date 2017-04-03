@@ -1032,12 +1032,13 @@ Lemma Tree_in_level_adjacent_or_incoming_new :
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
     forall n, ~ In n failed -> In n net.(odnwNodes) ->
      forall n' lvo', In (Level lvo') (net.(odnwPackets) n' n) ->
+     In n' net.(odnwNodes) ->
      forall d, net.(odnwState) n = Some d ->
      NSet.In n' d.(adjacent) \/ In New (net.(odnwPackets) n' n).
 Proof.
   intros.
   change failed with (fst (failed, net)) in H0.
-  change net with (snd (failed, net)) in H1, H2, H3.
+  change net with (snd (failed, net)) in H1, H2, H3, H4.
   change net with (snd (failed, net)).
   generalize dependent d.
   remember step_ordered_dynamic_failure_init as y in *.
@@ -1074,6 +1075,7 @@ Proof.
         -- break_or_hyp; [congruence | assumption].
         -- eapply_lem_prop_hyp collate_ls_in_neq_in_before @collate_ls => //.
            eapply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
+        -- admit.
     + find_apply_lem_hyp net_handlers_NetHandler.
       net_handler_cases => //=; simpl in *.
       * destruct (name_eq_dec to n), (name_eq_dec from n'); subst.
@@ -1094,12 +1096,7 @@ Proof.
                   by auto;
                   pose proof (Tree_in_after_all_fail_level H_step n) as H_after; simpl in H_after
               end.
-              assert (before_all (Level lvo') Fail (odnwPackets net0 n' n)).
-              {
-                eapply H_after; auto.
-                (* should probably add a hypothesis on n' *)
-                admit.
-              }
+              assert (before_all (Level lvo') Fail (odnwPackets net0 n' n)) by eauto.
               find_rewrite. simpl in *; break_or_hyp; break_and; auto.
            ++ right.
               repeat find_rewrite.
