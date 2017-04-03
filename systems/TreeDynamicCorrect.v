@@ -1025,6 +1025,8 @@ end; simpl in *.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Qed.
 
+Set Bullet Behavior "Strict Subproofs".
+
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
@@ -1041,14 +1043,23 @@ Proof.
   remember step_ordered_dynamic_failure_init as y in *.
   move: Heqy.
   induction H using refl_trans_1n_trace_n1_ind.
-  - simpl; intros; subst; by auto.
-  - intros H_init d.
+  - intros. simpl. subst.
+    match goal with
+    | [ H : context[step_ordered_dynamic_failure_init] |- _ ] =>
+      invcs H
+    end.
+  - pose proof H1 as H_mine.
+    intros H_init d.
     match goal with
     | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invcs H
     end.
     + destruct (name_eq_dec h n).
-      * subst.
+      * break_or_hyp => //=; subst.
+        intro H_st.
         right.
+        find_apply_lem_hyp collate_ls_in_neq_in_before; [|congruence].
+        find_eapply_lem_hyp collate_map2snd_in_neq_in_before; [|congruence].
+        assert (n' <> n) by admit.
         admit.
       * rewrite update_diff; [|assumption].
         intros.
@@ -1065,12 +1076,60 @@ Proof.
            eapply_lem_prop_hyp collate_map2snd_in_neq_in_before @collate => //.
     + find_apply_lem_hyp net_handlers_NetHandler.
       net_handler_cases => //=; simpl in *.
-      * destruct (name_eq_dec to n); subst.
+      * destruct (name_eq_dec to n), (name_eq_dec from n'); subst.
         -- find_rewrite_lem update_same; find_inversion.
-           admit.
+           find_rewrite_lem update2_same; repeat find_reverse_rewrite.
+           assert (In (Level lvo') (odnwPackets net0 n' n)).
+           {
+             repeat find_rewrite.
+             auto with datatypes.
+           }
+           find_apply_hyp_hyp; break_or_hyp.
+           ++ exfalso.
+              match goal with
+              | [ H : refl_trans_1n_trace _ _ (?failed, net0) ?tr |- _ ] =>
+                assert (H_step: step_ordered_dynamic_failure_star
+                                  step_ordered_dynamic_failure_init
+                                  (failed, net0) tr)
+                  by auto;
+                  pose proof (Tree_in_after_all_fail_level H_step n) as H_after; simpl in H_after
+              end.
+              assert (before_all (Level lvo') Fail (odnwPackets net0 n' n)).
+              {
+                eapply H_after; auto.
+                (* should probably add a hypothesis on n' *)
+                admit.
+              }
+              find_rewrite. simpl in *; break_or_hyp; break_and; auto.
+           ++ right.
+              repeat find_rewrite.
+              rewrite update2_same.
+              find_apply_lem_hyp in_inv; break_or_hyp; auto || congruence.
+        -- rewrite update2_diff1; [|assumption].
+           match goal with
+           | [ H: context[ update2 ] |- _ ] =>
+             rewrite update2_diff1 in H; [|assumption]
+           end.
+           find_rewrite_lem update_same; find_inversion.
+           assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)) by auto.
+           break_or_hyp.
+           ++ left.
+              repeat find_rewrite.
+              by apply FRC.NSetProps.Dec.F.remove_2.
+           ++ by right.
         -- rewrite update2_diff2; [|assumption].
            match goal with
-           | [ H: _ |- ?G ] =>
+           | [ H: _ |- _ ] =>
+             eapply H; eauto
+           end.
+           ++ erewrite <- update2_diff2; eauto.
+           ++ match goal with
+              | [ H: context[ update ] |- _ ] =>
+                rewrite update_diff in H; assumption
+              end.
+        -- rewrite update2_diff2; [|assumption].
+           match goal with
+           | [ H: _ |- _ ] =>
              eapply H; eauto
            end.
            ++ erewrite <- update2_diff2; eauto.
