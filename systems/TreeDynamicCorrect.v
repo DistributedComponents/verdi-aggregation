@@ -1598,15 +1598,41 @@ end; simpl in *.
     move => H_in.
     by break_or_hyp.
   * have H_neq: h <> n by move => H_eq; subst_max.
-    by admit.
+    rewrite_update.
+    case (name_eq_dec h n') => H_dec; last first.
+      rewrite collate_ls_neq_to //.
+      rewrite collate_neq //.
+      by eauto.
+    subst_max.
+    case (adjacent_to_dec n' n) => H_dec; last first.
+      rewrite collate_ls_not_related //.
+      rewrite collate_neq //.
+      by eauto.
+    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
+    rewrite collate_ls_live_related //.
+    rewrite collate_neq //.
+    move => H_in.
+    find_apply_lem_hyp in_app_or.
+    case: H_in => H_in; simpl in *; last by break_or_hyp.
+    by rewrite (Tree_inactive_no_incoming H_step1) in H_in.
 - find_apply_lem_hyp net_handlers_NetHandler.
-  by admit.
+  net_handler_cases => //=; simpl in *; update2_destruct_max_simplify;
+    update_destruct_max_simplify; repeat find_rewrite; auto; try tuple_inversion; try find_injection.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have H_bef := Tree_in_after_all_fail_level H_step1 _ H1 H0 _ H9 lvo'.
+    find_rewrite.
+    simpl in *.
+    break_or_hyp => //.
+    by break_and.
+  * by admit.
+(*
 - find_apply_lem_hyp input_handlers_IOHandler.
   by admit.
 - move => n H_n H_f d H_d n' H_ins lvo'.
   have H_neq: h <> n by auto.
   rewrite collate_neq //.
   by eauto.
+*)
 Admitted.
 
 Lemma Tree_level_head_in_adjacent :
