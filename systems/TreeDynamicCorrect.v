@@ -1025,69 +1025,6 @@ end; simpl in *.
   exact: @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
 Qed.
 
-Lemma Tree_in_level_adjacent_or_incoming_new' :
-  forall net failed tr, 
-    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
-    forall n, In n net.(odnwNodes) -> ~ In n failed -> 
-     forall n', In n' net.(odnwNodes) ->
-     forall lvo', In (Level lvo') (net.(odnwPackets) n' n) ->      
-     forall d, net.(odnwState) n = Some d ->
-     NSet.In n' d.(adjacent) \/ In New (net.(odnwPackets) n' n).
-Proof.
-move => net failed tr H.
-change failed with (fst (failed, net)).
-change net with (snd (failed, net)) at 1 3 4 5.
-remember step_ordered_dynamic_failure_init as y in *.
-move: Heqy.
-induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
-concludes.
-match goal with
-| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
-end; simpl in *.
-- move => n H_n H_f n' H_n' lvo'.
-  break_or_hyp; break_or_hyp.
-  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
-    rewrite collate_map2snd_not_in; last by eauto using in_remove_all_was_in.
-    by rewrite (Tree_self_channel_empty H).
-  * rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
-    case (adjacent_to_dec n' n) => H_dec; last first.
-      rewrite collate_map2snd_not_related //.
-      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H).
-    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
-    rewrite collate_map2snd_not_in_related //.
-    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H) //=.
-    move => H_or.
-    by break_or_hyp.
-  * have H_neq: n <> n' by move => H_eq; find_reverse_rewrite.
-    case (adjacent_to_dec n n') => H_dec; last first.
-      rewrite collate_ls_not_related //.
-      rewrite collate_neq //.
-      by rewrite (Tree_inactive_no_incoming H).
-    case (in_dec name_eq_dec n' failed) => H_dec'; last first.
-      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H.
-      rewrite collate_ls_live_related //.
-      rewrite collate_neq //.
-      rewrite (Tree_inactive_no_incoming H) //=.
-      move => H_or.
-      by break_or_hyp.
-    rewrite collate_ls_in_remove_all //.
-    rewrite collate_neq //.
-    by rewrite (Tree_inactive_no_incoming H).
-  * have H_neq: h <> n by move => H_eq; find_reverse_rewrite.
-    have H_neq': h <> n' by move => H_eq; repeat find_rewrite.
-    rewrite collate_ls_neq_to //.
-    rewrite collate_neq //.
-    rewrite_update.
-    by eauto.
-- find_apply_lem_hyp net_handlers_NetHandler.
-  (* net_handler_cases => //=. *)
-  by admit.
-- find_apply_lem_hyp input_handlers_IOHandler.
-  (* io_handler_cases => //=. *)
-  by admit.
-- by admit.
-Admitted.
-
 Lemma Tree_in_level_adjacent_or_incoming_new :
   forall net failed tr, 
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
