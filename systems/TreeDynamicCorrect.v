@@ -1474,13 +1474,13 @@ Lemma Tree_notin_adjacent_not_sent_level :
   forall net failed tr,
     step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init (failed, net) tr ->
     forall n, In n net.(odnwNodes) -> ~ In n failed ->
-    forall d, net.(odnwState) n = Some d ->
-    forall n', ~ NSet.In n' d.(adjacent) ->
+    forall n', In n' net.(odnwNodes) -> ~ In n' failed ->
+    forall d, net.(odnwState) n = Some d -> ~ NSet.In n' d.(adjacent) ->
     forall lvo', ~ In (Level lvo') (net.(odnwPackets) n n').
 Proof.
 move => net failed tr H_step.
 change failed with (fst (failed, net)).
-change net with (snd (failed, net)) at 1 3 4.
+change net with (snd (failed, net)) at 1 3 5 6.
 remember step_ordered_dynamic_failure_init as y in *.
 move: Heqy.
 induction H_step using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
@@ -1488,63 +1488,228 @@ concludes.
 match goal with
 | [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
 end; simpl in *.
-- move => n H_n H_f d H_eq_d n' H_ins lvo'.
-  break_or_hyp.
+- move => n H_n H_f n' H_n' H_f' d H_d H_ins lvo'.
+  break_or_hyp; break_or_hyp.
+  * have H_rel: ~ adjacent_to n n by apply adjacent_to_irreflexive.
+    rewrite collate_ls_not_related //.
+    rewrite collate_map2snd_not_related //.
+    by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
   * rewrite_update.
-    find_injection.
-    simpl in *.
-    rewrite collate_ls_not_in; last by apply: not_in_not_in_filter_rel; eauto using in_remove_all_was_in.
-    case (adjacent_to_dec n n') => H_adj; last first.
-      rewrite collate_map2snd_not_related //.
-      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
-    case (in_dec name_eq_dec n' net0.(odnwNodes)) => H_dec; last first.
-      rewrite collate_map2snd_not_in_remove_all //.
-      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
-    case (in_dec name_eq_dec n' failed0) => H_dec'.
-      rewrite collate_map2snd_in //.
-      by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
-    have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
-    rewrite collate_map2snd_not_in_related //.
-    rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1) //=.
-    move => H_in.
-    by break_or_hyp.
-  * have H_neq: h <> n by move => H_eq; subst_max.
-    rewrite_update.
-    case (name_eq_dec h n') => H_dec; last first.
-      rewrite collate_ls_neq_to //.
-      rewrite collate_neq //.
-      by eauto.
-    subst_max.
+    have H_neq: n' <> n by move => H_eq; subst_max.
     case (adjacent_to_dec n' n) => H_dec; last first.
       rewrite collate_ls_not_related //.
       rewrite collate_neq //.
-      by eauto.
+      by rewrite (Tree_inactive_no_incoming H_step1).
+    case (in_dec name_eq_dec n' failed0) => H_dec'; first by rewrite collate_ls_in_remove_all.
     have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
     rewrite collate_ls_live_related //.
-    rewrite collate_neq //.
+    rewrite collate_neq //.           
+    rewrite (Tree_inactive_no_incoming H_step1) //=.
     move => H_in.
-    find_apply_lem_hyp in_app_or.
-    case: H_in => H_in; simpl in *; last by break_or_hyp.
-    by rewrite (Tree_inactive_no_incoming H_step1) in H_in.
+    by case: H_in.
+  * rewrite_update.
+    find_injection.
+    simpl in *.
+    have H_neq: n <> n' by move => H_eq; subst_max.
+    rewrite collate_ls_neq_to //.
+    case (adjacent_to_dec n n') => H_adj.
+      have H_nd := @ordered_dynamic_nodes_no_dup _ _ _ _ Tree_FailMsgParams _ _ _ H_step1.
+      rewrite collate_map2snd_not_in_related //.
+      rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1) //=.
+      move => H_in.
+      by break_or_hyp.    
+    rewrite collate_map2snd_not_related //.
+    by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1).
+  * have H_neq: h <> n by move => H_eq; subst_max.
+    have H_neq': h <> n' by move => H_eq; subst_max.
+    rewrite collate_ls_neq_to //.
+    rewrite collate_neq //.
+    rewrite_update.
+    by eauto.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=; simpl in *; update2_destruct_max_simplify;
-    update_destruct_max_simplify; repeat find_rewrite; auto; try tuple_inversion; try find_injection.
+    update_destruct_max_simplify; repeat find_rewrite; auto; try tuple_inversion; try find_injection; repeat find_rewrite.
   * by find_rewrite_lem (Tree_self_channel_empty H_step1).
   * have H_bef := Tree_in_after_all_fail_level H_step1 _ H1 H0 _ H9 lvo'.
     find_rewrite.
     simpl in *.
     break_or_hyp => //.
     by break_and.
-  * by admit.
-(*
+  * case (name_eq_dec from n) => H_dec.
+      subst_max.
+      by find_rewrite_lem (Tree_self_channel_empty H_step1).
+    case (name_eq_dec from n') => H_dec'.
+      subst_max.
+      have H_f := Tree_not_failed_no_fail H_step1 _ H12 H13 n.
+      find_rewrite.
+      case: H_f.
+      by left.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H15.
+      exact: NSetFacts.remove_2.
+    by have IH := IHH_step1 _ H9 H11 _ H12 H13 _ H2 H_ins lvo'.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have H_f := Tree_not_failed_no_fail H_step1 _ H10 H12 n'.
+    find_rewrite.
+    by case: H_f; left.
+  * case (name_eq_dec from n') => H_dec.
+      subst_max.
+      have H_f := Tree_not_failed_no_fail H_step1 _ H13 H14 n.
+      find_rewrite.
+      by case: H_f; left.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H16.
+      by auto with set.
+    by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have H_f := Tree_not_failed_no_fail H_step1 _ H10 H12 n'.
+    find_rewrite.
+    by case: H_f; left.
+  * case (name_eq_dec from n') => H_dec.
+      subst_max.
+      have H_f := Tree_not_failed_no_fail H_step1 _ H13 H14 n.
+      find_rewrite.
+      by case: H_f; left.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H16.
+      by auto with set.
+    by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have IH := IHH_step1 _ H4 H6 _ H7 H8 _ H9 H10 x.
+    find_rewrite.
+    by case: IH; left.
+  * by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have IH := IHH_step1 _ H H6 _ H7 H8 _ H9 H10 lvo'.
+    find_rewrite.
+    case: IH.
+    by right.
+  * by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have IH := IHH_step1 _ H4 H6 _ H7 H8 _ H9 H10 (Some x).
+    find_rewrite.
+    by case: IH; left.
+  * by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have IH := IHH_step1 _ H10 H12 _ H13 H14 _ H15 H16 lvo'.
+    find_rewrite.
+    by case: IH; right.
+  * by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have IH := IHH_step1 _ H10 H12 _ H13 H14 _ H15 H16 lvo'.
+    find_rewrite.
+    by case: IH; right.
+  * by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have H_neq: from <> n by move => H_eq; subst_max.
+    case (name_eq_dec from n') => H_dec.
+      subst_max.
+      by auto with set.
+    rewrite_update2.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H15.
+      by auto with set.
+    by eauto.
+  * have H_neq: from <> to by move => H_eq; subst_max.
+    case (name_eq_dec from n) => H_dec.
+      subst_max.
+      rewrite_update2.
+      case (name_eq_dec to n') => H_dec'.
+        subst_max.
+        rewrite_update2.
+        have IH := IHH_step1 _ H9 H11 _ H12 H13 _ H14 H15 lvo'.
+        find_rewrite.
+        case: IH.
+        by right.
+      rewrite_update2.
+      by eauto.
+    rewrite_update2.
+    by eauto.
+  * by auto with set.
+  * have IH := IHH_step1 _ H10 H12 _ H13 H14 _ H15 H16 lvo'.
+    find_rewrite.
+    case: IH.
+    by right.
+  * case (name_eq_dec from n') => H_dec.
+      subst_max.
+      by auto with set.
+    have H_ins: ~ NSet.In n' d.(adjacent) by auto with set.
+    by eauto.
+  * by eauto.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
+  * have H_neq: from <> n by move => H_eq; subst_max.
+    case (name_eq_dec from n') => H_dec.
+      subst_max.
+      by auto with set.   
+    rewrite_update2.
+    have H_ins: ~ NSet.In n' d.(adjacent) by auto with set.
+    by eauto.
+  * case (name_eq_dec from n) => H_dec.
+      subst_max.
+      rewrite_update2.
+      case (name_eq_dec to n') => H_dec'.
+        subst_max.
+        rewrite_update2.
+        have IH := IHH_step1 _ H5 H7 _ H1 H0 _ H10 H11 lvo'.
+        find_rewrite.
+        by case: IH; right.
+      rewrite_update2.
+      by eauto.
+    rewrite_update2.
+    by eauto.
 - find_apply_lem_hyp input_handlers_IOHandler.
-  by admit.
-- move => n H_n H_f d H_d n' H_ins lvo'.
+  io_handler_cases => //=; simpl in *;
+    update_destruct_max_simplify; repeat find_rewrite; auto; try tuple_inversion; try find_injection; repeat find_rewrite.
+  * by eauto.
+  * by eauto.
+  * have IH := IHH_step1 _ H9 H11 _ H12 H13 _ H2 H15 lvo'.
+    have H_ins: ~ In n' (NSet.elements d.(adjacent)).
+      move => H_ins.
+      case: H15.
+      have H_adj_in_spec := NSet.elements_spec1 d.(adjacent) n'.
+      apply H_adj_in_spec.
+      apply InA_alt.
+      by exists n'.
+    contradict H16.
+    move: H_ins.
+    rewrite /level_adjacent NSet.fold_spec /flip /=.
+    elim: NSet.elements => //=.
+    move => k ns IH' H_in.
+    have H_neq: k <> n' by auto.
+    rewrite (@fold_left_level_fold_eq Tree_TreeMsg) /=.
+    rewrite {2}/level_fold /= collate_app /=.
+    rewrite_update2.
+    have H_in': ~ In n' ns by auto.
+    exact: IH'.
+  * rewrite collate_neq // in H16.
+    by eauto.
+  * by eauto.
+  * by eauto.
+  * by eauto.
+  * by eauto.
+  * by eauto.
+  * by eauto.
+- move => n H_n H_f n' H_n' H_f' d H_d H_ins lvo'.
   have H_neq: h <> n by auto.
   rewrite collate_neq //.
+  have H_fn: ~ In n failed0 by auto.
+  have H_fn': ~ In n' failed0 by auto.
   by eauto.
-*)
-Admitted.
+Qed.
 
 Lemma Tree_level_head_in_adjacent :
   forall net failed tr,
@@ -1902,7 +2067,7 @@ end; simpl in *.
           move => H_ins.
           case: H_adj.
           exact: (Tree_in_adj_adjacent_to H_step1 _ H12 H0 H2 H_ins).
-        have H_inl := Tree_notin_adjacent_not_sent_level H_step1 _ H1 H0 H2 H_ins lvo'.
+        have H_inl := Tree_notin_adjacent_not_sent_level H_step1 _ H1 H0 H9 H11 H2 H_ins lvo'.
         have H_ins': ~ In n (NSet.elements d.(adjacent)).
           move => H_ins'.
           case: H_ins.
