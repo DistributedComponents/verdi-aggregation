@@ -1274,9 +1274,82 @@ Proof.
         break_or_hyp; [left|by auto].
         repeat find_rewrite.
         assumption.
-    + admit.
-    + admit.
-    + admit.
+    + destruct (name_eq_dec from n'), (name_eq_dec to n);
+        subst; rewrite_update2; rewrite_update; try find_injection; eauto.
+      * assert (n' <> n).
+        {
+          intro H_eq; subst.
+          rewrite_update2.
+          match goal with
+          | [ H : context[ _ ++ [Level (Some 0)] ] |- _ ] =>
+            eapply Tree_self_channel_empty with (n := n) in H;
+              simpl in H;
+              symmetry in H
+          end.
+          rewrite_update2.
+          eapply app_cons_not_nil; eauto.
+        }
+        rewrite_update2; rewrite_update.
+        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        {
+          eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
+          find_rewrite.
+          auto with datatypes.
+        }
+        break_or_hyp; [left|by auto].
+        repeat find_rewrite.
+        auto with set.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
+        break_or_hyp; [left|by auto].
+        find_rewrite.
+        auto with set.
+      * admit.
+    + destruct (name_eq_dec from n'), (name_eq_dec to n);
+        subst; rewrite_update2; rewrite_update; try find_injection; eauto.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        {
+          eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
+          find_rewrite.
+          auto with datatypes.
+        }
+        break_or_hyp; [left|by auto].
+        repeat find_rewrite.
+        auto with set.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
+        break_or_hyp; [left|by auto].
+        find_rewrite.
+        auto with set.
+    + destruct (name_eq_dec from n'), (name_eq_dec to n);
+        subst; rewrite_update2; rewrite_update; try find_injection; eauto.
+      * assert (n' <> n).
+        {
+          intro H_eq; subst.
+          rewrite_update2.
+          match goal with
+          | [ H : context[ _ ++ _ ] |- _ ] =>
+            eapply Tree_self_channel_empty with (n := n) in H;
+              simpl in H;
+              symmetry in H
+          end.
+          rewrite_update2.
+          eapply app_cons_not_nil; eauto.
+        }
+        rewrite_update2; rewrite_update.
+        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        {
+          eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
+          rewrite_update.
+          find_rewrite.
+          auto with datatypes.
+        }
+        break_or_hyp; [left|by auto].
+        repeat find_rewrite.
+        auto with set.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
+        break_or_hyp; [left|by auto].
+        find_rewrite.
+        auto with set.
+      * admit.
   - find_apply_lem_hyp input_handlers_IOHandler.
     io_handler_cases => //=; simpl in *; eauto.
     * admit.
