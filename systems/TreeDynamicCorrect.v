@@ -8,6 +8,7 @@ Require Import Verdi.DynamicNetLemmas.
 Require Import StructTact.Update.
 Require Import StructTact.Update2.
 Require Import StructTact.StructTactics.
+Require Import StructTact.ListUtil.
 
 Require Import TreeAux.
 Require Import FailureRecorderDynamic.
@@ -1378,7 +1379,7 @@ Proof.
         subst; rewrite_update; try find_inversion;
           [match goal with
            | [ H : In (Level lvo') ?chan,
-                   H' : refl_trans_1n_trace _ _ (_, ?net) _ |- _ ] =>
+               H' : refl_trans_1n_trace _ _ (_, ?net) _ |- _ ] =>
              assert (H_empty: odnwPackets net n' n' = [])
                by eauto using Tree_self_channel_empty;
              simpl in H_empty;
@@ -1388,51 +1389,25 @@ Proof.
            end|].
       destruct (name_eq_dec h n');
         subst; rewrite_update; try find_inversion; repeat find_rewrite.
-      -- match goal with
+      -- cut (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n));
+           try by intuition eauto using collate_in_in.
+         match goal with
          | [ H : In (Level lvo') (collate _ _ _ ?sends _ _) |- _ ] =>
            destruct (In_dec name_eq_dec n (map fst sends));
-             [|erewrite collate_not_in_eq in H; eauto]
+             [eauto|erewrite collate_not_in_eq in H; eauto]
          end.
-         ** assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)).
-            {
-              eapply Tree_adjacent_or_incoming_new_reciprocal; eauto.
-              unfold level_adjacent in *.
-              rewrite NSet.fold_spec in i.
-              unfold flip in i.
-              unfold level_fold in i.
-              apply in_map_iff in i; break_exists_name pkt; break_and.
-            assert (forall A B (B_eq_dec: forall (b1 b2 : B), {b1 = b2} + {b1 <> b2}) (l : list A) (g : A -> B) y acc,
-                       In y (fold_left (fun a b => g b :: a) l acc) ->
-                       In y acc \/ exists x, In x l /\ y = g x).
-            {
-              intros A B B_eq_dec l.
-              induction l.
-              - tauto.
-              - simpl.
-                intros.
-                destruct (B_eq_dec y (g a)); subst.
-                + right.
-                  exists a.
-                  tauto.
-                + eapply IHl in H12.
-                  break_or_hyp; [left|right].
-                  * eauto using In_cons_neq.
-                  * break_exists_exists;
-                      tauto.
-            }
-            apply H12 in H10;
-              (repeat decide equality || auto using name_eq_dec).
-            break_or_hyp => //=.
-            break_exists; break_and.
-            left.
-            cut (InA eq (fst pkt) (NSet.elements (adjacent d))). by auto with set.
-            cut (In (fst pkt) (NSet.elements (adjacent d))). by auto with set.
-            repeat find_rewrite.
-            auto.
-            }
-            break_or_hyp; auto using collate_in_in.
-         ** assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)) by eauto.
-            break_or_hyp; auto using collate_in_in.
+         eapply Tree_adjacent_or_incoming_new_reciprocal; eauto.
+         unfold level_adjacent, flip, level_fold in *.
+         find_rewrite_lem NSet.fold_spec.
+         find_apply_lem_hyp in_map_iff.
+         break_exists_name pkt; break_and.
+         find_eapply_lem_hyp in_fold_left_by_cons_in;
+           (repeat decide equality || auto using name_eq_dec).
+         break_or_hyp => //=.
+         break_exists; break_and.
+         cut (InA eq (fst pkt) (NSet.elements (adjacent d)));
+           cut (In (fst pkt) (NSet.elements (adjacent d)));
+             by auto with set || by repeat find_rewrite.
       -- destruct (name_eq_dec h n);
            subst; rewrite_update; try find_inversion.
          ** assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
@@ -1467,13 +1442,10 @@ Proof.
         try find_injection;
         auto.
   - intros.
-    assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
-    {
-      eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
-      eapply collate_map2snd_in_neq_in_before; eauto || congruence.
-    }
-    break_or_hyp;
-      auto using collate_in_in.
+    cut (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n));
+      try by intuition auto using collate_in_in.
+    eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
+    eapply collate_map2snd_in_neq_in_before; eauto || congruence.
 Qed.
 
 Lemma Tree_in_before_all_new_level : 
