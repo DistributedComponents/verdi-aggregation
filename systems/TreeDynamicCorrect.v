@@ -1036,7 +1036,7 @@ Lemma Tree_in_level_adjacent_or_incoming_new :
 Proof.
   move => net failed tr H.
   change failed with (fst (failed, net)).
-  change net with (snd (failed, net)) at 1 3 4 5.
+  change net with (snd (failed, net)) at 1 3 4 5 6.
   remember step_ordered_dynamic_failure_init as y in *.
   move: Heqy.
   induction H using refl_trans_1n_trace_n1_ind => H_init {failed}; first by rewrite H_init.
@@ -1091,22 +1091,25 @@ Proof.
           auto with datatypes.
         }
         eapply IHrefl_trans_1n_trace1 with (d:=d) in H_in; eauto.
-        break_or_hyp; [| by auto].
-        exfalso.
-        match goal with
-        | [ H : refl_trans_1n_trace _ _ (?failed, net0) ?tr |- _ ] =>
-          assert (H_step: step_ordered_dynamic_failure_star
-                            step_ordered_dynamic_failure_init
-                            (failed, net0) tr)
-            by auto;
-            pose proof (Tree_in_after_all_fail_level H_step n) as H_after; simpl in H_after
-        end.
-        assert (before_all (Level lvo') Fail (odnwPackets net0 n' n)) by eauto.
-        find_rewrite.
-        simpl in *;
-          break_or_hyp;
-          break_and;
-            by auto.
+        break_or_hyp.
+        -- exfalso.
+           match goal with
+           | [ H : refl_trans_1n_trace _ _ (?failed, net0) ?tr |- _ ] =>
+             assert (H_step: step_ordered_dynamic_failure_star
+                               step_ordered_dynamic_failure_init
+                               (failed, net0) tr)
+               by auto;
+               pose proof (Tree_in_after_all_fail_level H_step n) as H_after; simpl in H_after
+           end.
+           assert (before_all (Level lvo') Fail (odnwPackets net0 n' n)) by eauto.
+           find_rewrite.
+           simpl in *;
+             break_or_hyp;
+             break_and;
+               by auto.
+        -- find_rewrite.
+           right.
+           eapply In_cons_neq; congruence||eauto.
       * match goal with
         | [H : In (Level lvo') (odnwPackets _ n' n) |- _ ] =>
           eapply IHrefl_trans_1n_trace1 with (d:=d) in H; auto
@@ -1155,62 +1158,108 @@ Proof.
           by auto.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        by find_inversion.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        break_or_hyp.
+        -- left. by find_inversion.
+        -- find_rewrite.
+           right.
+           eapply In_cons_neq; eauto || congruence.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        by find_inversion.
+        break_or_hyp.
+        -- left. by find_inversion.
+        -- find_rewrite.
+           right.
+           eauto using In_cons_neq.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        by find_inversion.
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n))
         by (eapply IHrefl_trans_1n_trace1; eauto; repeat find_rewrite; eauto with datatypes).
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        assumption.
+        break_or_hyp.
+        -- repeat find_rewrite.
+           auto.
+        -- find_rewrite.
+           right.
+           eauto ||
+           eapply In_cons_neq;
+             eauto || congruence.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
       * assert (n' <> n).
@@ -1227,35 +1276,50 @@ Proof.
           eapply app_cons_not_nil; eauto.
         }
         rewrite_update2; rewrite_update.
-        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
         {
           eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
           find_rewrite.
           auto with datatypes.
         }
-        break_or_hyp; [left|by auto].
         repeat find_rewrite.
         auto with set.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)) by eauto.
         break_or_hyp; [left|by auto].
         find_rewrite.
         auto with set.
-      * admit.
+      * move {H1}.
+        case (name_eq_dec from n) => H_dec.
+          subst_max.
+          case (name_eq_dec to n') => H_dec.
+            subst_max.
+            rewrite_update2.
+            have H_in: In New (odnwPackets net0 n n') by find_rewrite; left.
+            have H_or: NSet.In n d.(adjacent) \/ In New (odnwPackets net0 n n') by right.
+            have H_rec := Tree_adjacent_or_incoming_new_reciprocal H _ H3 H2 H0 H7 H4 H10 H_or.
+            case: H_rec => H_rec; first by left.
+            right.
+            apply in_or_app.
+            by left.
+          rewrite_update2.
+          by eauto.
+        rewrite_update2.
+        by eauto.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
         {
           eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
           find_rewrite.
           auto with datatypes.
         }
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        auto with set.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
-        break_or_hyp; [left|by auto].
-        find_rewrite.
-        auto with set.
+        break_or_hyp;
+          repeat find_rewrite;
+          auto with set.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)) by eauto.
+        break_or_hyp;
+          repeat find_rewrite;
+          auto with set.
     + destruct (name_eq_dec from n'), (name_eq_dec to n);
         subst; rewrite_update2; rewrite_update; try find_injection; eauto.
       * assert (n' <> n).
@@ -1272,30 +1336,145 @@ Proof.
           eapply app_cons_not_nil; eauto.
         }
         rewrite_update2; rewrite_update.
-        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)).
+        assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
         {
           eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
           rewrite_update.
           find_rewrite.
           auto with datatypes.
         }
-        break_or_hyp; [left|by auto].
-        repeat find_rewrite.
-        auto with set.
-      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net n' n)) by eauto.
-        break_or_hyp; [left|by auto].
-        find_rewrite.
-        auto with set.
-      * admit.
+        break_or_hyp;
+          repeat find_rewrite;
+          auto with set.
+      * assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)) by eauto.
+        break_or_hyp;
+          find_rewrite;
+          auto with set.
+      * move {H1}.
+        case (name_eq_dec from n) => H_dec.
+          subst_max.
+          case (name_eq_dec to n') => H_dec.
+            subst_max.
+            rewrite_update2.
+            have H_in: In New (odnwPackets net0 n n') by find_rewrite; left.
+            have H_or: NSet.In n d.(adjacent) \/ In New (odnwPackets net0 n n') by right.
+            have H_rec := Tree_adjacent_or_incoming_new_reciprocal H _ H3 H2 H0 H7 H4 H10 H_or.
+            case: H_rec => H_rec; first by left.
+            right.
+            apply in_or_app.
+            by left.
+          rewrite_update2.
+          by eauto.
+        rewrite_update2.
+        by eauto.
   - find_apply_lem_hyp input_handlers_IOHandler.
     io_handler_cases => //=; simpl in *; eauto.
-    * admit.
-    * admit.
-    * admit.
-    * admit.
-    * admit.
-  - admit.
-Admitted.
+    * eapply IHrefl_trans_1n_trace1; eauto.
+      destruct (name_eq_dec h n);
+        rewrite_update;
+        try find_injection;
+        auto.
+    * destruct (name_eq_dec n n');
+        subst; rewrite_update; try find_inversion;
+          [match goal with
+           | [ H : In (Level lvo') ?chan,
+                   H' : refl_trans_1n_trace _ _ (_, ?net) _ |- _ ] =>
+             assert (H_empty: odnwPackets net n' n' = [])
+               by eauto using Tree_self_channel_empty;
+             simpl in H_empty;
+             repeat find_rewrite;
+             exfalso;
+             auto with datatypes
+           end|].
+      destruct (name_eq_dec h n');
+        subst; rewrite_update; try find_inversion; repeat find_rewrite.
+      -- match goal with
+         | [ H : In (Level lvo') (collate _ _ _ ?sends _ _) |- _ ] =>
+           destruct (In_dec name_eq_dec n (map fst sends));
+             [|erewrite collate_not_in_eq in H; eauto]
+         end.
+         ** assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)).
+            {
+              eapply Tree_adjacent_or_incoming_new_reciprocal; eauto.
+              unfold level_adjacent in *.
+              rewrite NSet.fold_spec in i.
+              unfold flip in i.
+              unfold level_fold in i.
+              apply in_map_iff in i; break_exists_name pkt; break_and.
+            assert (forall A B (B_eq_dec: forall (b1 b2 : B), {b1 = b2} + {b1 <> b2}) (l : list A) (g : A -> B) y acc,
+                       In y (fold_left (fun a b => g b :: a) l acc) ->
+                       In y acc \/ exists x, In x l /\ y = g x).
+            {
+              intros A B B_eq_dec l.
+              induction l.
+              - tauto.
+              - simpl.
+                intros.
+                destruct (B_eq_dec y (g a)); subst.
+                + right.
+                  exists a.
+                  tauto.
+                + eapply IHl in H12.
+                  break_or_hyp; [left|right].
+                  * eauto using In_cons_neq.
+                  * break_exists_exists;
+                      tauto.
+            }
+            apply H12 in H10;
+              (repeat decide equality || auto using name_eq_dec).
+            break_or_hyp => //=.
+            break_exists; break_and.
+            left.
+            cut (InA eq (fst pkt) (NSet.elements (adjacent d))). by auto with set.
+            cut (In (fst pkt) (NSet.elements (adjacent d))). by auto with set.
+            repeat find_rewrite.
+            auto.
+            }
+            break_or_hyp; auto using collate_in_in.
+         ** assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)) by eauto.
+            break_or_hyp; auto using collate_in_in.
+      -- destruct (name_eq_dec h n);
+           subst; rewrite_update; try find_inversion.
+         ** assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
+            {
+              eapply IHrefl_trans_1n_trace1; eauto.
+              erewrite <- collate_neq; eauto.
+            }
+            break_or_hyp;
+              find_rewrite;
+              auto using collate_in_in.
+         ** assert (NSet.In n' (adjacent d0) \/ In New (odnwPackets net0 n' n)).
+            {
+              eapply IHrefl_trans_1n_trace1; eauto.
+              erewrite <- collate_neq; eauto.
+            }
+            break_or_hyp;
+              find_rewrite;
+              auto using collate_in_in.
+    * eapply IHrefl_trans_1n_trace1; eauto.
+      destruct (name_eq_dec h n);
+        rewrite_update;
+        try find_injection;
+        auto.
+    * eapply IHrefl_trans_1n_trace1; eauto.
+      destruct (name_eq_dec h n);
+        rewrite_update;
+        try find_injection;
+        auto.
+    * eapply IHrefl_trans_1n_trace1; eauto.
+      destruct (name_eq_dec h n);
+        rewrite_update;
+        try find_injection;
+        auto.
+  - intros.
+    assert (NSet.In n' (adjacent d) \/ In New (odnwPackets net0 n' n)).
+    {
+      eapply IHrefl_trans_1n_trace1 with (lvo':=lvo'); eauto.
+      eapply collate_map2snd_in_neq_in_before; eauto || congruence.
+    }
+    break_or_hyp;
+      auto using collate_in_in.
+Qed.
 
 Lemma Tree_in_before_all_new_level : 
   forall net failed tr,
