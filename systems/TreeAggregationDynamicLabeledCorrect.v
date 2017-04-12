@@ -7,6 +7,7 @@ Require Import TreeAux.
 Require Import TreeAggregationDynamicLabeled.
 
 Require Import AggregationDefinitions.
+Require Import AggregationDynamicCorrect.
 
 Require Import InfSeqExt.infseq.
 
@@ -41,6 +42,9 @@ Module TreeAggregationCorrect (Import NT : NameType)
  (Import ANT : AdjacentNameType NT)
  (Import TA : TAux NT NOT NSet NOTC NMap)
  (Import AD : ADefs NT NOT NSet NOTC NMap CFG).
+
+Module AC := AggregationCorrect NT NOT NSet NOTC NMap CFG ANT AD.
+Import AC.
 
 Module TG := TreeAggregation NT NOT NSet NOTC NMap RNT CFG ANT TA AD.
 Import TG.
@@ -277,6 +281,36 @@ Definition correct_root_aggregate
        e.(evt_a).(snd).(odnwState)) =
   node_aggregate e.(evt_a).(snd).(odnwState) n.
 
+Lemma sum_units_is_unit :
+  forall (A : Type) (f : A -> m -> m) l e,
+    (forall a b,
+        In a l ->
+        f a b = b%g) ->
+    fold_right f e l = e.
+Proof.
+  intros.
+  induction l as [|a l].
+  - easy.
+  - intros. simpl.
+    rewrite IHl; auto with datatypes.
+Qed.
+
+(* this probably belongs somewhere specific to aggregation *)
+Lemma sum_fail_map_unit_when_no_fail :
+  forall l from adj map,
+    ~ In aggr_fail l \/
+    ~ NSet.In from adj ->
+    sum_fail_map l from adj map = 1%g.
+Proof.
+  unfold sum_fail_map.
+  intros.
+  break_or_hyp.
+  - destruct (in_dec _ _ _); now simpl.
+  - destruct (NSet.mem _ _) eqn:H_set.
+    * exfalso; auto with set.
+    * now rewrite Bool.andb_false_r.
+Qed.
+
 (* This lemma lets us prove stabilization once we prove that its hypotheses
    about the network eventually hold. *)
 Lemma no_noise_means_correct_root_aggregate :
@@ -293,14 +327,31 @@ Proof.
   unfold mass_conserved_opt_event, conserves_network_mass_opt, correct_root_aggregate.
   intros.
   break_let; simpl in *.
+  repeat find_rewrite.
   remember (remove_all name_eq_dec l o.(odnwNodes)) as live_nodes.
-  assert (sum_fail_balance_incoming_active_opt o.(odnwNodes) live_nodes o.(odnwPackets) o.(odnwState) = 1%g).
+  assert (H_sfb: sum_fail_balance_incoming_active_opt o.(odnwNodes) live_nodes o.(odnwPackets) o.(odnwState) = 1%g).
   {
     unfold no_fail_incoming_active_event in *.
     unfold sum_fail_balance_incoming_active_opt.
-    admit.
+    unfold non_root_nodes_have_unit in *.
+    eapply sum_units_is_unit; intros.
+    specialize (H5 a).
+    destruct (odnwState o a) eqn:H_st; auto.
+    unfold sum_fail_map_incoming.
+    rewrite sum_units_is_unit; gsimpl; intros.
+    cut (exists d : data, odnwState (snd (evt_a e)) a = Some d /\ aggregate d = 1%g);
+      [|by eapply _].
+    intros; break_exists_name d'; break_and.
+    repeat (simpl in *; find_rewrite).
+    find_injection.
+    rewrite sum_fail_map_unit_when_no_fail; [by gsimpl|].
+    simpl.
+    cut (~ In Fail (odnwPackets o a0 a)); [by auto|].
+    (* What is this, and why does it work? *)
+    by eapply _.
   }
-  assert (sum_aggregate_msg_incoming_active o.(odnwNodes) live_nodes o.(odnwPackets) = 1%g).
+  rewrite !H_sfb; gsimpl.
+  assert (H_sam: sum_aggregate_msg_incoming_active o.(odnwNodes) live_nodes o.(odnwPackets) = 1%g).
   {
     unfold sum_aggregate_msg_incoming_active.
     unfold sum_aggregate_msg_incoming.
@@ -309,8 +360,7 @@ Proof.
     unfold aggregate_sum_fold.
     admit.
   }
-  repeat find_rewrite.
-  gsimpl.
+  rewrite !H_sam; gsimpl.
 Admitted.
 
 Theorem churn_free_stabilization :
@@ -325,6 +375,7 @@ Proof.
   find_copy_eapply_lem_hyp fail_msgs_stop; eauto.
   find_copy_eapply_lem_hyp non_root_nodes_eventually_have_unit; eauto.
   pose proof (continuously_and_tl H5 H6).
+  induction H7.
 Admitted.
 
 End TreeAggregationCorrect.
