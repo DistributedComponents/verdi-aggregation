@@ -316,6 +316,7 @@ Qed.
 Lemma no_noise_means_correct_root_aggregate :
   forall e n,
     root n ->
+    step_ordered_dynamic_failure_star step_ordered_dynamic_failure_init e.(evt_a) e.(evt_trace) ->
     In n e.(evt_a).(snd).(odnwNodes) ->
     ~ In n e.(evt_a).(fst) ->
     mass_conserved_opt_event e.(evt_a).(fst) e ->
@@ -331,24 +332,26 @@ Proof.
   remember (remove_all name_eq_dec l o.(odnwNodes)) as live_nodes.
   assert (H_sfb: sum_fail_balance_incoming_active_opt o.(odnwNodes) live_nodes o.(odnwPackets) o.(odnwState) = 1%g).
   {
-    unfold no_fail_incoming_active_event in *.
-    unfold sum_fail_balance_incoming_active_opt.
-    unfold non_root_nodes_have_unit in *.
-    eapply sum_units_is_unit; intros.
-    specialize (H5 a).
-    destruct (odnwState o a) eqn:H_st; auto.
+    unfold no_fail_incoming_active_event, sum_fail_balance_incoming_active_opt, non_root_nodes_have_unit in *.
+    rewrite sum_units_is_unit; gsimpl; intros.
+    destruct (odnwState o a) eqn:H_st; last by auto.
+    match goal with
+    | [ |- (?b * ?q)%g = ?b ] =>
+      cut (q = 1%g);
+        first by intro; repeat find_rewrite; gsimpl
+    end.
     unfold sum_fail_map_incoming.
     rewrite sum_units_is_unit; gsimpl; intros.
-    cut (exists d : data, odnwState (snd (evt_a e)) a = Some d /\ aggregate d = 1%g);
-      [|by eapply _].
-    intros; break_exists_name d'; break_and.
-    repeat (simpl in *; find_rewrite).
-    find_injection.
+    match goal with
+    | [ |- (?b * ?q)%g = ?b ] =>
+      cut (q = 1%g);
+        first by intro; repeat find_rewrite; gsimpl
+    end.
     rewrite sum_fail_map_unit_when_no_fail; [by gsimpl|].
     simpl.
     cut (~ In Fail (odnwPackets o a0 a)); [by auto|].
-    (* What is this, and why does it work? *)
-    by eapply _.
+    repeat (simpl in *; find_rewrite).
+    eauto using in_remove_all_not_in, in_remove_all_was_in.
   }
   rewrite !H_sfb; gsimpl.
   assert (H_sam: sum_aggregate_msg_incoming_active o.(odnwNodes) live_nodes o.(odnwPackets) = 1%g).
@@ -357,10 +360,62 @@ Proof.
     unfold sum_aggregate_msg_incoming.
     unfold no_aggregate_incoming_active_event in *.
     unfold sum_aggregate_msg.
-    unfold aggregate_sum_fold.
     admit.
   }
   rewrite !H_sam; gsimpl.
+  unfold sum_aggregate.
+  assert (In n live_nodes)
+    by (subst; auto using in_remove_all_preserve).
+  find_apply_lem_hyp in_split; break_exists; repeat find_rewrite.
+  rewrite Nodes_data_opt_split.
+  rewrite fold_right_app.
+  simpl in *.
+  unfold node_aggregate.
+  repeat find_rewrite.
+  autorewrite with gsimpl in *.
+  assert (exists d, odnwState o n = Some d)
+    by eauto using DynamicNetLemmas.ordered_dynamic_initialized_state.
+  break_exists_name root_st.
+  find_erewrite_lem sum_local_opt_app; eauto.
+  repeat (simpl in *; find_rewrite); simpl.
+  rewrite !sum_units_is_unit; [by gsimpl| |]; intros;
+    match goal with
+    | [ |- (?b * ?q)%g = ?b ] =>
+      cut (q = 1%g);
+        first by intro; repeat find_rewrite; gsimpl
+    end.
+  - unfold Nodes_data_opt in *.
+    assert (exists h, In h x0 /\ odnwState o h = Some a)
+      by admit; break_exists_name h; break_and.
+    assert (~ root h)
+      by admit.
+    find_eelim_prop non_root_nodes_have_unit; repeat find_rewrite; eauto.
+    * intros; break_and; repeat find_rewrite.
+      repeat (simpl in *; find_rewrite); find_injection.
+      auto.
+    * intros; break_and; repeat find_rewrite.
+      repeat (simpl in *; find_rewrite); simpl.
+      admit.
+    * cut (In h (remove_all name_eq_dec l (odnwNodes o)));
+        [by eauto using in_remove_all_not_in|].
+      find_rewrite.
+      auto with datatypes.
+  - unfold Nodes_data_opt in *.
+    assert (exists h, In h x0 /\ odnwState o h = Some a)
+      by admit; break_exists_name h; break_and.
+    assert (~ root h)
+      by admit.
+    find_eelim_prop non_root_nodes_have_unit; repeat find_rewrite; eauto.
+    * intros; break_and; repeat find_rewrite.
+      repeat (simpl in *; find_rewrite); find_injection.
+      auto.
+    * intros; break_and; repeat find_rewrite.
+      repeat (simpl in *; find_rewrite); simpl.
+      admit.
+    * cut (In h (remove_all name_eq_dec l (odnwNodes o)));
+        [by eauto using in_remove_all_not_in|].
+      find_rewrite.
+      auto with datatypes.
 Admitted.
 
 Theorem churn_free_stabilization :
