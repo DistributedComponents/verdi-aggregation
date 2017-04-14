@@ -311,6 +311,26 @@ Proof.
     * now rewrite Bool.andb_false_r.
 Qed.
 
+(* This might be replaceable by something better. *)
+Ltac cut_unit :=
+  match goal with
+  | [ |- (?b * ?q)%g = ?b ] =>
+    cut (q = 1%g);
+    first by intro; repeat find_rewrite; gsimpl
+  end.
+
+Ltac eapply_prop P :=
+  match goal with
+    | H : P _ |- _ =>
+      eapply H
+    | H : P _ _ |- _ =>
+      eapply H
+    | H : P _ _ _ |- _ =>
+      eapply H
+    | H : P _ _ _ _ |- _ =>
+      eapply H
+  end.
+
 (* This lemma lets us prove stabilization once we prove that its hypotheses
    about the network eventually hold. *)
 Lemma no_noise_means_correct_root_aggregate :
@@ -335,18 +355,10 @@ Proof.
     unfold no_fail_incoming_active_event, sum_fail_balance_incoming_active_opt, non_root_nodes_have_unit in *.
     rewrite sum_units_is_unit; gsimpl; intros.
     destruct (odnwState o a) eqn:H_st; last by auto.
-    match goal with
-    | [ |- (?b * ?q)%g = ?b ] =>
-      cut (q = 1%g);
-        first by intro; repeat find_rewrite; gsimpl
-    end.
+    cut_unit.
     unfold sum_fail_map_incoming.
     rewrite sum_units_is_unit; gsimpl; intros.
-    match goal with
-    | [ |- (?b * ?q)%g = ?b ] =>
-      cut (q = 1%g);
-        first by intro; repeat find_rewrite; gsimpl
-    end.
+    cut_unit.
     rewrite sum_fail_map_unit_when_no_fail; [by gsimpl|].
     simpl.
     cut (~ In Fail (odnwPackets o a0 a)); [by auto|].
@@ -358,9 +370,31 @@ Proof.
   {
     unfold sum_aggregate_msg_incoming_active.
     unfold sum_aggregate_msg_incoming.
-    unfold no_aggregate_incoming_active_event in *.
     unfold sum_aggregate_msg.
-    admit.
+    do 2 (apply sum_units_is_unit; intros; cut_unit).
+    break_if; [reflexivity|].
+    unfold no_fail_incoming_active_event in *.
+    simpl in *.
+    unfold aggregate_sum_fold.
+    apply sum_units_is_unit; intros; cut_unit.
+    match goal with
+    | [ |- _ ?a  = _ ] =>
+      destruct a; reflexivity || exfalso
+    end.
+    repeat find_rewrite; simpl in *.
+    match goal with
+    | [ H : In (Aggregate ?m) (odnwPackets ?o ?src ?dst) |- _ ] =>
+      cut (~ In (Aggregate m) (odnwPackets o src dst));
+        [by auto|
+         assert (In dst (odnwNodes o));
+         first by eauto using in_remove_all_was_in]
+    end.
+    replace o with (snd e.(evt_a)) by (repeat find_rewrite; auto).
+    eapply_prop no_aggregate_incoming_active_event; eauto.
+    - repeat find_reverse_rewrite; simpl in *.
+      replace (snd e.(evt_a)) with o by (repeat find_rewrite; auto).
+      assumption.
+    - eauto using in_remove_all_not_in.
   }
   rewrite !H_sam; gsimpl.
   unfold sum_aggregate.
