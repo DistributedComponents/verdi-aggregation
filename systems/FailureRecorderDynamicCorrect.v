@@ -115,7 +115,7 @@ end; simpl.
         by eauto.
       * apply: NoDup_filter_rel.
         apply: NoDup_remove_all.
-        by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
+        by apply: ordered_dynamic_nodes_no_dup; eauto.
       * apply: related_filter_rel => //.
         exact: in_remove_all_preserve.
     rewrite collate_ls_not_in; last by move => H_in; find_apply_lem_hyp filter_rel_related; break_and.
@@ -437,7 +437,7 @@ end; simpl in *.
     by eauto.
   * apply: NoDup_filter_rel.
     apply: NoDup_remove_all.
-    by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
+    by apply: ordered_dynamic_nodes_no_dup; eauto.
   * apply: related_filter_rel => //.
     exact: in_remove_all_preserve.
 - find_apply_lem_hyp net_handlers_NetHandler.
@@ -1918,6 +1918,7 @@ have H_bef := Failure_in_after_all_fail_new H_st _ H_in_n H_in_f n'.
 case (In_dec Msg_eq_dec New (odnwPackets net n' n)) => H_dec //.
 destruct (odnwPackets net n' n) => //.
 destruct m => //.
+simpl in *.
 case: H_dec => H_dec //.
 find_apply_lem_hyp in_split.
 break_exists.

@@ -7,14 +7,10 @@ opam repo add coq-released https://coq.inria.fr/opam/released
 opam repo add distributedcomponents-dev http://opam-dev.distributedcomponents.net
 
 opam pin add coq $COQ_VERSION --yes --verbose
-opam pin add coq-mathcomp-ssreflect $SSREFLECT_VERSION --yes --verbose
-opam pin add coq-aac-tactics $AAC_TACTICS_VERSION --yes --verbose
-
-opam install coq-mathcomp-fingroup coq-mathcomp-algebra StructTact InfSeqExt verdi verdi-cheerios --yes --verbose
 
 case $MODE in
-  analytics)
-    ./script/analytics.sh &
+  proofalytics)
+    opam pin add verdi-aggregation-proofalytics . --yes --verbose &
     # Output to the screen every 9 minutes to prevent a travis timeout
     export PID=$!
     while [[ `ps -p $PID | tail -n +2` ]]; do
@@ -22,23 +18,10 @@ case $MODE in
 	sleep 540
     done
     ;;
-  tree-test)
-    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
-    ./build.sh tree-test
-    ;;
-  tree-dynamic-test)
-    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
-    ./build.sh tree-dynamic-test
-    ;;
-  aggregation-test)
-    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 --yes --verbose
-    ./build.sh aggregation-test
-    ;;
-  aggregation-dynamic-test)
-    opam install verdi-runtime ounit.2.0.0 uuidm.0.9.6 portaudio.0.2.1 --yes --verbose
-    ./build.sh aggregation-dynamic-test
+  aggregation-dynamic)
+    opam pin add aggregation-dynamic . --yes --verbose
     ;;
   *)
-    ./build.sh
+    opam pin add verdi-aggregation . --yes --verbose
     ;;
 esac

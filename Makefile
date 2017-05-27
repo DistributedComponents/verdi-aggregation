@@ -1,8 +1,8 @@
 PYTHON=python2.7
-COQVERSION := $(shell coqc --version|grep "version 8.5")
+COQVERSION := $(shell coqc --version|egrep "version (8\\.6|trunk)")
 
 ifeq "$(COQVERSION)" ""
-$(error "Verdi Aggregation is only compatible with Coq version 8.5")
+$(error "Verdi Aggregation is only compatible with Coq version 8.6")
 endif
 
 COQPROJECT_EXISTS=$(wildcard _CoqProject)

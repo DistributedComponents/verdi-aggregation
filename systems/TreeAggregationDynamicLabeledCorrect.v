@@ -423,6 +423,7 @@ Proof.
       by admit; break_exists_name h; break_and.
     assert (~ root h)
       by admit.
+    (*
     find_eelim_prop non_root_nodes_have_unit; repeat find_rewrite; eauto.
     * intros; break_and; repeat find_rewrite.
       repeat (simpl in *; find_rewrite); find_injection.
@@ -450,6 +451,7 @@ Proof.
         [by eauto using in_remove_all_not_in|].
       find_rewrite.
       auto with datatypes.
+    *)
 Admitted.
 
 Theorem churn_free_stabilization :

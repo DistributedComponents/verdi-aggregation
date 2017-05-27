@@ -17,6 +17,7 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 Require Import Sorting.Permutation.
+Require FMapFacts.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -60,7 +61,7 @@ Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
-Require Import FMapFacts.
+Import FMapFacts.
 Module NMapFacts := Facts NMap.
 
 Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
@@ -960,7 +961,7 @@ end; simpl in *.
   by auto.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=; unfold update2, update in *; simpl in *; repeat break_if; break_and; subst_max; try find_injection; try by eauto.
-  * have H_in: In (Aggregate x) (odnwPackets net0 n' n) by repeat find_rewrite; left.
+  * have H_in: In (Aggregate x) (odnwPackets net0 n' to) by repeat find_rewrite; left.
     have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 _ H_in _ H4.
     find_rewrite.
     break_or_hyp; last by right; find_reverse_rewrite.
@@ -1163,7 +1164,7 @@ have H_bef := Aggregation_in_after_all_aggregate_new H_st _ H_n H_f _ H_dec m'.
 destruct (odnwPackets net n' n) => //.
 simpl in *.
 find_injection.
-move => H_in'.
+move => H_in' {H_in}.
 break_or_hyp => //.
 break_or_hyp => //.
 by break_and.
@@ -1638,7 +1639,7 @@ end; simpl in *.
     by break_and.
   * have H_neq: from <> to.
       move => H_eq.
-      find_rewrite.
+      repeat find_rewrite.
       by rewrite (Aggregation_self_channel_empty s1) in H3.
     case (in_dec name_eq_dec from net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
     case (in_dec name_eq_dec from failed0) => H_dec'; last first.
@@ -1662,7 +1663,7 @@ end; simpl in *.
     by congruence.
   * have H_neq: from <> to.
       move => H_eq.
-      find_rewrite.
+      repeat find_rewrite.
       by rewrite (Aggregation_self_channel_empty s1) in H3.
     case (in_dec name_eq_dec from net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
     unfold update2, update in *.
@@ -2368,10 +2369,10 @@ end; simpl.
   net_handler_cases.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2423,14 +2424,14 @@ end; simpl.
     by find_rewrite.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
       case (In_dec name_eq_dec from failed0) => H_from_f; last first.
         have H_f := Aggregation_not_failed_no_fail s1 _ H_from_in H_from_f n.
         rewrite H3 in H_f.
         by case: H_f; left.
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2488,10 +2489,10 @@ end; simpl.
     by find_rewrite.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).     
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2543,7 +2544,7 @@ end; simpl.
   io_handler_cases.
   * destruct_update; repeat find_injection.
     + rewrite /= (Aggregation_self_channel_empty s1).
-      destruct d1.
+      destruct d0.
       simpl in *.
       repeat find_rewrite.      
       by apply: (recv_local_self _ s1); eauto.
@@ -2567,7 +2568,7 @@ end; simpl.
       have H_x_in: In x net.(odnwNodes).
         have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H_in_n H_in_f H2 H3.
         by break_or_hyp; break_and.
-      destruct d1.
+      destruct d0.
       simpl in *.
       repeat find_rewrite.
       apply: (send_aggregate_self s1) => //.
@@ -2896,7 +2897,7 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_
 - move => net failed tr from ms m0 H_st H_in_n H_in_f H_eq H_in_from H_in_from' H_neq H_adj H_eq'. 
   move => d H_eq_d H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
   subst.
-  find_apply_lem_hyp NSetFacts.remove_3.
+  repeat find_apply_lem_hyp NSetFacts.remove_3.
   contradict H_ins.
   by eapply Aggregation_node_not_adjacent_self; eauto.
 - move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_from_neq H_from_neq' H_in_from H_in_from' H_adj H_eq.
@@ -2912,7 +2913,7 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_
 - move => net faild tr from ms H_st H_in_n H_in_f H_eq H_in_from H_neq_from H_adj H_eq'.
   move => d H_eq_d IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
   subst.
-  find_apply_lem_hyp NSetFacts.add_3 => //.
+  repeat find_apply_lem_hyp NSetFacts.add_3 => //.
   contradict H_ins.
   by eapply Aggregation_node_not_adjacent_self; eauto.
 - move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.

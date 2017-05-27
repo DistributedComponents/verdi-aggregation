@@ -18,6 +18,7 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 Require Import Sorting.Permutation.
+Require FMapFacts.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -62,7 +63,7 @@ Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
-Require Import FMapFacts.
+Import FMapFacts.
 Module NMapFacts := Facts NMap.
 
 Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
@@ -1907,6 +1908,7 @@ end; simpl.
       exact: IHH_st1.
   * have H_f := Aggregation_in_queue_fail_then_adjacent H_st1 to from H1.
     rewrite H0 in H_f.
+    simpl in *.
     concludes.
     suff H_suff: NSet.In from (adjacent (onwState net to)).
       have [m' H_ex] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H_suff.

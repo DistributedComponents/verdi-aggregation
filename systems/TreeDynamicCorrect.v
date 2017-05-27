@@ -1134,7 +1134,8 @@ Proof.
           eapply IHrefl_trans_1n_trace1 with (d:=d) in H; auto
         end.
         break_or_hyp; [left|by auto].
-        find_rewrite.
+        find_injection.
+        repeat find_rewrite.
         apply NSet.remove_spec;
           by auto.
     + (* Fail case with broadcast = true (same proof) *)
@@ -1815,34 +1816,23 @@ end; simpl in *.
     by case: IH; right.
   * by eauto.
   * by eauto.
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * have H_neq: from <> n by move => H_eq; subst_max.
-    case (name_eq_dec from n') => H_dec.
-      subst_max.
-      by auto with set.
+  * by auto with set.
+  * by auto.
+  * have H_neq: from <> n' by move => H_eq; subst_max.
     rewrite_update2.
     have H_ins: ~ NSet.In n' d.(adjacent).
       move => H_ins.
       case: H15.
       by auto with set.
     by eauto.
-  * have H_neq: from <> to by move => H_eq; subst_max.
-    case (name_eq_dec from n) => H_dec.
-      subst_max.
-      rewrite_update2.
-      case (name_eq_dec to n') => H_dec'.
-        subst_max.
-        rewrite_update2.
-        have IH := IHH_step1 _ H9 H11 _ H12 H13 _ H14 H15 lvo'.
-        find_rewrite.
-        case: IH.
-        by right.
-      rewrite_update2.
-      by eauto.
-    rewrite_update2.
-    by eauto.
-  * by auto with set.
+  * have IH := IHH_step1 _ H9 H11 _ H12 H13 _ H14 H15 lvo'.
+    update2_destruct_max_simplify => //.
+    find_injection.
+    find_rewrite.
+    simpl in *.
+    case: IH.
+    by right.
+  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
   * have IH := IHH_step1 _ H10 H12 _ H13 H14 _ H15 H16 lvo'.
     find_rewrite.
     case: IH.
@@ -1853,28 +1843,26 @@ end; simpl in *.
     have H_ins: ~ NSet.In n' d.(adjacent) by auto with set.
     by eauto.
   * by eauto.
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * have H_neq: from <> n by move => H_eq; subst_max.
-    case (name_eq_dec from n') => H_dec.
-      subst_max.
-      by auto with set.   
+  * by auto with set.
+  * by auto.
+  * have H_neq: from <> n' by move => H_eq; subst_max.
     rewrite_update2.
-    have H_ins: ~ NSet.In n' d.(adjacent) by auto with set.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H15.
+      by auto with set.
     by eauto.
-  * case (name_eq_dec from n) => H_dec.
+  * case (name_eq_dec from n') => H_dec.
       subst_max.
-      rewrite_update2.
-      case (name_eq_dec to n') => H_dec'.
-        subst_max.
-        rewrite_update2.
-        have IH := IHH_step1 _ H5 H7 _ H1 H0 _ H10 H11 lvo'.
-        find_rewrite.
-        by case: IH; right.
       rewrite_update2.
       by eauto.
-    rewrite_update2.
-    by eauto.
+    have IH := IHH_step1 _ H5 H7 _ H8 H9 _ H10 H11 lvo'.
+    update2_destruct_max_simplify => //.
+    find_injection.
+    find_rewrite.
+    simpl in *.
+    case: IH.
+    by right.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; simpl in *;
     update_destruct_max_simplify; repeat find_rewrite; auto; try tuple_inversion; try find_injection; repeat find_rewrite.
@@ -2139,32 +2127,10 @@ end; simpl in *.
       by eauto.
     rewrite_update.
     by eauto.
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * have H_neq: from <> to by move => H_eq; subst_max.
-    case (name_eq_dec from n') => H_dec.
-      subst_max.
-      rewrite_update2.
-      case (name_eq_dec to n) => H_dec'.
-        subst_max.
-        rewrite_update2.
-        rewrite_update.
-        find_injection.
-        find_rewrite.
-        exact: NSetFacts.add_1.
-      rewrite_update2.
-      rewrite_update.
-      by eauto.
-    case (name_eq_dec to n) => H_dec'.
-      subst_max.
-      rewrite_update2.
-      rewrite_update.
+  * update_destruct_max_simplify.
       find_injection.
-      find_rewrite.
-      apply NSetFacts.add_2.
-      by eauto.
-    rewrite_update.
-    update2_destruct_max_simplify; last by eauto.
-    tuple_inversion.
+      by find_rewrite_lem (Tree_self_channel_empty H_step1).
+    update2_destruct_max_simplify; first by find_injection.
     have H_in_new: In New (odnwPackets net0 n n') by find_rewrite; left.
     have H_adj := Tree_in_new_then_adjacent H_step1 _ H1 H0 _ H_in_new.
     apply adjacent_to_symmetric in H_adj.
@@ -2177,10 +2143,6 @@ end; simpl in *.
     case: H_in => H_in //.
     break_or_hyp => //.
     by break_and.
-  * rewrite_update.
-    find_injection.
-    find_rewrite.
-    exact: NSetFacts.add_1.
   * case (name_eq_dec to n) => H_dec.
       subst_max.
       rewrite_update.
@@ -2188,35 +2150,33 @@ end; simpl in *.
       find_rewrite.
       case (name_eq_dec from n') => H_dec'; first exact: NSetFacts.add_1.
       apply NSetFacts.add_2.
+      update2_destruct_max_simplify.
+        find_injection.
+        by find_rewrite.
       by eauto.
     rewrite_update.
+    update2_destruct_max_simplify.
+      find_injection.
+      find_rewrite.
+      find_injection.
+      by find_rewrite.
     by eauto.
-  * by find_rewrite_lem (Tree_self_channel_empty H_step1).
-  * have H_neq: from <> to by move => H_eq; find_rewrite.
-    case (name_eq_dec from n') => H_dec.
-      subst_max.
-      rewrite_update2.
-      case (name_eq_dec to n) => H_dec'.
-        subst_max.
-        rewrite_update2.
-        rewrite_update.
-        find_injection.
-        find_rewrite.
-        exact: NSetFacts.add_1.
-      rewrite_update2.
-      rewrite_update.
-      by eauto.
-    case (name_eq_dec to n) => H_dec'.
-      subst_max.
-      rewrite_update2.
-      rewrite_update.
+  * rewrite_update.
+    find_injection.
+    find_rewrite.
+    exact: NSetFacts.add_1.
+  * update_destruct_max_simplify.
       find_injection.
       find_rewrite.
       apply NSetFacts.add_2.
       by eauto.
-    rewrite_update.
-    update2_destruct_max_simplify; last by eauto.
-    tuple_inversion.
+    by eauto.
+  * update_destruct_max_simplify.
+      find_injection.
+      by find_rewrite_lem (Tree_self_channel_empty H_step1).
+    update2_destruct_max_simplify.
+      find_injection.
+      by find_rewrite_lem (Tree_self_channel_empty H_step1).     
     have H_in_new: In New (odnwPackets net0 n n') by find_rewrite; left.
     have H_adj := Tree_in_new_then_adjacent H_step1 _ H1 H0 _ H_in_new.
     apply adjacent_to_symmetric in H_adj.
@@ -2229,6 +2189,26 @@ end; simpl in *.
     case: H_in => H_in //.
     break_or_hyp => //.
     by break_and.
+  * have H_neq: from <> to. 
+      move => H_eq; find_rewrite.
+      subst_max.
+      by find_rewrite_lem (Tree_self_channel_empty H_step1). 
+    case (name_eq_dec from n') => H_dec.
+      subst_max.
+      update_destruct_max_simplify.
+        find_injection.
+        rewrite_update2.
+        find_rewrite.
+        by auto with set.
+      rewrite_update2.
+      by eauto.
+    rewrite_update2.
+    update_destruct_max_simplify.
+      find_injection.
+      find_rewrite.
+      have IH := IHH_step1 _ H5 H7 _ H8 lvo' H9 _ H2.
+      by auto with set.
+    by eauto.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; simpl in *; update_destruct_max_simplify;
     repeat find_rewrite; try find_injection; try by eauto.
@@ -2348,6 +2328,62 @@ Lemma Tree_notins_levels_bot :
   forall n', ~ NSet.In n' d.(adjacent) ->
   NMap.find n' d.(levels) = None.
 Proof.
+move => net failed tr H_step.
+change failed with (fst (failed, net)).
+change net with (snd (failed, net)) at 1 3.
+remember step_ordered_dynamic_failure_init as y in *.
+move: Heqy.
+induction H_step using refl_trans_1n_trace_n1_ind => H_init; first by rewrite H_init.
+concludes.
+match goal with
+| [ H : step_ordered_dynamic_failure _ _ _ |- _ ] => invc H
+end; simpl in *.
+- move => n H_n H_f d H_d n' H_ins.
+  break_or_hyp; rewrite_update; first find_injection; simpl in *.
+  * apply NMapFacts.not_find_in_iff.  
+    by NMapFacts.map_iff.
+  * by eauto.
+- find_apply_lem_hyp net_handlers_NetHandler.
+  net_handler_cases => //=; simpl in *; update_destruct_max_simplify;
+    repeat find_rewrite; try find_injection; repeat find_rewrite; try by eauto.
+  * have H_emp :=  (Tree_root_levels_empty H_step1) _ H9 H11 H4 _ H2.
+    repeat find_rewrite.
+    apply NMapFacts.not_find_in_iff.
+    by NMapFacts.map_iff.
+  * case (name_eq_dec from n') => H_dec.
+      subst_max.
+      apply NMapFacts.not_find_in_iff.
+      NMapFacts.map_iff.
+      move => H_and.
+      by break_and.
+    apply NMapFacts.not_find_in_iff.
+    NMapFacts.map_iff.
+    move => H_and.
+    break_and.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H14.
+      by auto with set.
+    have IH := IHH_step1 _ H10 H12 _ H2 _ H_ins.    
+    by apply NMapFacts.not_find_in_iff in IH.
+  * case (name_eq_dec from n') => H_dec.
+      subst_max.
+      apply NMapFacts.not_find_in_iff.
+      NMapFacts.map_iff.
+      move => H_or.
+      by break_and.
+    apply NMapFacts.not_find_in_iff.
+    NMapFacts.map_iff.
+    move => H_and.
+    break_and.
+    have H_ins: ~ NSet.In n' d.(adjacent).
+      move => H_ins.
+      case: H14.
+      by auto with set.
+    have IH := IHH_step1 _ H1 H0 _ H2 _ H_ins.
+    by apply NMapFacts.not_find_in_iff in IH.
+  * case (in_dec name_eq_dec from (odnwNodes net0)) => H_in; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Tree_FailMsgParams _ _ _ H_step1) in H3.
+    have H_hd := Tree_level_head_in_adjacent H_step1 _ H1 H0 from H_in.
 Admitted.
 
 (* bfs_net_ok_root_status_in_queue *)
