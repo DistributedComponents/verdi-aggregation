@@ -16,7 +16,7 @@ module ZTreeAggregationArrangement (P : Params) = struct
   type client_id = string
   type res = (output list * state) * ((name * msg) list)
   type task_handler = name -> state -> res
-  type timeout_setter = name -> state -> float
+  type timeout_setter = name -> state -> float option
 
   let systemName : string = "Dynamic Z Tree Aggregation Protocol"
 
@@ -73,13 +73,13 @@ module ZTreeAggregationArrangement (P : Params) = struct
     fun n s ->
       Obj.magic (coq_ZTreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic SendAggregate) (Obj.magic s))
 
-  let setSendAggregateTimeout : timeout_setter = fun n s -> P.aggregate_timeout
+  let setSendAggregateTimeout : timeout_setter = fun n s -> Some P.aggregate_timeout
 
   let deliverBroadcastHandler : task_handler =
     fun n s ->
       Obj.magic (coq_ZTreeAggregation_MultiParams.input_handlers (Obj.magic n) (Obj.magic Broadcast) (Obj.magic s))
 
-  let setBroadcastTimeout : timeout_setter = fun n s -> P.broadcast_timeout
+  let setBroadcastTimeout : timeout_setter = fun n s -> Some P.broadcast_timeout
 
   let timeoutTasks : (task_handler * timeout_setter) list = 
     [

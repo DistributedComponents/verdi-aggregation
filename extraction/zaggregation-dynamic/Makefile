@@ -1,13 +1,11 @@
 PYTHON=python2.7
 
-OCAMLBUILD = ocamlbuild -use-ocamlfind -tag thread -package 'uuidm verdi-runtime' -I ocaml -cflag -g
-OCAMLBUILD_TEST = $(OCAMLBUILD) -package oUnit -I test
+OCAMLBUILD = ocamlbuild -use-ocamlfind -tags 'thread safe_string' -pkgs 'uuidm verdi-runtime' -I ocaml -cflag -g
+OCAMLBUILD_TEST = $(OCAMLBUILD) -pkg oUnit -I test
 
 MLEXTRACTED = ocaml/ZTreeAggregation.ml ocaml/ZTreeAggregation.mli
-
 MLFILES = ocaml/ZTreeAggregationArrangement.ml ocaml/ZTreeAggregationMain.ml ocaml/Serialization.ml
-
-MLFILES_TEST = test/SerializationTest.ml test/ZTreeAggregationTest.ml test/TestCommon.ml
+MLFILES_TEST = test/SerializationTest.ml test/ZTreeAggregationTest.ml test/OptsTest.ml
 
 default: ZTreeAggregationMain.native
 
