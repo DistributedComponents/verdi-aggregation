@@ -14,6 +14,7 @@ env:
   matrix:
     - MODE=build
     - MODE=aggregation-dynamic OPAMBUILDTEST=1
+    - MODE=proofalytics
 before_install:
   - openssl aes-256-cbc -K $encrypted_80476f3400be_key -iv $encrypted_80476f3400be_iv -in .travis/travis_rsa.enc -out .travis/travis_rsa -d
   - cp .travis/travis_rsa ~/.ssh
