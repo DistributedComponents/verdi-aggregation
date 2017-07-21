@@ -1,8 +1,8 @@
 open OUnit2
 open ListLabels
-open TestCommon
+open Util
 
-let tear_down () text_ctxt =
+let tear_down () test_ctxt =
   Opts.cluster := Opts.cluster_default;
   Opts.me := Opts.me_default;
   Opts.port := Opts.port_default;
@@ -21,21 +21,25 @@ let test_validate_correct_line test_ctxt =
   Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -me 0 -port 8000 -node 0,localhost:9000 -node 1,localhost:9001 -node 2,localhost:9002");
   assert_equal () (Opts.validate ())
 
-let test_validate_missing_me text_ctxt =
+let test_validate_missing_me test_ctxt =
   Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -port 8000 -node 0,localhost:9000 -node 1,localhost:9001 -node 2,localhost:9002");
   assert_raises (Arg.Bad "Please specify the node name -me") Opts.validate
 
-let test_validate_empty_cluster text_ctxt =
+let test_validate_empty_cluster test_ctxt =
   Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -me 0 -port 8000");
   assert_raises (Arg.Bad "Please specify at least one -node") Opts.validate
 
-let test_validate_me_not_cluster_member text_ctxt =
+let test_validate_me_not_cluster_member test_ctxt =
   Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -me 0 -port 8000 -node 1,localhost:9001 -node 2,localhost:9002");
   assert_raises (Arg.Bad "0 is not a member of this cluster") Opts.validate
 
-let test_validate_duplicate_node_entry text_ctxt =
+let test_validate_duplicate_node_entry test_ctxt =
   Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -me 0 -port 8000 -node 0,localhost:9000 -node 0,localhost:9001");
   assert_raises (Arg.Bad "Please remove duplicate -node name entries") Opts.validate
+
+let test_validate_same_client_msg_port test_ctxt =
+  Opts.parse (arr_of_string "./vard.native -dbpath /tmp/vard-8000 -me 0 -port 8000 -node 0,localhost:8000 -node 1,localhost:9001");
+  assert_raises (Arg.Bad "Can't use same port for client commands and messages") Opts.validate
 
 let test_list =
   ["parse correct line", test_parse_correct_line;
@@ -44,6 +48,7 @@ let test_list =
    "validate empty cluster", test_validate_empty_cluster;
    "validate me not member of cluster", test_validate_me_not_cluster_member;
    "validate duplicate node entry", test_validate_duplicate_node_entry;
+   "validate same client/msg port", test_validate_same_client_msg_port;
   ]
   
 let tests =

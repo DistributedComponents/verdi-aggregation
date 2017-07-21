@@ -61,12 +61,12 @@ Module AggregationGroup <: CommutativeFinGroup := CFG NumBits.
 
 Extract Constant fintype.Finite.base2 => "fun c -> { Countable.base = c.base; Countable.mixin = (Obj.magic mixin_base __ c.mixin) }".
 Extract Inlined Constant fintype.prod_enum => "(fun t1 t2 -> [])".
-Require Import BvectorCommutativeFinGroup.
-Require Import ProdCommutativeFinGroup.
-Module NumBits : NatValue. Definition n := 32. End NumBits.
-Module IntCFG1 <: CommutativeFinGroup := CFG NumBits.
-Module IntCFG2 <: CommutativeFinGroup := CFG NumBits.
-Module AggregationGroup : CommutativeFinGroup := ProdCFG IntCFG1 IntCFG2.
+
+Require Import commfingroup.
+
+Module AggregationGroup <: CommutativeFinGroup.
+  Definition gT := extprod_commFinGroup (BAddGroup.Bvector_commFinGroupType 32) (BAddGroup.Bvector_commFinGroupType 32).
+End AggregationGroup.
 
 (* Extraction of Bvector to Int32 *)
 

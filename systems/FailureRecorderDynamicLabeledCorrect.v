@@ -119,7 +119,7 @@ end; simpl.
         by eauto.
       * apply: NoDup_filter_rel.
         apply: NoDup_remove_all.
-        by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
+        by apply: ordered_dynamic_nodes_no_dup; eauto.
       * apply: related_filter_rel => //.
         exact: in_remove_all_preserve.
     rewrite collate_ls_not_in; last by move => H_in; find_apply_lem_hyp filter_rel_related; break_and.
@@ -441,7 +441,7 @@ end; simpl in *.
     by eauto.
   * apply: NoDup_filter_rel.
     apply: NoDup_remove_all.
-    by find_apply_lem_hyp ordered_dynamic_nodes_no_dup.
+    by apply: ordered_dynamic_nodes_no_dup; eauto.
   * apply: related_filter_rel => //.
     exact: in_remove_all_preserve.
 - find_apply_lem_hyp net_handlers_NetHandler; break_exists.
@@ -799,12 +799,12 @@ apply: (P_inv_n_in H_st); rewrite /P_curr //= {P_curr net tr H_st H_n failed H_f
 - move => onet failed tr ms H_st H_in H_f H_in' H_f' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
   apply before_all_head_not_in in H_bef => //.
-  exact: before_all_not_in.
+  exact: before_all_not_in_1.
 - move => onet failed tr ms H_st H_in H_f H_in' H_neq H_eq d H_eq' H_bef.
   rewrite H_eq in H_bef.
   rewrite /= in H_bef.
   break_or_hyp; last by break_and.
-  exact: before_all_not_in.
+  exact: before_all_not_in_1.
 - move => onet failed tr H_st H_in H_f H_in' H_f' H_adj H_neq d H_eq H_bef.
   exact: before_all_neq_append.
 Qed.
@@ -1923,6 +1923,7 @@ have H_bef := Failure_in_after_all_fail_new H_st _ H_in_n H_in_f n'.
 case (In_dec Msg_eq_dec New (odnwPackets net n' n)) => H_dec //.
 destruct (odnwPackets net n' n) => //.
 destruct m => //.
+simpl in *.
 case: H_dec => H_dec //.
 find_apply_lem_hyp in_split.
 break_exists.
@@ -2030,7 +2031,7 @@ Definition head_message_enables_label m src dst l :=
   ~ In dst failed ->
   forall d, net.(odnwState) dst = Some d ->
   head (net.(odnwPackets) src dst) = Some m ->
-  enabled lb_step_ordered_dynamic_failure l (failed, net).
+  lb_step_ex lb_step_ordered_dynamic_failure l (failed, net).
 
 Lemma Fail_enables_RecvFail :
   forall src dst, head_message_enables_label Fail src dst (RecvFail dst src).
@@ -2077,7 +2078,7 @@ Lemma Failure_lb_step_ordered_failure_RecvFail_enabled :
   l <> RecvFail dst src ->
   lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
   lb_step_ordered_dynamic_failure (failed, net) (RecvFail dst src) (failed'', net'') tr' ->
-  enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (failed', net').
+  lb_step_ex lb_step_ordered_dynamic_failure (RecvFail dst src) (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
 destruct l => //.
@@ -2132,7 +2133,7 @@ Lemma Failure_lb_step_ordered_failure_RecvNew_enabled :
   l <> RecvNew dst src ->
   lb_step_ordered_dynamic_failure (failed, net) l (failed', net') tr ->
   lb_step_ordered_dynamic_failure (failed, net) (RecvNew dst src) (failed'', net'') tr' ->
-  enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (failed', net').
+  lb_step_ex lb_step_ordered_dynamic_failure (RecvNew dst src) (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
 destruct l => //.
@@ -2184,8 +2185,8 @@ Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
   forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
-       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src))) 
+       forall src dst, enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
+                  weak_until (now (enabled lb_step_ordered_dynamic_failure (RecvFail dst src))) 
                              (now (occurred (RecvFail dst src))) 
                              s.
 Proof.
@@ -2197,8 +2198,8 @@ case (Label_eq_dec l (RecvFail dst src)) => H_eq H_en.
   exact: W0.
 - apply: W_tl; first by [].
   apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
-  unfold l_enabled in *.
-  unfold enabled in H_en.
+  unfold enabled in *.
+  unfold lb_step_ex in H_en.
   break_exists.
   destruct s as [e s].
   inversion H_exec; subst_max.
@@ -2212,8 +2213,8 @@ Qed.
 
 Lemma Failure_RecvNew_enabled_weak_until_occurred :
   forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
-       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src))) 
+       forall src dst, enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
+                  weak_until (now (enabled lb_step_ordered_dynamic_failure (RecvNew dst src))) 
                              (now (occurred (RecvNew dst src))) 
                              s.
 Proof.
@@ -2225,8 +2226,8 @@ case (Label_eq_dec l (RecvNew dst src)) => H_eq H_en.
   exact: W0.
 - apply: W_tl; first by [].
   apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
-  unfold l_enabled in *.
-  unfold enabled in H_en.
+  unfold enabled in *.
+  unfold lb_step_ex in H_en.
   break_exists.
   destruct s as [e s].
   inversion H_exec; subst_max.
@@ -2240,8 +2241,8 @@ Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
-       weak_local_fairness lb_step_ordered_dynamic_failure label_silent s ->
-       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
+       weak_fairness lb_step_ordered_dynamic_failure label_silent s ->
+       forall src dst, enabled lb_step_ordered_dynamic_failure (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
@@ -2257,8 +2258,8 @@ Qed.
 
 Lemma Failure_RecvNew_eventually_occurred :
   forall s, lb_step_execution lb_step_ordered_dynamic_failure s ->
-       weak_local_fairness lb_step_ordered_dynamic_failure label_silent s ->
-       forall src dst, l_enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
+       weak_fairness lb_step_ordered_dynamic_failure label_silent s ->
+       forall src dst, enabled lb_step_ordered_dynamic_failure (RecvNew dst src) (hd s) ->
                   eventually (now (occurred (RecvNew dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.

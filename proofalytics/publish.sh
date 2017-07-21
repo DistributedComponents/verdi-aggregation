@@ -45,7 +45,7 @@ function mkindex {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Verdi Proofalytics</title>
+  <title>Verdi Aggregation Proofalytics</title>
   <style>
     html {
       font-family: sans-serif;

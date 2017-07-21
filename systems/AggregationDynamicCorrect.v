@@ -12,11 +12,13 @@ Require Import AggregatorDynamic.
 Require Import AggregationDynamic.
 Require Import FailureRecorderDynamicCorrect.
 
+Require Import FunctionalExtensionality.
 Require Import Sumbool.
 Require Import Orders.
+Require Import Sorting.Permutation.
 Require Import MSetFacts.
 Require Import MSetProperties.
-Require Import Sorting.Permutation.
+Require FMapFacts.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -24,6 +26,8 @@ Require Import mathcomp.ssreflect.eqtype.
 Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
+
+Require Import commfingroup.
 
 Require Import AAC_tactics.AAC.
 
@@ -58,7 +62,7 @@ Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
-Require Import FMapFacts.
+Import FMapFacts.
 Module NMapFacts := Facts NMap.
 
 Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
@@ -150,7 +154,7 @@ Instance Aggregation_FailureRecorder_new_msg_params_pt_map_congruency : NewMsgPa
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_ordered_dynamic_failure_star _ _ _ Aggregation_NewMsgParams Aggregation_FailMsgParams step_ordered_dynamic_failure_init (failed, net) tr ->
-    @step_ordered_dynamic_failure_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_map_odnet net) (pt_map_traces tr).
+    @step_ordered_dynamic_failure_star _ _ _ FR.FailureRecorder_NewMsgParams FR.FailureRecorder_FailMsgParams step_ordered_dynamic_failure_init (failed, pt_map_odnet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_dynamic_failure_pt_mapped_simulation_star_1 in H_st.
@@ -188,7 +192,7 @@ have IH' := IH _ H_n H_f n'.
 move => H_in.
 case: IH'.
 move: H_in.
-apply: in_msg_pt_map_msgs.
+apply: in_msg_filterMap_pt_map_msg.
 exact: pt_fail_msg_fst_snd.
 Qed.
 
@@ -231,7 +235,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -251,7 +255,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -273,11 +277,11 @@ set in_pt := In FR.Fail _.
 move => IH.
 suff H_suff: in_pt.
   move: H_suff.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 apply: IH.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggreation_in_adj_adjacent_to :
@@ -319,7 +323,7 @@ right.
 split => //.
 split => //.
 move: H1.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -338,7 +342,7 @@ have H_inv' := @FRC.Failure_new_incoming_not_in_adj _ _ _ H_st' n _ _ n' _ {| FR
 rewrite /= map_id /id /= H_eq in H_inv'.
 apply: H_inv' => //.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_to_no_incoming_new_n_adjacent :
@@ -360,7 +364,7 @@ have H_inv'' := H_inv' H_n H_f H_n' H_f' H_adj {| FR.adjacent := d.(adjacent) |}
 apply: H_inv'' => //.
 move => H_in'.
 case: H_in.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -387,7 +391,7 @@ suff H_suff: f_in.
     left.
     split => //.
     move: H.
-    apply: in_pt_map_msgs_in_msg => //.
+    apply: in_filterMap_pt_map_msg_in_msg => //.
     exact: Aggregation_pt_map_msg_injective.
   break_and.
   right.
@@ -395,10 +399,10 @@ suff H_suff: f_in.
   move => H_in'.
   case: H.
   move: H_in'.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 rewrite /f_in.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_incoming_fail_then_new_or_adjacent :
@@ -431,7 +435,7 @@ rewrite /= map_id /id /= H_eq' in H_inv'.
 have H_inv'' := H_inv' H_n H_f n' _ {| FR.adjacent := d.(adjacent) |} (Logic.eq_refl _).
 apply: H_inv''.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_or_incoming_new_reciprocal :
@@ -462,7 +466,7 @@ case: H_in => H_in.
   case: H_inv'' => H_inv''; first by left.
   right.
   move: H_inv''.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 suff H_suff: inn.
   have H_or: NSet.In n' (adjacent d) \/ inn by right.
@@ -470,10 +474,10 @@ suff H_suff: inn.
   case: H_inv'' => H_inv''; first by left.
   right.
   move: H_inv''.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_then_adjacent_or_new_incoming :
@@ -497,7 +501,7 @@ concludes.
 break_or_hyp; first by left.
 right.
 move: H.
-apply: in_pt_map_msgs_in_msg => //.
+apply: in_filterMap_pt_map_msg_in_msg => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -521,9 +525,9 @@ suff H_suff: hde.
   concludes.
   case: H_inv''.
   move: H_in.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_failed_adjacent_fail :
@@ -546,13 +550,13 @@ set inn := In FR.Fail _.
 move => H_inv''.
 suff H_suff: inn.
   move: H_suff.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   exact: Aggregation_pt_map_msg_injective.
 apply: H_inv''.
 case: H_or => H_or; first by left.
 right.
 move: H_or.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_in_new_then_adjacent :
@@ -568,7 +572,7 @@ have H_inv' := @FRC.Failure_in_new_then_adjacent _ _ _ H_st' n.
 rewrite /= map_id /id /= in H_inv'.
 apply: (H_inv' H_n H_f n').
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_inactive_not_in_adjacent :
@@ -855,29 +859,33 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
   rewrite /update2.
   break_if; break_and; subst_max; last by eauto.
-  apply: before_all_not_in_append.
+  apply: before_all_not_in_2.
+  move => H_in.
+  apply in_app_or in H_in.
+  case: H_in => H_in; last by case: H_in.
+  contradict H_in.
   exact: (Aggregation_not_failed_no_fail H).
 - move => n H_n H_f n' H_n' m'.
   have H_neq: h <> n by auto.
@@ -954,7 +962,7 @@ end; simpl in *.
   by auto.
 - find_apply_lem_hyp net_handlers_NetHandler.
   net_handler_cases => //=; unfold update2, update in *; simpl in *; repeat break_if; break_and; subst_max; try find_injection; try by eauto.
-  * have H_in: In (Aggregate x) (odnwPackets net0 n' n) by repeat find_rewrite; left.
+  * have H_in: In (Aggregate x) (odnwPackets net0 n' to) by repeat find_rewrite; left.
     have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 _ H_in _ H4.
     find_rewrite.
     break_or_hyp; last by right; find_reverse_rewrite.
@@ -1095,23 +1103,23 @@ end; simpl in *.
   net_handler_cases => //=; unfold update2 in *; break_if; break_and; subst_max; try find_injection; try by eauto.
   * have IH := IHrefl_trans_1n_trace1 _ H6 H7 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H8 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H15 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
   * have IH := IHrefl_trans_1n_trace1 _ H3 H2 _ H14 m'.
     find_rewrite.
-    case: IH => IH; first exact: before_all_not_in.
+    case: IH => IH; first exact: before_all_not_in_1.
     by break_and.
 - find_apply_lem_hyp input_handlers_IOHandler.
   io_handler_cases => //=; try by eauto.
@@ -1157,7 +1165,7 @@ have H_bef := Aggregation_in_after_all_aggregate_new H_st _ H_n H_f _ H_dec m'.
 destruct (odnwPackets net n' n) => //.
 simpl in *.
 find_injection.
-move => H_in'.
+move => H_in' {H_in}.
 break_or_hyp => //.
 break_or_hyp => //.
 by break_and.
@@ -1632,7 +1640,7 @@ end; simpl in *.
     by break_and.
   * have H_neq: from <> to.
       move => H_eq.
-      find_rewrite.
+      repeat find_rewrite.
       by rewrite (Aggregation_self_channel_empty s1) in H3.
     case (in_dec name_eq_dec from net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
     case (in_dec name_eq_dec from failed0) => H_dec'; last first.
@@ -1656,7 +1664,7 @@ end; simpl in *.
     by congruence.
   * have H_neq: from <> to.
       move => H_eq.
-      find_rewrite.
+      repeat find_rewrite.
       by rewrite (Aggregation_self_channel_empty s1) in H3.
     case (in_dec name_eq_dec from net.(odnwNodes)) => H_dec; last by rewrite (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1) in H3.
     unfold update2, update in *.
@@ -2362,10 +2370,10 @@ end; simpl.
   net_handler_cases.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2417,14 +2425,14 @@ end; simpl.
     by find_rewrite.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).
       case (In_dec name_eq_dec from failed0) => H_from_f; last first.
         have H_f := Aggregation_not_failed_no_fail s1 _ H_from_in H_from_f n.
         rewrite H3 in H_f.
         by case: H_f; left.
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2482,10 +2490,10 @@ end; simpl.
     by find_rewrite.
   * destruct_update; repeat find_injection.
     + rewrite /update2 /=.
-      break_if; first by break_and; subst; find_rewrite_lem (Aggregation_self_channel_empty s1).
+      break_if; first by break_and; subst; repeat find_rewrite_lem (Aggregation_self_channel_empty s1).
       break_or_hyp => //.
       case (In_dec name_eq_dec from net.(odnwNodes)) => H_from_in; last by find_rewrite_lem (@ordered_dynamic_no_outgoing_uninitialized _ _ _ _ Aggregation_FailMsgParams _ _ _ s1 _ H_from_in).     
-      destruct d1.
+      destruct d0.
       simpl in *.
       rewrite (Aggregation_self_channel_empty s1).
       repeat find_rewrite.
@@ -2537,7 +2545,7 @@ end; simpl.
   io_handler_cases.
   * destruct_update; repeat find_injection.
     + rewrite /= (Aggregation_self_channel_empty s1).
-      destruct d1.
+      destruct d0.
       simpl in *.
       repeat find_rewrite.      
       by apply: (recv_local_self _ s1); eauto.
@@ -2561,7 +2569,7 @@ end; simpl.
       have H_x_in: In x net.(odnwNodes).
         have H_or := Aggregation_in_adj_or_incoming_fail s1 _ H_in_n H_in_f H2 H3.
         by break_or_hyp; break_and.
-      destruct d1.
+      destruct d0.
       simpl in *.
       repeat find_rewrite.
       apply: (send_aggregate_self s1) => //.
@@ -2890,7 +2898,7 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_
 - move => net failed tr from ms m0 H_st H_in_n H_in_f H_eq H_in_from H_in_from' H_neq H_adj H_eq'. 
   move => d H_eq_d H_find IH H_ins H_ins' m1 H_find_m1 m2 H_find_m2.
   subst.
-  find_apply_lem_hyp NSetFacts.remove_3.
+  repeat find_apply_lem_hyp NSetFacts.remove_3.
   contradict H_ins.
   by eapply Aggregation_node_not_adjacent_self; eauto.
 - move => net failed tr from ms m0 H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_from_neq H_from_neq' H_in_from H_in_from' H_adj H_eq.
@@ -2906,7 +2914,7 @@ apply: (P_dual_inv H_st); rewrite /P_curr //= {P_curr tr H_st failed H_f H_f' H_
 - move => net faild tr from ms H_st H_in_n H_in_f H_eq H_in_from H_neq_from H_adj H_eq'.
   move => d H_eq_d IH H_ins H_ins' m0 H_find_m0 m1 H_find_m1.
   subst.
-  find_apply_lem_hyp NSetFacts.add_3 => //.
+  repeat find_apply_lem_hyp NSetFacts.add_3 => //.
   contradict H_ins.
   by eapply Aggregation_node_not_adjacent_self; eauto.
 - move => net failed tr ms H_st H_in_n H_in_f H_in_n' H_in_f' H_neq H_adj H_eq.
@@ -3688,8 +3696,6 @@ end; simpl in *.
     case: H_in.
     by rewrite collate_neq.
 Qed.
-
-Require Import FunctionalExtensionality.
 
 Lemma sum_fail_map_incoming_collate_ls_filter_rel_not_in_eq :
   forall l ns h f adj map,

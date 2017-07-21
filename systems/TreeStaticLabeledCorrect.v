@@ -120,13 +120,13 @@ Proof.
     move => n l IH.
     rewrite /flip /= /level_fold.
     rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-    by rewrite pt_map_name_msgs_app_distr /= IH.
+    by rewrite filterMap_app /= IH.
   rewrite /level_adjacent NSet.fold_spec /flip /=.
   elim: NSet.elements => //=.
   move => n l IH.
   rewrite /flip /= /level_fold.
   rewrite (@fold_left_level_fold_eq Tree_TreeMsg).
-  by rewrite pt_map_name_msgs_app_distr /= IH.
+  by rewrite filterMap_app /= IH.
 Qed.
 
 Instance Tree_FailureRecorder_fail_msg_params_pt_map_congruency : FailMsgParamsPartialMapCongruency Tree_FailMsgParams FR.FailureRecorder_FailMsgParams Tree_FailureRecorder_multi_params_pt_map := 
@@ -142,7 +142,7 @@ Instance Tree_FailureRecorder_name_overlay_params_tot_map_congruency : NameOverl
 Theorem Tree_Failed_pt_mapped_simulation_star_1 :
   forall net failed tr,
     @step_ordered_failure_star _ _ _ Tree_FailMsgParams step_ordered_failure_init (failed, net) tr ->
-    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
@@ -215,7 +215,7 @@ move => H_in.
 case: H_inv'.
 rewrite /= /id /=.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_in_adj_adjacent_to :
@@ -254,7 +254,7 @@ right.
 move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
-apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+apply: in_filterMap_pt_map_msg_in_msg; last exact: pt_fail_msg_fst_snd.
 exact: Tree_pt_map_msg_injective.
 Qed.
 
@@ -274,7 +274,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite -H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Tree_pt_map_msg_injective.
 Qed.
 
@@ -306,7 +306,7 @@ have H_inv' := FRC.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_first_fail_in_adj : 
@@ -323,7 +323,7 @@ have H_inv' := FRC.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_adjacent_failed_incoming_fail : 
@@ -379,7 +379,7 @@ Definition head_message_enables_label m src dst l :=
   forall net failed, 
   ~ In dst failed ->
   head (net.(onwPackets) src dst) = Some m ->
-  enabled lb_step_ordered_failure l (failed, net).
+  lb_step_ex lb_step_ordered_failure l (failed, net).
 
 Lemma Fail_enables_RecvFail :
   forall src dst, head_message_enables_label Fail src dst (RecvFail dst src).
@@ -426,7 +426,7 @@ Lemma Tree_lb_step_ordered_failure_RecvFail_enabled :
   l <> RecvFail dst src ->
   lb_step_ordered_failure (failed, net) l (failed', net') tr ->
   lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed'', net'') tr' ->
-  enabled lb_step_ordered_failure (RecvFail dst src) (failed', net').
+  lb_step_ex lb_step_ordered_failure (RecvFail dst src) (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
 destruct l => //.
@@ -529,7 +529,7 @@ Lemma Tree_lb_step_ordered_failure_RecvLevel_enabled :
   l <> RecvLevel dst src ->
   lb_step_ordered_failure (failed, net) l (failed', net') tr ->
   lb_step_ordered_failure (failed, net) (RecvLevel dst src) (failed'', net'') tr' ->
-  enabled lb_step_ordered_failure (RecvLevel dst src) (failed', net').
+  lb_step_ex lb_step_ordered_failure (RecvLevel dst src) (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
 destruct l => //.
@@ -633,8 +633,8 @@ Qed.
 
 Lemma Tree_RecvFail_enabled_weak_until_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_ordered_failure (RecvFail dst src))) 
+       forall src dst, enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
+                  weak_until (now (enabled lb_step_ordered_failure (RecvFail dst src))) 
                              (now (occurred (RecvFail dst src))) 
                              s.
 Proof.
@@ -646,8 +646,8 @@ case (Label_eq_dec l (RecvFail dst src)) => H_eq H_en.
   exact: W0.
 - apply: W_tl; first by [].
   apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
-  unfold l_enabled in *.
-  unfold enabled in H_en.
+  unfold enabled in *.
+  unfold lb_step_ex in H_en.
   break_exists.
   destruct s as [e s].
   inversion H_exec; subst_max.
@@ -661,8 +661,8 @@ Qed.
 
 Lemma Tree_RecvLevel_enabled_weak_until_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvLevel dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_ordered_failure (RecvLevel dst src))) 
+       forall src dst, enabled lb_step_ordered_failure (RecvLevel dst src) (hd s) ->
+                  weak_until (now (enabled lb_step_ordered_failure (RecvLevel dst src))) 
                              (now (occurred (RecvLevel dst src))) 
                              s.
 Proof.
@@ -674,8 +674,8 @@ case (Label_eq_dec l (RecvLevel dst src)) => H_eq H_en.
   exact: W0.
 - apply: W_tl; first by [].
   apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
-  unfold l_enabled in *.
-  unfold enabled in H_en.
+  unfold enabled in *.
+  unfold lb_step_ex in H_en.
   break_exists.
   destruct s as [e s].
   inversion H_exec; subst_max.
@@ -689,8 +689,8 @@ Qed.
 
 Lemma Tree_RecvFail_eventually_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
+       forall src dst, enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
@@ -706,8 +706,8 @@ Qed.
 
 Lemma Tree_RecvLevel_eventually_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvLevel dst src) (hd s) ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
+       forall src dst, enabled lb_step_ordered_failure (RecvLevel dst src) (hd s) ->
                   eventually (now (occurred (RecvLevel dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
@@ -1161,7 +1161,7 @@ Qed.
 
 Lemma Tree_Fail_eventually_remove_head :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   forall ms, onwPackets (snd (evt_a (hd s))) src dst = Fail :: ms ->
   eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
@@ -1171,14 +1171,14 @@ have H_hd: head (onwPackets (snd (evt_a (hd s))) src dst) = Some Fail by find_re
 have H_en := Fail_enables_RecvFail _ _ _ _ H_f H_hd.
 have H_ev: eventually (now (occurred (RecvFail dst src))) s.
   apply (@Tree_RecvFail_eventually_occurred _ H_exec H_fair src dst).
-  rewrite /l_enabled.
+  rewrite /enabled.
   by destruct evt_a.
 have H_ex: exists ms', onwPackets (snd (evt_a (hd s))) src dst = Fail :: ms ++ ms' by exists []; rewrite app_nil_r.
 have H_al := Tree_not_in_failed_always H_exec _ H_f.
 have H_wu := @Tree_RecvFail_enabled_weak_until_occurred _ H_exec src dst.
 move: H_wu.
-set le := l_enabled _ _ _.
-have H_le: le by rewrite /le /l_enabled; destruct evt_a.
+set le := enabled _ _ _.
+have H_le: le by rewrite /le /enabled; destruct evt_a.
 move => H_wu.
 concludes.  
 move {H_eq H_f H_hd H_en H_le le}.
@@ -1244,7 +1244,7 @@ elim: H_ev H_exec H_fair H_ex H_al H_wu.
   + apply E_next.
     apply IH.
     -- by find_apply_lem_hyp lb_step_execution_invar.
-    -- by find_apply_lem_hyp weak_local_fairness_invar.
+    -- by find_apply_lem_hyp weak_fairness_invar.
     -- inversion H_exec; subst_max.
        simpl in *.
        have H_add := Tree_lb_step_ordered_failure_Fail_head_add_msg_end H2 H_eq H_ex.
@@ -1261,7 +1261,7 @@ Qed.
 
 Lemma Tree_Level_eventually_remove_head :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   forall lvo ms, onwPackets (snd (evt_a (hd s))) src dst = Level lvo :: ms ->
   eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
@@ -1271,14 +1271,14 @@ have H_hd: head (onwPackets (snd (evt_a (hd s))) src dst) = Some (Level lvo) by 
 have H_en := Level_enables_RecvLevel _ _ _ _ H_f H_hd.
 have H_ev: eventually (now (occurred (RecvLevel dst src))) s.
   apply (@Tree_RecvLevel_eventually_occurred _ H_exec H_fair src dst).
-  rewrite /l_enabled.
+  rewrite /enabled.
   by destruct evt_a.
 have H_ex: exists ms', onwPackets (snd (evt_a (hd s))) src dst = Level lvo :: ms ++ ms' by exists []; rewrite app_nil_r.
 have H_al := Tree_not_in_failed_always H_exec _ H_f.
 have H_wu := @Tree_RecvLevel_enabled_weak_until_occurred _ H_exec src dst.
 move: H_wu.
-set le := l_enabled _ _ _.
-have H_le: le by rewrite /le /l_enabled; destruct evt_a.
+set le := enabled _ _ _.
+have H_le: le by rewrite /le /enabled; destruct evt_a.
 move => H_wu.
 concludes.  
 move {H_eq H_f H_hd H_en H_le le}.
@@ -1364,7 +1364,7 @@ elim: H_ev H_exec H_fair H_ex H_al H_wu.
   + apply E_next.
     apply IH.
     -- by find_apply_lem_hyp lb_step_execution_invar.
-    -- by find_apply_lem_hyp weak_local_fairness_invar.
+    -- by find_apply_lem_hyp weak_fairness_invar.
     -- inversion H_exec; subst_max.
        simpl in *.
        have H_add := Tree_lb_step_ordered_failure_Level_head_add_msg_end H2 H_eq H_ex.
@@ -1381,7 +1381,7 @@ Qed.
 
 Lemma Tree_msg_eventually_remove_head :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   forall m ms, onwPackets (snd (evt_a (hd s))) src dst = m :: ms ->
   eventually (now (fun e => exists ms', onwPackets (snd (evt_a e)) src dst = ms ++ ms')) s.
@@ -1396,7 +1396,7 @@ Qed.
 
 Lemma Tree_msg_in_eventually_first : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   forall m, In m (onwPackets (snd (evt_a (hd s))) src dst) ->
   eventually (now (fun e => head (onwPackets (snd (evt_a e)) src dst) = Some m)) s.
@@ -1427,16 +1427,16 @@ elim: l1 s H_exec H_fair l2 H_in H_f => /=.
     apply: E_next.
     apply IH'.
     + by find_apply_lem_hyp lb_step_execution_invar.
-    + by find_apply_lem_hyp weak_local_fairness_invar.
+    + by find_apply_lem_hyp weak_fairness_invar.
     + by find_apply_lem_hyp always_invar.
 Qed.
 
 Lemma Tree_Fail_in_eventually_enabled : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   In Fail (onwPackets (snd (evt_a (hd s))) src dst) ->
-  eventually (now (l_enabled lb_step_ordered_failure (RecvFail dst src))) s.
+  eventually (now (enabled lb_step_ordered_failure (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_f H_in.
 have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H_f _ H_in.
@@ -1446,7 +1446,7 @@ apply: eventually_monotonic.
 - move => e s0 H_al.
   by find_apply_lem_hyp always_invar.
 - case; case; case => failed net l tr s' H_eq.
-  rewrite /l_enabled.
+  rewrite /enabled.
   simpl in *.
   apply: Fail_enables_RecvFail => //.
   by find_apply_lem_hyp always_now.
@@ -1454,10 +1454,10 @@ Qed.
 
 Lemma Tree_Level_in_eventually_enabled : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   forall lvo, In (Level lvo) (onwPackets (snd (evt_a (hd s))) src dst) ->
-  eventually (now (l_enabled lb_step_ordered_failure (RecvLevel dst src))) s.
+  eventually (now (enabled lb_step_ordered_failure (RecvLevel dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_f lvo H_in.
 have H_ev := Tree_msg_in_eventually_first H_exec H_fair _ _ H_f _ H_in.
@@ -1467,7 +1467,7 @@ apply: eventually_monotonic.
 - move => e s0 H_al.
   by find_apply_lem_hyp always_invar.
 - case; case; case => failed net l tr s' H_eq.
-  rewrite /l_enabled.
+  rewrite /enabled.
   simpl in *.
   apply: Level_enables_RecvLevel => //.
   by find_apply_lem_hyp always_now.
@@ -1493,13 +1493,13 @@ Qed.
 Lemma Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually :
 forall l, tot_map_label l <> FR.Tau ->
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
-  l_enabled lb_step_ordered_failure (tot_map_label l) (pt_map_onet_event (hd s)) ->
-  eventually (now (l_enabled lb_step_ordered_failure l)) s.
+  weak_fairness lb_step_ordered_failure label_silent s ->
+  enabled lb_step_ordered_failure (tot_map_label l) (pt_map_onet_event (hd s)) ->
+  eventually (now (enabled lb_step_ordered_failure l)) s.
 Proof.
 case => //= dst src H_neq {H_neq}.
 case => [[[failed net] l]] tr s H_exec H_fair H_en.
-rewrite /l_enabled /enabled /= map_id in H_en.
+rewrite /enabled /lb_step_ex /= map_id in H_en.
 break_exists.
 destruct x as [failed' net'].
 invcs H => //.
@@ -1510,30 +1510,30 @@ find_injection.
 simpl in *.
 move {H6}.
 have H_in: In Fail (onwPackets net from to).
-  apply: in_pt_map_msgs_in_msg.
+  apply: in_filterMap_pt_map_msg_in_msg.
   - by case => //; case.
   - by eexists.
   - by rewrite H4; left.
 exact: Tree_Fail_in_eventually_enabled.
 Qed.
 
-Lemma Tree_pt_map_onet_tot_map_label_event_state_strong_local_fairness : 
+Lemma Tree_pt_map_onet_tot_map_label_event_state_strong_fairness : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       strong_local_fairness lb_step_ordered_failure label_silent s ->
-       strong_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
+       strong_fairness lb_step_ordered_failure label_silent s ->
+       strong_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
-apply: pt_map_onet_tot_map_label_event_strong_local_fairness.
+apply: pt_map_onet_tot_map_label_event_strong_fairness.
 - case; first by exists Tau.
   move => dst src.
   by exists (RecvFail dst src).
 - move => l H_neq s H_exec H_fair.
-  find_apply_lem_hyp strong_local_fairness_weak.
+  find_apply_lem_hyp strong_fairness_weak.
   exact: Tree_lb_step_ordered_failure_enabled_weak_fairness_pt_map_onet_eventually.  
 Qed.
 
 Lemma Tree_has_fail_not_in_fail :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
+  weak_fairness lb_step_ordered_failure label_silent s ->
   forall src dst, ~ In dst (fst (evt_a (hd s))) ->
   In Fail (onwPackets (snd (evt_a (hd s))) src dst) ->
   eventually ((now (fun e => head (onwPackets (snd (evt_a e)) src dst) = Some Fail)) /\_
@@ -1545,16 +1545,16 @@ Lemma Tree_pt_map_onet_always_enabled_continuously :
 forall l : label,
   tot_map_label l <> label_silent ->
   forall s, lb_step_execution lb_step_ordered_failure s ->
-  weak_local_fairness lb_step_ordered_failure label_silent s ->
-  always (now (l_enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
-  continuously (now (l_enabled lb_step_ordered_failure l)) s.
+  weak_fairness lb_step_ordered_failure label_silent s ->
+  always (now (enabled lb_step_ordered_failure (tot_map_label l))) (map pt_map_onet_event s) ->
+  continuously (now (enabled lb_step_ordered_failure l)) s.
 Proof.
 case => //= src dst H_neq.
 case; case; case => /= failed net l tr s H_exec H_fair H_al.
 find_rewrite_lem map_Cons.
 find_apply_lem_hyp always_Cons.
 break_and.
-rewrite /= /l_enabled /enabled /= map_id /id in H.
+rewrite /= /enabled /lb_step_ex /= map_id /id in H.
 break_exists_name a.
 break_exists_name tr'.
 destruct a as [failed' net'].
@@ -1564,12 +1564,12 @@ FR.net_handler_cases => //.
 simpl in *.
 find_injection.
 move: H5.
-set ptm := pt_map_msgs _.
+set ptm := filterMap _ _.
 move => H_eq_pt.
 have H_in_pt: In FR.Fail ptm by find_rewrite; left.
 have H_in: In Fail (onwPackets net from to).
   move: H_in_pt.
-  apply: in_pt_map_msgs_in_msg => //.
+  apply: in_filterMap_pt_map_msg_in_msg => //.
   by case => //=; case.
 unfold ptm in *.
 move {ptm H_in_pt}.
@@ -1584,13 +1584,13 @@ elim: H_ev H0 H_exec; clearall => //=.
   move {H_fair H7 H_in H6}. *)
 Admitted.
 
-Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness : 
+Lemma Tree_pt_map_onet_tot_map_label_event_state_weak_fairness : 
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
-       weak_local_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
+       weak_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent (map pt_map_onet_event s).
 Proof.
 move => s H_star H_exec H_fair.
-apply: pt_map_onet_tot_map_label_event_state_weak_local_fairness => //.
+apply: pt_map_onet_tot_map_label_event_state_weak_fairness => //.
 - case; first by exists Tau.
   move => dst src.
   by exists (RecvFail dst src).
@@ -1599,14 +1599,14 @@ Qed.
 
 Lemma Tree_lb_step_ordered_failure_continuously_no_fail :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
 Proof.
 move => s H_exec H_fair src dst H_in_f.
 have H_exec_map := Tree_FailureRecorder_lb_step_execution_pt_map H_exec.
-have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness H_exec H_fair.
+have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_fairness H_exec H_fair.
 have H_map := FRC.Failure_lb_step_ordered_failure_continuously_no_fail H_exec_map H_w src dst.
 move: H_map.
 set ind := ~ In _ _.
@@ -1627,13 +1627,13 @@ apply continuously_map_conv.
   move => H_in H_in'.
   case: H_in.
   move: H_in'.
-  exact: in_msg_pt_map_msgs.
+  exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Tree_lb_step_ordered_failure_continuously_adj_not_failed : 
   forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
        lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
@@ -1642,7 +1642,7 @@ Lemma Tree_lb_step_ordered_failure_continuously_adj_not_failed :
 Proof.
 move => s H_star H_exec H_fair src dst H_in_f.
 have H_exec_map := Tree_FailureRecorder_lb_step_execution_pt_map H_exec.
-have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_local_fairness H_exec H_fair.
+have H_w := Tree_pt_map_onet_tot_map_label_event_state_weak_fairness H_exec H_fair.
 have H_map := FRC.Failure_lb_step_ordered_failure_continuously_adj_not_failed _ H_exec_map H_w src dst.
 move: H_map.
 set ind := ~ In _ _.

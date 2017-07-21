@@ -859,7 +859,7 @@ Definition head_message_enables_label m src dst l :=
   forall net failed, 
   ~ In dst failed ->
   head (net.(onwPackets) src dst) = Some m ->
-  enabled lb_step_ordered_failure l (failed, net).
+  lb_step_ex lb_step_ordered_failure l (failed, net).
 
 Lemma Fail_enables_RecvFail :
   forall src dst, head_message_enables_label Fail src dst (RecvFail dst src).
@@ -884,7 +884,7 @@ Lemma Tree_lb_step_ordered_failure_RecvFail_enabled :
   l <> RecvFail dst src ->
   lb_step_ordered_failure (failed, net) l (failed', net') tr ->
   lb_step_ordered_failure (failed, net) (RecvFail dst src) (failed'', net'') tr' ->
-  enabled lb_step_ordered_failure (RecvFail dst src) (failed', net').
+  lb_step_ex lb_step_ordered_failure (RecvFail dst src) (failed', net').
 Proof.
 move => net net' net'' failed failed' failed'' tr tr' dst src l H_neq H_st H_st'.
 destruct l => //.
@@ -910,8 +910,8 @@ Qed.
 
 Lemma Failure_RecvFail_enabled_weak_until_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
-                  weak_until (now (l_enabled lb_step_ordered_failure (RecvFail dst src))) 
+       forall src dst, enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
+                  weak_until (now (enabled lb_step_ordered_failure (RecvFail dst src))) 
                              (now (occurred (RecvFail dst src))) 
                              s.
 Proof.
@@ -923,8 +923,8 @@ case (Label_eq_dec l (RecvFail dst src)) => H_eq H_en.
   exact: W0.
 - apply: W_tl; first by [].
   apply: c; first by find_apply_lem_hyp lb_step_execution_invar.
-  unfold l_enabled in *.
-  unfold enabled in H_en.
+  unfold enabled in *.
+  unfold lb_step_ex in H_en.
   break_exists.
   destruct s as [e s].
   inversion H_exec; subst_max.
@@ -938,8 +938,8 @@ Qed.
 
 Lemma Failure_RecvFail_eventually_occurred :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
-       forall src dst, l_enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
+       forall src dst, enabled lb_step_ordered_failure (RecvFail dst src) (hd s) ->
                   eventually (now (occurred (RecvFail dst src))) s.
 Proof.
 move => s H_exec H_fair src dst H_en.
@@ -1055,10 +1055,10 @@ Lemma count_occ_fail_head :
   forall e src dst k,
   ~ In dst (fst (evt_a e)) ->
   count_occ Msg_eq_dec (onwPackets (snd (evt_a e)) src dst) Fail = S k ->
-  l_enabled lb_step_ordered_failure (RecvFail dst src) e.
+  enabled lb_step_ordered_failure (RecvFail dst src) e.
 Proof.
 case => /= [[failed net] lb] tr src dst k H_in_f H_cnt.
-rewrite /l_enabled /= /enabled.
+rewrite /enabled /= /lb_step_ex.
 case H_m: (onwPackets net src dst) => [|m ms]; first by rewrite H_m in H_cnt.
 destruct m.
 case H_hnd: (@lb_net_handlers _ FailureRecorder_LabeledMultiParams dst src Fail (onwState net dst)) => [[[lb' out] d] l].
@@ -1072,7 +1072,7 @@ Qed.
 
 Lemma Failure_eventually_fewer_Fail :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall src dst k, ~ In dst (fst (hd s).(evt_a)) ->
                     count_occ Msg_eq_dec (onwPackets (snd (hd s).(evt_a)) src dst) Fail = S k ->
                     eventually (now (fun e => count_occ Msg_eq_dec (onwPackets (snd e.(evt_a)) src dst) Fail = k)) s.
@@ -1108,14 +1108,14 @@ case (Label_eq_dec (RecvFail dst src) evt_l) => H_eq.
 apply E_next.
 apply IH.
 - by [].
-- by apply weak_local_fairness_invar in H_fair.
+- by apply weak_fairness_invar in H_fair.
 - by eapply lb_step_ordered_failure_not_in_failed; eauto.
 - by eapply lb_step_ordered_failure_count_occ_Fail_neq_eq; eauto.
 Qed.
 
 Lemma Failure_lb_step_ordered_failure_eventually_le_0_fail :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        eventually (now (fun e => count_occ Msg_eq_dec ((snd e.(evt_a)).(onwPackets) src dst) Fail = 0)) s.
@@ -1142,7 +1142,7 @@ move => e s0 H_ev H_ev' H_exec H_fair H_in_f.
 apply: E_next.
 apply: H_ev'. 
 - by apply lb_step_execution_invar in H_exec.
-- by apply weak_local_fairness_invar in H_fair.
+- by apply weak_fairness_invar in H_fair.
 - inversion H_exec.
   destruct e, e'.
   destruct evt_a, evt_a0.
@@ -1152,7 +1152,7 @@ Qed.
 
 Lemma Failure_lb_step_ordered_failure_continuously_no_fail :
   forall s, lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => ~ In Fail ((snd e.(evt_a)).(onwPackets) src dst))) s.
@@ -1181,13 +1181,13 @@ elim: H_ev.
 - move => e s0 H_ev IH H_exec H_fair.
   apply: E_next.
   apply: IH; first by apply lb_step_execution_invar in H_exec.
-  by apply weak_local_fairness_invar in H_fair.
+  by apply weak_fairness_invar in H_fair.
 Qed.
 
 Lemma Failure_lb_step_ordered_failure_no_fails_step_star_ex :
   forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
        lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall src dst,
        ~ In dst (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 
@@ -1213,7 +1213,7 @@ Qed.
 Lemma Failure_lb_step_ordered_failure_continuously_adj_not_failed :
   forall s, event_step_star step_ordered_failure step_ordered_failure_init (hd s) ->
        lb_step_execution lb_step_ordered_failure s ->
-       weak_local_fairness lb_step_ordered_failure label_silent s ->
+       weak_fairness lb_step_ordered_failure label_silent s ->
        forall n n',
        ~ In n (fst (hd s).(evt_a)) ->
        continuously (now (fun e => 

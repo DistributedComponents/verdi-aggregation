@@ -17,6 +17,8 @@ Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
 
+Require Import commfingroup.
+
 Local Arguments update {_} {_} _ _ _ _ _ : simpl never.
 
 Set Implicit Arguments.
@@ -312,7 +314,7 @@ match i with
              broadcast := st.(broadcast);
              levels := st.(levels) |}
     end
-  end)  ;;
+  end) ;;
   ret (DeliverSendAggregate me)
 | AggregateRequest client_id => 
   write_output (AggregateResponse client_id st.(aggregate))  ;;

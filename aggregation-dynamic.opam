@@ -1,0 +1,38 @@
+opam-version: "1.2"
+version: "dev"
+maintainer: "palmskog@gmail.com"
+
+homepage: "https://github.com/DistributedComponents/verdi-aggregation"
+dev-repo: "https://github.com/DistributedComponents/verdi-aggregation.git"
+bug-reports: "https://github.com/DistributedComponents/verdi-aggregation/issues"
+license: "Proprietary"
+
+build: [
+  [ "./configure" ]
+  [ make "-j%{jobs}%" "aggregation-dynamic" ]
+]
+build-test: [make "aggregation-dynamic-test"]
+available: [ ocaml-version >= "4.02.3" ]
+depends: [
+  "coq" {>= "8.6" & < "8.7~"}
+  "coq-mathcomp-ssreflect" {>= "1.6" & < "1.7~"}
+  "coq-mathcomp-algebra" {>= "1.6" & < "1.7~"}
+  "coq-mathcomp-fingroup" {>= "1.6" & < "1.7~"}
+  "coq-aac-tactics" {>= "8.6.1"}
+  "verdi" {= "dev"}
+  "StructTact" {= "dev"}
+  "InfSeqExt" {= "dev"}
+  "cheerios" {= "dev"}
+  "verdi-cheerios" {= "dev"}
+  "ocamlbuild" {build}
+  "ocamlfind" {build}
+  "verdi-runtime" {= "dev"}
+  "uuidm" {>= "0.9.6"}
+  "portaudio" {>= "0.2.1"}
+  "ounit" {test & >= "2.0.0"}
+]
+
+authors: [
+  "Karl Palmskog <>"
+  "Ryan Doenges <>"
+]

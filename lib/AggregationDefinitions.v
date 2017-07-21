@@ -15,28 +15,28 @@ Require Import mathcomp.ssreflect.finset.
 
 Require Import mathcomp.fingroup.fingroup.
 
+Require Import commfingroup.
+
 Require Import AAC_tactics.AAC.
 
 Set Implicit Arguments.
 
 Module Type CommutativeFinGroup.
-  Parameter gT : finGroupType.
-  Parameter mulgC : @commutative gT _ mulg.
+  Parameter gT : commFinGroupType.
 End CommutativeFinGroup.
 
 Module CFGAACInstances (Import CFG : CommutativeFinGroup).
   Import GroupScope.
 
-  Instance aac_mulg_Assoc : Associative eq (mulg (T:=gT)) := mulgA (T:=gT).
+  Instance aac_mulg_Assoc : Associative eq (@mulg gT) := @mulgA gT.
 
-  Instance aac_mulg_Comm : Commutative eq (mulg (T:=gT)) := mulgC.
+  Instance aac_mulg_Comm : Commutative eq (@mulg gT) := @mulgC gT.
 
-  Instance aac_mulg_unit : Unit eq (mulg (T:=gT)) 1.
-  Proof.
-    apply: (Build_Unit eq mulg 1) => x. 
-    - by rewrite mul1g.
-    - by rewrite mulg1.
-  Qed.
+  Instance aac_mulg_unit : Unit eq (@mulg gT) 1 :=
+    {
+      law_neutral_left := @mul1g gT;
+      law_neutral_right := @mulg1 gT
+    }.
 End CFGAACInstances.
 
 Module Type ADefs (Import NT : NameType)  

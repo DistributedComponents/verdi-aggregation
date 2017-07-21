@@ -1,22 +1,11 @@
-Require Import mathcomp.ssreflect.ssreflect.
-Require Import mathcomp.ssreflect.ssrfun.
-Require Import mathcomp.ssreflect.ssrbool.
-Require Import mathcomp.ssreflect.eqtype.
-Require Import mathcomp.ssreflect.ssrnat.
-Require Import mathcomp.ssreflect.seq.
-Require Import mathcomp.ssreflect.choice.
-Require Import mathcomp.ssreflect.fintype.
-
-Require Import mathcomp.ssreflect.div.
-Require Import mathcomp.ssreflect.path.
-Require Import mathcomp.ssreflect.bigop.
-Require Import mathcomp.ssreflect.prime.
-Require Import mathcomp.ssreflect.finset.
-
-Require Import mathcomp.fingroup.fingroup.
-
-Require Import mathcomp.algebra.ssralg.
-Require Import mathcomp.algebra.finalg.
+From mathcomp.ssreflect
+Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
+From mathcomp.ssreflect
+Require Import choice fintype div path bigop prime finset.
+From mathcomp.fingroup
+Require Import fingroup.
+From mathcomp.algebra
+Require Import ssralg finalg.
 
 Require Import Bvector ZArith Zdigits.
 
@@ -25,6 +14,8 @@ Require Import BAddMul.
 
 Require Import NatPowLt.
 
+Require Import commfingroup.
+
 Section BitVectorGroup.
 
 Variable n : nat.
@@ -32,7 +23,7 @@ Variable n : nat.
 Definition Bvector_eq_dec := VectorEq.eq_dec bool eqb eqb_true_iff n.
 
 Definition Bvector_eqMixin := EqMixin (compareP Bvector_eq_dec).
-Canonical Structure Bvector_eqType := Eval hnf in EqType (Bvector n) Bvector_eqMixin.
+Canonical Bvector_eqType := Eval hnf in EqType (Bvector n) Bvector_eqMixin.
 
 Lemma Bvector_add0b : left_id (zero n) add.
 Proof. exact: add_0_l. Qed.
@@ -77,13 +68,13 @@ Qed.
 
 Definition Bvector_countMixin := PcanCountMixin pcancel_Bvector_bitseq.
 Definition Bvector_choiceMixin := CountChoiceMixin Bvector_countMixin.
-Canonical Structure Bvector_ChoiceType := Eval hnf in ChoiceType (Bvector n) Bvector_choiceMixin.
-Canonical Structure Bvector_CountType := Eval hnf in CountType (Bvector n) Bvector_countMixin.
+Canonical Bvector_ChoiceType := Eval hnf in ChoiceType (Bvector n) Bvector_choiceMixin.
+Canonical Bvector_CountType := Eval hnf in CountType (Bvector n) Bvector_countMixin.
 
 Definition Bvector_zmodMixin := ZmodMixin Bvector_addA Bvector_addC Bvector_add0b Bvector_addNb.
 Canonical Bvector_zmodType := Eval hnf in ZmodType (Bvector n) Bvector_zmodMixin.
 
-Lemma Bvector_to_I2k : forall k, Bvector k -> 'I_(2^k).
+Definition Bvector_to_I2k : forall k, Bvector k -> 'I_(2^k).
 refine (nat_rect _ _ _); intros.
 - apply (@Ordinal 1 0).
   auto with arith.
@@ -115,7 +106,7 @@ Defined.
 
 Definition Bvector_to_I2n := Bvector_to_I2k n.
 
-Lemma I2k_to_Bvector : forall k, 'I_(2^k) -> Bvector k.
+Definition I2k_to_Bvector : forall k, 'I_(2^k) -> Bvector k.
 simple induction k.
 - rewrite /= => i.
   exact: Bnil.
@@ -238,15 +229,16 @@ by rewrite H_IB.
 Qed.
 
 Definition Bvector_finMixin := PcanFinMixin pcancel_Bvector_to_I2n.
-Canonical Structure Bvector_finType := Eval hnf in FinType (Bvector n) Bvector_finMixin.
+Canonical Bvector_finType := Eval hnf in FinType (Bvector n) Bvector_finMixin.
 Canonical Bvector_finZmodType := Eval hnf in [finZmodType of Bvector n].
 Canonical Bvector_baseFinGroupType := Eval hnf in [baseFinGroupType of Bvector n for +%R].
 Canonical Bvector_finGroupType := Eval hnf in [finGroupType of Bvector n for +%R].
 
-Import GroupScope.
-
 Lemma Bvector_mulgC : @commutative (Bvector n) _ mulg.
 Proof. exact: Bvector_addC. Qed.
+
+Definition Bvector_commFinGroupMixin := CommFinGroupMixin Bvector_mulgC.
+Canonical Bvector_commFinGroupType := Eval hnf in CommFinGroupType _ Bvector_commFinGroupMixin.
 
 End BitVectorGroup.
 
@@ -285,3 +277,53 @@ Canonical Bvector_comRingType := Eval hnf in ComRingType (Bvector n) (@Bvector_m
 Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
 
 End BitVectorRing.
+
+Require Import serializablecommfingroup.
+
+Require Import Cheerios.Cheerios.
+
+Section BitVectorSerialization.
+
+Variable n : nat.
+
+Axiom Bvector_serialize : forall (v : Bvector n), IOStreamWriter.t.
+
+Axiom Bvector_deserialize : ByteListReader.t (Bvector n).
+
+Axiom Bvector_serialize_deserialize_id :
+  serialize_deserialize_id_spec Bvector_serialize Bvector_deserialize.
+
+(*
+Definition serialize (v : Bvector n) : list bool :=
+Vector.to_list v.
+
+Fixpoint deserialize_aux k (bs : list bool) : option (Bvector k * list bool) :=
+match k, bs with
+| 0, bs' => Some (Bnil, bs')
+| S k', [::] => None
+| S k', (b :: bs')%SEQ =>
+  match deserialize_aux k' bs' with
+  | None => None
+  | Some (v, bs'') => Some (Bcons b k' v, bs'')
+  end
+end.
+
+Definition deserialize (bs : list bool) : option (Bvector n * list bool) :=
+deserialize_aux n bs.
+
+Lemma serialize_deserialize_id : serialize_deserialize_id_spec serialize deserialize.
+Proof.
+rewrite /serialize /deserialize /=.
+elim => //=.
+move => b n' v IH bs.
+by rewrite IH.
+Qed.
+*)
+
+Definition Bvector_serializableMixin :=
+SerializableCommFinGroupMixin Bvector_serialize_deserialize_id.
+
+Canonical Bvector_serializableCommFinGroupType :=
+SerializableCommFinGroupType (Bvector_commFinGroupType n) Bvector_serializableMixin.
+
+End BitVectorSerialization.

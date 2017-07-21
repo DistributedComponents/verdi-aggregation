@@ -10,7 +10,7 @@ module TreeArrangement = struct
   type client_id = string
   type res = (output list * state) * ((name * msg) list)
   type task_handler = name -> state -> res
-  type timeout_setter = name -> state -> float
+  type timeout_setter = name -> state -> float option
 
   let systemName : string = "Dynamic Tree Building Protocol"
 
@@ -65,7 +65,7 @@ module TreeArrangement = struct
 
   let setBroadcastTimeout : timeout_setter =
     fun n s ->
-      5.0
+      Some 5.0
 
   let timeoutTasks = [(deliverBroadcastHandler, setBroadcastTimeout)]
 end

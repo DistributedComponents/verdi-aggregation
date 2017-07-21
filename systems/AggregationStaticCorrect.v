@@ -18,6 +18,7 @@ Require Import Orders.
 Require Import MSetFacts.
 Require Import MSetProperties.
 Require Import Sorting.Permutation.
+Require FMapFacts.
 
 Require Import mathcomp.ssreflect.ssreflect.
 Require Import mathcomp.ssreflect.ssrbool.
@@ -25,6 +26,8 @@ Require Import mathcomp.ssreflect.eqtype.
 Require Import mathcomp.ssreflect.fintype.
 Require Import mathcomp.ssreflect.finset.
 Require Import mathcomp.fingroup.fingroup.
+
+Require Import commfingroup.
 
 Require Import AAC_tactics.AAC.
 
@@ -60,7 +63,7 @@ Module NSetFacts := Facts NSet.
 Module NSetProps := Properties NSet.
 Module NSetOrdProps := OrdProperties NSet.
 
-Require Import FMapFacts.
+Import FMapFacts.
 Module NMapFacts := Facts NMap.
 
 Instance Aggregation_FailureRecorder_base_params_pt_map : BaseParamsPartialMap Aggregation_BaseParams FR.FailureRecorder_BaseParams :=
@@ -142,7 +145,7 @@ Instance Aggregation_FailureRecorder_name_overlay_params_tot_map_congruency : Na
 Theorem Aggregation_Failed_pt_mapped_simulation_star_1 :
 forall net failed tr,
     @step_ordered_failure_star _ _ _ Aggregation_FailMsgParams step_ordered_failure_init (failed, net) tr ->
-    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (pt_map_traces tr).
+    @step_ordered_failure_star _ _ _ FR.FailureRecorder_FailMsgParams step_ordered_failure_init (failed, pt_map_onet net) (filterMap pt_map_trace_ev tr).
 Proof.
 move => onet failed tr H_st.
 apply step_ordered_failure_pt_mapped_simulation_star_1 in H_st.
@@ -194,7 +197,7 @@ move => H_in.
 case: H_inv'.
 rewrite /= /id /=.
 move: H_in.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_in_adj_adjacent_to :
@@ -233,7 +236,7 @@ right.
 move: H_inv' => [H_in_f' H_inv'].
 split => //.
 move: H_inv'.
-apply: in_pt_map_msgs_in_msg; last exact: pt_fail_msg_fst_snd.
+apply: in_filterMap_pt_map_msg_in_msg; last exact: pt_fail_msg_fst_snd.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -253,7 +256,7 @@ set c1 := count_occ _ _ _.
 set c2 := count_occ _ _ _.
 suff H_suff: c1 = c2 by rewrite -H_suff.
 rewrite /c1 /c2 {c1 c2}.
-apply: count_occ_pt_map_msgs_eq => //.
+apply: count_occ_filterMap_pt_map_msg_eq => //.
 exact: Aggregation_pt_map_msg_injective.
 Qed.
 
@@ -285,7 +288,7 @@ have H_inv' := FRC.Failure_in_queue_fail_then_adjacent H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_ins.
-exact: in_msg_pt_map_msgs.
+exact: in_msg_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_first_fail_in_adj : 
@@ -302,7 +305,7 @@ have H_inv' := FRC.Failure_first_fail_in_adj H_st' _ n' H_in_f.
 apply: H_inv'.
 rewrite /= /id /=.
 move: H_eq.
-exact: hd_error_pt_map_msgs.
+exact: hd_error_filterMap_pt_map_msg.
 Qed.
 
 Lemma Aggregation_adjacent_failed_incoming_fail : 
@@ -656,7 +659,7 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
@@ -664,14 +667,14 @@ end; simpl.
     have IH' := IHrefl_trans_1n_trace1 _ H0 n' m'.
     rewrite H2 /= in IH'.
     case: IH' => IH'; last by move: IH' => [H_neq H_bef].
-    exact: before_all_not_in.
+    exact: before_all_not_in_1.
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H1 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: before_all_not_in.
+    case: IH' => IH'; first exact: before_all_not_in_1.
     by move: IH' => [H_neq H_bef].
   * rewrite /update2 /=.
     case (sumbool_and _ _ _ _) => H_dec; last exact: IHrefl_trans_1n_trace1.
@@ -679,7 +682,7 @@ end; simpl.
     rewrite H_eq H_eq' in H2.
     have IH' := IHrefl_trans_1n_trace1 _ H9 n' m'.
     rewrite H2 /= in IH'.
-    case: IH' => IH'; first exact: before_all_not_in.
+    case: IH' => IH'; first exact: before_all_not_in_1.
     by move: IH' => [H_neq H_bef].
 - move {H1}. 
   find_apply_lem_hyp input_handlers_IOHandler.
@@ -690,7 +693,11 @@ end; simpl.
     move: H_dec => [H_eq H_eq'].
     rewrite H_eq H_eq'.
     rewrite H_eq in H2.
-    apply: before_all_not_in_append.
+    apply: before_all_not_in_2.
+    move => H_in.
+    apply in_app_or in H_in.
+    case: H_in => H_in; last by case: H_in.
+    contradict H_in.
     exact: Aggregation_not_failed_no_fail H _ _ H2.
   * exact: IHrefl_trans_1n_trace1.
   * exact: IHrefl_trans_1n_trace1.
@@ -1901,6 +1908,7 @@ end; simpl.
       exact: IHH_st1.
   * have H_f := Aggregation_in_queue_fail_then_adjacent H_st1 to from H1.
     rewrite H0 in H_f.
+    simpl in *.
     concludes.
     suff H_suff: NSet.In from (adjacent (onwState net to)).
       have [m' H_ex] := Aggregation_in_set_exists_find_balance H_st1 _ H1 H_suff.
