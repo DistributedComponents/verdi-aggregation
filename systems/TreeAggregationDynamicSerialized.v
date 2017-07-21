@@ -17,8 +17,7 @@ Require Import serializablecommfingroup.
 Require Import TreeAggregationDynamic.
 
 Require Import Cheerios.Cheerios.
-
-Require Import VerdiCheerios.SerializedParams.
+Require Import VerdiCheerios.SerializedMsgParams.
 
 Import DeserializerNotations.
 
@@ -47,25 +46,26 @@ Import TANS.
 
 Import fingroup.GroupScope.
 
-Definition option_lv_serialize (lvo : option lv) : list bool :=
+(*
+Definition option_lv_serialize (lvo : option lv) :=
 match lvo with
-| None => [false]
-| Some lv => [true] ++ serialize lv
+| None => serialize x00
+| Some lv => Serializer.append (serialize x01) (serialize lv)
 end.
 
-Definition option_lv_deserialize : deserializer (option lv) :=
+Definition option_lv_deserialize : Deserializer.t (option lv) :=
 tag <- deserialize ;;
 match tag with
-| false => ret None
-| true => Some <$> deserialize
+| x00 => Deserializer.ret None
+| x01 => Some <$> deserialize
+| _ => Deserializer.error
 end.
 
 Lemma option_lv_serialize_deserialize_id :
   serialize_deserialize_id_spec option_lv_serialize option_lv_deserialize.
 Proof.
 rewrite /option_lv_serialize /option_lv_deserialize.
-case; serialize_deserialize_id_crush.
-by rewrite /= nat_serialize_deserialize_id.
+case; repeat (cheerios_crush; simpl).
 Qed.
 
 Instance option_lv_Serialize : Serializer (option lv) :=
@@ -74,42 +74,38 @@ Instance option_lv_Serialize : Serializer (option lv) :=
     deserialize := option_lv_deserialize ;
     serialize_deserialize_id := option_lv_serialize_deserialize_id
   }.
+*)
 
-Definition Msg_serialize (msg: Msg) : list bool :=
+Definition Msg_serialize (msg: Msg) :=
   match msg with
   | Aggregate m => 
-    [false; false] ++ serialize m
-  | Fail => 
-    [false; true]
+    IOStreamWriter.append (fun _ => serialize x00) (fun _ => serialize m)
+  | Fail => serialize x01
   | Level lvo => 
-    [true; false] ++ serialize lvo
-  | New => 
-    [true; true]
+    IOStreamWriter.append (fun _ => serialize x02) (fun _ => serialize lvo)
+  | New => serialize x03
   end.
 
-Definition Msg_deserialize : deserializer Msg :=
-  tag1 <- deserialize ;;
-  tag2 <- deserialize ;;
-  match tag1, tag2 with
-  | false, false => 
+Definition Msg_deserialize : ByteListReader.t Msg :=
+  tag <- deserialize ;;
+  match tag with
+  | x00 =>
     m <- deserialize ;;
-    ret (Aggregate m)
-  | false, true => 
-    ret Fail
-  | true, false =>
+    ByteListReader.ret (Aggregate m)
+  | x01 => ByteListReader.ret Fail
+  | x02 =>
     lvo <- deserialize ;;
-    ret (Level lvo)
-  | true, true => 
-    ret New
+    ByteListReader.ret (Level lvo)
+  | x03 => ByteListReader.ret New
+  | _ => ByteListReader.error
   end.
 
 Lemma Msg_serialize_deserialize_id :
   serialize_deserialize_id_spec Msg_serialize Msg_deserialize.
 Proof.
 rewrite /Msg_serialize /Msg_deserialize.
-case; serialize_deserialize_id_crush.
-- by rewrite /= serializeg_deserializeg_id.
-- by rewrite /= option_lv_serialize_deserialize_id.
+case; repeat (cheerios_crush; simpl).
+by rewrite serializeg_deserializeg_id; cheerios_crush.
 Qed.
 
 Instance Msg_Serializer : Serializer Msg :=
@@ -117,95 +113,6 @@ Instance Msg_Serializer : Serializer Msg :=
     serialize := Msg_serialize ;
     deserialize := Msg_deserialize ;
     serialize_deserialize_id := Msg_serialize_deserialize_id
-  }.
-
-Definition Input_serialize (inp : Input) : list bool :=
-  match inp with
-  | Local m => 
-    [false; false; false] ++ serialize m
-  | SendAggregate => 
-    [false; false; true]
-  | AggregateRequest s => 
-    [false; true; false] ++ serialize s
-  | LevelRequest s =>
-    [false; true; true] ++ serialize s
-  | Broadcast => 
-    [true; false; false]
-  end.
-
-Definition Input_deserialize : deserializer Input :=
-  tag1 <- deserialize ;;
-  tag2 <- deserialize ;;
-  tag3 <- deserialize ;;
-  match tag1, tag2, tag3 with
-  | false, false, false => 
-    m <- deserialize ;;
-    ret (Local m)
-  | false, false, true => 
-    ret SendAggregate
-  | false, true, false =>
-    s <- deserialize ;;
-    ret (AggregateRequest s)
-  | false, true, true =>
-    s <- deserialize ;;
-    ret (LevelRequest s)
-  | true, false, false =>
-    ret Broadcast
-  | _, _, _ => fail
-  end.
-
-Lemma Input_serialize_deserialize_id :
-  serialize_deserialize_id_spec Input_serialize Input_deserialize.
-Proof.
-rewrite /Input_serialize /Input_deserialize.
-case; serialize_deserialize_id_crush.
-- by rewrite /= serializeg_deserializeg_id.
-- by rewrite /= string_serialize_deserialize_id.
-- by rewrite /= string_serialize_deserialize_id.
-Qed.
-
-Instance Input_Serializer : Serializer Input :=
-  {
-    serialize := Input_serialize ;
-    deserialize := Input_deserialize ;
-    serialize_deserialize_id := Input_serialize_deserialize_id
-  }.
-
-Definition Output_serialize (out : Output) : list bool :=
-  match out with
-  | AggregateResponse s m => 
-    [false] ++ serialize s ++ serialize m
-  | LevelResponse s lvo => 
-    [true] ++ serialize s ++ serialize lvo
-  end.
-
-Definition Output_deserialize : deserializer Output :=
-  tag <- deserialize ;;
-  match tag with
-  | false =>
-    s <- deserialize ;;
-    m <- deserialize ;;
-    ret (AggregateResponse s m)
-  | true =>
-    s <- deserialize ;;
-    lvo <- deserialize ;;
-    ret (LevelResponse s lvo)
-  end.
-
-Lemma Output_serialize_deserialize_id :
-  serialize_deserialize_id_spec Output_serialize Output_deserialize.
-Proof.
-rewrite /Output_serialize /Output_deserialize.
-case; serialize_deserialize_id_crush.
-- by rewrite /= string_serialize_deserialize_id serializeg_deserializeg_id.
-- by rewrite /= string_serialize_deserialize_id option_lv_serialize_deserialize_id.
-Qed.
-
-Instance Output_Serializer : Serializer Output :=
-  {
-    serialize := Output_serialize ;
-    deserialize := Output_deserialize ;
-    serialize_deserialize_id := Output_serialize_deserialize_id
   }.
 
 Definition TreeAggregation_SerializedBaseParams :=

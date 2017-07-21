@@ -279,12 +279,21 @@ Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
 End BitVectorRing.
 
 Require Import serializablecommfingroup.
+
 Require Import Cheerios.Cheerios.
 
 Section BitVectorSerialization.
 
 Variable n : nat.
 
+Axiom Bvector_serialize : forall (v : Bvector n), IOStreamWriter.t.
+
+Axiom Bvector_deserialize : ByteListReader.t (Bvector n).
+
+Axiom Bvector_serialize_deserialize_id :
+  serialize_deserialize_id_spec Bvector_serialize Bvector_deserialize.
+
+(*
 Definition serialize (v : Bvector n) : list bool :=
 Vector.to_list v.
 
@@ -309,9 +318,10 @@ elim => //=.
 move => b n' v IH bs.
 by rewrite IH.
 Qed.
+*)
 
 Definition Bvector_serializableMixin :=
-SerializableCommFinGroupMixin serialize_deserialize_id.
+SerializableCommFinGroupMixin Bvector_serialize_deserialize_id.
 
 Canonical Bvector_serializableCommFinGroupType :=
 SerializableCommFinGroupType (Bvector_commFinGroupType n) Bvector_serializableMixin.

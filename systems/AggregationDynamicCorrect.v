@@ -12,11 +12,12 @@ Require Import AggregatorDynamic.
 Require Import AggregationDynamic.
 Require Import FailureRecorderDynamicCorrect.
 
+Require Import FunctionalExtensionality.
 Require Import Sumbool.
 Require Import Orders.
+Require Import Sorting.Permutation.
 Require Import MSetFacts.
 Require Import MSetProperties.
-Require Import Sorting.Permutation.
 Require FMapFacts.
 
 Require Import mathcomp.ssreflect.ssreflect.
@@ -3695,8 +3696,6 @@ end; simpl in *.
     case: H_in.
     by rewrite collate_neq.
 Qed.
-
-Require Import FunctionalExtensionality.
 
 Lemma sum_fail_map_incoming_collate_ls_filter_rel_not_in_eq :
   forall l ns h f adj map,
