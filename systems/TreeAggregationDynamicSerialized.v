@@ -12,6 +12,7 @@ Require Import mathcomp.ssreflect.ssrbool.
 Require mathcomp.fingroup.fingroup.
 
 Require Import commfingroup.
+Require Import serializable.
 Require Import serializablecommfingroup.
 
 Require Import TreeAggregationDynamic.
@@ -44,45 +45,17 @@ Module TreeAggregationSerialized (Import NT : NameType)
 Module TANS := TreeAggregation NT NOT NSet NOTC NMap RNT SCFG.CFG ANT TA AD.
 Import TANS.
 
-Import fingroup.GroupScope.
-
-(*
-Definition option_lv_serialize (lvo : option lv) :=
-match lvo with
-| None => serialize x00
-| Some lv => Serializer.append (serialize x01) (serialize lv)
-end.
-
-Definition option_lv_deserialize : Deserializer.t (option lv) :=
-tag <- deserialize ;;
-match tag with
-| x00 => Deserializer.ret None
-| x01 => Some <$> deserialize
-| _ => Deserializer.error
-end.
-
-Lemma option_lv_serialize_deserialize_id :
-  serialize_deserialize_id_spec option_lv_serialize option_lv_deserialize.
-Proof.
-rewrite /option_lv_serialize /option_lv_deserialize.
-case; repeat (cheerios_crush; simpl).
-Qed.
-
-Instance option_lv_Serialize : Serializer (option lv) :=
-  {
-    serialize := option_lv_serialize ;
-    deserialize := option_lv_deserialize ;
-    serialize_deserialize_id := option_lv_serialize_deserialize_id
-  }.
-*)
+Notation "a $ b" := 
+  (IOStreamWriter.append (fun _ => a) (fun _ => b))
+    (at level 100, right associativity).
 
 Definition Msg_serialize (msg: Msg) :=
   match msg with
   | Aggregate m => 
-    IOStreamWriter.append (fun _ => serialize x00) (fun _ => serialize m)
+    serialize x00 $ serialize m
   | Fail => serialize x01
   | Level lvo => 
-    IOStreamWriter.append (fun _ => serialize x02) (fun _ => serialize lvo)
+    serialize x02 $ serialize lvo
   | New => serialize x03
   end.
 
@@ -105,7 +78,8 @@ Lemma Msg_serialize_deserialize_id :
 Proof.
 rewrite /Msg_serialize /Msg_deserialize.
 case; repeat (cheerios_crush; simpl).
-by rewrite serializeg_deserializeg_id; cheerios_crush.
+rewrite (@serialize_deserialize_id _ (serializable_Serializer _)).
+by cheerios_crush. 
 Qed.
 
 Instance Msg_Serializer : Serializer Msg :=

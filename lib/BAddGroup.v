@@ -2,21 +2,25 @@ From mathcomp.ssreflect
 Require Import ssreflect ssrfun ssrbool eqtype ssrnat seq.
 From mathcomp.ssreflect
 Require Import choice fintype div path bigop prime finset.
-From mathcomp.fingroup
-Require Import fingroup.
 From mathcomp.algebra
 Require Import ssralg finalg.
 
-Require Import Bvector ZArith Zdigits.
+From mathcomp.fingroup
+Require Import fingroup.
+Require Import commfingroup.
+Require Import serializablecommfingroup.
+
+Require Import Cheerios.Cheerios.
+
+Require Import Bvector.
+Require Import ZArith. 
+Require Import Zdigits.
 
 Require Import BBase.
 Require Import BAddMul.
-
 Require Import NatPowLt.
 
-Require Import commfingroup.
-
-Section BitVectorGroup.
+Section BVectorFinGroup.
 
 Variable n : nat.
 
@@ -231,6 +235,7 @@ Qed.
 Definition Bvector_finMixin := PcanFinMixin pcancel_Bvector_to_I2n.
 Canonical Bvector_finType := Eval hnf in FinType (Bvector n) Bvector_finMixin.
 Canonical Bvector_finZmodType := Eval hnf in [finZmodType of Bvector n].
+
 Canonical Bvector_baseFinGroupType := Eval hnf in [baseFinGroupType of Bvector n for +%R].
 Canonical Bvector_finGroupType := Eval hnf in [finGroupType of Bvector n for +%R].
 
@@ -240,7 +245,12 @@ Proof. exact: Bvector_addC. Qed.
 Definition Bvector_commFinGroupMixin := CommFinGroupMixin Bvector_mulgC.
 Canonical Bvector_commFinGroupType := Eval hnf in CommFinGroupType _ Bvector_commFinGroupMixin.
 
-End BitVectorGroup.
+Definition Bvector_serializableCommFinGroupMixin := 
+  @SerializableCommFinGroupMixin Bvector_commFinGroupType _ _ serialize_deserialize_id.
+Canonical Bvector_serializableCommFinGroupType := 
+  Eval hnf in SerializableCommFinGroupType _ Bvector_serializableCommFinGroupMixin.
+
+End BVectorFinGroup.
 
 Section BitVectorMul.
 
@@ -277,53 +287,3 @@ Canonical Bvector_comRingType := Eval hnf in ComRingType (Bvector n) (@Bvector_m
 Canonical Bvector_finComRingType := Eval hnf in [finComRingType of Bvector n].
 
 End BitVectorRing.
-
-Require Import serializablecommfingroup.
-
-Require Import Cheerios.Cheerios.
-
-Section BitVectorSerialization.
-
-Variable n : nat.
-
-Axiom Bvector_serialize : forall (v : Bvector n), IOStreamWriter.t.
-
-Axiom Bvector_deserialize : ByteListReader.t (Bvector n).
-
-Axiom Bvector_serialize_deserialize_id :
-  serialize_deserialize_id_spec Bvector_serialize Bvector_deserialize.
-
-(*
-Definition serialize (v : Bvector n) : list bool :=
-Vector.to_list v.
-
-Fixpoint deserialize_aux k (bs : list bool) : option (Bvector k * list bool) :=
-match k, bs with
-| 0, bs' => Some (Bnil, bs')
-| S k', [::] => None
-| S k', (b :: bs')%SEQ =>
-  match deserialize_aux k' bs' with
-  | None => None
-  | Some (v, bs'') => Some (Bcons b k' v, bs'')
-  end
-end.
-
-Definition deserialize (bs : list bool) : option (Bvector n * list bool) :=
-deserialize_aux n bs.
-
-Lemma serialize_deserialize_id : serialize_deserialize_id_spec serialize deserialize.
-Proof.
-rewrite /serialize /deserialize /=.
-elim => //=.
-move => b n' v IH bs.
-by rewrite IH.
-Qed.
-*)
-
-Definition Bvector_serializableMixin :=
-SerializableCommFinGroupMixin Bvector_serialize_deserialize_id.
-
-Canonical Bvector_serializableCommFinGroupType :=
-SerializableCommFinGroupType (Bvector_commFinGroupType n) Bvector_serializableMixin.
-
-End BitVectorSerialization.

@@ -13,7 +13,7 @@ Require Import Verdi.ExtrOcamlNatIntExt.
 
 Require Import Verdi.ExtrOcamlBool.
 Require Import Verdi.ExtrOcamlList.
-Require Import Verdi.ExtrOcamlFin.
+Require Import Verdi.ExtrOcamlFinInt.
 
 Require Import ExtractZTreeAggregationDynamicDeps.
 

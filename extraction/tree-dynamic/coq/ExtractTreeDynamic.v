@@ -15,7 +15,7 @@ Require Import Verdi.ExtrOcamlNatIntExt.
 
 Require Import Verdi.ExtrOcamlBool.
 Require Import Verdi.ExtrOcamlList.
-Require Import Verdi.ExtrOcamlFin.
+Require Import Verdi.ExtrOcamlFinInt.
 
 Module NumNames : NatValue. Definition n := 5. End NumNames.
 Module Names := FinName NumNames.

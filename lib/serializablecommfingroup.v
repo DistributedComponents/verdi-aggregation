@@ -2,8 +2,8 @@ From mathcomp
 Require Import ssreflect ssrfun fingroup.
 
 Require Import commfingroup.
-
 Require Import Cheerios.Cheerios.
+Require Import serializable.
 
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -14,9 +14,9 @@ Import GroupScope.
 Module SerializableCommFinGroup.
 
 Structure mixin_of (gT : commFinGroupType) := Mixin {
-  serialize : gT -> IOStreamWriter.t ;
-  deserialize : ByteListReader.t gT ;
-  _ : serialize_deserialize_id_spec serialize deserialize
+  ser_gT : gT -> IOStreamWriter.t ;
+  deser_gT : ByteListReader.t gT ;
+  _ : serialize_deserialize_id_spec ser_gT deser_gT
 }.
 
 Structure type : Type := Pack {
@@ -38,19 +38,16 @@ End Exports.
 End SerializableCommFinGroup.
 Export SerializableCommFinGroup.Exports.
 
-Section SerializerDefs.
+Section SerializableCommGroupDefs.
 
-Variable T : serializableCommFinGroupType.
+Variable gT : serializableCommFinGroupType.
 
-Lemma serializeg_deserializeg_id : 
-  serialize_deserialize_id_spec (SerializableCommFinGroup.serialize T) (SerializableCommFinGroup.deserialize T).
-Proof. by case: T => ? []. Qed.
+Lemma ser_gT_deser_gT_id : 
+  serialize_deserialize_id_spec (SerializableCommFinGroup.ser_gT gT) (SerializableCommFinGroup.deser_gT gT).
+Proof. by case: gT => ? []. Qed.
 
-Global Instance FinGroupSerializer : Serializer T :=
-  {
-    serialize := SerializableCommFinGroup.serialize T ;
-    deserialize := SerializableCommFinGroup.deserialize T ;
-    serialize_deserialize_id := serializeg_deserializeg_id
-  }.
+Definition serCFG_serializableMixin := SerializableMixin ser_gT_deser_gT_id.
 
-End SerializerDefs.
+Canonical serCFG_serializableType := Eval hnf in SerializableType gT serCFG_serializableMixin.
+
+End SerializableCommGroupDefs.
